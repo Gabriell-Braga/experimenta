@@ -102,3 +102,9 @@
 - Arquivos principais: packages/snippet/src/{tracker,goals,qa,main}.ts, docs/EVENTOS.md, e2e/tests/tracking.spec.ts
 - Como testar manualmente: pnpm e2e (tracking.spec.ts); no demo com snippet publicado, abrir /?ab_force=<exp>:<var>
 - Observações: ver D-012.
+
+### Resumo da Fase 2 — Snippet de runtime
+- Entregue: runtime `@abtest/snippet` (6,2 KB gzip): config embutida no JS da conta (D-008), visitante em cookie first-party + localStorage, segmentação (URL/dispositivo/query/novo-recorrente), bucketing murmurhash3 com tráfego, pesos e persistência, bots ignorados, anti-flicker por elemento (+ modo página, timeout 1500 ms), SPA (pushState/replaceState/popstate com revert), customCSS/JS, redirect, eventos (exposure/conversion/selector_failed/selector_healed) com sendBeacon em lote e adaptadores, metas (clique, URL, form, custom), modo QA com selo. Contrato em docs/EVENTOS.md.
+- Testes: 51 unitários (snippet) + 8 E2E Playwright (anti-flicker por frames e pixels, SPA, tracking, QA, bots).
+- Limitações: segmentação por dispositivo é por UA/largura no load; customJS roda via `<script>` inline (sites com CSP sem 'unsafe-inline' bloqueiam); sem deduplicação de conversões no cliente.
+- Como testar: `pnpm --filter @abtest/snippet test`, `pnpm e2e`.

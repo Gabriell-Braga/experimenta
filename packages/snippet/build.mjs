@@ -13,4 +13,11 @@ await build({
   legalComments: 'none',
 });
 const code = readFileSync('dist/abt.js');
-console.log(`[snippet] dist/abt.js ${code.length} B, gzip ${gzipSync(code, { level: 9 }).length} B`);
+const gz = gzipSync(code, { level: 9 }).length;
+console.log(`[snippet] dist/abt.js ${code.length} B, gzip ${gz} B`);
+// Meta do plano: runtime < 10 KB gzip (a config embutida é medida à parte).
+const LIMIT = 10 * 1024;
+if (gz > LIMIT) {
+  console.error(`[snippet] ERRO: ${gz} B gzip excede o limite de ${LIMIT} B`);
+  process.exit(1);
+}
