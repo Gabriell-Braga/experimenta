@@ -71,3 +71,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Conversões são atribuídas a todos os experimentos em que o visitante está (atribuições persistidas), não só aos ativos na página — a meta costuma estar em outra URL.
 - Modo QA (`?ab_force=exp:var`) ignora segmentação/tráfego, não persiste atribuição, fica salvo na sessão (`?ab_force=off` limpa) e marca eventos com `qa: true` em vez de suprimi-los (o analytics filtra; facilita depurar a integração).
 - Integração sem código: `CustomEvent('abt:event')` no window e adaptadores via `abq.push(['adapter', fn])`.
+
+## D-013 — Protocolo RPC app ↔ agent
+- Envelope `{abt:1, kind:'req'|'res'|'evt'}` sobre postMessage; os dois lados podem chamar métodos e emitir eventos (`createPeer`).
+- Segurança: `origin` exato obrigatório (nunca `'*'`), usado como targetOrigin no envio e conferido junto com `event.source` em toda mensagem recebida. Parâmetros, resultados e eventos são validados com zod; mensagens inválidas são ignoradas.
+- Contrato em `packages/shared/src/rpc.ts`: agent expõe `ping`, `setMode`, `applyVariation` (sempre a lista COMPLETA de operações: o agent reverte e reaplica, simples e sem estado divergente), `select`, `highlight`; app expõe `prompt` (pedir HTML/URL de imagem ao usuário); agent emite `ready`, `selected`, `operation` (rascunho sem id/ordem — o app numera), `navigated`.

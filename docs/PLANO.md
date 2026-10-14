@@ -88,7 +88,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 2.6 Medir e registrar o tamanho gzip em PROGRESSO.md
 
 ### Fase 3 — Editor (núcleo)
-- [ ] 3.1 Protocolo RPC tipado app ↔ agent, com testes
+- [x] 3.1 Protocolo RPC tipado app ↔ agent, com testes
 - [ ] 3.2 Handshake seguro e carregamento do agent pelo snippet
 - [ ] 3.3 Agent: hover com contorno e label, seleção, breadcrumb de ancestrais (Shadow DOM)
 - [ ] 3.4 Agent: edição de texto inline, arrastar para mover, menu de contexto (editar, esconder, remover, inserir antes/depois, trocar imagem, copiar seletor)

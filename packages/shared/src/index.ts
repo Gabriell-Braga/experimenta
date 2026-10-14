@@ -3,3 +3,5 @@ export * from './operations';
 export * from './experiment';
 export * from './config';
 export * from './events';
+export * from './rpc';
+export * from './rpc-peer';

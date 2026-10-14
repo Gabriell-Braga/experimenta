@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.1 — Protocolo RPC tipado app ↔ agent, com testes
-**Última atualização:** 2026-10-14 04:03
-**Próximo passo:** Criar packages/shared/src/rpc.ts: schemas zod das mensagens (request/response/event com id, canal 'abt'), mapa de métodos tipado (app→agent e agent→app) e cliente createRpc(janela, origin) com timeout e validação; testes.
+**Tarefa atual:** 3.2 — Handshake seguro e carregamento do agent pelo snippet
+**Última atualização:** 2026-10-14 04:06
+**Próximo passo:** API: POST /edit-sessions (cria token curto: conta+origin do app, 15 min) e GET /edit-sessions/:token; servir /cdn estático (pasta cdn/) com abt.js, agent.js e <conta>.js. Snippet: com ?abt_edit=<token> e dentro de iframe → valida token na API (apiUrl na config) → postMessage 'hello' para o origin do app → espera 'hello-ack' com o mesmo token vindo do parent e do origin exato → carrega agent.js. Não aplica experimentos no modo edição. Testes unitários e E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -115,3 +115,9 @@
 - Testes: 51 unitários (snippet) + 8 E2E Playwright (anti-flicker por frames e pixels, SPA, tracking, QA, bots).
 - Limitações: segmentação por dispositivo é por UA/largura no load; customJS roda via `<script>` inline (sites com CSP sem 'unsafe-inline' bloqueiam); sem deduplicação de conversões no cliente.
 - Como testar: `pnpm --filter @abtest/snippet test`, `pnpm e2e`.
+
+### 2026-10-14 04:06 — Tarefa 3.1 concluída
+- O que foi feito: schemas do protocolo (ElementInfo, VariationPayload, ApplyResult, OperationDraft, métodos/eventos dos dois lados, envelope) e createPeer tipado com validação, timeout, origem exata e dispose.
+- Arquivos principais: packages/shared/src/{rpc,rpc-peer}.ts
+- Como testar manualmente: pnpm --filter @abtest/shared test
+- Observações: ver D-013.
