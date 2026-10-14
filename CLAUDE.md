@@ -41,6 +41,9 @@ Pacotes internos exportam `src/index.ts` direto (sem build) — Vite/esbuild/Vit
 ## API (apps/api)
 Hono + `@hono/zod-openapi` (`src/app.ts`): OpenAPI em `/openapi.json`, Swagger em `/docs`. Auth: `POST /auth/login` → JWT HS256 (12 h, `JWT_SECRET`); middleware recarrega o usuário a cada requisição; conta SEMPRE vem do token. Papéis: viewer (lê), editor (salva), owner; publicar customJS exige owner ou `can_publish_js`. Seed de dev (`src/seed.ts`, conta `demo`): demo@abtest.dev (owner), editor@abtest.dev, viewer@abtest.dev — senha `demo1234`.
 
+## Extensão (apps/extension)
+MV3, fallback para sites que bloqueiam iframe ou não têm snippet. `pnpm --filter @abtest/extension build` → `apps/extension/dist` (carregar sem compactação; `EDITOR_ORIGINS` define onde a ponte é injetada). Regras DNR só na aba do editor + sub_frame + origin do site (`src/session.ts`). O editor tenta a extensão após 5 s sem `hello`. Demo `/bloqueado/*` envia XFO DENY + CSP frame-ancestors. E2E carrega a extensão com `chromium.launchPersistentContext` (`e2e/tests/extension.spec.ts`).
+
 ## Banco (apps/api)
 Schema Drizzle em `apps/api/src/schema.ts`; migrações SQL em `apps/api/drizzle/` (gerar com `pnpm --filter @abtest/api db:generate` após mudar o schema) aplicadas automaticamente em `createDb` (PGlite ou Postgres). Acesso só via `createRepo` (`src/repo.ts`): toda função recebe `accountId` e filtra por ele.
 

@@ -13,8 +13,22 @@ const spaFallback: Plugin = {
   },
 };
 
+// /bloqueado/*: simula site que proíbe ser emoldurado (testa o fallback pela extensão).
+const blockFraming: Plugin = {
+  name: 'block-framing',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      if (req.url?.startsWith('/bloqueado/')) {
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+      }
+      next();
+    });
+  },
+};
+
 export default defineConfig({
-  plugins: [react(), spaFallback],
+  plugins: [react(), spaFallback, blockFraming],
   appType: 'mpa',
   build: {
     rollupOptions: {
@@ -23,6 +37,8 @@ export default defineConfig({
         produto: resolve(__dirname, 'produto.html'),
         obrigado: resolve(__dirname, 'obrigado.html'),
         spa: resolve(__dirname, 'spa/index.html'),
+        bloqueadoComSnippet: resolve(__dirname, 'bloqueado/com-snippet.html'),
+        bloqueadoSemSnippet: resolve(__dirname, 'bloqueado/sem-snippet.html'),
       },
     },
   },

@@ -105,7 +105,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 
 ### Fase 5 — Extensão Chrome
 - [x] 5.1 Remoção de headers só nas sessões de edição + injeção do agent
-- [ ] 5.2 Página demo que envia X-Frame-Options/CSP e teste da extensão
+- [x] 5.2 Página demo que envia X-Frame-Options/CSP e teste da extensão
 
 ### Fase 6 — Robustez
 - [ ] 6.1 Painel de saúde com selector_failed / selector_healed por experimento

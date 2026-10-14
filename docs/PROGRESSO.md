@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 5 — Extensão Chrome
-**Tarefa atual:** 5.2 — Página demo que envia X-Frame-Options/CSP e teste da extensão
-**Última atualização:** 2026-10-14 04:53
-**Próximo passo:** Servir no demo (porta 5181, servidor Node simples) páginas com X-Frame-Options: DENY + CSP frame-ancestors 'none' — uma com snippet e outra sem; E2E com chromium persistente carregando apps/extension/dist: sem extensão o iframe não carrega; com extensão o editor conecta (fallback automático), edita e o agent funciona; outra aba sem sessão continua bloqueada.
+**Fase atual:** 6 — Robustez
+**Tarefa atual:** 6.1 — Painel de saúde com selector_failed / selector_healed por experimento
+**Última atualização:** 2026-10-14 04:55
+**Próximo passo:** API: GET /experiments/{id}/health agregando events (selector_failed/selector_healed por operação: contagem, último seletor curado, via, última ocorrência, exposições para taxa) com account_id; editor: aba/painel 'Saúde' listando operações com falhas/curas (link para destacar no site e botão 'adotar seletor curado' que troca o seletor principal da operação). Testes API + E2E (visitante gera falha/cura em página publicada → painel mostra).
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -206,3 +206,9 @@
 - Arquivos principais: apps/extension/src/*, apps/extension/build.mjs, apps/editor/src/{extension.ts,EditorView.tsx}
 - Como testar manualmente: pnpm --filter @abtest/extension build; chrome://extensions → modo desenvolvedor → carregar apps/extension/dist; abrir no editor um site que bloqueia iframe (5.2).
 - Observações: ver D-024 (SameSite não reescrito).
+
+### 2026-10-14 04:55 — Tarefa 5.2 concluída
+- O que foi feito: demo /bloqueado/com-snippet.html e /bloqueado/sem-snippet.html com X-Frame-Options DENY + CSP frame-ancestors 'none' (middleware do Vite); E2E com Chromium + extensão carregada: fallback automático e edição no site bloqueado, injeção em site sem snippet, outra aba continua bloqueada, aviso quando não há extensão.
+- Arquivos principais: apps/demo/bloqueado/*.html, apps/demo/vite.config.ts, e2e/tests/extension.spec.ts
+- Como testar manualmente: carregar apps/extension/dist no Chrome; no editor, URL http://localhost:5180/bloqueado/sem-snippet.html
+- Observações: SameSite não reescrito (D-024).
