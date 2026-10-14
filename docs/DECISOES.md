@@ -25,3 +25,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Experimento referenciado por `key` legível (usado em `ab_force=chave:variacao`) e `id` interno; a primeira variação é o controle; pesos inteiros relativos.
 - Snippet só faz `import type` de shared (zod fica fora do bundle de 10 KB). A validação forte acontece na API e no editor; o snippet confia no JSON publicado.
 - Eventos de tracking têm `eventId` para deduplicação no analytics.
+
+## D-005 — Resolução de alvo
+- Cada operação age sobre UM elemento (o primeiro que casa). Motivo: a impressão digital e a cura só fazem sentido para um elemento; mudanças em listas usam customCSS ou uma operação por item.
+- Cura por impressão digital: varre elementos da mesma tag, pontua texto exato (+3), texto parcial (+1), atributos (id/data-* +2, demais +1), posição (<50 px +1, <200 px +0,5). Aceita só com pontuação ≥ 3 e vantagem ≥ 1 sobre o 2º colocado (evita curar para o elemento errado).
+- O seletor curado relatado no evento é um caminho nth-of-type curto (ancorado em id), gerado no próprio snippet — o gerador completo fica fora do bundle.

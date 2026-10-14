@@ -75,7 +75,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 
 ### Fase 1 — Motor de operações e seletores
 - [x] 1.1 Geração de seletores com prioridades e detecção de classes geradas
-- [ ] 1.2 Impressão digital e resolução com fallback (seletor curado)
+- [x] 1.2 Impressão digital e resolução com fallback (seletor curado)
 - [ ] 1.3 applyOperations com todos os tipos, idempotência e espera via MutationObserver
 - [ ] 1.4 Testes cobrindo DOM que muda e todos os tipos de operação
 

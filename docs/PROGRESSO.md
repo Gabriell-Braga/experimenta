@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 1 — Motor de operações e seletores
-**Tarefa atual:** 1.2 — Impressão digital e resolução com fallback
-**Última atualização:** 2026-10-14 03:44
-**Próximo passo:** Criar packages/selector/src/{fingerprint,resolve}.ts: fingerprint(el), resolveTarget(target, root) principal → alternativos → busca por impressão digital, retornando via e seletor curado; testes.
+**Tarefa atual:** 1.3 — applyOperations com todos os tipos, idempotência e MutationObserver
+**Última atualização:** 2026-10-14 03:46
+**Próximo passo:** Criar packages/snippet/src/engine/apply.ts: applyOperations(ops, {root, timeoutMs, onResolved, onFailed}) usando resolveTarget; WeakSet por operação; espera com MutationObserver até timeout; exportar para o agent.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -49,3 +49,9 @@
 - Arquivos principais: packages/selector/src/{stability,generate}.ts
 - Como testar manualmente: pnpm --filter @abtest/selector test
 - Observações: todo seletor gerado é validado como único no documento.
+
+### 2026-10-14 03:46 — Tarefa 1.2 concluída
+- O que foi feito: fingerprint(el); resolveTarget (principal → alternativos → impressão digital) com via e seletor curado; findByFingerprint com limiar e margem.
+- Arquivos principais: packages/selector/src/{fingerprint,resolve}.ts
+- Como testar manualmente: pnpm --filter @abtest/selector test
+- Observações: ver D-005.
