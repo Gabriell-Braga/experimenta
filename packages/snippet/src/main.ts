@@ -21,6 +21,8 @@ const config = readConfig();
 const token = config && editToken(window);
 if (config && token) {
   // Modo edição: a página fica original (sem experimentos); o agent aplica a variação em edição.
+  // A marca avisa a extensão (fallback) de que o site já tem o snippet.
+  document.documentElement.dataset.abtEditor = 'snippet';
   bootEditor(window, config, token, new URL('agent.js', script?.src || location.href).href);
 } else if (config) {
   const forced = readForce(window);

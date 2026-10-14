@@ -1,12 +1,13 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 5 — Extensão Chrome
-**Tarefa atual:** 5.1 — Remoção de headers só nas sessões de edição + injeção do agent
-**Última atualização:** 2026-10-14 04:50
-**Próximo passo:** Criar apps/extension (MV3): service worker que recebe do app (externally_connectable / postMessage via content script no app) o pedido de sessão {token, siteOrigin, tabId da aba do editor}; adiciona regras de sessão declarativeNetRequest (updateSessionRules) restritas a tabIds da aba do editor e a sub_frame do origin do site, removendo X-Frame-Options e frame-ancestors do CSP e reescrevendo SameSite; content script em all_frames que, só em frames com abt_edit e sessão ativa, injeta snippet/agent quando o site não tem o snippet; remover regras ao fechar a aba/expirar. Testes unitários das regras.
+**Tarefa atual:** 5.2 — Página demo que envia X-Frame-Options/CSP e teste da extensão
+**Última atualização:** 2026-10-14 04:53
+**Próximo passo:** Servir no demo (porta 5181, servidor Node simples) páginas com X-Frame-Options: DENY + CSP frame-ancestors 'none' — uma com snippet e outra sem; E2E com chromium persistente carregando apps/extension/dist: sem extensão o iframe não carrega; com extensão o editor conecta (fallback automático), edita e o agent funciona; outra aba sem sessão continua bloqueada.
 
 ## Bloqueios / perguntas para os humanos
-- (vazio)
+- (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
+- (não bloqueante) Arquitetura: a config publicada vai embutida em `/cdn/<conta>.js` (D-008) em vez de só JSON buscado pelo snippet — necessário para anti-flicker por elemento síncrono. O `.json` continua publicado para integrações.
 
 ## Histórico
 ### 2026-10-14 03:34 — Seção 1.1 (setup) concluída
@@ -199,3 +200,9 @@
 - Testes: API (rotas, permissões, isolamento, publicação, coleta) + E2E do fluxo completo com visitante real.
 - Limitações: sem refresh token/SSO; sessões de edição em memória; sem rate limit no /collect; "Publicar" publica a conta inteira (por design, um arquivo por conta); docker-compose não testado nesta máquina (PGlite usado).
 - Como testar: `pnpm dev` → http://localhost:5173 (demo@abtest.dev / demo1234); `pnpm e2e`.
+
+### 2026-10-14 04:53 — Tarefa 5.1 concluída
+- O que foi feito: apps/extension (MV3): session.ts (regras DNR por aba/sub_frame/origin, validação do pedido, expiração, storage), sw.ts, bridge.ts (ponte app↔SW), content.ts (injeta o script da conta se o site não tem snippet), build com manifest; snippet marca data-abt-editor; editor tenta a extensão após 5 s sem conexão e avisa se não houver.
+- Arquivos principais: apps/extension/src/*, apps/extension/build.mjs, apps/editor/src/{extension.ts,EditorView.tsx}
+- Como testar manualmente: pnpm --filter @abtest/extension build; chrome://extensions → modo desenvolvedor → carregar apps/extension/dist; abrir no editor um site que bloqueia iframe (5.2).
+- Observações: ver D-024 (SameSite não reescrito).

@@ -1,6 +1,7 @@
 import type { ApplyResult, ElementInfo } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { createEditSession, frameUrl, publish, saveExperiment, type ExperimentRecord } from './api';
+import { API_URL, createEditSession, frameUrl, publish, saveExperiment, type ExperimentRecord } from './api';
+import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
@@ -15,9 +16,13 @@ type Tab = 'element' | 'changes' | 'code' | 'settings';
 
 interface Props {
   record: ExperimentRecord;
+  accountId: string;
 }
 
-export function EditorView({ record }: Props) {
+/** Sem `hello` do snippet nesse tempo, o site provavelmente bloqueia iframe ou não tem o snippet. */
+const CONNECT_TIMEOUT_MS = 5000;
+
+export function EditorView({ record, accountId }: Props) {
   const [state, dispatch] = useReducer(reducer, record, (r) => initialState(r.experiment, r.editorUrl));
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +94,27 @@ export function EditorView({ record }: Props) {
   }, [connected, readyCount, variation, runJS]);
 
   const [notice, setNotice] = useState<string | null>(null);
+  /** Fallback da extensão: 'idle' → 'missing' (não instalada) | 'active' (sessão aberta; iframe recarregado). */
+  const [ext, setExt] = useState<'idle' | 'missing' | 'active'>('idle');
+  const [frameKey, setFrameKey] = useState(0);
+
+  const tryExtension = useCallback(async () => {
+    if (!token) return;
+    if (!(await extCall('ping'))) return setExt('missing');
+    const r = await startExtensionSession({ siteOrigin, token, accountId, apiUrl: API_URL });
+    if (!r?.ok) return setError(`Extensão recusou a sessão: ${r?.error ?? 'sem resposta'}`);
+    setExt('active');
+    setFrameKey((k) => k + 1); // recarrega o iframe já com os headers liberados
+  }, [token, siteOrigin, accountId]);
+
+  // Não conectou a tempo → tenta a extensão automaticamente (uma vez).
+  useEffect(() => {
+    if (!token || connected || ext !== 'idle') return;
+    const t = setTimeout(tryExtension, CONNECT_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [token, connected, ext, tryExtension, frameKey]);
+
+  useEffect(() => () => void endExtensionSession(), []);
   const persist = useCallback(async () => {
     await saveExperiment({ experiment: state.experiment, projectId: record.projectId, editorUrl: state.url });
     dispatch({ type: 'saved' });
@@ -153,6 +179,25 @@ export function EditorView({ record }: Props) {
           dispatch({ type: 'setUrl', url });
         }}
       />
+      {!connected && ext === 'missing' && (
+        <div
+          role="alert"
+          className="bg-yellow-50 px-4 py-2 text-sm text-yellow-900"
+          data-testid="ext-missing"
+        >
+          O site não respondeu ao editor: ele bloqueia iframes ou ainda não tem o snippet instalado. Instale a
+          extensão do editor (apps/extension) e{' '}
+          <button className="underline" onClick={tryExtension}>
+            tente de novo
+          </button>
+          .
+        </div>
+      )}
+      {ext === 'active' && (
+        <div className="bg-blue-50 px-4 py-1 text-xs text-blue-800" data-testid="ext-active">
+          Editando via extensão (headers de bloqueio de iframe removidos só nesta aba).
+        </div>
+      )}
       {error && (
         <div role="alert" className="bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
@@ -183,6 +228,7 @@ export function EditorView({ record }: Props) {
           {token && (
             <iframe
               ref={iframe}
+              key={frameKey}
               title="Site em edição"
               data-testid="site-frame"
               src={frameUrl(state.url, token)}

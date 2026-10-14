@@ -104,7 +104,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 4.4 Teste Playwright do fluxo completo: criar → editar → configurar tráfego e meta → publicar → visitante cai na variação
 
 ### Fase 5 — Extensão Chrome
-- [ ] 5.1 Remoção de headers só nas sessões de edição + injeção do agent
+- [x] 5.1 Remoção de headers só nas sessões de edição + injeção do agent
 - [ ] 5.2 Página demo que envia X-Frame-Options/CSP e teste da extensão
 
 ### Fase 6 — Robustez

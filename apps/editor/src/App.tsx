@@ -166,5 +166,5 @@ export function App() {
         {error}
       </p>
     );
-  return record ? <EditorView key={record.experiment.id} record={record} /> : null;
+  return record ? <EditorView key={record.experiment.id} record={record} accountId={user.accountId} /> : null;
 }
