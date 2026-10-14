@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 0 — Fundação
-**Tarefa atual:** 0.3 — Sites demo (HTML estático + SPA React com rotas, CSS-in-JS)
-**Última atualização:** 2026-10-14 03:39
-**Próximo passo:** Criar apps/demo (Vite multi-page, porta 5180): páginas HTML estáticas em /, SPA React com react-router em /spa/ usando classes geradas (styled-components ou emotion).
+**Tarefa atual:** 0.4 — packages/shared com schemas zod e testes
+**Última atualização:** 2026-10-14 03:41
+**Próximo passo:** Escrever schemas zod em packages/shared: Operation (todos os tipos), Target (selector, alternates, fingerprint), Variation, Experiment, Goal, Segmentation, PublishedConfig, eventos de tracking, mensagens RPC; testes.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -26,3 +26,9 @@
 - Arquivos principais: docker-compose.yml, scripts/dev.mjs, apps/api/src/{db,app,server}.ts
 - Como testar manualmente: pnpm dev; curl localhost:4000/health → {"ok":true}
 - Observações: PGlite permite só um processo por dataDir.
+
+### 2026-10-14 03:41 — Tarefa 0.3 concluída
+- O que foi feito: apps/demo com Vite multi-page: index.html (ids estáveis, data-testid, id gerado a8f3c91e, lista p/ nth-of-type, img, form, banner que aparece após 800 ms), produto.html, obrigado.html, SPA React em /spa/ (rotas /, /planos, /sobre, classes emotion css-*).
+- Arquivos principais: apps/demo/{index,produto,obrigado}.html, apps/demo/src/spa/App.tsx, apps/demo/vite.config.ts
+- Como testar manualmente: pnpm --filter @abtest/demo dev; abrir http://localhost:5180 e http://localhost:5180/spa/planos
+- Observações: fallback de rota da SPA via plugin no dev server.
