@@ -22,7 +22,8 @@ pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos wor
 - `pnpm test` — Vitest em todos os workspaces. Um pacote: `pnpm --filter @abtest/shared test`. Um teste: `pnpm --filter @abtest/shared exec vitest run src/arquivo.test.ts -t "nome"`.
 - `pnpm lint` — ESLint (flat config na raiz) + `prettier --check`. `pnpm format` corrige formatação.
 - `pnpm typecheck` — `tsc --noEmit` por workspace.
-- `pnpm build` / `pnpm dev`.
+- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: API 4000.
+- `pnpm build`.
 
 Pacotes internos exportam `src/index.ts` direto (sem build) — Vite/esbuild/Vitest resolvem TS; só bundles finais (snippet, agent, apps) têm build.
 

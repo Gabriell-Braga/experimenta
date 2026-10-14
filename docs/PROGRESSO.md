@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 0 — Fundação
-**Tarefa atual:** 0.2 — docker-compose (Postgres) e pnpm dev
-**Última atualização:** 2026-10-14 03:36
-**Próximo passo:** Criar docker-compose.yml (Postgres 16), apps/api mínimo (Hono) com PGlite fallback, script dev; pnpm dev sobe tudo.
+**Tarefa atual:** 0.3 — Sites demo (HTML estático + SPA React com rotas, CSS-in-JS)
+**Última atualização:** 2026-10-14 03:39
+**Próximo passo:** Criar apps/demo (Vite multi-page, porta 5180): páginas HTML estáticas em /, SPA React com react-router em /spa/ usando classes geradas (styled-components ou emotion).
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -20,3 +20,9 @@
 - Arquivos principais: package.json, turbo.json, tsconfig.base.json, eslint.config.js, .prettierrc.json
 - Como testar manualmente: pnpm install && pnpm lint && pnpm test && pnpm typecheck
 - Observações: pacotes internos exportam src/*.ts direto (sem build).
+
+### 2026-10-14 03:39 — Tarefa 0.2 concluída
+- O que foi feito: docker-compose.yml (Postgres 16), scripts/dev.mjs (fallback PGlite), apps/api mínimo Hono com /health e createDb (postgres-js ou PGlite).
+- Arquivos principais: docker-compose.yml, scripts/dev.mjs, apps/api/src/{db,app,server}.ts
+- Como testar manualmente: pnpm dev; curl localhost:4000/health → {"ok":true}
+- Observações: PGlite permite só um processo por dataDir.
