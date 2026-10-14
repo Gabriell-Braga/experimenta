@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 2 — Snippet de runtime
-**Tarefa atual:** 2.6 — Medir e registrar o tamanho gzip em PROGRESSO.md
-**Última atualização:** 2026-10-14 04:02
-**Próximo passo:** Adicionar checagem de tamanho no build (falha se > 10 KB gzip), registrar tamanho em PROGRESSO.md e fechar fase 2 com resumo.
+**Fase atual:** 3 — Editor (núcleo)
+**Tarefa atual:** 3.1 — Protocolo RPC tipado app ↔ agent, com testes
+**Última atualização:** 2026-10-14 04:03
+**Próximo passo:** Criar packages/shared/src/rpc.ts: schemas zod das mensagens (request/response/event com id, canal 'abt'), mapa de métodos tipado (app→agent e agent→app) e cliente createRpc(janela, origin) com timeout e validação; testes.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -103,8 +103,9 @@
 - Como testar manualmente: pnpm e2e (tracking.spec.ts); no demo com snippet publicado, abrir /?ab_force=<exp>:<var>
 - Observações: ver D-012.
 
-### Resumo da Fase 2 — Snippet de runtime
-- Entregue: runtime `@abtest/snippet` (6,2 KB gzip): config embutida no JS da conta (D-008), visitante em cookie first-party + localStorage, segmentação (URL/dispositivo/query/novo-recorrente), bucketing murmurhash3 com tráfego, pesos e persistência, bots ignorados, anti-flicker por elemento (+ modo página, timeout 1500 ms), SPA (pushState/replaceState/popstate com revert), customCSS/JS, redirect, eventos (exposure/conversion/selector_failed/selector_healed) com sendBeacon em lote e adaptadores, metas (clique, URL, form, custom), modo QA com selo. Contrato em docs/EVENTOS.md.
-- Testes: 51 unitários (snippet) + 8 E2E Playwright (anti-flicker por frames e pixels, SPA, tracking, QA, bots).
-- Limitações: segmentação por dispositivo é por UA/largura no load; customJS roda via `<script>` inline (sites com CSP sem 'unsafe-inline' bloqueiam); sem deduplicação de conversões no cliente.
-- Como testar: `pnpm --filter @abtest/snippet test`, `pnpm e2e`.
+
+### 2026-10-14 04:03 — Tarefa 2.6 concluída
+- O que foi feito: build do snippet falha se passar de 10 KB gzip. Tamanho medido em 2026-10-14 04:02: dist/abt.js = 14.306 B minificado, **6.221 B gzip** (gzip -9: 6.257 B). Meta < 10 KB atendida com ~4 KB de folga.
+- Arquivos principais: packages/snippet/build.mjs
+- Como testar manualmente: pnpm --filter @abtest/snippet build
+- Observações: a config embutida soma ao arquivo publicado e é medida à parte (D-008). Corrigida intermitência no spa.spec.ts (espera por frame após reload).

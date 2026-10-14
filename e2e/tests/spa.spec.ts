@@ -60,7 +60,10 @@ test('SPA: navegação por rotas ativa, reverte e reaplica sem flicker', async (
   await page.reload();
   await expect(page.locator('[data-track="assinar"]')).toHaveText('Assinar já');
 
+  // Espera ao menos um frame com o botão visível depois do reload.
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __seen: string[] }).__seen.length))
+    .toBeGreaterThan(0);
   const seen = await page.evaluate(() => (window as unknown as { __seen: string[] }).__seen);
-  expect(seen.length).toBeGreaterThan(0);
   expect(new Set(seen)).toEqual(new Set(['Assinar já']));
 });

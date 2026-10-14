@@ -85,7 +85,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 2.3 Anti-flicker por elemento, com teste Playwright por capturas dos primeiros frames
 - [x] 2.4 Suporte a SPA com teste de navegação
 - [x] 2.5 Adaptador de eventos, metas, modo QA e docs/EVENTOS.md
-- [ ] 2.6 Medir e registrar o tamanho gzip em PROGRESSO.md
+- [x] 2.6 Medir e registrar o tamanho gzip em PROGRESSO.md
 
 ### Fase 3 — Editor (núcleo)
 - [ ] 3.1 Protocolo RPC tipado app ↔ agent, com testes
