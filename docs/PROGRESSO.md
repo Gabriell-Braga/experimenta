@@ -38,3 +38,8 @@
 - Arquivos principais: packages/shared/src/{operations,experiment,config,events}.ts
 - Como testar manualmente: pnpm --filter @abtest/shared test
 - Observações: protocolo RPC entra na tarefa 3.1. Ver D-004.
+
+### Resumo da Fase 0 — Fundação
+- Entregue: monorepo pnpm + Turborepo + TS estrito + ESLint/Prettier + Vitest; docker-compose com fallback PGlite; API mínima (/health); demo estático + SPA React (emotion); contrato zod em packages/shared.
+- Limitações: Docker não testado nesta máquina (sem Docker); `pnpm dev` validado via PGlite.
+- Como testar: `pnpm install && pnpm lint && pnpm test && pnpm dev` (API :4000, demo :5180).
