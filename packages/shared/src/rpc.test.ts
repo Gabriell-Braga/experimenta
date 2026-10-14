@@ -57,6 +57,8 @@ function connect() {
         throw new Error('nada selecionado');
       },
       highlight: ({ selector }) => ({ found: selector === '#ok' }),
+      showHeatmap: ({ clicks }) => ({ resolved: clicks.elements.length, missing: 0 }),
+      hideHeatmap: () => ({}),
     },
   });
   return { app, site, appPeer, agentPeer };

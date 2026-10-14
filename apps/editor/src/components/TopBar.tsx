@@ -1,6 +1,6 @@
 import type { Variation } from '@abtest/shared';
 
-export type Mode = 'edit' | 'browse' | 'preview';
+export type Mode = 'edit' | 'browse' | 'preview' | 'heatmap';
 export type Device = 'desktop' | 'tablet' | 'mobile';
 
 export const DEVICE_WIDTH: Record<Device, string> = { desktop: '100%', tablet: '768px', mobile: '390px' };
@@ -64,7 +64,7 @@ export function TopBar(p: Props) {
       </nav>
 
       <div className="flex rounded-lg bg-gray-100 p-0.5" role="group" aria-label="Modo">
-        {(['edit', 'browse', 'preview'] as Mode[]).map((m) => (
+        {(['edit', 'browse', 'preview', 'heatmap'] as Mode[]).map((m) => (
           <button
             key={m}
             className={seg(p.mode === m)}
@@ -72,7 +72,7 @@ export function TopBar(p: Props) {
             data-testid={`mode-${m}`}
             aria-pressed={p.mode === m}
           >
-            {{ edit: 'Editar', browse: 'Navegar', preview: 'Preview' }[m]}
+            {{ edit: 'Editar', browse: 'Navegar', preview: 'Preview', heatmap: 'Mapa de calor' }[m]}
           </button>
         ))}
       </div>

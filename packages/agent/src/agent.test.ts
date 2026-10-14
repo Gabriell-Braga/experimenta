@@ -230,3 +230,30 @@ describe('agent: edição inline e menu de contexto', () => {
     expect(actions).not.toContain('edit');
   });
 });
+
+describe('agent: mapa de calor', () => {
+  test('badges por elemento achado, faixas de scroll, contagem de não achados e esconder', async () => {
+    const data = {
+      clicks: {
+        total: 7,
+        elements: [
+          { selector: '#t', count: 5, points: [[0.5, 0.5]] },
+          { selector: '.nao-existe', count: 2, points: [[0.1, 0.1]] },
+        ],
+      },
+      scroll: { pageviews: 4, reached: [{ depth: 0, pct: 100 }] },
+    };
+    // jsdom não tem layout: dá tamanho ao título.
+    document.querySelector('#t')!.getBoundingClientRect = () =>
+      ({ left: 10, top: 20, right: 210, bottom: 60, width: 200, height: 40 }) as DOMRect;
+    const r = await call('showHeatmap', data);
+    expect(r.result).toEqual({ resolved: 1, missing: 1 });
+    const badge = shadow().querySelector('.heat-badge') as HTMLElement;
+    expect(badge.textContent).toBe('5');
+    expect(badge.title).toContain('71%');
+    expect(shadow().querySelector('.heat-band span')!.textContent).toBe('100% chegaram aqui');
+    await call('hideHeatmap', {});
+    expect(shadow().querySelector('.heat-badge')).toBeNull();
+    expect(shadow().querySelector('canvas')).toBeNull();
+  });
+});

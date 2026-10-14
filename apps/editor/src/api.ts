@@ -128,3 +128,14 @@ export const restoreVersion = (id: string, v: number) =>
   api<{ version: number }>(`/experiments/${encodeURIComponent(id)}/versions/${v}/restore`, {
     method: 'POST',
   });
+
+export interface HeatmapFilters {
+  experimentId?: string;
+  variationId?: string;
+  device?: 'desktop' | 'tablet' | 'mobile';
+}
+export function getHeatmap(url: string, f: HeatmapFilters) {
+  const q = new URLSearchParams({ url });
+  for (const [k, v] of Object.entries(f)) if (v) q.set(k, v);
+  return api<import('@abtest/shared').HeatmapData & { page: string }>(`/heatmap?${q}`);
+}

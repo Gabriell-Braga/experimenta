@@ -4,6 +4,7 @@ import type { AgentBoot } from '@abtest/snippet/editor';
 import { applyOperations, resetProcessed, type ApplyHandle } from '@abtest/snippet/engine';
 import { watchLocation } from '@abtest/snippet/spa';
 import { createEditing } from './editing';
+import { createHeatmapLayer } from './heatmap';
 import { elementInfo } from './inspect';
 import { createOverlay } from './overlay';
 
@@ -26,6 +27,7 @@ const BLOCKED = [
 export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.parent) {
   const doc = win.document;
   const overlay = createOverlay(doc);
+  const heatmap = createHeatmapLayer(doc, overlay.root);
   let mode: 'edit' | 'browse' = 'edit';
   let selected: Element | null = null;
   let variation: { handle?: ApplyHandle; style?: HTMLStyleElement; script?: HTMLScriptElement } = {};
@@ -145,6 +147,11 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
         el?.scrollIntoView?.({ block: 'center' });
         return el ? elementInfo(el) : null;
       },
+      showHeatmap: (data) => heatmap.show(data),
+      hideHeatmap: () => {
+        heatmap.hide();
+        return {};
+      },
       highlight: ({ selector }) => {
         const el = selector ? (resolveTarget({ selector, alternates: [] }, doc)?.el ?? null) : null;
         overlay.setHover(el);
@@ -160,6 +167,7 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
     peer,
     editing,
     destroy() {
+      heatmap.hide();
       editing.destroy();
       peer.dispose();
       mo.disconnect();

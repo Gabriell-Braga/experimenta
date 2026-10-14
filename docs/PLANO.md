@@ -116,7 +116,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 ### Fase 7 — Mapa de calor e mapa de cliques
 - [x] 7.1 Captura no snippet: cliques (seletor + posição relativa + viewport) e scroll, com amostragem e envio em lote via sendBeacon
 - [x] 7.2 Agregação na API e eventos documentados em docs/EVENTOS.md
-- [ ] 7.3 Overlay no agent: heatmap em canvas, contagem de cliques por elemento, faixas de scroll, filtros por variação e dispositivo
+- [x] 7.3 Overlay no agent: heatmap em canvas, contagem de cliques por elemento, faixas de scroll, filtros por variação e dispositivo
 
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.

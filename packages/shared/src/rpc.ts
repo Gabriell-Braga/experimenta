@@ -49,6 +49,25 @@ export const OperationDraftSchema = z.discriminatedUnion(
   ) as unknown as [z.AnyZodObject, z.AnyZodObject, ...z.AnyZodObject[]],
 ) as unknown as z.ZodType<OperationDraft, z.ZodTypeDef, unknown>;
 
+/** Agregado do mapa de calor (mesmo formato de GET /heatmap). */
+export const HeatmapDataSchema = z.object({
+  clicks: z.object({
+    total: z.number(),
+    elements: z.array(
+      z.object({
+        selector: z.string(),
+        count: z.number(),
+        points: z.array(z.tuple([z.number(), z.number()])),
+      }),
+    ),
+  }),
+  scroll: z.object({
+    pageviews: z.number(),
+    reached: z.array(z.object({ depth: z.number(), pct: z.number() })),
+  }),
+});
+export type HeatmapData = z.infer<typeof HeatmapDataSchema>;
+
 // ---------- Métodos e eventos ----------
 
 const method = <P extends z.ZodTypeAny, R extends z.ZodTypeAny>(params: P, result: R) => ({ params, result });
@@ -60,6 +79,9 @@ export const agentMethods = {
   applyVariation: method(VariationPayloadSchema, ApplyResultSchema),
   select: method(z.object({ selector: z.string().nullable() }), ElementInfoSchema.nullable()),
   highlight: method(z.object({ selector: z.string().nullable() }), z.object({ found: z.boolean() })),
+  /** Desenha o mapa de calor sobre a página real; devolve quantos seletores foram achados nesta página. */
+  showHeatmap: method(HeatmapDataSchema, z.object({ resolved: z.number(), missing: z.number() })),
+  hideHeatmap: method(z.object({}), z.object({})),
 };
 
 /** Métodos que o APP expõe (o agent chama). */

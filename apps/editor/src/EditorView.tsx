@@ -1,19 +1,22 @@
 import { selectorFragility } from '@abtest/selector';
-import type { ApplyResult, ElementInfo } from '@abtest/shared';
+import type { ApplyResult, ElementInfo, HeatmapData } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   API_URL,
   createEditSession,
   frameUrl,
   getConflicts,
+  getHeatmap,
   publish,
   saveExperiment,
   type Conflict,
   type ExperimentRecord,
+  type HeatmapFilters,
 } from './api';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
 import { HealthPanel } from './components/HealthPanel';
+import { HeatmapPanel } from './components/HeatmapPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -109,6 +112,33 @@ export function EditorView({ record, accountId }: Props) {
   }, [connected, readyCount, variation, runJS]);
 
   const [notice, setNotice] = useState<string | null>(null);
+  // Mapa de calor: filtros, dados da API e quantos seletores não existem na página atual.
+  const [heatFilters, setHeatFilters] = useState<HeatmapFilters>({});
+  const [heat, setHeat] = useState<(HeatmapData & { page: string }) | null>(null);
+  const [heatMissing, setHeatMissing] = useState(0);
+  useEffect(() => {
+    if (!connected) return;
+    if (mode !== 'heatmap') {
+      peer.current?.call('hideHeatmap', {}).catch(() => {});
+      return;
+    }
+    let live = true;
+    setHeat(null);
+    const filters = heatFilters.variationId
+      ? { ...heatFilters, experimentId: state.experiment.id }
+      : heatFilters;
+    getHeatmap(state.url, filters)
+      .then(async (data) => {
+        if (!live) return;
+        setHeat(data);
+        const r = await peer.current?.call('showHeatmap', { clicks: data.clicks, scroll: data.scroll });
+        if (live) setHeatMissing(r?.missing ?? 0);
+      })
+      .catch((e: Error) => setError(`Mapa de calor: ${e.message}`));
+    return () => {
+      live = false;
+    };
+  }, [mode, connected, readyCount, heatFilters, state.url, state.experiment.id]);
   /** Seletor frágil da última alteração criada (aviso até o usuário fechar). */
   const [fragileWarning, setFragileWarning] = useState<string | null>(null);
   /** Fallback da extensão: 'idle' → 'missing' (não instalada) | 'active' (sessão aberta; iframe recarregado). */
@@ -284,7 +314,19 @@ export function EditorView({ record, accountId }: Props) {
             />
           )}
         </main>
-        {mode !== 'preview' && (
+        {mode === 'heatmap' && (
+          <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white">
+            <HeatmapPanel
+              variations={state.experiment.variations}
+              filters={heatFilters}
+              onFilters={setHeatFilters}
+              data={heat}
+              missing={heatMissing}
+              onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
+            />
+          </aside>
+        )}
+        {mode !== 'preview' && mode !== 'heatmap' && (
           <aside
             className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white"
             data-testid="sidebar"

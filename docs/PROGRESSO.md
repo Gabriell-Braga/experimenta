@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 7 — Mapa de calor e mapa de cliques
-**Tarefa atual:** 7.3 — Overlay no agent: heatmap em canvas, contagem por elemento, faixas de scroll, filtros
-**Última atualização:** 2026-10-14 08:29
-**Próximo passo:** Agent: método showHeatmap({elements, scroll}) / hideHeatmap — canvas no Shadow DOM (fixo, redesenha em scroll/resize): para cada seletor resolve o elemento e plota pontos (rect + rx/ry) com gradiente radial colorizado; badge com contagem por elemento; linhas horizontais nas faixas de scroll (% que chegou) posicionadas pela altura do documento. Editor: modo 'Mapa de calor' (botão na barra) com filtros variação/dispositivo que buscam /heatmap da URL atual e enviam ao agent. Testes jsdom + E2E (eventos semeados via /collect → overlay mostra badges e linhas).
+**Fase atual:** concluído
+**Tarefa atual:** — (plano concluído)
+**Última atualização:** 2026-10-14 08:33
+**Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -260,3 +260,9 @@
 - Arquivos principais: apps/api/src/{repo,app}.ts, docs/EVENTOS.md
 - Como testar manualmente: navegar no demo publicado e GET http://localhost:4000/heatmap?url=http://localhost:5180/ com token.
 - Observações: ver D-030.
+
+### 2026-10-14 08:33 — Tarefa 7.3 concluída
+- O que foi feito: createHeatmapLayer no agent (canvas colorizado, badges por elemento, faixas de scroll, redesenho em scroll/resize), RPC showHeatmap/hideHeatmap, modo 'Mapa de calor' no editor com filtros de variação e dispositivo, lista dos elementos mais clicados.
+- Arquivos principais: packages/agent/src/heatmap.ts, packages/shared/src/rpc.ts, apps/editor/src/{EditorView.tsx,components/HeatmapPanel.tsx,components/TopBar.tsx}, e2e/tests/heatmap.spec.ts
+- Como testar manualmente: publicar um experimento com HEATMAP_SAMPLE_RATE=1, clicar no demo, abrir o editor → Mapa de calor.
+- Observações: ver D-031.

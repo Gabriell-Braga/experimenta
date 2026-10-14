@@ -171,3 +171,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-030 — Agregação do mapa de calor
 - `GET /heatmap` agrega direto da tabela `events` em SQL (normaliza a URL em SQL igual ao `normalizePage` do Node), cliques por seletor com até 200 pontos (os mais recentes) por elemento, e alcance de scroll em faixas de 10%. Filtros: variação (`payload.variations[experimentId] = variationId`), só experimento (presença da chave) e dispositivo.
 - ponytail: agregação na leitura, sem tabela pré-agregada nem retenção; com volume real, materializar por dia/página e expurgar eventos crus antigos.
+
+## D-031 — Overlay do mapa de calor no agent
+- O mesmo agent do editor desenha o mapa sobre o site REAL (diferencial do plano): RPC `showHeatmap(dados)` / `hideHeatmap`. O app busca `/heatmap` da URL aberta com os filtros (variação → `experimentId`+`variationId`; dispositivo) e envia os dados; a cada navegação (`ready`) reenvia.
+- Canvas no Shadow DOM, do tamanho da viewport (× devicePixelRatio), redesenhado em scroll/resize: cada ponto = retângulo atual do elemento + (rx, ry); acumula gradientes radiais no alfa e coloriza (azul→verde→amarelo→vermelho). Badge com contagem (e % no título) por elemento; linhas de scroll em `depth% × altura do documento` com "% chegaram aqui". Seletores que não existem na página atual são contados e informados no painel.
+- No modo "Mapa de calor" o agent fica em modo navegar (sem interceptar cliques) e a variação filtrada... permanece a variação ativa do editor aplicada — escolher a mesma variação no filtro e na aba deixa o layout idêntico ao dos visitantes.
