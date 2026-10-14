@@ -1,7 +1,7 @@
 import { ExperimentSchema } from '@abtest/shared';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { createDb } from './db';
-import { createRepo, NotFoundError, verifyPassword, type Repo } from './repo';
+import { NotFoundError, verifyPassword, type Repo } from './repo';
+import { testRepo } from './test-repo';
 
 let repo: Repo;
 let a: { id: string };
@@ -29,7 +29,7 @@ const exp = (id: string, key = 'hero') =>
   });
 
 beforeAll(async () => {
-  repo = createRepo(await createDb());
+  repo = await testRepo();
   a = await repo.createAccount('Loja A');
   b = await repo.createAccount('Loja B');
   projA = await repo.createProject(a.id, { name: 'Site A', siteUrl: 'https://a.com' });
@@ -45,8 +45,8 @@ describe('repositório', () => {
       role: 'owner',
     });
     expect(u.passwordHash).not.toContain('segredo123');
-    expect(verifyPassword('segredo123', u.passwordHash)).toBe(true);
-    expect(verifyPassword('errada', u.passwordHash)).toBe(false);
+    expect(await verifyPassword('segredo123', u.passwordHash)).toBe(true);
+    expect(await verifyPassword('errada', u.passwordHash)).toBe(false);
     expect((await repo.findUserByEmail('ana@a.com'))?.id).toBe(u.id);
   });
 

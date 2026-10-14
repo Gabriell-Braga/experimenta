@@ -245,8 +245,11 @@ export function EditorView({ record, accountId }: Props) {
           className="bg-yellow-50 px-4 py-2 text-sm text-yellow-900"
           data-testid="ext-missing"
         >
-          O site não respondeu ao editor: ele bloqueia iframes ou ainda não tem o snippet instalado. Instale a
-          extensão do editor (apps/extension) e{' '}
+          O site não respondeu ao editor: ele bloqueia iframes ou ainda não tem o snippet instalado.{' '}
+          <a className="underline" href="/abtest-extension.zip" download>
+            Baixe a extensão
+          </a>{' '}
+          (descompacte → chrome://extensions → modo desenvolvedor → “Carregar sem compactação”) e{' '}
           <button className="underline" onClick={tryExtension}>
             tente de novo
           </button>

@@ -1,4 +1,3 @@
-import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { ExperimentSchema, type Experiment, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
 import { and, asc, desc, eq, inArray, max, sql } from 'drizzle-orm';
 import type { Db } from './db';
@@ -14,20 +13,9 @@ import {
   variations,
 } from './schema';
 
-export const newId = (prefix: string) => `${prefix}_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+import { hashPassword, newId } from './crypto';
 
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16);
-  return `scrypt:${salt.toString('base64')}:${scryptSync(password, salt, 32).toString('base64')}`;
-}
-
-export function verifyPassword(password: string, stored: string): boolean {
-  const [, salt, hash] = stored.split(':');
-  if (!salt || !hash) return false;
-  const expected = Buffer.from(hash, 'base64');
-  const actual = scryptSync(password, Buffer.from(salt, 'base64'), expected.length);
-  return timingSafeEqual(actual, expected);
-}
+export { hashPassword, newId, verifyPassword } from './crypto';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export type User = typeof users.$inferSelect;
@@ -49,6 +37,17 @@ export function normalizePage(url: string): string {
   } catch {
     return url.split('#')[0]!.split('?')[0]!.replace(/\/$/, '');
   }
+}
+
+/** % das páginas vistas que chegaram a 10, 20, … 100% de profundidade. */
+export function scrollReached(depths: number[]) {
+  const pageviews = depths.length;
+  const reached = Array.from({ length: 10 }, (_, i) => {
+    const depth = (i + 1) * 10;
+    const n = depths.filter((d) => d >= depth).length;
+    return { depth, pct: pageviews ? Math.round((n / pageviews) * 1000) / 10 : 0 };
+  });
+  return { pageviews, reached };
 }
 
 /**
@@ -100,6 +99,11 @@ export function createRepo(db: Db) {
   }
 
   return {
+    async ping(): Promise<boolean> {
+      await db.execute(sql`select 1`);
+      return true;
+    },
+
     async createAccount(name: string, id = newId('acc')) {
       await db.insert(accounts).values({ id, name });
       return { id, name };
@@ -118,7 +122,7 @@ export function createRepo(db: Db) {
           name: u.name,
           role: u.role ?? 'editor',
           canPublishJs: u.canPublishJs ?? false,
-          passwordHash: hashPassword(u.password),
+          passwordHash: await hashPassword(u.password),
         })
         .returning();
       return row!;
@@ -431,16 +435,10 @@ export function createRepo(db: Db) {
         .select({ depth: sql<number>`(${p}->>'depth')::float` })
         .from(events)
         .where(and(...conds, eq(events.type, 'scroll')));
-      const pageviews = depths.length;
-      const reached = Array.from({ length: 10 }, (_, i) => {
-        const depth = (i + 1) * 10;
-        const n = depths.filter((d) => d.depth >= depth).length;
-        return { depth, pct: pageviews ? Math.round((n / pageviews) * 1000) / 10 : 0 };
-      });
       return {
         page,
         clicks: { total: elements.reduce((t, e) => t + e.count, 0), elements },
-        scroll: { pageviews, reached },
+        scroll: scrollReached(depths.map((d) => d.depth)),
       };
     },
 

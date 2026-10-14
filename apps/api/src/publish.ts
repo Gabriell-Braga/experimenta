@@ -1,11 +1,11 @@
 import { PublishedConfigSchema, type Experiment, type PublishedConfig } from '@abtest/shared';
 import { canPublishJs } from './auth';
-import { writeAccountFiles } from './cdn';
+import { writeAccountFiles, type CdnStore } from './cdn';
 import type { Repo, User } from './repo';
 
 export interface PublisherDeps {
   repo: Repo;
-  cdnDir: string;
+  cdn: CdnStore;
   /** URL pública da API (validação de sessões de edição e coleta de eventos). */
   publicUrl: string;
   /** Fração de visitantes com captura de mapa de calor (0 desliga). */
@@ -24,7 +24,7 @@ const jsOf = (exps: Experiment[]) =>
  * Compila os experimentos EM EXECUÇÃO da conta num JSON versionado, registra a publicação (só inserção)
  * e grava `/cdn/<conta>.json` + `/cdn/<conta>.js`. customJS novo ou alterado exige permissão.
  */
-export function createPublisher({ repo, cdnDir, publicUrl, heatmapSampleRate = 0 }: PublisherDeps) {
+export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDeps) {
   return async (
     accountId: string,
     user: User,
@@ -49,7 +49,7 @@ export function createPublisher({ repo, cdnDir, publicUrl, heatmapSampleRate = 0
       ...(heatmapSampleRate > 0 ? { heatmap: { sampleRate: heatmapSampleRate } } : {}),
     });
     await repo.insertPublication(accountId, config, user.id);
-    writeAccountFiles(cdnDir, config);
+    await writeAccountFiles(cdn, config);
     return { version: config.version };
   };
 }

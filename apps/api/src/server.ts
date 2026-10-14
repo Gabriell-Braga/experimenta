@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
-import { syncBundles, writeAccountFiles } from './cdn';
+import { writeAccountFiles } from './cdn';
+import { fsCdnStore, syncBundles } from './cdn-fs';
 import { createDb } from './db';
 import { createPublisher } from './publish';
 import { createRepo } from './repo';
@@ -21,11 +22,12 @@ const db = await createDb({ url: process.env.DATABASE_URL, dataDir });
 // CDN local (dev): copia os bundles compilados, recompila as configs já publicadas com o runtime atual
 // e cria a config vazia da conta demo até a primeira publicação.
 syncBundles(cdnDir, repoRoot);
+const cdn = fsCdnStore(cdnDir);
 if (existsSync(join(cdnDir, 'abt.js'))) {
   for (const f of readdirSync(cdnDir).filter((f) => f.endsWith('.json')))
-    writeAccountFiles(cdnDir, JSON.parse(readFileSync(join(cdnDir, f), 'utf8')));
+    await writeAccountFiles(cdn, JSON.parse(readFileSync(join(cdnDir, f), 'utf8')));
   if (!existsSync(join(cdnDir, 'demo.json')))
-    writeAccountFiles(cdnDir, {
+    await writeAccountFiles(cdn, {
       accountId: 'demo',
       version: 1,
       publishedAt: new Date().toISOString(),
@@ -44,11 +46,11 @@ if (!process.env.JWT_SECRET)
 // ponytail: amostragem global por env; vira configuração por conta quando houver tela de conta.
 const publish = createPublisher({
   repo,
-  cdnDir,
+  cdn,
   publicUrl,
   heatmapSampleRate: Number(process.env.HEATMAP_SAMPLE_RATE ?? 1),
 });
 
-serve({ fetch: createApp({ db, repo, cdnDir, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
+serve({ fetch: createApp({ repo, cdn, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
   console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),
 );

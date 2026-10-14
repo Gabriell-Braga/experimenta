@@ -1,0 +1,23 @@
+// Deploy da API na Cloudflare (Worker + D1 + KV). Ver docs/DEPLOY.md.
+{
+  "name": "abtest-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "abtest-db",
+      "database_id": "e608bdf8-29a4-4069-b272-398177d4887a",
+      "migrations_dir": "migrations-d1"
+    }
+  ],
+  "kv_namespaces": [{ "binding": "CDN", "id": "c8a2bc427ff5448098a79ce2fb645e15" }],
+  "vars": {
+    "PUBLIC_URL": "https://abtest-api.hub-villa-deli.workers.dev",
+    "EDITOR_ORIGINS": "https://abtest-editor.hub-villa-deli.workers.dev,http://localhost:5173",
+    "DEMO_SITE_URL": "https://abtest-demo.hub-villa-deli.workers.dev/",
+    "HEATMAP_SAMPLE_RATE": "1"
+  }
+}

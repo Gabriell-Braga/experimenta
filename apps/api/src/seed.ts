@@ -7,17 +7,26 @@ export const DEMO = {
   viewer: { email: 'viewer@abtest.dev', password: 'demo1234' },
 };
 
-/** Dados de desenvolvimento: conta "demo" com um usuário de cada papel e o projeto do site demo. */
-export async function seedDev(repo: Repo, siteUrl = 'http://localhost:5180/'): Promise<void> {
+/**
+ * Conta "demo" com um usuário de cada papel e o projeto do site demo.
+ * Em dev a senha é `demo1234`; no deploy vem do segredo SEED_PASSWORD.
+ */
+export async function seedDev(
+  repo: Repo,
+  siteUrl = 'http://localhost:5180/',
+  password?: string,
+): Promise<void> {
+  const pw = password ? { password } : {};
   if (await repo.findUserByEmail(DEMO.owner.email)) return;
   await repo.createAccount('Loja Demo', DEMO.accountId);
   await repo.createUser(DEMO.accountId, {
     ...DEMO.owner,
+    ...pw,
     name: 'Dona Demo',
     role: 'owner',
     canPublishJs: true,
   });
-  await repo.createUser(DEMO.accountId, { ...DEMO.editor, name: 'Editor Demo', role: 'editor' });
-  await repo.createUser(DEMO.accountId, { ...DEMO.viewer, name: 'Leitor Demo', role: 'viewer' });
+  await repo.createUser(DEMO.accountId, { ...DEMO.editor, ...pw, name: 'Editor Demo', role: 'editor' });
+  await repo.createUser(DEMO.accountId, { ...DEMO.viewer, ...pw, name: 'Leitor Demo', role: 'viewer' });
   await repo.createProject(DEMO.accountId, { name: 'Site demo', siteUrl });
 }

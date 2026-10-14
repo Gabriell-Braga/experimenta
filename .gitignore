@@ -8,3 +8,5 @@ coverage
 test-results
 playwright-report
 cdn
+apps/api/.tmp-account.js
+.wrangler

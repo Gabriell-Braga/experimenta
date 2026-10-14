@@ -1,0 +1,3 @@
+# Rotas da SPA de teste (sem curinga: /spa/* criaria loop com o tratamento de index.html).
+/spa/planos /spa/ 200
+/spa/sobre /spa/ 200

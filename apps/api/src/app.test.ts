@@ -3,14 +3,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app';
+import { fsCdnStore } from './cdn-fs';
 import { compileAccountScript, writeAccountFiles } from './cdn';
-import { createDb, type Db } from './db';
-import { createRepo, type Repo } from './repo';
+import { type Repo } from './repo';
+import { testRepo } from './test-repo';
 import { DEMO, seedDev } from './seed';
 import { createSessionStore } from './sessions';
 
 const APP = 'http://localhost:5173';
-let db: Db;
 let repo: Repo;
 let cdnDir: string;
 let app: ReturnType<typeof createApp>;
@@ -37,15 +37,13 @@ const experiment = (id: string, key: string, customJS = '') => ({
 });
 
 beforeAll(async () => {
-  db = await createDb();
-  repo = createRepo(db);
+  repo = await testRepo();
   await seedDev(repo);
   cdnDir = mkdtempSync(join(tmpdir(), 'abt-cdn-'));
   writeFileSync(join(cdnDir, 'abt.js'), '/*runtime*/');
   app = createApp({
-    db,
     repo,
-    cdnDir,
+    cdn: fsCdnStore(cdnDir),
     editorOrigins: [APP],
     jwtSecret: 'teste',
     sessions: createSessionStore(),
@@ -212,9 +210,9 @@ describe('sessões de edição', () => {
   test('token expira', async () => {
     let now = 0;
     const store = createSessionStore(() => now);
-    const s = store.create('demo', APP);
+    const s = await store.create('demo', APP);
     now += 15 * 60 * 1000;
-    expect(store.get(s.token)).toBeUndefined();
+    expect(await store.get(s.token)).toBeUndefined();
   });
 });
 
@@ -240,7 +238,7 @@ test('OpenAPI gerado com as rotas e segurança bearer', async () => {
 describe('CDN local', () => {
   test('publica .js (config + runtime) e .json; serve com ETag e cache curto', async () => {
     const config = { accountId: 'acc1', version: 2, publishedAt: new Date().toISOString(), experiments: [] };
-    writeAccountFiles(cdnDir, config);
+    await writeAccountFiles(fsCdnStore(cdnDir), config);
     expect(JSON.parse(readFileSync(join(cdnDir, 'acc1.json'), 'utf8'))).toEqual(config);
     const res = await app.request('/cdn/acc1.js');
     expect(res.status).toBe(200);

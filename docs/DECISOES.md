@@ -176,3 +176,14 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - O mesmo agent do editor desenha o mapa sobre o site REAL (diferencial do plano): RPC `showHeatmap(dados)` / `hideHeatmap`. O app busca `/heatmap` da URL aberta com os filtros (variação → `experimentId`+`variationId`; dispositivo) e envia os dados; a cada navegação (`ready`) reenvia.
 - Canvas no Shadow DOM, do tamanho da viewport (× devicePixelRatio), redesenhado em scroll/resize: cada ponto = retângulo atual do elemento + (rx, ry); acumula gradientes radiais no alfa e coloriza (azul→verde→amarelo→vermelho). Badge com contagem (e % no título) por elemento; linhas de scroll em `depth% × altura do documento` com "% chegaram aqui". Seletores que não existem na página atual são contados e informados no painel.
 - No modo "Mapa de calor" o agent fica em modo navegar (sem interceptar cliques) e a página continua com a variação da aba ativa aplicada; para o layout bater com o dos visitantes, filtre pela mesma variação da aba.
+
+## D-032 — Deploy na Cloudflare (Workers + D1 + KV)
+- Contexto: pedido de colocar tudo online na Cloudflare; sem Docker na máquina e sem Postgres gerenciado disponível na conta (Hyperdrive exigiria um Postgres externo).
+- Escolha: API como Worker com **D1 (SQLite)** e **KV** como CDN; editor e demo como Workers de arquivos estáticos (o wrangler atual direciona Pages para Workers com assets). O caminho Postgres/Node continua para dev e self-host.
+- Para não divergir: o repositório tem duas implementações do MESMO contrato (`createRepo` Drizzle/Postgres e `createD1Repo` SQL SQLite) e a suíte da API roda contra as duas (`vitest.config.ts`, D1 simulado com `node:sqlite`). Senhas passaram para PBKDF2 via Web Crypto (roda nos dois runtimes; Workers limita a 100 mil iterações). Sessões de edição no D1 (isolates não compartilham memória). CDN atrás da interface `CdnStore` (pasta local ou KV).
+- D1 não tem transação interativa: `saveExperiment` valida antes e grava num `batch` atômico. SQLite não tem `regexp_replace`: a página normalizada do evento vira coluna `page` na inserção.
+- Usuários da conta demo em produção usam a senha do segredo `SEED_PASSWORD` (não `demo1234`).
+
+## D-033 — Respostas às perguntas abertas
+- **Config embutida no JS (D-008): mantida.** É o que permite o anti-flicker por elemento sem esconder a página; o `.json` continua publicado para o analytics. Custo aceito: um arquivo por conta e cache de 60 s após publicar.
+- **SameSite na extensão: implementar** com a permissão `cookies` — durante a sessão de edição, cookies do site com SameSite Lax/Strict passam a `None; Secure` e são restaurados ao fim da sessão (ver D-034).

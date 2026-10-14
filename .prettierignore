@@ -10,3 +10,4 @@ playwright-report
 test-results
 .cdn
 apps/api/drizzle
+apps/*/wrangler.jsonc

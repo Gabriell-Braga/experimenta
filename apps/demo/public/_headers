@@ -1,0 +1,4 @@
+# Cloudflare (Workers static assets): simula site que proíbe ser emoldurado.
+/bloqueado/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'

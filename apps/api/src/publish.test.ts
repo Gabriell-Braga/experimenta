@@ -2,16 +2,15 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PublishedConfigSchema } from '@abtest/shared';
-import { sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app';
-import { createDb, type Db } from './db';
+import { fsCdnStore } from './cdn-fs';
 import { createPublisher } from './publish';
-import { createRepo, type Repo } from './repo';
+import { type Repo } from './repo';
+import { testRepo } from './test-repo';
 import { DEMO, seedDev } from './seed';
 
 const APP = 'http://localhost:5173';
-let db: Db;
 let repo: Repo;
 let cdnDir: string;
 let app: ReturnType<typeof createApp>;
@@ -51,13 +50,12 @@ const save = (as: string, body: ReturnType<typeof exp>) =>
   call(`/experiments/${body.experiment.id}`, as, { method: 'PUT', body: JSON.stringify(body) });
 
 beforeAll(async () => {
-  db = await createDb();
-  repo = createRepo(db);
+  repo = await testRepo();
   await seedDev(repo);
   cdnDir = mkdtempSync(join(tmpdir(), 'abt-pub-'));
   writeFileSync(join(cdnDir, 'abt.js'), '/*runtime*/');
-  const publish = createPublisher({ repo, cdnDir, publicUrl: 'https://api.abtest.dev' });
-  app = createApp({ db, repo, cdnDir, editorOrigins: [APP], jwtSecret: 's', publish });
+  const publish = createPublisher({ repo, cdn: fsCdnStore(cdnDir), publicUrl: 'https://api.abtest.dev' });
+  app = createApp({ repo, cdn: fsCdnStore(cdnDir), editorOrigins: [APP], jwtSecret: 's', publish });
   for (const [who, cred] of Object.entries({ owner: DEMO.owner, editor: DEMO.editor, viewer: DEMO.viewer })) {
     const r = await app.request('/auth/login', {
       method: 'POST',
@@ -127,11 +125,10 @@ describe('coleta de eventos', () => {
     selector: 'h1',
     ...over,
   });
+  /** Eventos guardados, vistos pela saúde do experimento (1 exposição + falhas da operação o1). */
   const count = async () => {
-    const r = (await db.execute(sql`select count(*)::int as n from events`)) as unknown as {
-      rows: { n: number }[];
-    };
-    return Number(r.rows[0]?.n ?? 0);
+    const h = await repo.experimentHealth('demo', 'exp_run');
+    return (h.exposures.exp_run_v1 ?? 0) + (h.operations.find((o) => o.operationId === 'o1')?.failed ?? 0);
   };
 
   test('aceita text/plain, guarda válidos, ignora inválidos, conta desconhecida e duplicados', async () => {

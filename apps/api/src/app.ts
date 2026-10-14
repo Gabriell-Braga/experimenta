@@ -3,16 +3,15 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { ExperimentSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
 import { cors } from 'hono/cors';
 import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
-import { serveCdn } from './cdn';
+import { serveCdn, type CdnStore } from './cdn';
 import { findConflicts } from './conflicts';
-import { ping, type Db } from './db';
-import { createRepo, NotFoundError, verifyPassword, type Repo, type User } from './repo';
+import { verifyPassword } from './crypto';
+import { NotFoundError, type Repo, type User } from './repo';
 import { createSessionStore, type SessionStore } from './sessions';
 
 export interface AppDeps {
-  db: Db;
-  repo?: Repo;
-  cdnDir: string;
+  repo: Repo;
+  cdn: CdnStore;
   /** Origins exatos do app do editor autorizados (CORS da API privada e sessões de edição). */
   editorOrigins: string[];
   jwtSecret: string;
@@ -70,7 +69,7 @@ const publicUser = (u: User) => ({
 });
 
 export function createApp(deps: AppDeps) {
-  const repo = deps.repo ?? createRepo(deps.db);
+  const repo = deps.repo;
   const sessions = deps.sessions ?? createSessionStore();
   const app = new OpenAPIHono<{ Variables: AuthVars }>({
     // Erros de validação do zod viram 400 com mensagem legível.
@@ -89,11 +88,11 @@ export function createApp(deps: AppDeps) {
   });
 
   // ---------- Públicas (site do cliente) ----------
-  app.get('/health', async (c) => c.json({ ok: await ping(deps.db) }));
-  app.get('/cdn/:file', serveCdn(deps.cdnDir));
+  app.get('/health', async (c) => c.json({ ok: await repo.ping() }));
+  app.get('/cdn/:file', serveCdn(deps.cdn));
   app.use('/edit-sessions/:token', cors({ origin: '*', allowMethods: ['GET'] }));
-  app.get('/edit-sessions/:token', (c) => {
-    const s = sessions.get(c.req.param('token'));
+  app.get('/edit-sessions/:token', async (c) => {
+    const s = await sessions.get(c.req.param('token'));
     if (!s) return c.json({ error: 'sessão inválida ou expirada' }, 404);
     return c.json({ accountId: s.accountId, appOrigin: s.appOrigin, expiresAt: s.expiresAt });
   });
@@ -156,7 +155,7 @@ export function createApp(deps: AppDeps) {
     async (c) => {
       const { email, password } = c.req.valid('json');
       const user = await repo.findUserByEmail(email);
-      if (!user || !verifyPassword(password, user.passwordHash))
+      if (!user || !(await verifyPassword(password, user.passwordHash)))
         return c.json({ error: 'e-mail ou senha inválidos' }, 401);
       return c.json({ token: await issueToken(user, deps.jwtSecret), user: publicUser(user) }, 200);
     },
@@ -559,12 +558,12 @@ export function createApp(deps: AppDeps) {
         ...errors,
       },
     }),
-    (c) => {
+    async (c) => {
       const user = c.get('user');
       const origin = c.req.header('origin') ?? '';
       if (!deps.editorOrigins.includes(origin)) return forbid(c, 'origin não autorizado');
       if (!hasRole(user, 'editor')) return forbid(c);
-      return c.json(sessions.create(user.accountId, origin), 201);
+      return c.json(await sessions.create(user.accountId, origin), 201);
     },
   );
 

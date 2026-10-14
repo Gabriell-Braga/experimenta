@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomToken } from './crypto';
 
 export interface EditSession {
   token: string;
@@ -10,29 +10,34 @@ export interface EditSession {
 
 export const EDIT_SESSION_TTL_MS = 15 * 60 * 1000;
 
+export interface SessionStore {
+  create(accountId: string, appOrigin: string): Promise<EditSession>;
+  get(token: string): Promise<EditSession | undefined>;
+}
+
+export const newSession = (accountId: string, appOrigin: string, now: number): EditSession => ({
+  token: randomToken(),
+  accountId,
+  appOrigin,
+  expiresAt: now + EDIT_SESSION_TTL_MS,
+});
+
 /**
- * Tokens de edição de curta duração.
- * ponytail: em memória (perdem-se ao reiniciar a API e não escalam para várias instâncias); mover para o banco/Redis
- * quando houver mais de uma instância.
+ * Tokens de edição em memória (servidor Node de uma instância só). No Worker, as sessões ficam no D1
+ * (`createD1SessionStore`), porque isolates não compartilham memória.
  */
-export function createSessionStore(now = () => Date.now()) {
+export function createSessionStore(now = () => Date.now()): SessionStore {
   const sessions = new Map<string, EditSession>();
   return {
-    create(accountId: string, appOrigin: string): EditSession {
-      const s = {
-        token: randomBytes(24).toString('base64url'),
-        accountId,
-        appOrigin,
-        expiresAt: now() + EDIT_SESSION_TTL_MS,
-      };
+    async create(accountId, appOrigin) {
+      const s = newSession(accountId, appOrigin, now());
       sessions.set(s.token, s);
       return s;
     },
-    get(token: string): EditSession | undefined {
+    async get(token) {
       const s = sessions.get(token);
       if (s && s.expiresAt <= now()) sessions.delete(token);
       return s && s.expiresAt > now() ? s : undefined;
     },
   };
 }
-export type SessionStore = ReturnType<typeof createSessionStore>;

@@ -1,0 +1,7 @@
+// Site demo na Cloudflare (só arquivos estáticos). Build com VITE_API_URL apontando para a API.
+{
+  "name": "abtest-demo",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "assets": { "directory": "./dist", "html_handling": "auto-trailing-slash" }
+}

@@ -6,8 +6,7 @@
 **Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
-- (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
-- (não bloqueante) Arquitetura: a config publicada vai embutida em `/cdn/<conta>.js` (D-008) em vez de só JSON buscado pelo snippet — necessário para anti-flicker por elemento síncrono. O `.json` continua publicado para integrações.
+- (vazio) — perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
 ### 2026-10-14 03:34 — Seção 1.1 (setup) concluída
