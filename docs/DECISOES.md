@@ -19,3 +19,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - **Confirmado — extensão para iframe bloqueado:** padrão de mercado (Adobe Visual Editing Helper, Builder.io, Webtrends, Mida) remove X-Frame-Options e CSP frame-ancestors. Adobe e Builder.io também ajustam `SameSite` dos cookies para o login do site funcionar dentro do iframe. **Adição ao plano:** a extensão (5.1) também reescreverá `SameSite=None; Secure` em Set-Cookie apenas nas sessões de edição, senão sites com login quebram no iframe. Builder.io limita a reescrita ao contexto do próprio app, mesma ideia do nosso "só sessões iniciadas pelo app".
 - **Confirmado — snippet síncrono no `<head>`:** recomendação de VWO e Optimizely para reduzir flicker. Nosso snippet deve ser instalado como primeiro script do head; o `<style>` anti-flicker é injetado de forma síncrona.
 - **Não verificado:** documentação oficial do Optimizely sobre timeout padrão (fontes de terceiros divergem: 1–3 s). Não afeta o plano.
+
+## D-004 — Contrato em packages/shared
+- Operações: união discriminada por `type`; `move` e `insertHTML` usam `position` before/after/prepend/append (prepend/append = "dentro"). `move.value.anchor` é um Target completo (também cura).
+- Experimento referenciado por `key` legível (usado em `ab_force=chave:variacao`) e `id` interno; a primeira variação é o controle; pesos inteiros relativos.
+- Snippet só faz `import type` de shared (zod fica fora do bundle de 10 KB). A validação forte acontece na API e no editor; o snippet confia no JSON publicado.
+- Eventos de tracking têm `eventId` para deduplicação no analytics.

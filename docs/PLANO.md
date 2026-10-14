@@ -71,7 +71,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 0.1 Monorepo, TS, lint, prettier, Turborepo
 - [x] 0.2 docker-compose (Postgres) e `pnpm dev` subindo tudo com um comando
 - [x] 0.3 Sites demo (HTML estático + SPA React com rotas, incluindo classes geradas por CSS-in-JS)
-- [ ] 0.4 packages/shared com schemas zod e testes
+- [x] 0.4 packages/shared com schemas zod e testes
 
 ### Fase 1 — Motor de operações e seletores
 - [ ] 1.1 Geração de seletores com prioridades e detecção de classes geradas

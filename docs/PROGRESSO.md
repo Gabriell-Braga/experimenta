@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 0 — Fundação
-**Tarefa atual:** 0.4 — packages/shared com schemas zod e testes
-**Última atualização:** 2026-10-14 03:41
-**Próximo passo:** Escrever schemas zod em packages/shared: Operation (todos os tipos), Target (selector, alternates, fingerprint), Variation, Experiment, Goal, Segmentation, PublishedConfig, eventos de tracking, mensagens RPC; testes.
+**Fase atual:** 1 — Motor de operações e seletores
+**Tarefa atual:** 1.1 — Geração de seletores com prioridades e detecção de classes geradas
+**Última atualização:** 2026-10-14 03:42
+**Próximo passo:** Criar packages/selector: isGeneratedToken(), generateSelector(el) com prioridade id estável → data-* → classes estáveis → caminho curto ancorado → nth-of-type; alternates; fragilidade; testes em jsdom/happy-dom.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -32,3 +32,9 @@
 - Arquivos principais: apps/demo/{index,produto,obrigado}.html, apps/demo/src/spa/App.tsx, apps/demo/vite.config.ts
 - Como testar manualmente: pnpm --filter @abtest/demo dev; abrir http://localhost:5180 e http://localhost:5180/spa/planos
 - Observações: fallback de rota da SPA via plugin no dev server.
+
+### 2026-10-14 03:42 — Tarefa 0.4 concluída
+- O que foi feito: schemas zod de operações (11 tipos), alvo/impressão digital, experimento, segmentação, metas, variações (customCSS/JS, redirect), anti-flicker, config publicada, eventos de tracking. 18 testes.
+- Arquivos principais: packages/shared/src/{operations,experiment,config,events}.ts
+- Como testar manualmente: pnpm --filter @abtest/shared test
+- Observações: protocolo RPC entra na tarefa 3.1. Ver D-004.
