@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 1 — Motor de operações e seletores
-**Tarefa atual:** 1.3 — applyOperations com todos os tipos, idempotência e MutationObserver
-**Última atualização:** 2026-10-14 03:46
-**Próximo passo:** Criar packages/snippet/src/engine/apply.ts: applyOperations(ops, {root, timeoutMs, onResolved, onFailed}) usando resolveTarget; WeakSet por operação; espera com MutationObserver até timeout; exportar para o agent.
+**Tarefa atual:** 1.4 — Testes cobrindo DOM que muda e todos os tipos de operação
+**Última atualização:** 2026-10-14 03:49
+**Próximo passo:** Adicionar testes de DOM mutável: re-render estilo React (nó substituído recebe a operação de novo), elemento que aparece em lote, âncora de move que chega depois, cura por impressão digital dentro do applyOperations, stop().
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -55,3 +55,9 @@
 - Arquivos principais: packages/selector/src/{fingerprint,resolve}.ts
 - Como testar manualmente: pnpm --filter @abtest/selector test
 - Observações: ver D-005.
+
+### 2026-10-14 03:49 — Tarefa 1.3 concluída
+- O que foi feito: applyToElement (11 tipos, cada um com undo), applyOperations com ordem, WeakSet global por operação, espera via MutationObserver, timeout a partir do DOMContentLoaded, callbacks onApplied/onFailed, revert.
+- Arquivos principais: packages/snippet/src/engine/{operations,apply}.ts
+- Como testar manualmente: pnpm --filter @abtest/snippet test
+- Observações: ver D-006.

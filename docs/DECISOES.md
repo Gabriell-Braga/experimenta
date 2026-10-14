@@ -30,3 +30,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Cada operação age sobre UM elemento (o primeiro que casa). Motivo: a impressão digital e a cura só fazem sentido para um elemento; mudanças em listas usam customCSS ou uma operação por item.
 - Cura por impressão digital: varre elementos da mesma tag, pontua texto exato (+3), texto parcial (+1), atributos (id/data-* +2, demais +1), posição (<50 px +1, <200 px +0,5). Aceita só com pontuação ≥ 3 e vantagem ≥ 1 sobre o 2º colocado (evita curar para o elemento errado).
 - O seletor curado relatado no evento é um caminho nth-of-type curto (ancorado em id), gerado no próprio snippet — o gerador completo fica fora do bundle.
+
+## D-006 — Motor de operações (packages/snippet/src/engine)
+- Fica no pacote do snippet (export `@abtest/snippet/engine`) porque é o código de runtime; o agent importa o mesmo motor para pré-visualizar ao vivo — uma única implementação.
+- Cada aplicação devolve `undo`; `ApplyHandle.revert()` desfaz tudo em ordem inversa. O editor usa isso para trocar de variação e desfazer sem recarregar a página.
+- `setStyle`/`hide` usam `!important` inline para vencer o CSS do site. `hide` = `display:none`; `remove` remove o nó de fato.
+- O timeout de espera por elementos conta a partir do DOMContentLoaded (o snippet roda no `<head>`, antes do body existir).
+- O observer é desconectado enquanto aplicamos, para nossas próprias mutações não dispararem nova rodada.

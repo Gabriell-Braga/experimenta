@@ -110,6 +110,19 @@ importers:
         specifier: '3.24'
         version: 3.24.4
 
+  packages/snippet:
+    dependencies:
+      '@abtest/selector':
+        specifier: workspace:*
+        version: link:../selector
+      '@abtest/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      jsdom:
+        specifier: '26'
+        version: 26.1.0
+
 packages:
 
   '@asamuzakjp/css-color@3.2.0':
