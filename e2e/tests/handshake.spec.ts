@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { apiToken } from '../host';
 
 const APP = 'http://localhost:5173';
 const SITE = 'http://localhost:5180';
@@ -12,7 +13,9 @@ function hostHtml(opts: { token?: string; ackToken?: string } = {}) {
   (async () => {
     let token = ${JSON.stringify(opts.token ?? null)};
     if (!token) {
-      const r = await fetch('http://localhost:4000/edit-sessions', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({ accountId: 'demo' }) }).catch(() => null);
+      const l = await fetch('http://localhost:4000/auth/login', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({ email: 'demo@abtest.dev', password: 'demo1234' }) }).catch(() => null);
+      const auth = l && l.ok ? 'Bearer ' + (await l.json()).token : '';
+      const r = await fetch('http://localhost:4000/edit-sessions', { method: 'POST', headers: { authorization: auth } }).catch(() => null);
       window.__status = r ? r.status : 'bloqueado-cors';
       if (!r) return;
       if (!r.ok) return;
@@ -55,8 +58,7 @@ test('origin fora da lista não consegue criar sessão (CORS bloqueia; a API tam
     .poll(() => page.evaluate(() => (window as unknown as { __status?: unknown }).__status))
     .toBe('bloqueado-cors');
   const direct = await request.post('http://localhost:4000/edit-sessions', {
-    headers: { origin: 'http://localhost:5174' },
-    data: { accountId: 'demo' },
+    headers: { origin: 'http://localhost:5174', authorization: `Bearer ${await apiToken(request)}` },
   });
   expect(direct.status()).toBe(403);
 });
@@ -66,8 +68,7 @@ test('página maliciosa com token roubado não recebe o hello nem carrega o agen
   request,
 }) => {
   const res = await request.post('http://localhost:4000/edit-sessions', {
-    headers: { origin: APP },
-    data: { accountId: 'demo' },
+    headers: { origin: APP, authorization: `Bearer ${await apiToken(request)}` },
   });
   const { token } = await res.json();
   await openHost(page, 'http://localhost:5174', hostHtml({ token }));

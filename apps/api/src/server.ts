@@ -4,6 +4,8 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { syncBundles, writeAccountFiles } from './cdn';
 import { createDb } from './db';
+import { createRepo } from './repo';
+import { seedDev } from './seed';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
 const port = Number(process.env.PORT ?? 4000);
@@ -32,6 +34,12 @@ if (existsSync(join(cdnDir, 'abt.js'))) {
     });
 }
 
-serve({ fetch: createApp({ db, cdnDir, editorOrigins }).fetch, port }, () =>
+const repo = createRepo(db);
+if (process.env.NODE_ENV !== 'production') await seedDev(repo);
+const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-troque-em-producao';
+if (!process.env.JWT_SECRET)
+  console.warn('[api] JWT_SECRET não definido — usando segredo de desenvolvimento');
+
+serve({ fetch: createApp({ db, repo, cdnDir, editorOrigins, jwtSecret }).fetch, port }, () =>
   console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),
 );

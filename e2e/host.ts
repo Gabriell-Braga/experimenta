@@ -36,7 +36,9 @@ export async function openAgentHost(page: Page, path = '/') {
     }
   });
   (async () => {
-    const r = await fetch('http://localhost:4000/edit-sessions', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({ accountId: 'demo' }) });
+    const l = await fetch('http://localhost:4000/auth/login', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({ email: 'demo@abtest.dev', password: 'demo1234' }) });
+    const auth = 'Bearer ' + (await l.json()).token;
+    const r = await fetch('http://localhost:4000/edit-sessions', { method: 'POST', headers: { authorization: auth } });
     window.__token = (await r.json()).token;
     f.src = '${SITE}${path}' + (${JSON.stringify(path)}.includes('?') ? '&' : '?') + 'abt_edit=' + encodeURIComponent(window.__token);
   })();
@@ -71,4 +73,12 @@ export async function waitEvent(page: Page, name: string, count = 1) {
       ((window as unknown as HostWindow).__events ?? []).filter((e) => e.event === n).length >= (c as number),
     [name, count],
   );
+}
+
+/** Token JWT do usuário dono da conta demo (para chamadas diretas à API nos testes). */
+export async function apiToken(request: import('@playwright/test').APIRequestContext): Promise<string> {
+  const r = await request.post('http://localhost:4000/auth/login', {
+    data: { email: 'demo@abtest.dev', password: 'demo1234' },
+  });
+  return (await r.json()).token;
 }

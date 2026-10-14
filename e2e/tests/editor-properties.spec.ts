@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { openEditor } from '../editor';
 
 test('painel de propriedades: texto, cores, tipografia, borda e atributos viram operações aplicadas ao vivo', async ({
   page,
 }) => {
-  await page.goto('http://localhost:5173/');
-  await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
-  const site = page.frameLocator('[data-testid=site-frame]');
+  const site = await openEditor(page);
   const cta = site.locator('[data-testid=cta-comprar]');
 
   await cta.click();

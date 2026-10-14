@@ -1,10 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-async function openEditor(page: Page) {
-  await page.goto('http://localhost:5173/');
-  await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
-  return page.frameLocator('[data-testid=site-frame]');
-}
+import { openEditor } from '../editor';
 
 async function editText(page: Page, site: ReturnType<Page['frameLocator']>, selector: string, text: string) {
   await site.locator(selector).dblclick();

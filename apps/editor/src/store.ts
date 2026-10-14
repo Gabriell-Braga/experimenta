@@ -42,7 +42,7 @@ export const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10
 export function newExperiment(url: string): Experiment {
   return ExperimentSchema.parse({
     id: uid('exp'),
-    key: 'experimento-1',
+    key: `experimento-${Date.now().toString(36)}`,
     name: 'Experimento 1',
     segmentation: { urls: [{ match: 'exact', value: url }] },
     variations: [

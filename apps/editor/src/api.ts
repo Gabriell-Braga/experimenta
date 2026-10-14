@@ -1,37 +1,91 @@
 import { ExperimentSchema, type Experiment } from '@abtest/shared';
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
-export const ACCOUNT_ID: string = import.meta.env.VITE_ACCOUNT_ID ?? 'demo';
-export const DEFAULT_SITE_URL: string = import.meta.env.VITE_SITE_URL ?? 'http://localhost:5180/';
 
-export async function createEditSession(): Promise<string> {
-  const res = await fetch(`${API_URL}/edit-sessions`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ accountId: ACCOUNT_ID }),
-  });
-  if (!res.ok) throw new Error(`não foi possível abrir a sessão de edição (${res.status})`);
-  return ((await res.json()) as { token: string }).token;
+const TOKEN_KEY = 'abt-token';
+
+export interface Me {
+  id: string;
+  accountId: string;
+  email: string;
+  name: string;
+  role: 'owner' | 'editor' | 'viewer';
+  canPublishJs: boolean;
+}
+export interface Project {
+  id: string;
+  name: string;
+  siteUrl: string;
+}
+export interface ExperimentSummary {
+  id: string;
+  key: string;
+  name: string;
+  status: string;
+  editorUrl: string;
+  updatedAt: string;
+}
+export interface ExperimentRecord {
+  experiment: Experiment;
+  projectId: string;
+  editorUrl: string;
 }
 
-// ponytail: rascunho no localStorage até a persistência na API (fase 4).
-const DRAFT_KEY = 'abt-editor-draft';
-
-export function loadDraft(): { experiment: Experiment; url: string } | null {
-  try {
-    const raw = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') as {
-      experiment: unknown;
-      url: string;
-    } | null;
-    if (!raw) return null;
-    return { experiment: ExperimentSchema.parse(raw.experiment), url: raw.url };
-  } catch {
-    return null;
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
   }
 }
 
-export function saveDraft(experiment: Experiment, url: string): void {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify({ experiment, url }));
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const logout = () => localStorage.removeItem(TOKEN_KEY);
+
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  const token = getToken();
+  if (token) headers.set('authorization', `Bearer ${token}`);
+  if (init.body) headers.set('content-type', 'application/json');
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  if (res.status === 401 && path !== '/auth/login') logout();
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new ApiError(res.status, body.error ?? `erro ${res.status}`);
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+export async function login(email: string, password: string): Promise<Me> {
+  const r = await api<{ token: string; user: Me }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  localStorage.setItem(TOKEN_KEY, r.token);
+  return r.user;
+}
+
+export const me = () => api<Me>('/me');
+export const listProjects = () => api<Project[]>('/projects');
+export const listExperiments = () => api<ExperimentSummary[]>('/experiments');
+
+export async function getExperiment(id: string): Promise<ExperimentRecord> {
+  const r = await api<ExperimentRecord>(`/experiments/${encodeURIComponent(id)}`);
+  return { ...r, experiment: ExperimentSchema.parse(r.experiment) };
+}
+
+export function saveExperiment(rec: ExperimentRecord, isNew = false): Promise<{ version: number }> {
+  return api(isNew ? '/experiments' : `/experiments/${encodeURIComponent(rec.experiment.id)}`, {
+    method: isNew ? 'POST' : 'PUT',
+    body: JSON.stringify(rec),
+  });
+}
+
+export const publish = () => api<{ version: number }>('/publish', { method: 'POST' });
+
+export async function createEditSession(): Promise<string> {
+  return (await api<{ token: string }>('/edit-sessions', { method: 'POST' })).token;
 }
 
 /** URL do site com o token de edição (o snippet entra em modo edição só dentro do iframe). */

@@ -118,3 +118,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - `account_id` em todas as tabelas de tenant, com índice; chave do experimento única POR CONTA. O repositório não expõe nenhuma consulta de tenant sem `accountId`; tentativa de gravar id de experimento de outra conta ou em projeto de outra conta → NotFoundError (não revela existência).
 - Salvar = substituir variações e metas do experimento numa transação (simples; o volume por experimento é pequeno) + nova versão.
 - Migrações versionadas com drizzle-kit e aplicadas no start (`migrate`), mesma pasta para PGlite e Postgres.
+
+## D-021 — API, autenticação e permissões
+- `@hono/zod-openapi`: as rotas são declaradas com os MESMOS schemas zod de `packages/shared` → validação e OpenAPI 3.1 (`/openapi.json`, Swagger em `/docs`) sem duplicar contrato.
+- Autenticação por JWT HS256 (12 h) emitido em `/auth/login` (senha scrypt). O middleware recarrega o usuário do banco a cada requisição (papel atualizado, usuário removido perde acesso) e a conta vem do token — nunca do corpo. Login social/SSO e refresh token ficam para depois.
+- Papéis: viewer (lê), editor (cria/salva/abre sessão de edição/publica), owner (tudo). Publicar customJS exige owner ou `can_publish_js` (checado na publicação, 4.3). Recursos de outra conta respondem 404 (não revelam existência).
+- CORS: rotas privadas só aceitam os origins do editor (`EDITOR_ORIGINS`); `/cdn/*`, `GET /edit-sessions/:token` e coleta de eventos são públicas.
+- O editor deixa de usar localStorage para o experimento: login → lista → `?exp=<id>`; salvar = PUT (nova versão). Seed de desenvolvimento com conta `demo` e um usuário de cada papel.

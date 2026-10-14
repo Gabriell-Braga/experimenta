@@ -1,12 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-const EDITOR = 'http://localhost:5173/';
-
-async function openEditor(page: Page) {
-  await page.goto(EDITOR);
-  await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
-  return page.frameLocator('[data-testid=site-frame]');
-}
+import { expect, test } from '@playwright/test';
+import { openEditor } from '../editor';
 
 test('barra superior: edição pelo site, abas, desfazer/refazer, dispositivo, salvar e recarregar', async ({
   page,

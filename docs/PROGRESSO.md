@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 4 — API, persistência e publicação
-**Tarefa atual:** 4.2 — Endpoints, OpenAPI e autenticação com permissões
-**Última atualização:** 2026-10-14 04:39
-**Próximo passo:** Adicionar @hono/zod-openapi: rotas /auth/login (JWT HS256 com accountId/userId/role), /me, /projects, /experiments (CRUD + versões), /edit-sessions passa a exigir login (conta do token); permissões: viewer só lê, editor salva, publicar customJS exige owner ou can_publish_js; /openapi.json e docs; seed de dev (conta demo, owner demo@abtest.dev/demo1234, projeto demo); editor passa a logar e salvar na API. Testes de rotas e permissões.
+**Tarefa atual:** 4.3 — Publicação: compilar JSON e gravar na CDN local
+**Última atualização:** 2026-10-14 04:44
+**Próximo passo:** Criar apps/api/src/publish.ts: compilePublishedConfig(accountId) = experimentos com status running (validados), version = última+1, apiUrl/trackingUrl; recusa se houver customJS publicado por quem não tem permissão (403); grava publications (só inserção) e /cdn/<conta>.json + .js via writeAccountFiles; ligar em POST /publish; endpoint POST /collect (recebe eventos text/plain, valida, guarda para a fase 6). Testes.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -175,3 +175,9 @@
 - Arquivos principais: apps/api/src/{schema,repo,db}.ts, apps/api/drizzle/
 - Como testar manualmente: pnpm --filter @abtest/api test
 - Observações: ver D-020.
+
+### 2026-10-14 04:44 — Tarefa 4.2 concluída
+- O que foi feito: rotas OpenAPI (auth/login, me, projects, experiments CRUD + versões, edit-sessions autenticado, publish), JWT + papéis, seed de dev, editor com login/lista/abrir por ?exp e salvar na API; E2E atualizados (login e sessão autenticada).
+- Arquivos principais: apps/api/src/{app,auth,seed}.ts, apps/editor/src/{App,EditorView,api}.ts(x), e2e/editor.ts, e2e/host.ts
+- Como testar manualmente: pnpm dev → http://localhost:5173 (demo@abtest.dev / demo1234); http://localhost:4000/docs
+- Observações: ver D-021.

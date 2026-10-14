@@ -1,4 +1,5 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
+import { openEditor } from '../editor';
 
 /**
  * Fluxo da tarefa 3.8: no editor real, uma variação com texto, cor, elemento escondido, elemento movido
@@ -21,9 +22,7 @@ async function connected(page: Page) {
 test('editor: criar variação completa, ver ao vivo, salvar, recarregar e ver reaplicada', async ({
   page,
 }) => {
-  await page.goto('http://localhost:5173/');
-  await connected(page);
-  const site = page.frameLocator('[data-testid=site-frame]');
+  const site = await openEditor(page);
   const overlay = site.locator('abt-editor-overlay');
 
   // 1) Texto: edição inline.

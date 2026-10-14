@@ -17,10 +17,10 @@ Editor visual de testes A/B (substituto do VWO), futuro SaaS multi-tenant. O sit
 - `apps/editor` (React+Vite+Tailwind+Monaco), `apps/api` (Hono+Drizzle+Postgres), `apps/extension` (Chrome MV3), `apps/demo` (sites de teste).
 
 ## Editor (apps/editor)
-Estado = `useReducer` em `src/store.ts` (experimento + histórico desfazer/refazer; a lista de operações da variação ativa é a fonte da verdade). Agent só manda rascunhos (`operation`) → app adiciona → reenvia `applyVariation` com a lista completa. A cada `ready` (nova página no iframe) o app reenvia modo e variação (`src/App.tsx`). Conexão: `src/connection.ts`. Até a fase 4 o rascunho fica no localStorage (`src/api.ts`).
+Estado = `useReducer` em `src/store.ts` (experimento + histórico desfazer/refazer; a lista de operações da variação ativa é a fonte da verdade). Agent só manda rascunhos (`operation`) → app adiciona → reenvia `applyVariation` com a lista completa. A cada `ready` (nova página no iframe) o app reenvia modo e variação (`src/App.tsx`). Conexão: `src/connection.ts`. Login + lista de experimentos em `src/App.tsx` (`?exp=<id>` abre o editor `src/EditorView.tsx`); persistência via API (`src/api.ts`, token no localStorage).
 
 ## Modo edição (handshake)
-1. App cria sessão: `POST /edit-sessions {accountId}` (CORS só para `EDITOR_ORIGINS`) → token de 15 min (memória, `apps/api/src/sessions.ts`).
+1. App (logado) cria sessão: `POST /edit-sessions` (CORS só para `EDITOR_ORIGINS`, conta do JWT) → token de 15 min (memória, `apps/api/src/sessions.ts`).
 2. App abre o site em iframe com `?abt_edit=<token>`. Snippet (`packages/snippet/src/editor.ts`) só entra em modo edição dentro de iframe: valida o token em `GET /edit-sessions/:token` (conta precisa bater), envia `hello` com targetOrigin = origin do app, e só aceita `hello-ack` do `window.parent` vindo desse origin com o mesmo token. Então carrega `agent.js` (mesma pasta do script da conta) com `window.__ABT_AGENT__`.
 3. Agent e app conversam via `createPeer` (`packages/shared/src/rpc-peer.ts`). No modo edição o snippet NÃO aplica experimentos.
 
@@ -37,6 +37,9 @@ pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos wor
 Snippet no site: `<script src="http://localhost:4000/cdn/<conta>.js">` como primeiro script do `<head>`; o arquivo = `window.__ABT_CONFIG__={...};` + runtime (D-008). Nos testes E2E o Playwright intercepta essa URL (`e2e/helpers.ts#serveSnippet`).
 
 Pacotes internos exportam `src/index.ts` direto (sem build) — Vite/esbuild/Vitest resolvem TS; só bundles finais (snippet, agent, apps) têm build.
+
+## API (apps/api)
+Hono + `@hono/zod-openapi` (`src/app.ts`): OpenAPI em `/openapi.json`, Swagger em `/docs`. Auth: `POST /auth/login` → JWT HS256 (12 h, `JWT_SECRET`); middleware recarrega o usuário a cada requisição; conta SEMPRE vem do token. Papéis: viewer (lê), editor (salva), owner; publicar customJS exige owner ou `can_publish_js`. Seed de dev (`src/seed.ts`, conta `demo`): demo@abtest.dev (owner), editor@abtest.dev, viewer@abtest.dev — senha `demo1234`.
 
 ## Banco (apps/api)
 Schema Drizzle em `apps/api/src/schema.ts`; migrações SQL em `apps/api/drizzle/` (gerar com `pnpm --filter @abtest/api db:generate` após mudar o schema) aplicadas automaticamente em `createDb` (PGlite ou Postgres). Acesso só via `createRepo` (`src/repo.ts`): toda função recebe `accountId` e filtra por ele.
