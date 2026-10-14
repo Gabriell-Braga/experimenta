@@ -155,3 +155,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - `GET /experiments/{id}/conflicts` (apps/api/src/conflicts.ts): outros experimentos não arquivados da conta que alteram o mesmo elemento — compara seletor principal + alternativos normalizados (espaços nos combinadores) de todas as variações.
 - Sobreposição de páginas aproximada: a página de referência (editorUrl) de um casa com a segmentação de URL do outro, em qualquer sentido (regras vazias = todas), e os dispositivos não são disjuntos. Não tenta provar interseção de regex — falso positivo é aceitável (é aviso), falso negativo raro.
 - Editor: faixa ⚔ na aba Alterações + marca por alteração; ao Publicar, avisa se o conflito é com experimento em execução. Não bloqueia (às vezes é intencional, ex.: experimentos mutuamente exclusivos por segmentação de público que a heurística não enxerga).
+
+## D-028 — Versões e restauração
+- Toda gravação já gera um snapshot completo (D-020). Restaurar = gravar o snapshot escolhido como NOVA versão (v1 → restaurada como v3): o histórico é append-only, dá para "desfazer a restauração" restaurando a v2.
+- `GET /experiments/{id}/versions/{v}` devolve o snapshot; `POST .../restore` exige editor. Restaurar não publica — publicar continua sendo ação explícita.
+- Editor: aba "Versões" com confirmação em dois cliques (sem diálogo nativo) e aviso de alterações não salvas; após restaurar recarrega o experimento.

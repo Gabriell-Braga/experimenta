@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 6 — Robustez
-**Tarefa atual:** 6.4 — Histórico de versões com restauração
-**Última atualização:** 2026-10-14 08:19
-**Próximo passo:** API: POST /experiments/{id}/versions/{v}/restore (editor+) grava o snapshot como nova versão (não apaga histórico) e devolve o registro; GET /experiments/{id}/versions/{v}. Editor: aba 'Versões' listando versões (número, data, autor) com 'Ver' (carrega o snapshot no editor sem salvar, com aviso) e 'Restaurar' (chama a API e recarrega o editor). Testes API + E2E.
+**Fase atual:** 7 — Mapa de calor e mapa de cliques
+**Tarefa atual:** 7.1 — Captura no snippet: cliques e scroll, com amostragem e envio em lote via sendBeacon
+**Última atualização:** 2026-10-14 08:21
+**Próximo passo:** Snippet: módulo heatmap.ts ativado por config (heatmap: {sampleRate, urls?}) — amostragem por visitante (hash), captura cliques (seletor curto do elemento via pathOf/atributos estáveis + posição relativa x/y 0..1 dentro do elemento + viewport w/h + página x/y), profundidade máxima de scroll (%), por página/variações ativas; lote via sendBeacon no tracker (eventos click/scroll no schema); manter < 10 KB gzip. Testes unitários + E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -236,3 +236,9 @@
 - Arquivos principais: apps/api/src/{conflicts,app,repo}.ts, apps/editor/src/{EditorView.tsx,components/ChangesPanel.tsx}, e2e/tests/conflicts.spec.ts
 - Como testar manualmente: criar dois experimentos alterando o título da home; aba Alterações do segundo mostra ⚔.
 - Observações: ver D-027.
+
+### 2026-10-14 08:21 — Tarefa 6.4 concluída
+- O que foi feito: GET /experiments/{id}/versions/{v} e POST .../restore (nova versão, histórico preservado); VersionsPanel no editor (lista, restaurar com confirmação); abas da barra lateral quebram linha.
+- Arquivos principais: apps/api/src/app.ts, apps/editor/src/components/VersionsPanel.tsx, e2e/tests/versions.spec.ts
+- Como testar manualmente: salvar duas vezes um experimento, aba Versões → Restaurar v1.
+- Observações: ver D-028.

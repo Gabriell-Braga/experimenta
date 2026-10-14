@@ -231,3 +231,29 @@ test('GET /experiments/{id}/conflicts', async () => {
   expect(r.find((c) => c.experimentId === 'exp_c2')!.selectors).toEqual(['#hero-title']);
   expect((await call('/experiments/nao/conflicts', 'viewer')).status).toBe(404);
 });
+
+test('versões: ver snapshot e restaurar como nova versão (histórico preservado)', async () => {
+  const v1 = exp('exp_ver', 'draft');
+  await save('editor', v1);
+  const v2 = exp('exp_ver', 'draft');
+  v2.experiment.name = 'Segunda';
+  await save('editor', v2);
+  const snap = (await (await call('/experiments/exp_ver/versions/1', 'viewer')).json()) as {
+    experiment: { name: string };
+  };
+  expect(snap.experiment.name).toBe('exp_ver');
+  expect((await call('/experiments/exp_ver/versions/1/restore', 'viewer', { method: 'POST' })).status).toBe(
+    403,
+  );
+  const r = await call('/experiments/exp_ver/versions/1/restore', 'editor', { method: 'POST' });
+  expect(await r.json()).toEqual({ version: 3 });
+  const cur = (await (await call('/experiments/exp_ver', 'viewer')).json()) as {
+    experiment: { name: string };
+  };
+  expect(cur.experiment.name).toBe('exp_ver');
+  const list = (await (await call('/experiments/exp_ver/versions', 'viewer')).json()) as {
+    version: number;
+  }[];
+  expect(list.map((x) => x.version)).toEqual([3, 2, 1]);
+  expect((await call('/experiments/exp_ver/versions/99', 'viewer')).status).toBe(404);
+});

@@ -17,13 +17,14 @@ import { HealthPanel } from './components/HealthPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { SettingsPanel } from './components/SettingsPanel';
+import { VersionsPanel } from './components/VersionsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { connectAgent, type AgentPeer } from './connection';
 import { activeVariation, initialState, reducer } from './store';
 
 // Monaco é pesado: só carrega quando a aba de código é aberta.
 const CodePanel = lazy(() => import('./components/CodePanel'));
-type Tab = 'element' | 'changes' | 'code' | 'settings' | 'health';
+type Tab = 'element' | 'changes' | 'code' | 'settings' | 'health' | 'versions';
 
 interface Props {
   record: ExperimentRecord;
@@ -288,7 +289,7 @@ export function EditorView({ record, accountId }: Props) {
             className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white"
             data-testid="sidebar"
           >
-            <nav className="flex border-b border-gray-200 text-sm" role="tablist">
+            <nav className="flex flex-wrap border-b border-gray-200 text-sm" role="tablist">
               {(
                 [
                   ['element', 'Elemento'],
@@ -296,6 +297,7 @@ export function EditorView({ record, accountId }: Props) {
                   ['code', 'CSS/JS'],
                   ['settings', 'Config'],
                   ['health', 'Saúde'],
+                  ['versions', 'Versões'],
                 ] as [Tab, string][]
               ).map(([id, label]) => (
                 <button
@@ -304,7 +306,7 @@ export function EditorView({ record, accountId }: Props) {
                   aria-selected={tab === id}
                   data-testid={`side-${id}`}
                   onClick={() => setTab(id)}
-                  className={`flex-1 border-b-2 px-2 py-2 ${tab === id ? 'border-orange-500 font-medium' : 'border-transparent text-gray-500'}`}
+                  className={`min-w-[30%] flex-1 border-b-2 px-2 py-1.5 ${tab === id ? 'border-orange-500 font-medium' : 'border-transparent text-gray-500'}`}
                 >
                   {label}
                   {id === 'changes' && applyResult && applyResult.failed.length > 0 && (
@@ -342,6 +344,13 @@ export function EditorView({ record, accountId }: Props) {
               />
             )}
             {tab === 'settings' && <SettingsPanel experiment={state.experiment} dispatch={dispatch} />}
+            {tab === 'versions' && (
+              <VersionsPanel
+                experimentId={state.experiment.id}
+                dirty={state.dirty}
+                onRestored={() => location.reload()}
+              />
+            )}
             {tab === 'health' && (
               <HealthPanel
                 experimentId={state.experiment.id}

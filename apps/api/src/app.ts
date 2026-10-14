@@ -366,6 +366,70 @@ export function createApp(deps: AppDeps) {
     },
   );
 
+  const VersionParams = IdParam.extend({
+    v: z.coerce
+      .number()
+      .int()
+      .positive()
+      .openapi({ param: { name: 'v', in: 'path' } }),
+  });
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/experiments/{id}/versions/{v}',
+      tags: ['experiments'],
+      security,
+      request: { params: VersionParams },
+      responses: {
+        200: json(z.object({ experiment: ExperimentSchema, editorUrl: z.string() }), 'snapshot da versão'),
+        401: errors[401],
+        404: errors[404],
+      },
+    }),
+    async (c) => {
+      const { id, v } = c.req.valid('param');
+      const snap = await repo.getVersion(c.get('user').accountId, id, v);
+      if (!snap) return c.json({ error: 'versão não encontrada' }, 404);
+      return c.json(snap, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/experiments/{id}/versions/{v}/restore',
+      tags: ['experiments'],
+      security,
+      summary: 'Restaura uma versão gravando-a como NOVA versão (o histórico não é apagado)',
+      request: { params: VersionParams },
+      responses: {
+        200: json(z.object({ version: z.number() }), 'restaurada como nova versão'),
+        ...errors,
+        409: json(ErrorSchema, 'chave já usada'),
+      },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const { id, v } = c.req.valid('param');
+      const snap = await repo.getVersion(user.accountId, id, v);
+      const current = await repo.getExperiment(user.accountId, id);
+      if (!snap || !current) return c.json({ error: 'versão não encontrada' }, 404);
+      try {
+        const version = await repo.saveExperiment(user.accountId, {
+          projectId: current.projectId,
+          editorUrl: snap.editorUrl,
+          experiment: snap.experiment,
+          userId: user.id,
+        });
+        return c.json({ version }, 200);
+      } catch {
+        return c.json({ error: 'a chave desta versão já é usada por outro experimento' }, 409);
+      }
+    },
+  );
+
   app.openapi(
     createRoute({
       method: 'get',

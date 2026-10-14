@@ -116,3 +116,15 @@ export interface Conflict {
 }
 export const getConflicts = (id: string) =>
   api<Conflict[]>(`/experiments/${encodeURIComponent(id)}/conflicts`);
+
+export interface VersionInfo {
+  version: number;
+  createdBy: string | null;
+  createdAt: string;
+}
+export const listVersions = (id: string) =>
+  api<VersionInfo[]>(`/experiments/${encodeURIComponent(id)}/versions`);
+export const restoreVersion = (id: string, v: number) =>
+  api<{ version: number }>(`/experiments/${encodeURIComponent(id)}/versions/${v}/restore`, {
+    method: 'POST',
+  });
