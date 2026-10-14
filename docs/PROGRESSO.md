@@ -242,3 +242,9 @@
 - Arquivos principais: apps/api/src/app.ts, apps/editor/src/components/VersionsPanel.tsx, e2e/tests/versions.spec.ts
 - Como testar manualmente: salvar duas vezes um experimento, aba Versões → Restaurar v1.
 - Observações: ver D-028.
+
+### Resumo da Fase 6 — Robustez
+- Entregue: painel de saúde (falhas/curas por alteração a partir dos eventos, adotar seletor curado), aviso de seletor frágil (painel, criação e lista), detecção de conflito entre experimentos no mesmo elemento (lista + aviso ao publicar), histórico de versões com restauração append-only.
+- Testes: unitários (selectorFragility, conflicts, health, versões) + E2E (health, fragile, conflicts, versions).
+- Limitações: conflito usa heurística de sobreposição de páginas (página de referência × segmentação); saúde depende de eventos coletados pela nossa API (sem retenção/expurgo ainda).
+- Como testar: `pnpm test`, `pnpm e2e`; no editor, abas Saúde, Alterações e Versões.
