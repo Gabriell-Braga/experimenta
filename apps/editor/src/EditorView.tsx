@@ -1,16 +1,17 @@
 import type { ApplyResult, ElementInfo } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { createEditSession, frameUrl, saveExperiment, type ExperimentRecord } from './api';
+import { createEditSession, frameUrl, publish, saveExperiment, type ExperimentRecord } from './api';
 import { ChangesPanel } from './components/ChangesPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
+import { SettingsPanel } from './components/SettingsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { connectAgent, type AgentPeer } from './connection';
 import { activeVariation, initialState, reducer } from './store';
 
 // Monaco é pesado: só carrega quando a aba de código é aberta.
 const CodePanel = lazy(() => import('./components/CodePanel'));
-type Tab = 'element' | 'changes' | 'code';
+type Tab = 'element' | 'changes' | 'code' | 'settings';
 
 interface Props {
   record: ExperimentRecord;
@@ -87,15 +88,28 @@ export function EditorView({ record }: Props) {
       .then(setApplyResult, () => {});
   }, [connected, readyCount, variation, runJS]);
 
-  const save = useCallback(() => {
-    saveExperiment({ experiment: state.experiment, projectId: record.projectId, editorUrl: state.url }).then(
-      () => {
-        dispatch({ type: 'saved' });
-        setError(null);
-      },
-      (e: Error) => setError(`Não foi possível salvar: ${e.message}`),
-    );
+  const [notice, setNotice] = useState<string | null>(null);
+  const persist = useCallback(async () => {
+    await saveExperiment({ experiment: state.experiment, projectId: record.projectId, editorUrl: state.url });
+    dispatch({ type: 'saved' });
+    setError(null);
   }, [state.experiment, state.url, record.projectId]);
+  const save = useCallback(() => {
+    persist().catch((e: Error) => setError(`Não foi possível salvar: ${e.message}`));
+  }, [persist]);
+  const doPublish = async () => {
+    try {
+      await persist();
+      const { version } = await publish();
+      setNotice(
+        state.experiment.status === 'running'
+          ? `Publicado (versão ${version}). Visitantes já recebem este experimento.`
+          : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação — mude o status em Config.`,
+      );
+    } catch (e) {
+      setError(`Não foi possível publicar: ${e instanceof Error ? e.message : e}`);
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -133,6 +147,7 @@ export function EditorView({ record }: Props) {
         onUndo={() => dispatch({ type: 'undo' })}
         onRedo={() => dispatch({ type: 'redo' })}
         onSave={save}
+        onPublish={doPublish}
         onUrl={(url) => {
           setConnected(false);
           dispatch({ type: 'setUrl', url });
@@ -141,6 +156,18 @@ export function EditorView({ record }: Props) {
       {error && (
         <div role="alert" className="bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {notice && (
+        <div
+          role="status"
+          className="flex justify-between bg-green-50 px-4 py-2 text-sm text-green-800"
+          data-testid="notice"
+        >
+          {notice}
+          <button onClick={() => setNotice(null)} aria-label="Fechar">
+            ✕
+          </button>
         </div>
       )}
       {mode === 'preview' && (
@@ -175,6 +202,7 @@ export function EditorView({ record }: Props) {
                   ['element', 'Elemento'],
                   ['changes', `Alterações (${variation.operations.length})`],
                   ['code', 'CSS/JS'],
+                  ['settings', 'Config'],
                 ] as [Tab, string][]
               ).map(([id, label]) => (
                 <button
@@ -219,6 +247,7 @@ export function EditorView({ record }: Props) {
                 onMove={(id, to) => dispatch({ type: 'moveOperation', id, to })}
               />
             )}
+            {tab === 'settings' && <SettingsPanel experiment={state.experiment} dispatch={dispatch} />}
             {tab === 'code' && (
               <Suspense fallback={<p className="p-3 text-sm text-gray-500">Carregando editor…</p>}>
                 <CodePanel

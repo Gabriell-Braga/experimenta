@@ -130,3 +130,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - `POST /publish` (editor+) compila os experimentos com status `running` da conta num `PublishedConfig` versionado (última versão + 1), registra em `publications` (só inserção — histórico imutável) e grava `/cdn/<conta>.json` e `/cdn/<conta>.js`. Publicar = sobrescrever os arquivos (numa CDN real: + purge do caminho).
 - Regra do customJS: sem permissão (`owner` ou `can_publish_js`), a publicação é recusada (403) se algum customJS em execução for NOVO ou DIFERENTE do que já está publicado; republicar JS idêntico (aprovado antes) é permitido, para editores poderem publicar outras mudanças.
 - `POST /collect` público (CORS `*`, text/plain, até 64 KB e 200 eventos por lote): valida cada evento com o schema, ignora inválidos e contas inexistentes, deduplica por `eventId` (`ON CONFLICT DO NOTHING`), guarda em `events` para o painel de saúde. Responde 204 sem detalhes. Sem rate limit (ponytail).
+
+## D-023 — Configurações e publicação no editor
+- Aba "Config": nome, status, tráfego (%), pesos por variação (mostra %), regras de URL (é/contém/regex + excluir) e metas (clique, visita a URL, formulário, evento custom; chave gerada do nome). Tudo passa pelo reducer (desfazer/refazer).
+- "Publicar" salva o experimento e publica a CONTA inteira (a config por conta é um arquivo só). Se o experimento atual não está "Em execução", o aviso diz que ele não entra na publicação.
+- E2E usa a CDN real da API (`e2e/.cdn`, limpa a cada execução por `e2e/reset-cdn.mjs`) — o visitante do teste carrega snippet + config exatamente como em produção.

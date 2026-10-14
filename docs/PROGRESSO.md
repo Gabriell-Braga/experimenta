@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 4 — API, persistência e publicação
-**Tarefa atual:** 4.4 — Teste Playwright do fluxo completo: criar → editar → configurar tráfego e meta → publicar → visitante cai na variação
-**Última atualização:** 2026-10-14 04:46
-**Próximo passo:** No editor: painel 'Configurações' (nome, status, tráfego %, pesos das variações, segmentação por URL, metas clique/URL/custom) e botão Publicar na barra superior (salva, marca running se o usuário pedir e chama /publish; mostra versão). E2E: login → novo experimento → editar texto → tráfego 100%, pesos 0/100, meta de clique → publicar → abrir o site demo como visitante (sem route, CDN real) → vê a variação → clique gera conversão em /collect (conferir via API ou interceptação).
+**Fase atual:** 5 — Extensão Chrome
+**Tarefa atual:** 5.1 — Remoção de headers só nas sessões de edição + injeção do agent
+**Última atualização:** 2026-10-14 04:50
+**Próximo passo:** Criar apps/extension (MV3): service worker que recebe do app (externally_connectable / postMessage via content script no app) o pedido de sessão {token, siteOrigin, tabId da aba do editor}; adiciona regras de sessão declarativeNetRequest (updateSessionRules) restritas a tabIds da aba do editor e a sub_frame do origin do site, removendo X-Frame-Options e frame-ancestors do CSP e reescrevendo SameSite; content script em all_frames que, só em frames com abt_edit e sessão ativa, injeta snippet/agent quando o site não tem o snippet; remover regras ao fechar a aba/expirar. Testes unitários das regras.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -187,3 +187,9 @@
 - Arquivos principais: apps/api/src/{publish,app,repo,schema}.ts, apps/api/drizzle/0001_*.sql
 - Como testar manualmente: pnpm dev; no editor salvar um experimento running e chamar POST /publish (botão na 4.4); conferir cdn/demo.json.
 - Observações: ver D-022.
+
+### 2026-10-14 04:50 — Tarefa 4.4 concluída
+- O que foi feito: SettingsPanel (status, tráfego, pesos, URLs, metas), botão Publicar (salva + /publish + aviso), patchExperiment/setWeight no store; E2E publish-flow: criar → editar → configurar → publicar → visitante real vê a variação e converte (/collect real) → pausar e republicar devolve o controle.
+- Arquivos principais: apps/editor/src/components/SettingsPanel.tsx, apps/editor/src/EditorView.tsx, e2e/tests/publish-flow.spec.ts, e2e/reset-cdn.mjs
+- Como testar manualmente: pnpm dev → editor → Config → Em execução + pesos → Publicar → abrir http://localhost:5180 em janela anônima.
+- Observações: ver D-023.

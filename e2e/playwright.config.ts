@@ -16,7 +16,7 @@ export default defineConfig({
     {
       // Compila snippet e agent antes: a API copia os bundles para a CDN local ao subir.
       command:
-        'pnpm --filter @abtest/snippet build && pnpm --filter @abtest/agent build && pnpm --filter @abtest/api start',
+        'node e2e/reset-cdn.mjs && pnpm --filter @abtest/snippet build && pnpm --filter @abtest/agent build && pnpm --filter @abtest/api start',
       url: 'http://localhost:4000/health',
       reuseExistingServer: true,
       cwd: '..',

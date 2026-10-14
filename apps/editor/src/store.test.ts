@@ -134,3 +134,18 @@ describe('upsert (painel de propriedades)', () => {
     expect(activeVariation(s).operations).toEqual([]);
   });
 });
+
+test('configurações: status, tráfego, metas e pesos entram no histórico', () => {
+  let s = run(
+    start(),
+    { type: 'patchExperiment', patch: { status: 'running', traffic: 30 } },
+    {
+      type: 'patchExperiment',
+      patch: { goals: [{ id: 'g', key: 'compra', type: 'click', selector: '.buy' }] },
+    },
+  );
+  s = reducer(s, { type: 'setWeight', id: s.experiment.variations[0]!.id, weight: -5 });
+  expect(s.experiment).toMatchObject({ status: 'running', traffic: 30, goals: [{ key: 'compra' }] });
+  expect(s.experiment.variations[0]!.weight).toBe(0);
+  expect(reducer(s, { type: 'undo' }).experiment.variations[0]!.weight).toBe(50);
+});

@@ -31,6 +31,12 @@ export type Action =
   | { type: 'moveOperation'; id: string; to: number }
   | { type: 'setCustom'; field: 'customCSS' | 'customJS'; value: string }
   | { type: 'setUrl'; url: string }
+  /** Configurações do experimento (nome, status, tráfego, segmentação, metas). */
+  | {
+      type: 'patchExperiment';
+      patch: Partial<Pick<Experiment, 'name' | 'status' | 'traffic' | 'segmentation' | 'goals'>>;
+    }
+  | { type: 'setWeight'; id: string; weight: number }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'saved' };
@@ -195,6 +201,15 @@ export function reducer(s: EditorState, a: Action): EditorState {
         // Digitação contínua no editor de código vira uma entrada só no histórico.
         `custom:${a.field}`,
       );
+    case 'patchExperiment':
+      return commit(s, { ...s.experiment, ...a.patch });
+    case 'setWeight':
+      return commit(s, {
+        ...s.experiment,
+        variations: s.experiment.variations.map((v) =>
+          v.id === a.id ? { ...v, weight: Math.max(0, Math.round(a.weight)) } : v,
+        ),
+      });
     case 'setUrl':
       return { ...s, url: a.url };
     case 'undo': {

@@ -101,7 +101,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 4.1 Schema do banco: contas, usuários, projetos, experimentos, variações, metas, versões
 - [x] 4.2 Endpoints, OpenAPI e autenticação com permissões
 - [x] 4.3 Publicação: compilar JSON e gravar na CDN local
-- [ ] 4.4 Teste Playwright do fluxo completo: criar → editar → configurar tráfego e meta → publicar → visitante cai na variação
+- [x] 4.4 Teste Playwright do fluxo completo: criar → editar → configurar tráfego e meta → publicar → visitante cai na variação
 
 ### Fase 5 — Extensão Chrome
 - [ ] 5.1 Remoção de headers só nas sessões de edição + injeção do agent

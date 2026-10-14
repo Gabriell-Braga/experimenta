@@ -23,6 +23,7 @@ interface Props {
   onUndo(): void;
   onRedo(): void;
   onSave(): void;
+  onPublish(): void;
   onUrl(url: string): void;
 }
 
@@ -135,6 +136,14 @@ export function TopBar(p: Props) {
       >
         {p.connected ? '● conectado' : '○ conectando…'}
       </span>
+      <button
+        onClick={p.onPublish}
+        data-testid="publish"
+        className="rounded-md border border-orange-500 px-3 py-1.5 text-sm font-medium text-orange-600"
+        title="Salva e publica a configuração da conta na CDN"
+      >
+        Publicar
+      </button>
       <button
         onClick={p.onSave}
         data-testid="save"
