@@ -17,7 +17,14 @@ Editor visual de testes A/B (substituto do VWO), futuro SaaS multi-tenant. O sit
 - `apps/editor` (React+Vite+Tailwind+Monaco), `apps/api` (Hono+Drizzle+Postgres), `apps/extension` (Chrome MV3), `apps/demo` (sites de teste).
 
 ## Comandos
-(serão preenchidos na tarefa 0.1)
+pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos workspaces.
+- `pnpm install` — dependências.
+- `pnpm test` — Vitest em todos os workspaces. Um pacote: `pnpm --filter @abtest/shared test`. Um teste: `pnpm --filter @abtest/shared exec vitest run src/arquivo.test.ts -t "nome"`.
+- `pnpm lint` — ESLint (flat config na raiz) + `prettier --check`. `pnpm format` corrige formatação.
+- `pnpm typecheck` — `tsc --noEmit` por workspace.
+- `pnpm build` / `pnpm dev`.
+
+Pacotes internos exportam `src/index.ts` direto (sem build) — Vite/esbuild/Vitest resolvem TS; só bundles finais (snippet, agent, apps) têm build.
 
 ## Convenções
 - TypeScript estrito. Toda tabela/consulta da API filtra por `account_id`.

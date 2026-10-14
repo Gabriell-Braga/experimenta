@@ -68,7 +68,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 ## Fases e tarefas
 
 ### Fase 0 — Fundação
-- [ ] 0.1 Monorepo, TS, lint, prettier, Turborepo
+- [x] 0.1 Monorepo, TS, lint, prettier, Turborepo
 - [ ] 0.2 docker-compose (Postgres) e `pnpm dev` subindo tudo com um comando
 - [ ] 0.3 Sites demo (HTML estático + SPA React com rotas, incluindo classes geradas por CSS-in-JS)
 - [ ] 0.4 packages/shared com schemas zod e testes

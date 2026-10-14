@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+dist
+coverage
+.turbo
+.data
+cdn
+docs
+*.md
+playwright-report
+test-results
