@@ -193,3 +193,9 @@
 - Arquivos principais: apps/editor/src/components/SettingsPanel.tsx, apps/editor/src/EditorView.tsx, e2e/tests/publish-flow.spec.ts, e2e/reset-cdn.mjs
 - Como testar manualmente: pnpm dev → editor → Config → Em execução + pesos → Publicar → abrir http://localhost:5180 em janela anônima.
 - Observações: ver D-023.
+
+### Resumo da Fase 4 — API, persistência e publicação
+- Entregue: schema Postgres/Drizzle multi-tenant (account_id em tudo) com migrações automáticas (PGlite em dev/testes), API Hono + OpenAPI 3.1 (/openapi.json, /docs), JWT + papéis + permissão de customJS, versões a cada salvamento, publicação compilando JSON + JS por conta na CDN local, coleta de eventos (/collect) com deduplicação, editor com login, lista de experimentos, configurações (status/tráfego/pesos/URLs/metas) e Publicar.
+- Testes: API (rotas, permissões, isolamento, publicação, coleta) + E2E do fluxo completo com visitante real.
+- Limitações: sem refresh token/SSO; sessões de edição em memória; sem rate limit no /collect; "Publicar" publica a conta inteira (por design, um arquivo por conta); docker-compose não testado nesta máquina (PGlite usado).
+- Como testar: `pnpm dev` → http://localhost:5173 (demo@abtest.dev / demo1234); `pnpm e2e`.
