@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 2 — Snippet de runtime
-**Tarefa atual:** 2.2 — Bucketing com teste de distribuição e consistência
-**Última atualização:** 2026-10-14 03:52
-**Próximo passo:** Criar packages/snippet/src/bucket.ts: murmurhash3_32, assignVariation(visitorId, experiment) = hash(visitorId+experimentId)%10000 com tráfego e pesos; persistência em localStorage (_abt_a); teste de 10.000 visitantes ~50/50 e consistência.
+**Tarefa atual:** 2.3 — Anti-flicker por elemento com teste Playwright
+**Última atualização:** 2026-10-14 03:53
+**Próximo passo:** Criar antiflicker.ts (style síncrono com visibility:hidden em 'sel:not([data-abt-ok])', marcar elemento ao aplicar, timeout 1500 ms, modo página), runtime.ts orquestrando config→visitante→segmentação→bucket→apply, build esbuild (dist/abt.js), servir no demo e teste Playwright capturando os primeiros frames.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -78,3 +78,9 @@
 - Arquivos principais: packages/snippet/src/{env,segment,config}.ts
 - Como testar manualmente: pnpm --filter @abtest/snippet test
 - Observações: config embutida no JS da conta, ver D-008.
+
+### 2026-10-14 03:53 — Tarefa 2.2 concluída
+- O que foi feito: murmurhash3 x86_32 (vetores de referência), chooseVariation com tráfego e pesos, assign com persistência. Testes: 10.000 visitantes ~50/50, 20/30/50, tráfego 30%, consistência, independência entre experimentos.
+- Arquivos principais: packages/snippet/src/bucket.ts
+- Como testar manualmente: pnpm --filter @abtest/snippet exec vitest run src/bucket.test.ts
+- Observações: ver D-009.

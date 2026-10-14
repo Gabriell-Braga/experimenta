@@ -50,3 +50,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Cache: o arquivo é servido com `Cache-Control: max-age=60` + ETag; publicar sobrescreve o arquivo e incrementa `version` (numa CDN real, publicar dispara purge do caminho).
 - Instalação no site: `<script src="https://<cdn>/cdn/<conta>.js"></script>` como primeiro script do `<head>`.
 - Limite de 10 KB gzip vale para o runtime; a config embutida é medida à parte.
+
+## D-009 — Bucketing
+- Um único hash: `b = murmurhash3(visitorId + experimentId) % 10000`. Entra se `b < traffic × 100`; dentro dessa faixa, `b / faixa × somaPesos` escolhe a variação. Determinístico e independente entre experimentos (o id entra no hash).
+- Persistência em localStorage `_abt_a` (experimentId → variationId). Visitante fora do tráfego não é persistido: se o tráfego aumentar, pode entrar depois; quem já entrou mantém a variação mesmo com mudança de pesos. Variação removida → nova atribuição.
+- Bots por User-Agent são ignorados (não entram em experimento nem geram eventos). HeadlessChrome não é tratado como bot (testes E2E).
