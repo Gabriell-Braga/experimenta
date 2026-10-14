@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 6 — Robustez
-**Tarefa atual:** 6.1 — Painel de saúde com selector_failed / selector_healed por experimento
-**Última atualização:** 2026-10-14 04:55
-**Próximo passo:** API: GET /experiments/{id}/health agregando events (selector_failed/selector_healed por operação: contagem, último seletor curado, via, última ocorrência, exposições para taxa) com account_id; editor: aba/painel 'Saúde' listando operações com falhas/curas (link para destacar no site e botão 'adotar seletor curado' que troca o seletor principal da operação). Testes API + E2E (visitante gera falha/cura em página publicada → painel mostra).
+**Tarefa atual:** 6.2 — Aviso de seletor frágil no editor
+**Última atualização:** 2026-10-14 04:59
+**Próximo passo:** Mostrar aviso de fragilidade: na criação da operação (toast/alerta no painel quando fragility=high), ícone ⚠ na lista de alterações para operações cujo seletor é frágil (calcular localmente com heurística: nth-of-type, tokens gerados) e sugestão de adicionar data-testid/id estável; exportar isFragileSelector do packages/selector com teste.
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -218,3 +218,9 @@
 - Testes: unitários das regras/sessões + E2E com Chromium real carregando a extensão.
 - Limitações: SameSite de cookies não reescrito (D-024); CSP removido por inteiro durante a sessão (só no iframe da aba do editor); ponte configurada por build (`EDITOR_ORIGINS`).
 - Como testar: `pnpm --filter @abtest/extension build`, carregar `apps/extension/dist`; `pnpm e2e tests/extension.spec.ts`.
+
+### 2026-10-14 04:59 — Tarefa 6.1 concluída
+- O que foi feito: GET /experiments/{id}/health (agregação SQL por operação e exposições), HealthPanel no editor (estado por alteração, taxa, seletor curado, adotar seletor), testes API + E2E. Corrigida colisão da chave de experimento novo (sufixo aleatório).
+- Arquivos principais: apps/api/src/{repo,app}.ts, apps/editor/src/components/HealthPanel.tsx, e2e/tests/health.spec.ts
+- Como testar manualmente: publicar um experimento, mudar o HTML do demo para quebrar um seletor, visitar o site e abrir a aba Saúde.
+- Observações: ver D-025.

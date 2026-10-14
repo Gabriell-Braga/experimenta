@@ -367,6 +367,46 @@ export function createApp(deps: AppDeps) {
 
   app.openapi(
     createRoute({
+      method: 'get',
+      path: '/experiments/{id}/health',
+      tags: ['experiments'],
+      security,
+      summary: 'Saúde dos seletores: falhas e curas por operação (eventos do snippet)',
+      request: { params: IdParam },
+      responses: {
+        200: json(
+          z
+            .object({
+              exposures: z.record(z.number()),
+              operations: z.array(
+                z.object({
+                  operationId: z.string(),
+                  variationId: z.string().nullable(),
+                  failed: z.number(),
+                  healed: z.number(),
+                  lastSeen: z.string(),
+                  lastHealed: z.object({ healedSelector: z.string(), via: z.string() }).nullable(),
+                }),
+              ),
+            })
+            .openapi('ExperimentHealth'),
+          'saúde',
+        ),
+        401: errors[401],
+        404: errors[404],
+      },
+    }),
+    async (c) => {
+      const { accountId } = c.get('user');
+      const id = c.req.valid('param').id;
+      if (!(await repo.getExperiment(accountId, id)))
+        return c.json({ error: 'experimento não encontrado' }, 404);
+      return c.json(await repo.experimentHealth(accountId, id), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
       method: 'post',
       path: '/edit-sessions',
       tags: ['editor'],

@@ -149,3 +149,66 @@ describe('coleta de eventos', () => {
     expect((await app.request('/collect', { method: 'POST', body: 'não é json' })).status).toBe(400);
   });
 });
+
+describe('saúde dos seletores', () => {
+  const base = {
+    ts: Date.now(),
+    accountId: 'demo',
+    visitorId: 'v',
+    url: 'u',
+    experimentId: 'exp_run',
+    experimentKey: 'exp-run',
+    variationKey: 'b',
+  };
+  test('agrega falhas e curas por operação, com a cura mais recente', async () => {
+    const list = [
+      { ...base, eventId: 'h1', type: 'exposure', variationId: 'exp_run_v1' },
+      { ...base, eventId: 'h2', type: 'exposure', variationId: 'exp_run_v1' },
+      {
+        ...base,
+        eventId: 'h3',
+        type: 'selector_failed',
+        variationId: 'exp_run_v1',
+        operationId: 'oa',
+        selector: 'h1',
+      },
+      {
+        ...base,
+        eventId: 'h4',
+        ts: base.ts - 1000,
+        type: 'selector_healed',
+        variationId: 'exp_run_v1',
+        operationId: 'ob',
+        selector: '#a',
+        healedSelector: '#velho',
+        via: 'alternate',
+      },
+      {
+        ...base,
+        eventId: 'h5',
+        type: 'selector_healed',
+        variationId: 'exp_run_v1',
+        operationId: 'ob',
+        selector: '#a',
+        healedSelector: 'main > p',
+        via: 'fingerprint',
+      },
+    ];
+    await app.request('/collect', { method: 'POST', body: JSON.stringify({ events: list }) });
+    const r = await call('/experiments/exp_run/health', 'viewer');
+    expect(r.status).toBe(200);
+    const h = (await r.json()) as {
+      exposures: Record<string, number>;
+      operations: { operationId: string; failed: number; healed: number; lastHealed: unknown }[];
+    };
+    expect(h.exposures.exp_run_v1).toBe(3); // 2 + 1 do teste de coleta
+    const byOp = Object.fromEntries(h.operations.map((o) => [o.operationId, o]));
+    expect(byOp.oa).toMatchObject({ failed: 1, healed: 0, lastHealed: null });
+    expect(byOp.ob).toMatchObject({
+      failed: 0,
+      healed: 2,
+      lastHealed: { healedSelector: 'main > p', via: 'fingerprint' },
+    });
+    expect((await call('/experiments/nao-existe/health', 'viewer')).status).toBe(404);
+  });
+});

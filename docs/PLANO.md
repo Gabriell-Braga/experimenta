@@ -108,7 +108,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 5.2 Página demo que envia X-Frame-Options/CSP e teste da extensão
 
 ### Fase 6 — Robustez
-- [ ] 6.1 Painel de saúde com selector_failed / selector_healed por experimento
+- [x] 6.1 Painel de saúde com selector_failed / selector_healed por experimento
 - [ ] 6.2 Aviso de seletor frágil no editor
 - [ ] 6.3 Detecção de conflito entre experimentos no mesmo elemento
 - [ ] 6.4 Histórico de versões com restauração

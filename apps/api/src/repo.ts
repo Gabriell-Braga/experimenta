@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
 import { ExperimentSchema, type Experiment, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
-import { and, asc, desc, eq, max } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, max, sql } from 'drizzle-orm';
 import type { Db } from './db';
 import {
   accounts,
@@ -342,6 +342,40 @@ export function createRepo(db: Db) {
           })),
         )
         .onConflictDoNothing(); // eventId repetido (reenvio do beacon) é ignorado
+    },
+
+    /**
+     * Saúde dos seletores de um experimento a partir dos eventos coletados:
+     * exposições por variação e, por operação, falhas e curas (último seletor curado e via).
+     */
+    async experimentHealth(accountId: string, experimentId: string) {
+      const scope = and(eq(events.accountId, accountId), eq(events.experimentId, experimentId));
+      const exposures = await db
+        .select({ variationId: events.variationId, n: sql<number>`count(*)::int` })
+        .from(events)
+        .where(and(scope, eq(events.type, 'exposure')))
+        .groupBy(events.variationId);
+      const opId = sql<string>`${events.payload}->>'operationId'`;
+      const rows = await db
+        .select({
+          operationId: opId,
+          variationId: events.variationId,
+          failed: sql<number>`count(*) filter (where ${events.type} = 'selector_failed')::int`,
+          healed: sql<number>`count(*) filter (where ${events.type} = 'selector_healed')::int`,
+          lastSeen: sql<string>`max(${events.ts})`,
+          // Seletor/via da cura mais recente.
+          lastHealed: sql<{
+            healedSelector: string;
+            via: string;
+          } | null>`(array_agg(json_build_object('healedSelector', ${events.payload}->>'healedSelector', 'via', ${events.payload}->>'via') order by ${events.ts} desc) filter (where ${events.type} = 'selector_healed'))[1]`,
+        })
+        .from(events)
+        .where(and(scope, inArray(events.type, ['selector_failed', 'selector_healed'])))
+        .groupBy(opId, events.variationId);
+      return {
+        exposures: Object.fromEntries(exposures.map((e) => [e.variationId ?? '', e.n])),
+        operations: rows.map((r) => ({ ...r, lastSeen: new Date(r.lastSeen).toISOString() })),
+      };
     },
 
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {

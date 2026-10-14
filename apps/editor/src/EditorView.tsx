@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } 
 import { API_URL, createEditSession, frameUrl, publish, saveExperiment, type ExperimentRecord } from './api';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
+import { HealthPanel } from './components/HealthPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -12,7 +13,7 @@ import { activeVariation, initialState, reducer } from './store';
 
 // Monaco é pesado: só carrega quando a aba de código é aberta.
 const CodePanel = lazy(() => import('./components/CodePanel'));
-type Tab = 'element' | 'changes' | 'code' | 'settings';
+type Tab = 'element' | 'changes' | 'code' | 'settings' | 'health';
 
 interface Props {
   record: ExperimentRecord;
@@ -249,6 +250,7 @@ export function EditorView({ record, accountId }: Props) {
                   ['changes', `Alterações (${variation.operations.length})`],
                   ['code', 'CSS/JS'],
                   ['settings', 'Config'],
+                  ['health', 'Saúde'],
                 ] as [Tab, string][]
               ).map(([id, label]) => (
                 <button
@@ -294,6 +296,30 @@ export function EditorView({ record, accountId }: Props) {
               />
             )}
             {tab === 'settings' && <SettingsPanel experiment={state.experiment} dispatch={dispatch} />}
+            {tab === 'health' && (
+              <HealthPanel
+                experimentId={state.experiment.id}
+                variation={variation}
+                onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
+                onAdopt={(op, selector) =>
+                  dispatch({
+                    type: 'updateOperation',
+                    id: op.id,
+                    draft: {
+                      ...op,
+                      target: {
+                        ...op.target,
+                        selector,
+                        alternates: [
+                          op.target.selector,
+                          ...op.target.alternates.filter((a) => a !== selector),
+                        ],
+                      },
+                    },
+                  })
+                }
+              />
+            )}
             {tab === 'code' && (
               <Suspense fallback={<p className="p-3 text-sm text-gray-500">Carregando editor…</p>}>
                 <CodePanel

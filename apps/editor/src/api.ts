@@ -94,3 +94,16 @@ export function frameUrl(url: string, token: string): string {
   u.searchParams.set('abt_edit', token);
   return u.href;
 }
+
+export interface Health {
+  exposures: Record<string, number>;
+  operations: {
+    operationId: string;
+    variationId: string | null;
+    failed: number;
+    healed: number;
+    lastSeen: string;
+    lastHealed: { healedSelector: string; via: string } | null;
+  }[];
+}
+export const getHealth = (id: string) => api<Health>(`/experiments/${encodeURIComponent(id)}/health`);
