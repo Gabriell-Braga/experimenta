@@ -1,13 +1,103 @@
-import { agentEvents, agentMethods, appMethods, createPeer } from '@abtest/shared';
+import { resolveTarget } from '@abtest/selector';
+import { agentEvents, agentMethods, appMethods, createPeer, type ApplyResult } from '@abtest/shared';
 import type { AgentBoot } from '@abtest/snippet/editor';
+import { applyOperations, resetProcessed, type ApplyHandle } from '@abtest/snippet/engine';
+import { watchLocation } from '@abtest/snippet/spa';
+import { elementInfo } from './inspect';
+import { createOverlay } from './overlay';
 
 export const AGENT_VERSION = '0.1.0';
 
-export function startAgent(win: Window, boot: AgentBoot) {
-  const info = () => ({ version: AGENT_VERSION, url: win.location.href, title: win.document.title });
+/** Eventos do site bloqueados no modo edição (cliques não navegam nem disparam handlers). */
+const BLOCKED = [
+  'click',
+  'mousedown',
+  'mouseup',
+  'pointerdown',
+  'pointerup',
+  'dblclick',
+  'submit',
+  'contextmenu',
+  'auxclick',
+];
+
+/** `parent`: janela do app (injetável nos testes). */
+export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.parent) {
+  const doc = win.document;
+  const overlay = createOverlay(doc);
+  let mode: 'edit' | 'browse' = 'edit';
+  let selected: Element | null = null;
+  let variation: { handle?: ApplyHandle; style?: HTMLStyleElement; script?: HTMLScriptElement } = {};
+
+  const info = () => ({ version: AGENT_VERSION, url: win.location.href, title: doc.title });
+
+  const select = (el: Element | null) => {
+    selected = el;
+    overlay.setSelected(el, (anc) => select(anc));
+    peer.emit('selected', el ? elementInfo(el) : null);
+  };
+
+  const ours = (e: Event) => e.composedPath().some((n) => overlay.contains(n));
+
+  const onMove = (e: Event) => {
+    if (mode !== 'edit' || ours(e)) return;
+    overlay.setHover(e.target instanceof Element ? e.target : null);
+  };
+  const onBlocked = (e: Event) => {
+    if (mode !== 'edit' || ours(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (e.type === 'click' && e.target instanceof Element) select(e.target);
+  };
+  win.addEventListener('mouseover', onMove, true);
+  for (const t of BLOCKED) win.addEventListener(t, onBlocked, true);
+  doc.documentElement.addEventListener('mouseleave', () => overlay.setHover(null));
+
+  // Mudanças no DOM (variação aplicada, re-render) movem os contornos.
+  let raf = 0;
+  const mo = new MutationObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => overlay.refresh());
+  });
+  mo.observe(doc.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+
+  const applyVariation = async (p: {
+    operations: Parameters<typeof applyOperations>[0];
+    customCSS: string;
+    customJS: string;
+    runJS: boolean;
+  }): Promise<ApplyResult> => {
+    variation.handle?.revert();
+    variation.style?.remove();
+    resetProcessed();
+    variation = {};
+    if (p.customCSS) {
+      variation.style = Object.assign(doc.createElement('style'), { textContent: p.customCSS });
+      variation.style.setAttribute('data-abt-css', 'editor');
+      doc.head.appendChild(variation.style);
+    }
+    variation.handle = applyOperations(p.operations, { root: doc, timeoutMs: 1500, persist: true });
+    const report = await variation.handle.done;
+    if (p.runJS && p.customJS) {
+      const s = doc.createElement('script');
+      s.textContent = `try{${p.customJS}\n}catch(e){console.error('[abtest] customJS',e)}`;
+      doc.head.appendChild(s).remove();
+    }
+    // Se o elemento selecionado foi trocado/movido, re-resolve pelo seletor.
+    if (selected && !selected.isConnected) {
+      const r = resolveTarget(elementInfo(selected).target, doc);
+      select(r?.el ?? null);
+    } else overlay.refresh();
+    return {
+      applied: report.applied.map(({ op, res }) => ({ id: op.id, via: res.via })),
+      failed: report.failed.map((op) => op.id),
+    };
+  };
+
   const peer = createPeer({
     self: win,
-    remote: () => win.parent,
+    remote: () => parent,
     origin: boot.appOrigin,
     localMethods: agentMethods,
     remoteMethods: appMethods,
@@ -15,12 +105,43 @@ export function startAgent(win: Window, boot: AgentBoot) {
     remoteEvents: {},
     handlers: {
       ping: info,
-      setMode: () => ({}),
-      applyVariation: () => ({ applied: [], failed: [] }),
-      select: () => null,
-      highlight: () => ({ found: false }),
+      setMode: ({ mode: m }) => {
+        mode = m;
+        overlay.setHover(null);
+        if (m === 'browse') select(null);
+        return {};
+      },
+      applyVariation,
+      select: ({ selector }) => {
+        const el = selector ? doc.querySelector(selector) : null;
+        select(el);
+        el?.scrollIntoView?.({ block: 'center' });
+        return el ? elementInfo(el) : null;
+      },
+      highlight: ({ selector }) => {
+        const el = selector ? (resolveTarget({ selector, alternates: [] }, doc)?.el ?? null) : null;
+        overlay.setHover(el);
+        return { found: !!el };
+      },
     },
   });
+
+  watchLocation(win, (url) => peer.emit('navigated', { url }));
   peer.emit('ready', info());
-  return peer;
+
+  return {
+    peer,
+    destroy() {
+      peer.dispose();
+      mo.disconnect();
+      overlay.destroy();
+      win.removeEventListener('mouseover', onMove, true);
+      for (const t of BLOCKED) win.removeEventListener(t, onBlocked, true);
+    },
+    overlay,
+    get selected() {
+      return selected;
+    },
+    select,
+  };
 }

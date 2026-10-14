@@ -83,3 +83,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Só dentro de iframe (`parent !== window`); o token fica no sessionStorage do iframe (particionado pelo site de topo no Chrome) para sobreviver à navegação no modo "navegar".
 - Sessões em memória na API (ponytail: mover para banco/Redis com múltiplas instâncias). Criação restrita por CORS + checagem do header Origin contra `EDITOR_ORIGINS`; autenticação de usuário entra na 4.2.
 - O agent é carregado da mesma pasta do script da conta (`new URL('agent.js', currentScript.src)`), sem config extra.
+
+## D-015 — Agent: overlay e captura de eventos
+- UI do agent num custom element `<abt-editor-overlay>` filho de `<html>` (fora do body, não entra nos caminhos nth-of-type), com Shadow DOM e `:host{all:initial}`; caixas com `pointer-events:none`, só o breadcrumb recebe cliques.
+- No modo edição, listeners em captura no window bloqueiam click/mousedown/pointer/submit/dblclick/contextmenu do site (`stopImmediatePropagation`) — o site não navega nem reage. Eventos vindos do overlay (`composedPath`) passam.
+- Navegação no modo "navegar" recarrega a página no iframe; o snippet refaz o handshake e o agent emite `ready` de novo — o app trata `ready` como (re)conexão e reenvia modo + variação.
+- Seletor sugerido segue a prioridade do pacote selector (atributos semânticos como `href` vêm antes de classes).

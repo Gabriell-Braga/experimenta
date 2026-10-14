@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.3 — Agent: hover com contorno e label, seleção, breadcrumb (Shadow DOM)
-**Última atualização:** 2026-10-14 04:12
-**Próximo passo:** Em packages/agent: overlay em Shadow DOM (host fixo, pointer-events none), hover desenha contorno + label (tag#id.classe), clique seleciona (bloqueia o clique do site no modo edit), emite 'selected' com ElementInfo (generateSelector + fingerprint + estilos computados + breadcrumb); métodos select/highlight; breadcrumb clicável no overlay. Testes jsdom + E2E.
+**Tarefa atual:** 3.4 — Agent: edição de texto inline, arrastar para mover, menu de contexto
+**Última atualização:** 2026-10-14 04:21
+**Próximo passo:** No agent: duplo clique edita texto inline (contenteditable no elemento, Enter/blur confirma → emite operation setText, Esc cancela); arrastar o selecionado (alça no overlay) com indicador de drop antes/depois/dentro → emite move; menu de contexto (botão direito / botão no label) com editar texto, esconder, remover, inserir antes/depois (prompt html no app), trocar imagem (prompt image), copiar seletor. Testes jsdom + E2E com host.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -127,3 +127,9 @@
 - Arquivos principais: apps/api/src/{app,sessions,cdn,server}.ts, packages/snippet/src/editor.ts, packages/agent/src/{agent,main}.ts, e2e/tests/handshake.spec.ts
 - Como testar manualmente: pnpm e2e (handshake.spec.ts) — a UI do editor chega na 3.5.
 - Observações: ver D-014.
+
+### 2026-10-14 04:21 — Tarefa 3.3 concluída
+- O que foi feito: inspect.ts (ElementInfo: seletor+alternativos+impressão digital, fragilidade, estilos computados, atributos, breadcrumb), overlay.ts (Shadow DOM: contorno/label de hover e seleção, breadcrumb clicável), agent.ts (modos edit/browse, bloqueio de eventos do site, select/highlight/applyVariation com revert, navigated em SPA). Helper e2e/host.ts imita o app.
+- Arquivos principais: packages/agent/src/{agent,overlay,inspect}.ts, e2e/host.ts, e2e/tests/agent-select.spec.ts
+- Como testar manualmente: pnpm e2e (agent-select.spec.ts)
+- Observações: ver D-015.

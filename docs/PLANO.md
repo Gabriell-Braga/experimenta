@@ -90,7 +90,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 ### Fase 3 — Editor (núcleo)
 - [x] 3.1 Protocolo RPC tipado app ↔ agent, com testes
 - [x] 3.2 Handshake seguro e carregamento do agent pelo snippet
-- [ ] 3.3 Agent: hover com contorno e label, seleção, breadcrumb de ancestrais (Shadow DOM)
+- [x] 3.3 Agent: hover com contorno e label, seleção, breadcrumb de ancestrais (Shadow DOM)
 - [ ] 3.4 Agent: edição de texto inline, arrastar para mover, menu de contexto (editar, esconder, remover, inserir antes/depois, trocar imagem, copiar seletor)
 - [ ] 3.5 UI: barra superior (abas de variação, troca de dispositivo, desfazer/refazer, preview, salvar) e modo navegar vs editar
 - [ ] 3.6 UI: painel de propriedades (texto, tipografia, cores, espaçamento, borda, atributos)
