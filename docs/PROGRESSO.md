@@ -163,3 +163,9 @@
 - Arquivos principais: e2e/tests/editor-flow.spec.ts
 - Como testar manualmente: pnpm e2e tests/editor-flow.spec.ts (ou o fluxo à mão em http://localhost:5173)
 - Observações: persistência ainda em localStorage; passa para a API na fase 4.
+
+### Resumo da Fase 3 — Editor (núcleo)
+- Entregue: protocolo RPC tipado/validado (shared/rpc*), handshake seguro de 3 fatores (token na API + origin exato + parâmetro), agent em Shadow DOM (hover, seleção, breadcrumb, edição inline, arrastar, menu de contexto, applyVariation com revert), app do editor (React/Vite/Tailwind) com abas de variação, Editar/Navegar/Preview, dispositivos, desfazer/refazer, painel de propriedades, lista de alterações com alerta de falha/cura, CSS/JS com Monaco local.
+- Testes: unitários em shared/agent/editor/api/snippet + E2E (handshake, agent, editor UI, propriedades, alterações, fluxo completo).
+- Limitações: rascunho salvo em localStorage (API na fase 4); sessões de edição em memória; dispositivo só muda largura (não o UA); sem autenticação ainda.
+- Como testar: `pnpm dev` e abrir http://localhost:5173; `pnpm e2e`.
