@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.2 — Handshake seguro e carregamento do agent pelo snippet
-**Última atualização:** 2026-10-14 04:06
-**Próximo passo:** API: POST /edit-sessions (cria token curto: conta+origin do app, 15 min) e GET /edit-sessions/:token; servir /cdn estático (pasta cdn/) com abt.js, agent.js e <conta>.js. Snippet: com ?abt_edit=<token> e dentro de iframe → valida token na API (apiUrl na config) → postMessage 'hello' para o origin do app → espera 'hello-ack' com o mesmo token vindo do parent e do origin exato → carrega agent.js. Não aplica experimentos no modo edição. Testes unitários e E2E.
+**Tarefa atual:** 3.3 — Agent: hover com contorno e label, seleção, breadcrumb (Shadow DOM)
+**Última atualização:** 2026-10-14 04:12
+**Próximo passo:** Em packages/agent: overlay em Shadow DOM (host fixo, pointer-events none), hover desenha contorno + label (tag#id.classe), clique seleciona (bloqueia o clique do site no modo edit), emite 'selected' com ElementInfo (generateSelector + fingerprint + estilos computados + breadcrumb); métodos select/highlight; breadcrumb clicável no overlay. Testes jsdom + E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -121,3 +121,9 @@
 - Arquivos principais: packages/shared/src/{rpc,rpc-peer}.ts
 - Como testar manualmente: pnpm --filter @abtest/shared test
 - Observações: ver D-013.
+
+### 2026-10-14 04:12 — Tarefa 3.2 concluída
+- O que foi feito: API com POST/GET /edit-sessions (token 15 min, CORS restrito, Origin conferido) e CDN local servida com ETag/cache curto; compileAccountScript/writeAccountFiles; snippet: editToken + bootEditor (token na API, hello com targetOrigin exato, ack do parent com token), modo edição não aplica experimentos; packages/agent mínimo (peer + ready).
+- Arquivos principais: apps/api/src/{app,sessions,cdn,server}.ts, packages/snippet/src/editor.ts, packages/agent/src/{agent,main}.ts, e2e/tests/handshake.spec.ts
+- Como testar manualmente: pnpm e2e (handshake.spec.ts) — a UI do editor chega na 3.5.
+- Observações: ver D-014.

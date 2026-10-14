@@ -1,5 +1,6 @@
 // Entrada do bundle publicado (dist/abt.js). Precisa rodar de forma síncrona no <head>.
 import { readConfig } from './config';
+import { bootEditor, editToken } from './editor';
 import { installGoals } from './goals';
 import { readForce, showBadge } from './qa';
 import { start } from './runtime';
@@ -15,8 +16,13 @@ declare global {
   }
 }
 
+const script = document.currentScript as HTMLScriptElement | null;
 const config = readConfig();
-if (config) {
+const token = config && editToken(window);
+if (config && token) {
+  // Modo edição: a página fica original (sem experimentos); o agent aplica a variação em edição.
+  bootEditor(window, config, token, new URL('agent.js', script?.src || location.href).href);
+} else if (config) {
   const forced = readForce(window);
   const tracker = createTracker(window, config.trackingUrl);
   const rt = start(window, config, { forced, sink: tracker.send });

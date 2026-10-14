@@ -38,6 +38,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@abtest/shared':
+        specifier: workspace:^
+        version: link:../../packages/shared
       '@electric-sql/pglite':
         specifier: '0.3'
         version: 0.3.16
@@ -106,6 +109,25 @@ importers:
       pngjs:
         specifier: '7'
         version: 7.0.0
+
+  packages/agent:
+    dependencies:
+      '@abtest/selector':
+        specifier: workspace:*
+        version: link:../selector
+      '@abtest/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@abtest/snippet':
+        specifier: workspace:*
+        version: link:../snippet
+    devDependencies:
+      esbuild:
+        specifier: '0.25'
+        version: 0.25.12
+      jsdom:
+        specifier: '26'
+        version: 26.1.0
 
   packages/selector:
     devDependencies:

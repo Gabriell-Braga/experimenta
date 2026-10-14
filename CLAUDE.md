@@ -16,15 +16,20 @@ Editor visual de testes A/B (substituto do VWO), futuro SaaS multi-tenant. O sit
 - `packages/agent` — editor agent, UI em Shadow DOM, só carregado no modo edição.
 - `apps/editor` (React+Vite+Tailwind+Monaco), `apps/api` (Hono+Drizzle+Postgres), `apps/extension` (Chrome MV3), `apps/demo` (sites de teste).
 
+## Modo edição (handshake)
+1. App cria sessão: `POST /edit-sessions {accountId}` (CORS só para `EDITOR_ORIGINS`) → token de 15 min (memória, `apps/api/src/sessions.ts`).
+2. App abre o site em iframe com `?abt_edit=<token>`. Snippet (`packages/snippet/src/editor.ts`) só entra em modo edição dentro de iframe: valida o token em `GET /edit-sessions/:token` (conta precisa bater), envia `hello` com targetOrigin = origin do app, e só aceita `hello-ack` do `window.parent` vindo desse origin com o mesmo token. Então carrega `agent.js` (mesma pasta do script da conta) com `window.__ABT_AGENT__`.
+3. Agent e app conversam via `createPeer` (`packages/shared/src/rpc-peer.ts`). No modo edição o snippet NÃO aplica experimentos.
+
 ## Comandos
 pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos workspaces.
 - `pnpm install` — dependências.
 - `pnpm test` — Vitest em todos os workspaces. Um pacote: `pnpm --filter @abtest/shared test`. Um teste: `pnpm --filter @abtest/shared exec vitest run src/arquivo.test.ts -t "nome"`.
 - `pnpm lint` — ESLint (flat config na raiz) + `prettier --check`. `pnpm format` corrige formatação.
 - `pnpm typecheck` — `tsc --noEmit` por workspace.
-- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: API 4000, demo 5180 (`/` HTML estático, `/spa/*` SPA React com emotion).
+- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: API 4000 (serve também `/cdn/:arquivo` da pasta `cdn/`, recompilando as configs com o runtime atual ao subir), demo 5180 (`/` HTML estático, `/spa/*` SPA React com emotion).
 - `pnpm build`. Snippet: `pnpm --filter @abtest/snippet build` → `packages/snippet/dist/abt.js` (imprime tamanho gzip).
-- `pnpm e2e` — Playwright (`e2e/`), sobe o demo sozinho e compila o snippet no globalSetup. Um teste: `pnpm --filter @abtest/e2e e2e tests/antiflicker.spec.ts -g "nome"`. Chromium: `pnpm --filter @abtest/e2e exec playwright install chromium`.
+- `pnpm e2e` — Playwright (`e2e/`); sobe API (PGlite em memória, CDN em `e2e/.cdn`) e demo, compilando snippet e agent antes. Páginas "host" de teste são servidas por `page.route` (Chrome roda com `LocalNetworkAccessChecks` desligado). Um teste: `pnpm --filter @abtest/e2e e2e tests/antiflicker.spec.ts -g "nome"`. Chromium: `pnpm --filter @abtest/e2e exec playwright install chromium`.
 
 Snippet no site: `<script src="http://localhost:4000/cdn/<conta>.js">` como primeiro script do `<head>`; o arquivo = `window.__ABT_CONFIG__={...};` + runtime (D-008). Nos testes E2E o Playwright intercepta essa URL (`e2e/helpers.ts#serveSnippet`).
 

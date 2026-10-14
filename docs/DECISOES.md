@@ -76,3 +76,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Envelope `{abt:1, kind:'req'|'res'|'evt'}` sobre postMessage; os dois lados podem chamar métodos e emitir eventos (`createPeer`).
 - Segurança: `origin` exato obrigatório (nunca `'*'`), usado como targetOrigin no envio e conferido junto com `event.source` em toda mensagem recebida. Parâmetros, resultados e eventos são validados com zod; mensagens inválidas são ignoradas.
 - Contrato em `packages/shared/src/rpc.ts`: agent expõe `ping`, `setMode`, `applyVariation` (sempre a lista COMPLETA de operações: o agent reverte e reaplica, simples e sem estado divergente), `select`, `highlight`; app expõe `prompt` (pedir HTML/URL de imagem ao usuário); agent emite `ready`, `selected`, `operation` (rascunho sem id/ordem — o app numera), `navigated`.
+
+## D-014 — Handshake do modo edição
+- Três condições (plano): `?abt_edit=<token>` + token validado na API (emitido para a mesma conta; a API devolve o `appOrigin` que criou a sessão) + handshake postMessage com origin exato. O origin do app NUNCA vem da URL (um atacante poderia apontar para o próprio domínio) — vem da sessão na API.
+- O `hello` do snippet usa targetOrigin = appOrigin: uma página maliciosa que emoldure o site com um token roubado nem recebe a mensagem. O `hello-ack` precisa vir de `window.parent`, do appOrigin e ecoar o token.
+- Só dentro de iframe (`parent !== window`); o token fica no sessionStorage do iframe (particionado pelo site de topo no Chrome) para sobreviver à navegação no modo "navegar".
+- Sessões em memória na API (ponytail: mover para banco/Redis com múltiplas instâncias). Criação restrita por CORS + checagem do header Origin contra `EDITOR_ORIGINS`; autenticação de usuário entra na 4.2.
+- O agent é carregado da mesma pasta do script da conta (`new URL('agent.js', currentScript.src)`), sem config extra.
