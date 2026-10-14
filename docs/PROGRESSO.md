@@ -67,3 +67,8 @@
 - Arquivos principais: packages/snippet/src/engine/{apply.ts,dom-changes.test.ts,apply.test.ts}
 - Como testar manualmente: pnpm --filter @abtest/snippet test
 - Observações: ver D-007.
+
+### Resumo da Fase 1 — Motor de operações e seletores
+- Entregue: packages/selector (geração com prioridades + detecção de tokens gerados, impressão digital, resolução com cura) e motor em packages/snippet/src/engine (11 tipos de operação com undo, ordem, idempotência, espera por MutationObserver, modo persist, revert).
+- Limitações: cura por impressão digital usa heurística simples (D-005); persist não detecta re-render que mantém o mesmo nó (D-007).
+- Como testar: `pnpm --filter @abtest/selector test` e `pnpm --filter @abtest/snippet test`.
