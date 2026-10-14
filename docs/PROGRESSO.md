@@ -2,7 +2,7 @@
 **Status:** concluído
 **Fase atual:** concluído
 **Tarefa atual:** — (plano concluído)
-**Última atualização:** 2026-10-14 14:15
+**Última atualização:** 2026-10-14 15:09
 **Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
@@ -282,3 +282,9 @@
 - URLs: editor https://abtest-editor.hub-villa-deli.workers.dev · demo https://abtest-demo.hub-villa-deli.workers.dev · API https://abtest-api.hub-villa-deli.workers.dev/docs · extensão /abtest-extension.zip no editor.
 - Como testar: docs/DEPLOY.md (smoke: `PROD_PASSWORD=... pnpm --filter @abtest/e2e exec playwright test -c playwright.prod.config.ts`).
 - Observações: usuários de produção usam a senha do segredo SEED_PASSWORD (definida só na criação; trocar a senha exige atualizar o usuário). Dev local: apagado .data/pglite (hashes antigos em scrypt).
+
+### 2026-10-14 15:09 — Performance, redesign e loja de teste complexa (pedido pós-plano)
+- O que foi feito: API em produção ~3–4× mais rápida (leituras em lote no D1, KV em paralelo, Smart Placement; editor sem chamadas encadeadas); redesign do login, lista em tabela (filtros, busca, ações rápidas, criar via modal) e editor (barra em duas linhas, estados de salvar/publicar, toasts, aviso de sair sem salvar, overlay de conexão); segmentação acompanha a página editada; site complexo /loja/ no demo; correções achadas pelos testes (seletor com id numérico em data-*, corrida no modal de criação, corrida da sessão da extensão ao trocar de domínio). Ver D-035.
+- Arquivos principais: apps/editor/src/{App.tsx,EditorView.tsx,ui.tsx,components/TopBar.tsx}, apps/api/src/{repo-d1.ts,app.ts,publish.ts,cdn.ts,worker.ts}, apps/demo/loja/*, e2e/tests/loja.spec.ts
+- Como testar manualmente: https://abtest-editor.hub-villa-deli.workers.dev → Novo experimento → atalho "Loja completa".
+- Observações: tempos medidos em produção — salvar ~0,5–0,7 s, publicar ~0,85 s (antes 1 s e 3,6 s).
