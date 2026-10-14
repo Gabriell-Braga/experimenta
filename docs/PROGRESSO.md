@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.8 — Teste ponta a ponta: texto, cor, esconder, mover e CSS custom, ao vivo e após recarregar
-**Última atualização:** 2026-10-14 04:34
-**Próximo passo:** Escrever e2e/tests/editor-flow.spec.ts: no editor real, criar variação com setText (inline), cor (painel), esconder (menu), mover (arrastar) e CSS custom (Monaco); conferir no iframe ao vivo; salvar, recarregar e conferir de novo que tudo foi reaplicado; fechar a fase 3 com resumo.
+**Fase atual:** 4 — API, persistência e publicação
+**Tarefa atual:** 4.1 — Schema do banco: contas, usuários, projetos, experimentos, variações, metas, versões
+**Última atualização:** 2026-10-14 04:36
+**Próximo passo:** Criar apps/api/src/schema.ts (Drizzle pg-core): accounts, users (role: owner/editor/viewer, can_publish_js), projects (site_url), experiments (key, status, traffic, segmentation jsonb, anti_flicker jsonb), variations (operations jsonb, custom_css/js, redirect), goals, experiment_versions (snapshot jsonb), publications (versão publicada por conta); todas com account_id; migrações via drizzle-kit e aplicação automática no start (PGlite e Postgres); testes de isolamento por conta.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -157,3 +157,9 @@
 - Arquivos principais: apps/editor/src/components/{ChangesPanel,CodePanel}.tsx, apps/editor/src/describe.ts, apps/editor/src/App.tsx, e2e/tests/editor-changes.spec.ts
 - Como testar manualmente: pnpm dev → editor → aba Alterações / CSS-JS.
 - Observações: ver D-019.
+
+### 2026-10-14 04:36 — Tarefa 3.8 concluída
+- O que foi feito: e2e/tests/editor-flow.spec.ts — no editor real: texto (inline), cor (painel), esconder (menu), mover (arrastar), CSS custom (Monaco); conferido ao vivo, controle intacto, após salvar+recarregar o editor e após navegar no iframe.
+- Arquivos principais: e2e/tests/editor-flow.spec.ts
+- Como testar manualmente: pnpm e2e tests/editor-flow.spec.ts (ou o fluxo à mão em http://localhost:5173)
+- Observações: persistência ainda em localStorage; passa para a API na fase 4.
