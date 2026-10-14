@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 2 — Snippet de runtime
-**Tarefa atual:** 2.1 — Configuração, ID de visitante e segmentação
-**Última atualização:** 2026-10-14 03:50
-**Próximo passo:** Criar packages/snippet/src/{config,visitor,segment}.ts: fetch de /cdn/<conta>.json com cache em localStorage (chave por versão), visitorId em cookie first-party + fallback localStorage, novo/recorrente, matchSegmentation (URL exata/contém/regex com exclusão, dispositivo, query, visitante); testes.
+**Tarefa atual:** 2.2 — Bucketing com teste de distribuição e consistência
+**Última atualização:** 2026-10-14 03:52
+**Próximo passo:** Criar packages/snippet/src/bucket.ts: murmurhash3_32, assignVariation(visitorId, experiment) = hash(visitorId+experimentId)%10000 com tráfego e pesos; persistência em localStorage (_abt_a); teste de 10.000 visitantes ~50/50 e consistência.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -72,3 +72,9 @@
 - Entregue: packages/selector (geração com prioridades + detecção de tokens gerados, impressão digital, resolução com cura) e motor em packages/snippet/src/engine (11 tipos de operação com undo, ordem, idempotência, espera por MutationObserver, modo persist, revert).
 - Limitações: cura por impressão digital usa heurística simples (D-005); persist não detecta re-render que mantém o mesmo nó (D-007).
 - Como testar: `pnpm --filter @abtest/selector test` e `pnpm --filter @abtest/snippet test`.
+
+### 2026-10-14 03:52 — Tarefa 2.1 concluída
+- O que foi feito: getVisitor (cookie first-party _abt_vid + fallback localStorage, novo/recorrente via sessionStorage), detectDevice, isBot, matchUrl/matchSegmentation (URL exata/contém/regex com exclusão, dispositivo, query, novo/recorrente), readConfig.
+- Arquivos principais: packages/snippet/src/{env,segment,config}.ts
+- Como testar manualmente: pnpm --filter @abtest/snippet test
+- Observações: config embutida no JS da conta, ver D-008.

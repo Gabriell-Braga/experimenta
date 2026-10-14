@@ -80,7 +80,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 1.4 Testes cobrindo DOM que muda e todos os tipos de operação
 
 ### Fase 2 — Snippet de runtime
-- [ ] 2.1 Configuração, ID de visitante e segmentação
+- [x] 2.1 Configuração, ID de visitante e segmentação
 - [ ] 2.2 Bucketing com teste de distribuição (10.000 visitantes ~50/50) e consistência
 - [ ] 2.3 Anti-flicker por elemento, com teste Playwright por capturas dos primeiros frames
 - [ ] 2.4 Suporte a SPA com teste de navegação

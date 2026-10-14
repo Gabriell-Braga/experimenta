@@ -42,3 +42,11 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Contexto: em SPAs (React/Vue), re-render pode substituir o nó alvo depois da aplicação, apagando a variação.
 - Escolha: opção `persist` mantém o MutationObserver ativo e aplica a operação em qualquer nó novo que o alvo resolva (WeakSet evita reaplicar no mesmo nó). O snippet usa `persist: true`; para ao trocar de rota/variação.
 - Limitação conhecida: se o framework alterar o conteúdo do MESMO nó (sem trocá-lo), a operação não é reaplicada.
+
+## D-008 — Configuração embutida no JS da conta (estilo Optimizely)
+- Contexto: anti-flicker por elemento exige conhecer os seletores ANTES do primeiro paint. Buscar um JSON via fetch é assíncrono — no primeiro acesso não daria para esconder só os elementos, teríamos de esconder a página (o que o VWO faz).
+- Opções: (a) snippet genérico + fetch do JSON (esconde página até chegar); (b) XHR síncrono (obsoleto, bloqueia); (c) publicar `/cdn/<conta>.js` = `window.__ABT_CONFIG__ = {...};` + runtime, carregado com um único `<script>` síncrono no `<head>`.
+- Escolha: (c). A publicação grava também `/cdn/<conta>.json` (contrato para integração/analytics).
+- Cache: o arquivo é servido com `Cache-Control: max-age=60` + ETag; publicar sobrescreve o arquivo e incrementa `version` (numa CDN real, publicar dispara purge do caminho).
+- Instalação no site: `<script src="https://<cdn>/cdn/<conta>.js"></script>` como primeiro script do `<head>`.
+- Limite de 10 KB gzip vale para o runtime; a config embutida é medida à parte.
