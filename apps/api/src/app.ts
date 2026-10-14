@@ -126,8 +126,7 @@ export function createApp(deps: AppDeps) {
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowHeaders: ['authorization', 'content-type'],
   });
-  for (const p of [
-    '/auth/*',
+  const PRIVATE = [
     '/me',
     '/projects',
     '/projects/*',
@@ -135,19 +134,11 @@ export function createApp(deps: AppDeps) {
     '/experiments/*',
     '/edit-sessions',
     '/publish',
-  ])
-    app.use(p, privateCors);
+    '/heatmap',
+  ];
+  for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
   const auth = requireAuth(repo, deps.jwtSecret);
-  for (const p of [
-    '/me',
-    '/projects',
-    '/projects/*',
-    '/experiments',
-    '/experiments/*',
-    '/edit-sessions',
-    '/publish',
-  ])
-    app.use(p, auth);
+  for (const p of PRIVATE) app.use(p, auth);
 
   app.openapi(
     createRoute({
@@ -502,6 +493,50 @@ export function createApp(deps: AppDeps) {
       if (!self) return c.json({ error: 'experimento não encontrado' }, 404);
       return c.json(findConflicts(self, all), 200);
     },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/heatmap',
+      tags: ['heatmap'],
+      security,
+      summary: 'Mapa de calor/cliques e scroll de uma página (filtros: variação e dispositivo)',
+      request: {
+        query: z.object({
+          url: z.string().url(),
+          experimentId: z.string().optional(),
+          variationId: z.string().optional(),
+          device: z.enum(['desktop', 'tablet', 'mobile']).optional(),
+        }),
+      },
+      responses: {
+        200: json(
+          z
+            .object({
+              page: z.string(),
+              clicks: z.object({
+                total: z.number(),
+                elements: z.array(
+                  z.object({
+                    selector: z.string(),
+                    count: z.number(),
+                    points: z.array(z.tuple([z.number(), z.number()])),
+                  }),
+                ),
+              }),
+              scroll: z.object({
+                pageviews: z.number(),
+                reached: z.array(z.object({ depth: z.number(), pct: z.number() })),
+              }),
+            })
+            .openapi('Heatmap'),
+          'agregado',
+        ),
+        401: errors[401],
+      },
+    }),
+    async (c) => c.json(await repo.heatmap(c.get('user').accountId, c.req.valid('query')), 200),
   );
 
   app.openapi(

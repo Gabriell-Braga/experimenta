@@ -167,3 +167,7 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Scroll: profundidade máxima (% da altura da página), um evento por página vista — no `pagehide` e a cada navegação de SPA (com a URL antiga); força flush do lote.
 - Cada evento leva `device` e `variations` (experimentos ATIVOS na página → variação) para filtrar o mapa por variação e dispositivo. Mesmo transporte (lote/sendBeacon) e endpoint `/collect`; o schema `TrackingEventSchema` ganhou os tipos `click` e `scroll` (`HeatmapEvent`).
 - Runtime: 7,2 KB gzip.
+
+## D-030 — Agregação do mapa de calor
+- `GET /heatmap` agrega direto da tabela `events` em SQL (normaliza a URL em SQL igual ao `normalizePage` do Node), cliques por seletor com até 200 pontos (os mais recentes) por elemento, e alcance de scroll em faixas de 10%. Filtros: variação (`payload.variations[experimentId] = variationId`), só experimento (presença da chave) e dispositivo.
+- ponytail: agregação na leitura, sem tabela pré-agregada nem retenção; com volume real, materializar por dia/página e expurgar eventos crus antigos.

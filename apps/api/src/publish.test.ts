@@ -257,3 +257,73 @@ test('versões: ver snapshot e restaurar como nova versão (histórico preservad
   expect(list.map((x) => x.version)).toEqual([3, 2, 1]);
   expect((await call('/experiments/exp_ver/versions/99', 'viewer')).status).toBe(404);
 });
+
+describe('mapa de calor', () => {
+  const base = { accountId: 'demo', visitorId: 'v' };
+  const click = (i: number, over: object = {}) => ({
+    ...base,
+    eventId: `hc${i}`,
+    ts: Date.now() + i,
+    type: 'click',
+    url: 'http://loja.test/produto/?utm=1#x',
+    device: 'desktop',
+    variations: { e1: 'b' },
+    selector: '#hero > a',
+    rx: 0.5,
+    ry: 0.25,
+    px: 10,
+    py: 20,
+    vw: 1000,
+    vh: 800,
+    ...over,
+  });
+  const scroll = (i: number, depth: number, over: object = {}) => ({
+    ...base,
+    eventId: `hs${i}`,
+    ts: Date.now(),
+    type: 'scroll',
+    url: 'http://loja.test/produto',
+    device: 'desktop',
+    variations: { e1: 'b' },
+    depth,
+    vh: 800,
+    ph: 2000,
+    ...over,
+  });
+
+  test('agrega cliques por seletor e alcance de scroll; filtra variação e dispositivo', async () => {
+    const list = [
+      click(1),
+      click(2),
+      click(3, { selector: 'main > p' }),
+      click(4, { device: 'mobile' }),
+      click(5, { variations: { e1: 'controle' } }),
+      click(6, { url: 'http://loja.test/outra' }),
+      scroll(1, 100),
+      scroll(2, 45),
+      scroll(3, 15, { device: 'mobile' }),
+    ];
+    await app.request('/collect', { method: 'POST', body: JSON.stringify({ events: list }) });
+    const get = async (q: string) =>
+      (await (
+        await call(`/heatmap?url=${encodeURIComponent('http://loja.test/produto')}${q}`, 'viewer')
+      ).json()) as {
+        page: string;
+        clicks: { total: number; elements: { selector: string; count: number; points: number[][] }[] };
+        scroll: { pageviews: number; reached: { depth: number; pct: number }[] };
+      };
+    const all = await get('');
+    expect(all.page).toBe('http://loja.test/produto');
+    expect(all.clicks.total).toBe(5);
+    expect(all.clicks.elements[0]).toMatchObject({ selector: '#hero > a', count: 4 });
+    expect(all.clicks.elements[0]!.points[0]).toEqual([0.5, 0.25]);
+    expect(all.scroll.pageviews).toBe(3);
+    expect(all.scroll.reached.find((r) => r.depth === 50)!.pct).toBeCloseTo(33.3, 1);
+
+    const b = await get('&experimentId=e1&variationId=b&device=desktop');
+    expect(b.clicks.total).toBe(3);
+    expect(b.scroll.pageviews).toBe(2);
+    expect(b.scroll.reached.find((r) => r.depth === 40)!.pct).toBe(100);
+    expect((await get('&device=mobile')).clicks.total).toBe(1);
+  });
+});

@@ -41,6 +41,16 @@ export interface ExperimentRecord {
 
 export class NotFoundError extends Error {}
 
+/** Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. */
+export function normalizePage(url: string): string {
+  try {
+    const u = new URL(url);
+    return (u.origin + u.pathname).replace(/\/$/, '');
+  } catch {
+    return url.split('#')[0]!.split('?')[0]!.replace(/\/$/, '');
+  }
+}
+
 /**
  * Acesso a dados. Toda função de tenant recebe `accountId` e o usa em TODAS as cláusulas —
  * não existe consulta de experimento/variação/meta sem filtro de conta.
@@ -381,6 +391,56 @@ export function createRepo(db: Db) {
       return {
         exposures: Object.fromEntries(exposures.map((e) => [e.variationId ?? '', e.n])),
         operations: rows.map((r) => ({ ...r, lastSeen: new Date(r.lastSeen).toISOString() })),
+      };
+    },
+
+    /**
+     * Mapa de calor de uma página (URL sem query/hash/barra final), opcionalmente filtrado por
+     * variação (experimentId + variationId ativos na página) e dispositivo.
+     */
+    async heatmap(
+      accountId: string,
+      f: { url: string; experimentId?: string; variationId?: string; device?: string },
+      maxPoints = 200,
+    ) {
+      const page = normalizePage(f.url);
+      const p = events.payload;
+      const conds = [
+        eq(events.accountId, accountId),
+        sql`regexp_replace(split_part(split_part(${p}->>'url', '#', 1), '?', 1), '/$', '') = ${page}`,
+      ];
+      if (f.device) conds.push(sql`${p}->>'device' = ${f.device}`);
+      if (f.experimentId && f.variationId)
+        conds.push(sql`${p}->'variations'->>${f.experimentId} = ${f.variationId}`);
+      else if (f.experimentId) conds.push(sql`${p}->'variations' ? ${f.experimentId}`);
+
+      const elements = await db
+        .select({
+          selector: sql<string>`${p}->>'selector'`,
+          count: sql<number>`count(*)::int`,
+          points: sql<
+            [number, number][]
+          >`(array_agg(json_build_array((${p}->>'rx')::float, (${p}->>'ry')::float) order by ${events.ts} desc))[1:${sql.raw(String(maxPoints))}]`,
+        })
+        .from(events)
+        .where(and(...conds, eq(events.type, 'click')))
+        .groupBy(sql`${p}->>'selector'`)
+        .orderBy(desc(sql`count(*)`));
+
+      const depths = await db
+        .select({ depth: sql<number>`(${p}->>'depth')::float` })
+        .from(events)
+        .where(and(...conds, eq(events.type, 'scroll')));
+      const pageviews = depths.length;
+      const reached = Array.from({ length: 10 }, (_, i) => {
+        const depth = (i + 1) * 10;
+        const n = depths.filter((d) => d.depth >= depth).length;
+        return { depth, pct: pageviews ? Math.round((n / pageviews) * 1000) / 10 : 0 };
+      });
+      return {
+        page,
+        clicks: { total: elements.reduce((t, e) => t + e.count, 0), elements },
+        scroll: { pageviews, reached },
       };
     },
 

@@ -23,14 +23,14 @@ Fonte da verdade do schema: `packages/shared/src/events.ts` (`TrackingEventSchem
 
 | campo | tipo | descrição |
 |---|---|---|
-| `type` | string | `exposure`, `conversion`, `selector_failed`, `selector_healed` |
+| `type` | string | `exposure`, `conversion`, `selector_failed`, `selector_healed`, `click`, `scroll` |
 | `eventId` | string | UUID do evento (deduplicação) |
 | `ts` | number | epoch em ms, relógio do navegador |
 | `accountId` | string | conta (tenant) |
 | `visitorId` | string | ID do visitante (cookie first-party `_abt_vid`, 1 ano; fallback localStorage) |
 | `url` | string | `location.href` no momento do evento |
-| `experimentId` / `experimentKey` | string | experimento (id interno / chave legível) |
-| `variationId` / `variationKey` | string | variação atribuída (a primeira variação do experimento é o controle) |
+| `experimentId` / `experimentKey` | string | experimento (id interno / chave legível) — **não** existe em `click`/`scroll` |
+| `variationId` / `variationKey` | string | variação atribuída (a primeira variação do experimento é o controle) — **não** existe em `click`/`scroll` |
 | `qa` | boolean? | `true` quando a variação foi forçada por `?ab_force` — **descartar nas estatísticas** |
 
 ## Tipos
@@ -72,6 +72,30 @@ meio (principal, alternativos, impressão digital). O visitante vê o original n
 | `via` | `alternate` \| `fingerprint` | como foi curado |
 
 A alteração foi aplicada, mas o seletor principal quebrou — sinal para revisar o experimento no editor.
+
+### `click` (mapa de calor / cliques)
+Só para visitantes amostrados (`PublishedConfig.heatmap.sampleRate`, decisão determinística por visitante) e nunca em modo QA.
+
+| campo | tipo | descrição |
+|---|---|---|
+| `selector` | string | caminho curto do elemento clicado (nth-of-type ancorado no id mais próximo), até 500 caracteres |
+| `rx` / `ry` | number 0..1 | posição do clique DENTRO do elemento (0,0 = canto superior esquerdo) |
+| `px` / `py` | number | coordenadas do clique na página (px) |
+| `vw` / `vh` | number | tamanho da viewport |
+| `device` | `desktop` \| `tablet` \| `mobile` | dispositivo detectado |
+| `variations` | objeto | experimentos ATIVOS na página → variação (`{ "<experimentId>": "<variationId>" }`) |
+
+### `scroll`
+Um por página vista: no `pagehide` e a cada navegação de SPA (com a URL da página que ficou para trás).
+
+| campo | tipo | descrição |
+|---|---|---|
+| `depth` | number 0..100 | profundidade máxima vista (% da altura da página, contando a viewport) |
+| `vh` / `ph` | number | altura da viewport / da página no momento |
+| `device`, `variations` | | como em `click` |
+
+### Agregação (nossa API)
+`GET /heatmap?url=<página>&experimentId=&variationId=&device=` (autenticado) agrupa por página (origin + caminho, sem query/hash/barra final): cliques por seletor (contagem + até 200 pontos `[rx, ry]` mais recentes) e alcance de scroll (`reached`: % das páginas vistas que chegaram a 10, 20, … 100%). É o que o overlay do editor desenha; o analytics pode consumir os eventos crus.
 
 ## Integrações no navegador
 

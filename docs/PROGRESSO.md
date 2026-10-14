@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 7 — Mapa de calor e mapa de cliques
-**Tarefa atual:** 7.2 — Agregação na API e eventos documentados em docs/EVENTOS.md
-**Última atualização:** 2026-10-14 08:27
-**Próximo passo:** API: GET /heatmap?url=**Próximo passo:** Snippet: módulo heatmap.ts ativado por config (heatmap: {sampleRate, urls?}) — amostragem por visitante (hash), captura cliques (seletor curto do elemento via pathOf/atributos estáveis + posição relativa x/y 0..1 dentro do elemento + viewport w/h + página x/y), profundidade máxima de scroll (%), por página/variações ativas; lote via sendBeacon no tracker (eventos click/scroll no schema); manter < 10 KB gzip. Testes unitários + E2E.experimentId=**Próximo passo:** Snippet: módulo heatmap.ts ativado por config (heatmap: {sampleRate, urls?}) — amostragem por visitante (hash), captura cliques (seletor curto do elemento via pathOf/atributos estáveis + posição relativa x/y 0..1 dentro do elemento + viewport w/h + página x/y), profundidade máxima de scroll (%), por página/variações ativas; lote via sendBeacon no tracker (eventos click/scroll no schema); manter < 10 KB gzip. Testes unitários + E2E.variationId=**Próximo passo:** Snippet: módulo heatmap.ts ativado por config (heatmap: {sampleRate, urls?}) — amostragem por visitante (hash), captura cliques (seletor curto do elemento via pathOf/atributos estáveis + posição relativa x/y 0..1 dentro do elemento + viewport w/h + página x/y), profundidade máxima de scroll (%), por página/variações ativas; lote via sendBeacon no tracker (eventos click/scroll no schema); manter < 10 KB gzip. Testes unitários + E2E.device= (editor+viewer) agregando events click/scroll da conta para a página (url sem query/hash): cliques por seletor (contagem + até N pontos rx/ry), total de cliques, distribuição de scroll (pageviews que atingiram 10/20/.../100%); índice por (account, type) já existe; documentar click/scroll em docs/EVENTOS.md. Testes.
+**Tarefa atual:** 7.3 — Overlay no agent: heatmap em canvas, contagem por elemento, faixas de scroll, filtros
+**Última atualização:** 2026-10-14 08:29
+**Próximo passo:** Agent: método showHeatmap({elements, scroll}) / hideHeatmap — canvas no Shadow DOM (fixo, redesenha em scroll/resize): para cada seletor resolve o elemento e plota pontos (rect + rx/ry) com gradiente radial colorizado; badge com contagem por elemento; linhas horizontais nas faixas de scroll (% que chegou) posicionadas pela altura do documento. Editor: modo 'Mapa de calor' (botão na barra) com filtros variação/dispositivo que buscam /heatmap da URL atual e enviam ao agent. Testes jsdom + E2E (eventos semeados via /collect → overlay mostra badges e linhas).
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -254,3 +254,9 @@
 - Arquivos principais: packages/snippet/src/heatmap.ts, packages/shared/src/{events,config}.ts, apps/api/src/{publish,repo,server}.ts, e2e/tests/tracking.spec.ts
 - Como testar manualmente: publicar; navegar no demo; ver eventos click/scroll chegando em /collect (DevTools → Network).
 - Observações: ver D-029.
+
+### 2026-10-14 08:29 — Tarefa 7.2 concluída
+- O que foi feito: GET /heatmap (cliques por seletor com pontos, alcance de scroll; filtros variação/dispositivo; normalização da página), normalizePage, documentação de click/scroll e da agregação em docs/EVENTOS.md.
+- Arquivos principais: apps/api/src/{repo,app}.ts, docs/EVENTOS.md
+- Como testar manualmente: navegar no demo publicado e GET http://localhost:4000/heatmap?url=http://localhost:5180/ com token.
+- Observações: ver D-030.
