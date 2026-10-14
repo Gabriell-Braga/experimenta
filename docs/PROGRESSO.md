@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.4 — Agent: edição de texto inline, arrastar para mover, menu de contexto
-**Última atualização:** 2026-10-14 04:21
-**Próximo passo:** No agent: duplo clique edita texto inline (contenteditable no elemento, Enter/blur confirma → emite operation setText, Esc cancela); arrastar o selecionado (alça no overlay) com indicador de drop antes/depois/dentro → emite move; menu de contexto (botão direito / botão no label) com editar texto, esconder, remover, inserir antes/depois (prompt html no app), trocar imagem (prompt image), copiar seletor. Testes jsdom + E2E com host.
+**Tarefa atual:** 3.5 — UI: barra superior e modo navegar vs editar
+**Última atualização:** 2026-10-14 04:24
+**Próximo passo:** Criar apps/editor (React+Vite+Tailwind, porta 5173): store do experimento (localStorage até a fase 4), iframe do site com handshake (connectAgent), barra superior com abas de variação, troca de dispositivo (largura do iframe), desfazer/refazer (histórico da lista de operações), preview (abre o site com ?ab_force), salvar, alternância navegar/editar; recebe drafts do agent e reaplica; diálogo para prompt. Testes Vitest de store/histórico + E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -133,3 +133,9 @@
 - Arquivos principais: packages/agent/src/{agent,overlay,inspect}.ts, e2e/host.ts, e2e/tests/agent-select.spec.ts
 - Como testar manualmente: pnpm e2e (agent-select.spec.ts)
 - Observações: ver D-015.
+
+### 2026-10-14 04:24 — Tarefa 3.4 concluída
+- O que foi feito: editing.ts (edição inline com setText/setHTML, arrastar com indicador antes/depois/dentro, menu de contexto: editar, trocar imagem, esconder, remover, inserir antes/depois, copiar seletor, selecionar pai), overlay com alça, menu, indicador de drop e toast.
+- Arquivos principais: packages/agent/src/{editing,overlay,agent}.ts, e2e/tests/agent-edit.spec.ts
+- Como testar manualmente: pnpm e2e (agent-edit.spec.ts)
+- Observações: ver D-016.

@@ -89,3 +89,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - No modo edição, listeners em captura no window bloqueiam click/mousedown/pointer/submit/dblclick/contextmenu do site (`stopImmediatePropagation`) — o site não navega nem reage. Eventos vindos do overlay (`composedPath`) passam.
 - Navegação no modo "navegar" recarrega a página no iframe; o snippet refaz o handshake e o agent emite `ready` de novo — o app trata `ready` como (re)conexão e reenvia modo + variação.
 - Seletor sugerido segue a prioridade do pacote selector (atributos semânticos como `href` vêm antes de classes).
+
+## D-016 — Interações de edição no agent
+- O agent nunca altera o DOM de forma definitiva: edição inline, arrastar e menu de contexto geram RASCUNHOS de operação (`operation`); o app numera, guarda e chama `applyVariation` com a lista completa. Ao confirmar a edição inline o agent restaura o original — a mudança volta pela variação. Fonte única da verdade = lista de operações no app (desfazer/refazer triviais).
+- Edição inline: duplo clique → `contenteditable`; Enter/blur confirma, Shift+Enter quebra linha, Esc cancela. Sem filhos elemento → `setText`; com filhos → `setHTML`.
+- Arrastar: alça (⠿) ao lado do rótulo do selecionado; usa pointer events + `elementsFromPoint`; faixa superior 25% = antes, inferior 25% = depois, meio = dentro (exceto elementos vazios/void). Listeners de arraste registrados antes do bloqueio de eventos (que usa stopImmediatePropagation).
+- Inserir HTML e trocar imagem pedem o valor ao app via RPC `prompt` (o diálogo fica fora do iframe).

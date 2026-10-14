@@ -3,6 +3,7 @@ import { agentEvents, agentMethods, appMethods, createPeer, type ApplyResult } f
 import type { AgentBoot } from '@abtest/snippet/editor';
 import { applyOperations, resetProcessed, type ApplyHandle } from '@abtest/snippet/engine';
 import { watchLocation } from '@abtest/snippet/spa';
+import { createEditing } from './editing';
 import { elementInfo } from './inspect';
 import { createOverlay } from './overlay';
 
@@ -39,16 +40,40 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
 
   const ours = (e: Event) => e.composedPath().some((n) => overlay.contains(n));
 
+  const editing = createEditing({
+    win,
+    overlay,
+    selected: () => selected,
+    select: (el) => select(el),
+    emit: (draft) => peer.emit('operation', { draft }),
+    prompt: (kind, title, initial = '') => peer.call('prompt', { kind, title, initial }),
+  });
+
   const onMove = (e: Event) => {
     if (mode !== 'edit' || ours(e)) return;
     overlay.setHover(e.target instanceof Element ? e.target : null);
   };
   const onBlocked = (e: Event) => {
     if (mode !== 'edit' || ours(e)) return;
+    if (editing.isEditing(e.target)) {
+      // Dentro do texto em edição: o site não recebe, mas o navegador posiciona o cursor normalmente.
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    if (e.type === 'click' && e.target instanceof Element) select(e.target);
+    if (!(e.target instanceof Element)) return;
+    if (e.type === 'click') {
+      overlay.hideMenu();
+      if (!editing.consumeClick()) select(e.target);
+    } else if (e.type === 'dblclick') {
+      select(e.target);
+      editing.startEdit(e.target);
+    } else if (e.type === 'contextmenu') {
+      select(e.target);
+      editing.openMenu(e.target, (e as MouseEvent).clientX, (e as MouseEvent).clientY);
+    }
   };
   win.addEventListener('mouseover', onMove, true);
   for (const t of BLOCKED) win.addEventListener(t, onBlocked, true);
@@ -107,6 +132,8 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
       ping: info,
       setMode: ({ mode: m }) => {
         mode = m;
+        editing.finishEdit(true);
+        overlay.hideMenu();
         overlay.setHover(null);
         if (m === 'browse') select(null);
         return {};
@@ -131,7 +158,9 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
 
   return {
     peer,
+    editing,
     destroy() {
+      editing.destroy();
       peer.dispose();
       mo.disconnect();
       overlay.destroy();
