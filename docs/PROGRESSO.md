@@ -1,5 +1,5 @@
 # Progresso
-**Status:** em andamento
+**Status:** concluído
 **Fase atual:** concluído
 **Tarefa atual:** — (plano concluído)
 **Última atualização:** 2026-10-14 08:33
@@ -266,3 +266,14 @@
 - Arquivos principais: packages/agent/src/heatmap.ts, packages/shared/src/rpc.ts, apps/editor/src/{EditorView.tsx,components/HeatmapPanel.tsx,components/TopBar.tsx}, e2e/tests/heatmap.spec.ts
 - Como testar manualmente: publicar um experimento com HEATMAP_SAMPLE_RATE=1, clicar no demo, abrir o editor → Mapa de calor.
 - Observações: ver D-031.
+
+### Resumo da Fase 7 — Mapa de calor e mapa de cliques
+- Entregue: captura no snippet (cliques com posição relativa ao elemento, profundidade de scroll por página/SPA, amostragem determinística, variações ativas e dispositivo), agregação `GET /heatmap` com filtros, overlay no agent (canvas colorizado, contagem por elemento, faixas de scroll) e modo "Mapa de calor" no editor.
+- Limitações: agregação feita na leitura (sem pré-agregação/retenção); amostragem global por env (`HEATMAP_SAMPLE_RATE`); seletor do clique é caminho nth-of-type (pode não achar o elemento se o layout mudar muito — o painel informa quantos faltam).
+- Como testar: `pnpm e2e tests/heatmap.spec.ts tests/tracking.spec.ts`.
+
+### Resumo final do plano
+- Todas as tarefas 0.1–7.3 concluídas com testes passando: 189 unitários (Vitest, 8 workspaces) + 37 E2E (Playwright, inclusive Chrome com a extensão carregada).
+- Snippet: 7,2 KB gzip (meta < 10 KB).
+- Pendências para os humanos: ver "Bloqueios / perguntas" (SameSite na extensão; config embutida no JS).
+- Como subir tudo: `pnpm install && pnpm dev` → editor http://localhost:5173 (demo@abtest.dev / demo1234), API http://localhost:4000/docs, demo http://localhost:5180.
