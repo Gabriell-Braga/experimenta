@@ -4,6 +4,7 @@ import { assign, loadAssignments, saveAssignments } from './bucket';
 import { applyOperations, type ApplyHandle } from './engine/apply';
 import { detectDevice, getVisitor, isBot, randomId, type Visitor } from './env';
 import { matchSegmentation } from './segment';
+import { watchLocation } from './spa';
 
 /** Distribui o Omit sobre a união (Omit direto colapsa a união discriminada). */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -41,6 +42,10 @@ export interface Runtime {
   /** Reavalia segmentação/atribuição para a URL atual e aplica/remove experimentos. */
   evaluate(): void;
   emit(exp: Experiment, variation: Variation, payload: EventPayload): void;
+  /** Ouvintes chamados após cada navegação de SPA (já reavaliada). */
+  onNavigate: ((url: string) => void)[];
+  /** Desfaz tudo: experimentos ativos e patches de history. */
+  stop(): void;
 }
 
 export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions = {}): Runtime | null {
@@ -172,5 +177,21 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
   };
 
   evaluate();
-  return { visitor, config, active, evaluate, emit };
+  const onNavigate: Runtime['onNavigate'] = [];
+  const unwatch = watchLocation(win, (url) => {
+    evaluate();
+    onNavigate.forEach((f) => f(url));
+  });
+  return {
+    visitor,
+    config,
+    active,
+    evaluate,
+    emit,
+    onNavigate,
+    stop: () => {
+      unwatch();
+      [...active.keys()].forEach(deactivate);
+    },
+  };
 }

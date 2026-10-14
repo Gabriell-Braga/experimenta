@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 2 — Snippet de runtime
-**Tarefa atual:** 2.4 — Suporte a SPA com teste de navegação
-**Última atualização:** 2026-10-14 03:57
-**Próximo passo:** Em runtime.ts: interceptar history.pushState/replaceState + popstate (evento 'abt:locationchange'), reavaliar segmentação, desativar experimentos que deixaram de casar (revert) e ativar os novos; exposure por pageview. Teste unitário + Playwright na SPA do demo (/spa/, /spa/planos).
+**Tarefa atual:** 2.5 — Adaptador de eventos, metas, modo QA e docs/EVENTOS.md
+**Última atualização:** 2026-10-14 03:58
+**Próximo passo:** Criar tracker.ts (fila window.abq, adaptador plugável, adaptador padrão com sendBeacon em lote para config.trackingUrl), goals.ts (clique/visita a URL/envio de formulário/custom via abq.push(['track', evento, valor])), qa.ts (?ab_force=exp:var, persistido em sessionStorage, selo em Shadow DOM), docs/EVENTOS.md; integrar em main.ts; testes unitários + Playwright.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -90,3 +90,9 @@
 - Arquivos principais: packages/snippet/src/{antiflicker,runtime,main}.ts, packages/snippet/build.mjs, e2e/
 - Como testar manualmente: pnpm e2e; ou pnpm --filter @abtest/snippet build e abrir o demo com um /cdn/demo.js publicado (fase 4).
 - Observações: runtime 4,7 KB gzip. Ver D-010.
+
+### 2026-10-14 03:58 — Tarefa 2.4 concluída
+- O que foi feito: spa.ts (watchLocation com patch de pushState/replaceState + popstate), runtime reavalia na navegação, revert de experimentos que deixam de casar, onNavigate e stop().
+- Arquivos principais: packages/snippet/src/{spa,runtime}.ts, e2e/tests/spa.spec.ts
+- Como testar manualmente: pnpm e2e (spa.spec.ts)
+- Observações: ver D-011.

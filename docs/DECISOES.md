@@ -61,3 +61,7 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Timeout de segurança conta do início do snippet (padrão 1500 ms); no fim (tudo aplicado ou timeout) o `<style>` é removido.
 - Teste E2E: (1) script de init amostra em cada requestAnimationFrame a visibilidade/conteúdo dos elementos; (2) CDP `Page.startScreencast` captura os frames realmente pintados (PNG) e o teste conta pixels da cor original do botão na região dele — deve ser zero em todos os frames. Há um controle negativo que prova que a amostragem detecta flicker.
 - Variação de controle (sem operações) não esconde nada.
+
+## D-011 — SPA
+- `history.pushState`/`replaceState` são envolvidos e `popstate` é ouvido; a cada mudança real de URL o runtime reavalia: experimentos que deixaram de casar são revertidos (`revert` do motor + remoção de customCSS), os novos são ativados (com anti-flicker por elemento), os que continuam ativos seguem com o observer `persist`.
+- `exposure` é emitido a cada ativação (primeira carga ou reentrada na rota segmentada), não a cada navegação.

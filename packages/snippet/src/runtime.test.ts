@@ -124,3 +124,40 @@ test('segmentação que não bate não ativa; variação forçada ignora segment
     'controle',
   );
 });
+
+test('SPA: pushState/popstate reavaliam a segmentação, ativam e revertem', async () => {
+  history.replaceState(null, '', '/');
+  const events: TrackingEvent[] = [];
+  const rt = start(
+    window,
+    config(
+      {
+        operations: [{ id: 'o1', order: 0, type: 'setText', target: { selector: '.preco' }, value: 'R$ 9' }],
+      },
+      { segmentation: { urls: [{ match: 'contains', value: '/planos' }] } },
+    ),
+    { sink: (e) => events.push(e) },
+  )!;
+  const urls: string[] = [];
+  rt.onNavigate.push((u) => urls.push(u));
+  expect(rt.active.size).toBe(0);
+
+  history.pushState(null, '', '/planos');
+  document.body.innerHTML = '<p class="preco">R$ 10</p>'; // rota renderiza depois
+  await tick();
+  expect(rt.active.size).toBe(1);
+  expect(document.querySelector('.preco')!.textContent).toBe('R$ 9');
+
+  history.pushState(null, '', '/sobre');
+  expect(rt.active.size).toBe(0);
+  expect(document.querySelector('.preco')!.textContent).toBe('R$ 10'); // revertido
+
+  history.back();
+  await tick(20);
+  expect(rt.active.size).toBe(1);
+  expect(urls.map((u) => new URL(u).pathname)).toEqual(['/planos', '/sobre', '/planos']);
+  expect(events.filter((e) => e.type === 'exposure')).toHaveLength(2);
+  rt.stop();
+  history.pushState(null, '', '/sobre');
+  expect(urls).toHaveLength(3); // patches desfeitos
+});
