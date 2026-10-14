@@ -1,18 +1,30 @@
+import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 
 export type Db = PgDatabase<PgQueryResultHKT>;
 
-/** Postgres real se DATABASE_URL existir; senão PGlite (em memória se dataDir for undefined). */
+const migrationsFolder = fileURLToPath(new URL('../drizzle', import.meta.url));
+
+/**
+ * Postgres real se `url` existir; senão PGlite (em memória se dataDir for undefined).
+ * Aplica as migrações de `apps/api/drizzle` (geradas com `pnpm --filter @abtest/api db:generate`).
+ */
 export async function createDb(opts: { url?: string; dataDir?: string } = {}): Promise<Db> {
   if (opts.url) {
     const { drizzle } = await import('drizzle-orm/postgres-js');
+    const { migrate } = await import('drizzle-orm/postgres-js/migrator');
     const postgres = (await import('postgres')).default;
-    return drizzle(postgres(opts.url)) as unknown as Db;
+    const db = drizzle(postgres(opts.url, { onnotice: () => {} }));
+    await migrate(db, { migrationsFolder });
+    return db as unknown as Db;
   }
   const { PGlite } = await import('@electric-sql/pglite');
   const { drizzle } = await import('drizzle-orm/pglite');
-  return drizzle(new PGlite(opts.dataDir)) as unknown as Db;
+  const { migrate } = await import('drizzle-orm/pglite/migrator');
+  const db = drizzle(new PGlite(opts.dataDir));
+  await migrate(db, { migrationsFolder });
+  return db as unknown as Db;
 }
 
 export async function ping(db: Db): Promise<boolean> {

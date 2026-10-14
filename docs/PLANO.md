@@ -98,7 +98,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 3.8 Teste ponta a ponta: variação com texto, cor, elemento escondido, elemento movido e CSS custom, aplicada ao vivo e persistida após recarregar
 
 ### Fase 4 — API, persistência e publicação
-- [ ] 4.1 Schema do banco: contas, usuários, projetos, experimentos, variações, metas, versões
+- [x] 4.1 Schema do banco: contas, usuários, projetos, experimentos, variações, metas, versões
 - [ ] 4.2 Endpoints, OpenAPI e autenticação com permissões
 - [ ] 4.3 Publicação: compilar JSON e gravar na CDN local
 - [ ] 4.4 Teste Playwright do fluxo completo: criar → editar → configurar tráfego e meta → publicar → visitante cai na variação

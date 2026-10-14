@@ -112,3 +112,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Barra lateral com abas Elemento / Alterações / CSS-JS. A lista mostra cada operação em ordem de aplicação com descrição legível, destaca o alvo no site ao passar o mouse (`highlight`), seleciona ao clicar, reordena (↑/↓) e exclui. Operações que não acharam o elemento na página atual ficam em vermelho e a aba mostra ⚠N (base do "alerta quando uma alteração não encontra o elemento"); curadas por alternativo/impressão digital ficam em amarelo.
 - Monaco empacotado localmente (`monaco-editor` + workers via `?worker` do Vite, sem CDN) e carregado sob demanda (`React.lazy`) — o chunk é grande, mas só baixa ao abrir a aba de código.
 - customCSS aplica ao vivo. customJS só executa no editor quando o usuário marca "Executar o JS no editor" (roda na página real do cliente). A permissão de PUBLICAR customJS fica na API (4.2).
+
+## D-020 — Modelo de dados
+- Tabelas: accounts, users (role owner/editor/viewer + `can_publish_js`, senha scrypt), projects (site), experiments (segmentação/anti-flicker em jsonb), variations (operações em jsonb — lista de operações, nunca HTML), goals (definição jsonb validada pelo zod), experiment_versions (snapshot completo a cada salvamento), publications (config publicada, só inserção).
+- `account_id` em todas as tabelas de tenant, com índice; chave do experimento única POR CONTA. O repositório não expõe nenhuma consulta de tenant sem `accountId`; tentativa de gravar id de experimento de outra conta ou em projeto de outra conta → NotFoundError (não revela existência).
+- Salvar = substituir variações e metas do experimento numa transação (simples; o volume por experimento é pequeno) + nova versão.
+- Migrações versionadas com drizzle-kit e aplicadas no start (`migrate`), mesma pasta para PGlite e Postgres.

@@ -38,6 +38,9 @@ Snippet no site: `<script src="http://localhost:4000/cdn/<conta>.js">` como prim
 
 Pacotes internos exportam `src/index.ts` direto (sem build) — Vite/esbuild/Vitest resolvem TS; só bundles finais (snippet, agent, apps) têm build.
 
+## Banco (apps/api)
+Schema Drizzle em `apps/api/src/schema.ts`; migrações SQL em `apps/api/drizzle/` (gerar com `pnpm --filter @abtest/api db:generate` após mudar o schema) aplicadas automaticamente em `createDb` (PGlite ou Postgres). Acesso só via `createRepo` (`src/repo.ts`): toda função recebe `accountId` e filtra por ele.
+
 ## Convenções
 - TypeScript estrito. Toda tabela/consulta da API filtra por `account_id`.
 - Docs e mensagens de commit em português.

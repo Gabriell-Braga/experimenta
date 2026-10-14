@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 4 — API, persistência e publicação
-**Tarefa atual:** 4.1 — Schema do banco: contas, usuários, projetos, experimentos, variações, metas, versões
-**Última atualização:** 2026-10-14 04:36
-**Próximo passo:** Criar apps/api/src/schema.ts (Drizzle pg-core): accounts, users (role: owner/editor/viewer, can_publish_js), projects (site_url), experiments (key, status, traffic, segmentation jsonb, anti_flicker jsonb), variations (operations jsonb, custom_css/js, redirect), goals, experiment_versions (snapshot jsonb), publications (versão publicada por conta); todas com account_id; migrações via drizzle-kit e aplicação automática no start (PGlite e Postgres); testes de isolamento por conta.
+**Tarefa atual:** 4.2 — Endpoints, OpenAPI e autenticação com permissões
+**Última atualização:** 2026-10-14 04:39
+**Próximo passo:** Adicionar @hono/zod-openapi: rotas /auth/login (JWT HS256 com accountId/userId/role), /me, /projects, /experiments (CRUD + versões), /edit-sessions passa a exigir login (conta do token); permissões: viewer só lê, editor salva, publicar customJS exige owner ou can_publish_js; /openapi.json e docs; seed de dev (conta demo, owner demo@abtest.dev/demo1234, projeto demo); editor passa a logar e salvar na API. Testes de rotas e permissões.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -169,3 +169,9 @@
 - Testes: unitários em shared/agent/editor/api/snippet + E2E (handshake, agent, editor UI, propriedades, alterações, fluxo completo).
 - Limitações: rascunho salvo em localStorage (API na fase 4); sessões de edição em memória; dispositivo só muda largura (não o UA); sem autenticação ainda.
 - Como testar: `pnpm dev` e abrir http://localhost:5173; `pnpm e2e`.
+
+### 2026-10-14 04:39 — Tarefa 4.1 concluída
+- O que foi feito: schema Drizzle (8 tabelas, account_id em todas), migração gerada e aplicada no createDb, repositório com isolamento por conta, versões a cada salvamento, hash de senha scrypt.
+- Arquivos principais: apps/api/src/{schema,repo,db}.ts, apps/api/drizzle/
+- Como testar manualmente: pnpm --filter @abtest/api test
+- Observações: ver D-020.

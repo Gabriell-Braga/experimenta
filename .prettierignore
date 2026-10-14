@@ -9,3 +9,4 @@ docs
 playwright-report
 test-results
 .cdn
+apps/api/drizzle
