@@ -8,6 +8,8 @@ const base = {
   accountId: z.string(),
   visitorId: z.string(),
   url: z.string(),
+  /** true quando a variação foi forçada pelo modo QA (?ab_force) — o analytics deve descartar. */
+  qa: z.boolean().optional(),
 };
 
 const inExperiment = {

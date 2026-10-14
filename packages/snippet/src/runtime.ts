@@ -42,6 +42,8 @@ export interface Runtime {
   /** Reavalia segmentação/atribuição para a URL atual e aplica/remove experimentos. */
   evaluate(): void;
   emit(exp: Experiment, variation: Variation, payload: EventPayload): void;
+  /** Experimentos em que o visitante está (persistidos ou forçados), mesmo fora da página atual. */
+  assigned(): { experiment: Experiment; variation: Variation }[];
   /** Ouvintes chamados após cada navegação de SPA (já reavaliada). */
   onNavigate: ((url: string) => void)[];
   /** Desfaz tudo: experimentos ativos e patches de history. */
@@ -63,6 +65,11 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
   const stored = loadAssignments(storage);
   const active = new Map<string, Active>();
 
+  const forcedOf = (exp: Experiment) => {
+    const key = opts.forced?.[exp.key];
+    return key ? exp.variations.find((v) => v.key === key) : undefined;
+  };
+
   const emit: Runtime['emit'] = (exp, variation, payload) =>
     opts.sink?.({
       ...payload,
@@ -75,6 +82,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
       experimentKey: exp.key,
       variationId: variation.id,
       variationKey: variation.key,
+      ...(forcedOf(exp) ? { qa: true } : {}),
     } as TrackingEvent);
 
   const deactivate = (id: string) => {
@@ -161,8 +169,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     };
     for (const exp of config.experiments) {
       if (exp.status !== 'running') continue;
-      const forcedKey = opts.forced?.[exp.key];
-      const forced = forcedKey ? exp.variations.find((v) => v.key === forcedKey) : undefined;
+      const forced = forcedOf(exp);
       if (!forced && !matchSegmentation(exp.segmentation, ctx)) {
         deactivate(exp.id);
         continue;
@@ -189,6 +196,13 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     evaluate,
     emit,
     onNavigate,
+    assigned: () =>
+      config.experiments.flatMap((experiment) => {
+        if (experiment.status !== 'running') return [];
+        const variation =
+          forcedOf(experiment) ?? experiment.variations.find((v) => v.id === stored[experiment.id]);
+        return variation ? [{ experiment, variation }] : [];
+      }),
     stop: () => {
       unwatch();
       [...active.keys()].forEach(deactivate);

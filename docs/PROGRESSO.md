@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 2 — Snippet de runtime
-**Tarefa atual:** 2.5 — Adaptador de eventos, metas, modo QA e docs/EVENTOS.md
-**Última atualização:** 2026-10-14 03:58
-**Próximo passo:** Criar tracker.ts (fila window.abq, adaptador plugável, adaptador padrão com sendBeacon em lote para config.trackingUrl), goals.ts (clique/visita a URL/envio de formulário/custom via abq.push(['track', evento, valor])), qa.ts (?ab_force=exp:var, persistido em sessionStorage, selo em Shadow DOM), docs/EVENTOS.md; integrar em main.ts; testes unitários + Playwright.
+**Tarefa atual:** 2.6 — Medir e registrar o tamanho gzip em PROGRESSO.md
+**Última atualização:** 2026-10-14 04:02
+**Próximo passo:** Adicionar checagem de tamanho no build (falha se > 10 KB gzip), registrar tamanho em PROGRESSO.md e fechar fase 2 com resumo.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -96,3 +96,9 @@
 - Arquivos principais: packages/snippet/src/{spa,runtime}.ts, e2e/tests/spa.spec.ts
 - Como testar manualmente: pnpm e2e (spa.spec.ts)
 - Observações: ver D-011.
+
+### 2026-10-14 04:02 — Tarefa 2.5 concluída
+- O que foi feito: tracker.ts (lote, sendBeacon text/plain, flush em conversão/pagehide, CustomEvent abt:event, adaptadores), goals.ts (click, pageview, formSubmit, custom), qa.ts (ab_force persistido na sessão, selo em Shadow DOM), main.ts (window.abq/window.abt), campo qa nos eventos, docs/EVENTOS.md.
+- Arquivos principais: packages/snippet/src/{tracker,goals,qa,main}.ts, docs/EVENTOS.md, e2e/tests/tracking.spec.ts
+- Como testar manualmente: pnpm e2e (tracking.spec.ts); no demo com snippet publicado, abrir /?ab_force=<exp>:<var>
+- Observações: ver D-012.

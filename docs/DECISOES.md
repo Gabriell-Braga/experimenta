@@ -65,3 +65,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-011 — SPA
 - `history.pushState`/`replaceState` são envolvidos e `popstate` é ouvido; a cada mudança real de URL o runtime reavalia: experimentos que deixaram de casar são revertidos (`revert` do motor + remoção de customCSS), os novos são ativados (com anti-flicker por elemento), os que continuam ativos seguem com o observer `persist`.
 - `exposure` é emitido a cada ativação (primeira carga ou reentrada na rota segmentada), não a cada navegação.
+
+## D-012 — Eventos, metas e QA
+- Transporte: sendBeacon com `text/plain` (sem preflight CORS), lote a cada 1 s, flush imediato em conversão e no pagehide/visibilitychange. Conversão envia na hora porque costuma preceder navegação (beacons disparados durante o unload são menos confiáveis).
+- Conversões são atribuídas a todos os experimentos em que o visitante está (atribuições persistidas), não só aos ativos na página — a meta costuma estar em outra URL.
+- Modo QA (`?ab_force=exp:var`) ignora segmentação/tráfego, não persiste atribuição, fica salvo na sessão (`?ab_force=off` limpa) e marca eventos com `qa: true` em vez de suprimi-los (o analytics filtra; facilita depurar a integração).
+- Integração sem código: `CustomEvent('abt:event')` no window e adaptadores via `abq.push(['adapter', fn])`.
