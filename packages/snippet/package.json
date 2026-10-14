@@ -11,13 +11,15 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@abtest/selector": "workspace:*",
     "@abtest/shared": "workspace:*"
   },
   "devDependencies": {
+    "esbuild": "0.25",
     "jsdom": "26"
   }
 }

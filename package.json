@@ -9,7 +9,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "lint": "eslint . && prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "e2e": "pnpm --filter @abtest/e2e e2e"
   },
   "devDependencies": {
     "@eslint/js": "9",

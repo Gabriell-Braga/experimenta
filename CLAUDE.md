@@ -23,7 +23,10 @@ pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos wor
 - `pnpm lint` — ESLint (flat config na raiz) + `prettier --check`. `pnpm format` corrige formatação.
 - `pnpm typecheck` — `tsc --noEmit` por workspace.
 - `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: API 4000, demo 5180 (`/` HTML estático, `/spa/*` SPA React com emotion).
-- `pnpm build`.
+- `pnpm build`. Snippet: `pnpm --filter @abtest/snippet build` → `packages/snippet/dist/abt.js` (imprime tamanho gzip).
+- `pnpm e2e` — Playwright (`e2e/`), sobe o demo sozinho e compila o snippet no globalSetup. Um teste: `pnpm --filter @abtest/e2e e2e tests/antiflicker.spec.ts -g "nome"`. Chromium: `pnpm --filter @abtest/e2e exec playwright install chromium`.
+
+Snippet no site: `<script src="http://localhost:4000/cdn/<conta>.js">` como primeiro script do `<head>`; o arquivo = `window.__ABT_CONFIG__={...};` + runtime (D-008). Nos testes E2E o Playwright intercepta essa URL (`e2e/helpers.ts#serveSnippet`).
 
 Pacotes internos exportam `src/index.ts` direto (sem build) — Vite/esbuild/Vitest resolvem TS; só bundles finais (snippet, agent, apps) têm build.
 

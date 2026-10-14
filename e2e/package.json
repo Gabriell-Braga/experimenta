@@ -1,0 +1,16 @@
+{
+  "name": "@abtest/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@abtest/shared": "workspace:^",
+    "@playwright/test": "1.56",
+    "@types/pngjs": "6",
+    "pngjs": "7"
+  }
+}

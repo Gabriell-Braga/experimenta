@@ -55,3 +55,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Um único hash: `b = murmurhash3(visitorId + experimentId) % 10000`. Entra se `b < traffic × 100`; dentro dessa faixa, `b / faixa × somaPesos` escolhe a variação. Determinístico e independente entre experimentos (o id entra no hash).
 - Persistência em localStorage `_abt_a` (experimentId → variationId). Visitante fora do tráfego não é persistido: se o tráfego aumentar, pode entrar depois; quem já entrou mantém a variação mesmo com mudança de pesos. Variação removida → nova atribuição.
 - Bots por User-Agent são ignorados (não entram em experimento nem geram eventos). HeadlessChrome não é tratado como bot (testes E2E).
+
+## D-010 — Anti-flicker e teste por frames
+- CSS: uma regra por seletor `:is(<sel>):not([data-abt-ok]){visibility:hidden!important}`; ao aplicar a operação o elemento recebe `data-abt-ok` e reaparece. `:is()` isola listas de seletores; regra por seletor evita que um seletor inválido anule os demais. Modo página: `html{opacity:0!important}`.
+- Timeout de segurança conta do início do snippet (padrão 1500 ms); no fim (tudo aplicado ou timeout) o `<style>` é removido.
+- Teste E2E: (1) script de init amostra em cada requestAnimationFrame a visibilidade/conteúdo dos elementos; (2) CDP `Page.startScreencast` captura os frames realmente pintados (PNG) e o teste conta pixels da cor original do botão na região dele — deve ser zero em todos os frames. Há um controle negativo que prova que a amostragem detecta flicker.
+- Variação de controle (sem operações) não esconde nada.

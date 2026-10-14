@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 2 — Snippet de runtime
-**Tarefa atual:** 2.3 — Anti-flicker por elemento com teste Playwright
-**Última atualização:** 2026-10-14 03:53
-**Próximo passo:** Criar antiflicker.ts (style síncrono com visibility:hidden em 'sel:not([data-abt-ok])', marcar elemento ao aplicar, timeout 1500 ms, modo página), runtime.ts orquestrando config→visitante→segmentação→bucket→apply, build esbuild (dist/abt.js), servir no demo e teste Playwright capturando os primeiros frames.
+**Tarefa atual:** 2.4 — Suporte a SPA com teste de navegação
+**Última atualização:** 2026-10-14 03:57
+**Próximo passo:** Em runtime.ts: interceptar history.pushState/replaceState + popstate (evento 'abt:locationchange'), reavaliar segmentação, desativar experimentos que deixaram de casar (revert) e ativar os novos; exposure por pageview. Teste unitário + Playwright na SPA do demo (/spa/, /spa/planos).
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -84,3 +84,9 @@
 - Arquivos principais: packages/snippet/src/bucket.ts
 - Como testar manualmente: pnpm --filter @abtest/snippet exec vitest run src/bucket.test.ts
 - Observações: ver D-009.
+
+### 2026-10-14 03:57 — Tarefa 2.3 concluída
+- O que foi feito: antiflicker.ts (por elemento e página, timeout), runtime.ts (bots, visitante, segmentação, bucketing, redirect, customCSS/JS, applyOperations persist, eventos exposure/selector_failed/selector_healed via sink), main.ts + build esbuild, snippet no head das páginas demo, pacote e2e com Playwright.
+- Arquivos principais: packages/snippet/src/{antiflicker,runtime,main}.ts, packages/snippet/build.mjs, e2e/
+- Como testar manualmente: pnpm e2e; ou pnpm --filter @abtest/snippet build e abrir o demo com um /cdn/demo.js publicado (fase 4).
+- Observações: runtime 4,7 KB gzip. Ver D-010.
