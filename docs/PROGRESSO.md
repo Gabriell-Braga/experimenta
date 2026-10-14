@@ -2,7 +2,7 @@
 **Status:** concluído
 **Fase atual:** concluído
 **Tarefa atual:** — (plano concluído)
-**Última atualização:** 2026-10-14 08:33
+**Última atualização:** 2026-10-14 14:15
 **Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
@@ -276,3 +276,9 @@
 - Snippet: 7,2 KB gzip (meta < 10 KB).
 - Pendências para os humanos: ver "Bloqueios / perguntas" (SameSite na extensão; config embutida no JS).
 - Como subir tudo: `pnpm install && pnpm dev` → editor http://localhost:5173 (demo@abtest.dev / demo1234), API http://localhost:4000/docs, demo http://localhost:5180.
+
+### 2026-10-14 14:15 — Deploy na Cloudflare e perguntas respondidas (fora do plano original)
+- O que foi feito: API em Worker com D1 + KV (repositório D1 com o mesmo contrato do Postgres; suíte da API roda contra os dois), editor e demo como Workers estáticos, script `pnpm deploy:cf`, smoke test de produção. Perguntas abertas decididas (D-033): config embutida mantida; extensão passa a reescrever SameSite dos cookies do site durante a sessão, com restauração (D-034).
+- URLs: editor https://abtest-editor.hub-villa-deli.workers.dev · demo https://abtest-demo.hub-villa-deli.workers.dev · API https://abtest-api.hub-villa-deli.workers.dev/docs · extensão /abtest-extension.zip no editor.
+- Como testar: docs/DEPLOY.md (smoke: `PROD_PASSWORD=... pnpm --filter @abtest/e2e exec playwright test -c playwright.prod.config.ts`).
+- Observações: usuários de produção usam a senha do segredo SEED_PASSWORD (definida só na criação; trocar a senha exige atualizar o usuário). Dev local: apagado .data/pglite (hashes antigos em scrypt).
