@@ -1,7 +1,16 @@
 import { selectorFragility } from '@abtest/selector';
 import type { ApplyResult, ElementInfo } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { API_URL, createEditSession, frameUrl, publish, saveExperiment, type ExperimentRecord } from './api';
+import {
+  API_URL,
+  createEditSession,
+  frameUrl,
+  getConflicts,
+  publish,
+  saveExperiment,
+  type Conflict,
+  type ExperimentRecord,
+} from './api';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
 import { HealthPanel } from './components/HealthPanel';
@@ -122,18 +131,31 @@ export function EditorView({ record, accountId }: Props) {
   }, [token, connected, ext, tryExtension, frameKey]);
 
   useEffect(() => () => void endExtensionSession(), []);
+  // Conflitos são calculados pela API sobre a versão SALVA (recarregados ao abrir e a cada salvamento).
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const loadConflicts = useCallback(
+    () => getConflicts(record.experiment.id).then(setConflicts, () => {}),
+    [record.experiment.id],
+  );
+  useEffect(() => void loadConflicts(), [loadConflicts]);
   const persist = useCallback(async () => {
     await saveExperiment({ experiment: state.experiment, projectId: record.projectId, editorUrl: state.url });
     dispatch({ type: 'saved' });
     setError(null);
-  }, [state.experiment, state.url, record.projectId]);
+    return loadConflicts();
+  }, [state.experiment, state.url, record.projectId, loadConflicts]);
   const save = useCallback(() => {
     persist().catch((e: Error) => setError(`Não foi possível salvar: ${e.message}`));
   }, [persist]);
   const doPublish = async () => {
     try {
       await persist();
+      const live = (await getConflicts(record.experiment.id)).filter((c) => c.status === 'running');
       const { version } = await publish();
+      if (live.length)
+        setError(
+          `Atenção: ${live.map((c) => `"${c.name}"`).join(', ')} também altera(m) os mesmos elementos e está(ão) em execução — os resultados vão se contaminar.`,
+        );
       setNotice(
         state.experiment.status === 'running'
           ? `Publicado (versão ${version}). Visitantes já recebem este experimento.`
@@ -309,6 +331,7 @@ export function EditorView({ record, accountId }: Props) {
             {tab === 'changes' && (
               <ChangesPanel
                 operations={variation.operations}
+                conflicts={conflicts}
                 result={applyResult}
                 onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
                 onSelect={(selector) =>

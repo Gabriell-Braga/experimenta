@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 6 — Robustez
-**Tarefa atual:** 6.3 — Detecção de conflito entre experimentos no mesmo elemento
-**Última atualização:** 2026-10-14 08:16
-**Próximo passo:** API: GET /experiments/{id}/conflicts — compara alvos (seletor principal/alternativos normalizados) das operações deste experimento com os de outros experimentos running/paused da mesma conta cujas segmentações de URL podem se sobrepor (mesma URL exata, contains/regex testados contra editorUrl); editor: aviso na aba Alterações e no Publicar (confirmação). Testes.
+**Tarefa atual:** 6.4 — Histórico de versões com restauração
+**Última atualização:** 2026-10-14 08:19
+**Próximo passo:** API: POST /experiments/{id}/versions/{v}/restore (editor+) grava o snapshot como nova versão (não apaga histórico) e devolve o registro; GET /experiments/{id}/versions/{v}. Editor: aba 'Versões' listando versões (número, data, autor) com 'Ver' (carrega o snapshot no editor sem salvar, com aviso) e 'Restaurar' (chama a API e recarrega o editor). Testes API + E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -230,3 +230,9 @@
 - Arquivos principais: packages/selector/src/fragility.ts, apps/editor/src/{EditorView.tsx,components/ChangesPanel.tsx,components/PropertiesPanel.tsx}, e2e/tests/fragile.spec.ts
 - Como testar manualmente: no editor, esconder um item da lista 'Por que escolher' (sem classe/id).
 - Observações: ver D-026.
+
+### 2026-10-14 08:19 — Tarefa 6.3 concluída
+- O que foi feito: conflicts.ts (alvos normalizados + sobreposição de páginas/dispositivos), GET /experiments/{id}/conflicts, editor mostra conflitos na lista e avisa ao publicar.
+- Arquivos principais: apps/api/src/{conflicts,app,repo}.ts, apps/editor/src/{EditorView.tsx,components/ChangesPanel.tsx}, e2e/tests/conflicts.spec.ts
+- Como testar manualmente: criar dois experimentos alterando o título da home; aba Alterações do segundo mostra ⚔.
+- Observações: ver D-027.

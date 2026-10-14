@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@abtest/shared": "workspace:^",
+    "@abtest/snippet": "workspace:^",
     "@electric-sql/pglite": "0.3",
     "@hono/node-server": "1",
     "@hono/swagger-ui": "0.5",

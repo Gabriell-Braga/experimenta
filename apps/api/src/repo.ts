@@ -296,19 +296,24 @@ export function createRepo(db: Db) {
       return row ? (row.snapshot as { experiment: Experiment; editorUrl: string }) : undefined;
     },
 
-    /** Todos os experimentos completos da conta (para compilar a publicação). */
-    async loadAllExperiments(accountId: string): Promise<Experiment[]> {
+    /** Todos os experimentos completos da conta, com a página de referência. */
+    async loadAllRecords(accountId: string): Promise<ExperimentRecord[]> {
       const ids = await db
         .select({ id: experiments.id })
         .from(experiments)
         .where(eq(experiments.accountId, accountId))
         .orderBy(asc(experiments.createdAt));
-      const out: Experiment[] = [];
+      const out: ExperimentRecord[] = [];
       for (const { id } of ids) {
         const r = await loadExperiment(accountId, id);
-        if (r) out.push(r.experiment);
+        if (r) out.push(r);
       }
       return out;
+    },
+
+    /** Todos os experimentos completos da conta (para compilar a publicação). */
+    async loadAllExperiments(accountId: string): Promise<Experiment[]> {
+      return (await this.loadAllRecords(accountId)).map((r) => r.experiment);
     },
 
     async lastPublication(accountId: string) {

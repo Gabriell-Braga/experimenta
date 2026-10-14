@@ -150,3 +150,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-026 — Aviso de seletor frágil
 - `selectorFragility(selector)` (packages/selector) avalia qualquer seletor só pelo texto (inclusive os editados/adotados): `high` se usa nth-* ou id/classe com cara de gerada; `low` se ancorado num id/data-* estável sem combinadores ou classe estável simples; `medium` no resto.
 - Três pontos de aviso no editor: dica no painel ao selecionar elemento frágil, faixa amarela ao criar uma alteração frágil (com sugestão de pedir `data-testid`) e ⚠ na lista de alterações. Não bloqueia: a impressão digital ainda tenta curar.
+
+## D-027 — Conflito entre experimentos
+- `GET /experiments/{id}/conflicts` (apps/api/src/conflicts.ts): outros experimentos não arquivados da conta que alteram o mesmo elemento — compara seletor principal + alternativos normalizados (espaços nos combinadores) de todas as variações.
+- Sobreposição de páginas aproximada: a página de referência (editorUrl) de um casa com a segmentação de URL do outro, em qualquer sentido (regras vazias = todas), e os dispositivos não são disjuntos. Não tenta provar interseção de regex — falso positivo é aceitável (é aviso), falso negativo raro.
+- Editor: faixa ⚔ na aba Alterações + marca por alteração; ao Publicar, avisa se o conflito é com experimento em execução. Não bloqueia (às vezes é intencional, ex.: experimentos mutuamente exclusivos por segmentação de público que a heurística não enxerga).

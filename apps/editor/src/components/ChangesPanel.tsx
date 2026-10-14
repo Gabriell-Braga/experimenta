@@ -1,25 +1,43 @@
 import type { ApplyResult, Operation } from '@abtest/shared';
+import type { Conflict } from '../api';
 import { selectorFragility } from '@abtest/selector';
 import { describeOperation } from '../describe';
 
 interface Props {
   operations: Operation[];
   result: ApplyResult | null;
+  /** Outros experimentos que alteram os mesmos elementos (versão salva). */
+  conflicts?: Conflict[];
   onHighlight(selector: string | null): void;
   onSelect(selector: string): void;
   onRemove(id: string): void;
   onMove(id: string, to: number): void;
 }
 
-export function ChangesPanel({ operations, result, onHighlight, onSelect, onRemove, onMove }: Props) {
+export function ChangesPanel({
+  operations,
+  result,
+  conflicts = [],
+  onHighlight,
+  onSelect,
+  onRemove,
+  onMove,
+}: Props) {
   if (!operations.length)
     return <p className="p-3 text-sm text-gray-500">Nenhuma alteração nesta variação ainda.</p>;
   const failed = new Set(result?.failed ?? []);
   const healed = new Map(
     (result?.applied ?? []).filter((a) => a.via !== 'primary').map((a) => [a.id, a.via]),
   );
+  const conflictsOf = (selector: string) => conflicts.filter((c) => c.selectors.includes(selector));
   return (
     <ol className="divide-y divide-gray-100" data-testid="changes">
+      {conflicts.length > 0 && (
+        <li className="bg-orange-50 px-3 py-2 text-xs text-orange-900" data-testid="conflicts">
+          ⚔ Conflito: {conflicts.map((c) => `${c.name} (${c.status})`).join(', ')} também altera(m) elementos
+          desta página.
+        </li>
+      )}
       {operations.map((op, i) => (
         <li
           key={op.id}
@@ -46,6 +64,14 @@ export function ChangesPanel({ operations, result, onHighlight, onSelect, onRemo
               )}
               {op.target.selector}
             </code>
+            {conflictsOf(op.target.selector).length > 0 && (
+              <span className="block text-xs text-orange-800" data-testid="change-conflict">
+                ⚔ também alterado por{' '}
+                {conflictsOf(op.target.selector)
+                  .map((c) => c.name)
+                  .join(', ')}
+              </span>
+            )}
             {failed.has(op.id) && (
               <span className="text-xs text-red-700">⚠ elemento não encontrado nesta página</span>
             )}

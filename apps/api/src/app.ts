@@ -4,6 +4,7 @@ import { ExperimentSchema, TrackingEventSchema, type TrackingEvent } from '@abte
 import { cors } from 'hono/cors';
 import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
 import { serveCdn } from './cdn';
+import { findConflicts } from './conflicts';
 import { ping, type Db } from './db';
 import { createRepo, NotFoundError, verifyPassword, type Repo, type User } from './repo';
 import { createSessionStore, type SessionStore } from './sessions';
@@ -402,6 +403,40 @@ export function createApp(deps: AppDeps) {
       if (!(await repo.getExperiment(accountId, id)))
         return c.json({ error: 'experimento não encontrado' }, 404);
       return c.json(await repo.experimentHealth(accountId, id), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/experiments/{id}/conflicts',
+      tags: ['experiments'],
+      security,
+      summary: 'Outros experimentos que alteram os mesmos elementos em páginas que podem coincidir',
+      request: { params: IdParam },
+      responses: {
+        200: json(
+          z.array(
+            z
+              .object({
+                experimentId: z.string(),
+                name: z.string(),
+                status: z.string(),
+                selectors: z.array(z.string()),
+              })
+              .openapi('Conflict'),
+          ),
+          'conflitos',
+        ),
+        401: errors[401],
+        404: errors[404],
+      },
+    }),
+    async (c) => {
+      const all = await repo.loadAllRecords(c.get('user').accountId);
+      const self = all.find((r) => r.experiment.id === c.req.valid('param').id);
+      if (!self) return c.json({ error: 'experimento não encontrado' }, 404);
+      return c.json(findConflicts(self, all), 200);
     },
   );
 

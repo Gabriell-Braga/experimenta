@@ -212,3 +212,22 @@ describe('saúde dos seletores', () => {
     expect((await call('/experiments/nao-existe/health', 'viewer')).status).toBe(404);
   });
 });
+
+test('GET /experiments/{id}/conflicts', async () => {
+  const mk = (id: string, selector: string) => {
+    const b = exp(id, 'running');
+    b.experiment.variations[1]!.operations = [
+      { id: 'o1', order: 0, type: 'setText', target: { selector }, value: 'x' },
+    ];
+    return b;
+  };
+  await save('editor', mk('exp_c1', '#hero-title'));
+  await save('editor', mk('exp_c2', '#hero-title'));
+  const r = (await (await call('/experiments/exp_c1/conflicts', 'viewer')).json()) as {
+    experimentId: string;
+    selectors: string[];
+  }[];
+  expect(r.map((c) => c.experimentId)).toContain('exp_c2');
+  expect(r.find((c) => c.experimentId === 'exp_c2')!.selectors).toEqual(['#hero-title']);
+  expect((await call('/experiments/nao/conflicts', 'viewer')).status).toBe(404);
+});

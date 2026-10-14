@@ -107,3 +107,12 @@ export interface Health {
   }[];
 }
 export const getHealth = (id: string) => api<Health>(`/experiments/${encodeURIComponent(id)}/health`);
+
+export interface Conflict {
+  experimentId: string;
+  name: string;
+  status: string;
+  selectors: string[];
+}
+export const getConflicts = (id: string) =>
+  api<Conflict[]>(`/experiments/${encodeURIComponent(id)}/conflicts`);

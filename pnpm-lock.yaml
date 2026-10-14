@@ -41,6 +41,9 @@ importers:
       '@abtest/shared':
         specifier: workspace:^
         version: link:../../packages/shared
+      '@abtest/snippet':
+        specifier: workspace:^
+        version: link:../../packages/snippet
       '@electric-sql/pglite':
         specifier: '0.3'
         version: 0.3.16

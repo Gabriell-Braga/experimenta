@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./engine": "./src/engine/index.ts",
     "./editor": "./src/editor.ts",
-    "./spa": "./src/spa.ts"
+    "./spa": "./src/spa.ts",
+    "./segment": "./src/segment.ts"
   },
   "scripts": {
     "test": "vitest run",
