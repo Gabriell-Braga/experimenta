@@ -212,3 +212,9 @@
 - Arquivos principais: apps/demo/bloqueado/*.html, apps/demo/vite.config.ts, e2e/tests/extension.spec.ts
 - Como testar manualmente: carregar apps/extension/dist no Chrome; no editor, URL http://localhost:5180/bloqueado/sem-snippet.html
 - Observações: SameSite não reescrito (D-024).
+
+### Resumo da Fase 5 — Extensão Chrome
+- Entregue: extensão MV3 com ponte app↔service worker, regras declarativeNetRequest de sessão restritas à aba do editor/sub_frame/origin do site (remove XFO e CSP), expiração e limpeza, injeção do script da conta em sites sem snippet; editor com fallback automático e aviso.
+- Testes: unitários das regras/sessões + E2E com Chromium real carregando a extensão.
+- Limitações: SameSite de cookies não reescrito (D-024); CSP removido por inteiro durante a sessão (só no iframe da aba do editor); ponte configurada por build (`EDITOR_ORIGINS`).
+- Como testar: `pnpm --filter @abtest/extension build`, carregar `apps/extension/dist`; `pnpm e2e tests/extension.spec.ts`.
