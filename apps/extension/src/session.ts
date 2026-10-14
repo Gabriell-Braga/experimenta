@@ -9,6 +9,8 @@ export interface EditSession {
   token: string;
   accountId: string;
   apiUrl: string;
+  /** Origin do app do editor que abriu a sessão (destino do hello do handshake). */
+  appOrigin?: string;
   /** ID da regra declarativeNetRequest desta sessão. */
   ruleId: number;
   expiresAt: number;
@@ -96,7 +98,7 @@ export function createSessions(store: Store, dnr: Dnr, now = () => Date.now(), c
 
   return {
     /** Abre (ou renova) a sessão da aba do editor. Uma sessão por aba. */
-    async start(tabId: number, req: StartRequest): Promise<EditSession> {
+    async start(tabId: number, req: StartRequest & { appOrigin?: string }): Promise<EditSession> {
       const list = await prune();
       const prev = list.find((s) => s.tabId === tabId);
       const ruleId = prev?.ruleId ?? Math.max(0, ...list.map((s) => s.ruleId)) + 1;

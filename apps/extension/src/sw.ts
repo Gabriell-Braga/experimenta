@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; payload?: unknown },
         if (tabId === undefined || sender.frameId !== 0) return { ok: false, error: 'origem inválida' };
         const req = parseStart(msg.payload);
         if (!req) return { ok: false, error: 'pedido inválido' };
-        const s = await sessions.start(tabId, req);
+        const s = await sessions.start(tabId, { ...req, appOrigin: sender.origin });
         return { ok: true, expiresAt: s.expiresAt };
       }
       case 'end':
@@ -31,7 +31,22 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; payload?: unknown },
       case 'session': {
         if (!sender.frameId) return null; // frame principal nunca é o site emoldurado
         const s = await sessions.forFrame(tabId, sender.origin);
-        return s && { token: s.token, accountId: s.accountId, apiUrl: s.apiUrl };
+        return s?.appOrigin ? { token: s.token, appOrigin: s.appOrigin } : null;
+      }
+      // Do content script do site, após o handshake: agent empacotado no mundo MAIN (ignora o CSP da página).
+      case 'inject': {
+        const s = sender.frameId ? await sessions.forFrame(tabId, sender.origin) : null;
+        if (!s?.appOrigin) return null;
+        const target = { tabId: tabId!, frameIds: [sender.frameId!] };
+        const boot = { token: s.token, appOrigin: s.appOrigin, accountId: s.accountId, apiUrl: s.apiUrl };
+        await chrome.scripting.executeScript({
+          target,
+          world: 'MAIN',
+          func: (b: typeof boot) => void ((window as Window & { __ABT_AGENT__?: unknown }).__ABT_AGENT__ = b),
+          args: [boot],
+        });
+        await chrome.scripting.executeScript({ target, world: 'MAIN', files: ['agent.js'] });
+        return { ok: true };
       }
     }
     return null;

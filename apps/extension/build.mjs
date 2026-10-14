@@ -5,7 +5,14 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 mkdirSync('dist', { recursive: true });
 await build({
-  entryPoints: { sw: 'src/sw.ts', bridge: 'src/bridge.ts', content: 'src/content.ts' },
+  entryPoints: {
+    sw: 'src/sw.ts',
+    bridge: 'src/bridge.ts',
+    content: 'src/content.ts',
+    // Agent empacotado: injetado via chrome.scripting em sites cujo CSP bloqueia scripts de fora.
+    agent: '../../packages/agent/src/main.ts',
+  },
+  minify: true,
   bundle: true,
   format: 'iife',
   target: 'chrome120',

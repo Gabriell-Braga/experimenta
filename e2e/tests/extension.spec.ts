@@ -40,12 +40,12 @@ test.describe('com a extensão instalada', () => {
     await page.close();
   });
 
-  test('site sem snippet: a extensão injeta o script da conta e o agent conecta', async () => {
+  test('site sem snippet: a extensão injeta o agent e ele conecta', async () => {
     const page = await ctx.newPage();
     const site = await openEditor(page);
     await openUrl(page, BLOCKED_WITHOUT);
     await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true', { timeout: 15000 });
-    await expect(site.locator('script[data-abt-injected=extension]')).toHaveCount(1);
+    await expect(site.locator('html')).toHaveAttribute('data-abt-editor', 'extension');
     await site.locator('#bloq-title').click();
     await expect(page.getByTestId('selected-selector')).toHaveText('#bloq-title');
     await page.close();
