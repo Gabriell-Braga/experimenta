@@ -6,7 +6,12 @@ export interface ApplyOptions {
   root?: Document;
   /** Tempo máximo de espera por elementos ausentes, contado a partir do DOMContentLoaded. */
   timeoutMs?: number;
-  /** Chamado quando a operação é aplicada (inclusive se já estava aplicada nesse elemento). */
+  /**
+   * Continua observando o DOM depois de aplicar tudo: se o framework trocar o nó alvo (re-render),
+   * a operação é aplicada no nó novo. Só para quando `stop()` for chamado.
+   */
+  persist?: boolean;
+  /** Chamado na primeira vez que cada operação é aplicada. */
   onApplied?: (op: Operation, res: Resolution) => void;
   /** Chamado no timeout para cada operação cujo alvo não foi encontrado. */
   onFailed?: (op: Operation) => void;
@@ -18,10 +23,11 @@ export interface ApplyReport {
 }
 
 export interface ApplyHandle {
+  /** Resolve quando todas as operações foram aplicadas ou quando o timeout expira. */
   done: Promise<ApplyReport>;
-  /** Para de observar o DOM (operações pendentes não serão mais aplicadas nem reportadas). */
+  /** Para de observar o DOM. */
   stop(): void;
-  /** Desfaz tudo que este handle aplicou, na ordem inversa. */
+  /** Para e desfaz tudo que este handle aplicou, na ordem inversa. */
   revert(): void;
 }
 
@@ -39,86 +45,93 @@ export function resetProcessed(): void {
 export function applyOperations(ops: Operation[], opts: ApplyOptions = {}): ApplyHandle {
   const doc = opts.root ?? document;
   const timeoutMs = opts.timeoutMs ?? 1500;
-  const pending = [...ops].sort((a, b) => a.order - b.order);
+  const all = [...ops].sort((a, b) => a.order - b.order);
+  const appliedIds = new Set<string>();
+  const touched: { op: Operation; el: Element }[] = [];
   const undos: Undo[] = [];
   const report: ApplyReport = { applied: [], failed: [] };
   let timer: ReturnType<typeof setTimeout> | undefined;
   let finish!: (r: ApplyReport) => void;
   const done = new Promise<ApplyReport>((r) => (finish = r));
+  let settled = false;
   let stopped = false;
-  const observer = new (doc.defaultView?.MutationObserver ?? MutationObserver)(() => tryApply());
   let running = false;
+  const observer = new (doc.defaultView?.MutationObserver ?? MutationObserver)(() => tryApply());
+
+  const settle = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    finish(report);
+  };
+
+  const stop = () => {
+    stopped = true;
+    observer.disconnect();
+    settle();
+  };
 
   const tryApply = () => {
     if (running || stopped) return;
     running = true;
     // Mutações causadas por nós mesmos não devem disparar nova rodada.
     observer.disconnect();
-    for (let i = 0; i < pending.length;) {
-      const op = pending[i]!;
+    for (const op of all) {
+      if (!opts.persist && appliedIds.has(op.id)) continue;
       const res = resolveTarget(op.target, doc);
-      const anchorRes = op.type === 'move' ? resolveTarget(op.value.anchor, doc) : null;
-      if (!res || (op.type === 'move' && !anchorRes)) {
-        i++;
-        continue;
-      }
-      pending.splice(i, 1);
+      const anchor = op.type === 'move' ? resolveTarget(op.value.anchor, doc) : null;
+      if (!res || (op.type === 'move' && !anchor)) continue;
       let seen = processed.get(op.id);
       if (!seen) processed.set(op.id, (seen = new WeakSet()));
       if (!seen.has(res.el)) {
         seen.add(res.el);
         try {
-          undos.push(applyToElement(op, res.el, anchorRes?.el));
+          undos.push(applyToElement(op, res.el, anchor?.el));
+          touched.push({ op, el: res.el });
         } catch {
-          report.failed.push(op);
-          opts.onFailed?.(op);
           continue;
         }
       }
-      report.applied.push({ op, res });
-      opts.onApplied?.(op, res);
+      if (!appliedIds.has(op.id)) {
+        appliedIds.add(op.id);
+        report.applied.push({ op, res });
+        opts.onApplied?.(op, res);
+      }
     }
     running = false;
-    if (!pending.length) end();
-    else observer.observe(doc.documentElement, { childList: true, subtree: true });
-  };
-
-  const end = () => {
-    if (stopped) return;
-    stopped = true;
-    observer.disconnect();
-    clearTimeout(timer);
-    finish(report);
+    if (appliedIds.size === all.length) {
+      settle();
+      if (!opts.persist) return stop();
+    }
+    observer.observe(doc.documentElement, { childList: true, subtree: true });
   };
 
   const startTimeout = () => {
+    if (settled) return;
     timer = setTimeout(() => {
-      if (stopped) return;
-      for (const op of pending.splice(0)) {
-        report.failed.push(op);
-        opts.onFailed?.(op);
-      }
-      end();
+      for (const op of all)
+        if (!appliedIds.has(op.id)) {
+          report.failed.push(op);
+          opts.onFailed?.(op);
+        }
+      settle();
+      if (!opts.persist) stop();
     }, timeoutMs);
   };
 
   tryApply();
-  if (!stopped) {
+  if (!settled) {
     if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', startTimeout, { once: true });
     else startTimeout();
   }
 
   return {
     done,
-    stop: () => {
-      stopped = true;
-      observer.disconnect();
-      clearTimeout(timer);
-      finish(report);
-    },
+    stop,
     revert: () => {
+      stop();
       for (const u of undos.splice(0).reverse()) u();
-      for (const { op, res } of report.applied) processed.get(op.id)?.delete(res.el);
+      for (const { op, el } of touched.splice(0)) processed.get(op.id)?.delete(el);
     },
   };
 }

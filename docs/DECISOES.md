@@ -37,3 +37,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - `setStyle`/`hide` usam `!important` inline para vencer o CSS do site. `hide` = `display:none`; `remove` remove o nó de fato.
 - O timeout de espera por elementos conta a partir do DOMContentLoaded (o snippet roda no `<head>`, antes do body existir).
 - O observer é desconectado enquanto aplicamos, para nossas próprias mutações não dispararem nova rodada.
+
+## D-007 — Modo `persist` no motor
+- Contexto: em SPAs (React/Vue), re-render pode substituir o nó alvo depois da aplicação, apagando a variação.
+- Escolha: opção `persist` mantém o MutationObserver ativo e aplica a operação em qualquer nó novo que o alvo resolva (WeakSet evita reaplicar no mesmo nó). O snippet usa `persist: true`; para ao trocar de rota/variação.
+- Limitação conhecida: se o framework alterar o conteúdo do MESMO nó (sem trocá-lo), a operação não é reaplicada.

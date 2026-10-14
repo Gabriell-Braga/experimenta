@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 1 — Motor de operações e seletores
-**Tarefa atual:** 1.4 — Testes cobrindo DOM que muda e todos os tipos de operação
-**Última atualização:** 2026-10-14 03:49
-**Próximo passo:** Adicionar testes de DOM mutável: re-render estilo React (nó substituído recebe a operação de novo), elemento que aparece em lote, âncora de move que chega depois, cura por impressão digital dentro do applyOperations, stop().
+**Fase atual:** 2 — Snippet de runtime
+**Tarefa atual:** 2.1 — Configuração, ID de visitante e segmentação
+**Última atualização:** 2026-10-14 03:50
+**Próximo passo:** Criar packages/snippet/src/{config,visitor,segment}.ts: fetch de /cdn/<conta>.json com cache em localStorage (chave por versão), visitorId em cookie first-party + fallback localStorage, novo/recorrente, matchSegmentation (URL exata/contém/regex com exclusão, dispositivo, query, visitante); testes.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -61,3 +61,9 @@
 - Arquivos principais: packages/snippet/src/engine/{operations,apply}.ts
 - Como testar manualmente: pnpm --filter @abtest/snippet test
 - Observações: ver D-006.
+
+### 2026-10-14 03:50 — Tarefa 1.4 concluída
+- O que foi feito: modo persist (reaplica em nós recriados por re-render) e testes de DOM mutável: lotes, âncora tardia, re-render com/sem persist, cura por impressão digital, stop, revert após re-render.
+- Arquivos principais: packages/snippet/src/engine/{apply.ts,dom-changes.test.ts,apply.test.ts}
+- Como testar manualmente: pnpm --filter @abtest/snippet test
+- Observações: ver D-007.
