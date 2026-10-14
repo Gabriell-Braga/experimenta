@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 1 — Motor de operações e seletores
-**Tarefa atual:** 1.1 — Geração de seletores com prioridades e detecção de classes geradas
-**Última atualização:** 2026-10-14 03:42
-**Próximo passo:** Criar packages/selector: isGeneratedToken(), generateSelector(el) com prioridade id estável → data-* → classes estáveis → caminho curto ancorado → nth-of-type; alternates; fragilidade; testes em jsdom/happy-dom.
+**Tarefa atual:** 1.2 — Impressão digital e resolução com fallback
+**Última atualização:** 2026-10-14 03:44
+**Próximo passo:** Criar packages/selector/src/{fingerprint,resolve}.ts: fingerprint(el), resolveTarget(target, root) principal → alternativos → busca por impressão digital, retornando via e seletor curado; testes.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -43,3 +43,9 @@
 - Entregue: monorepo pnpm + Turborepo + TS estrito + ESLint/Prettier + Vitest; docker-compose com fallback PGlite; API mínima (/health); demo estático + SPA React (emotion); contrato zod em packages/shared.
 - Limitações: Docker não testado nesta máquina (sem Docker); `pnpm dev` validado via PGlite.
 - Como testar: `pnpm install && pnpm lint && pnpm test && pnpm dev` (API :4000, demo :5180).
+
+### 2026-10-14 03:44 — Tarefa 1.1 concluída
+- O que foi feito: isGeneratedToken/isStableClass (CSS-in-JS, CSS Modules, hashes, uuid, ids de framework, classes de estado); generateSelector com prioridade id → data-* → atributos semânticos → classes → caminho ancorado → nth-of-type, alternates e fragilidade.
+- Arquivos principais: packages/selector/src/{stability,generate}.ts
+- Como testar manualmente: pnpm --filter @abtest/selector test
+- Observações: todo seletor gerado é validado como único no documento.
