@@ -40,7 +40,7 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
 
   // Publicar.
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice')).toContainText('Publicado (versão');
+  await expect(page.getByTestId('notice').last()).toContainText('Publicado (versão');
   const expId = new URL(page.url()).searchParams.get('exp')!;
 
   // Visitante novo, outro contexto: snippet e config vêm da CDN real da API (nada interceptado).
@@ -74,7 +74,7 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   // Controle intacto para quem não está no experimento: pausar, republicar e conferir com visitante novo.
   await page.getByTestId('status-select').selectOption('paused');
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice')).toContainText('não entra na publicação');
+  await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação');
   const v2 = await browser.newContext();
   const p2 = await v2.newPage();
   await p2.goto(SITE);

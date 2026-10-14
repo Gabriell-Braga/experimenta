@@ -29,8 +29,11 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const running = (await repo.loadAllExperiments(accountId)).filter((e) => e.status === 'running');
-    const last = await repo.lastPublication(accountId);
+    const [all, last] = await Promise.all([
+      repo.loadAllExperiments(accountId),
+      repo.lastPublication(accountId),
+    ]);
+    const running = all.filter((e) => e.status === 'running');
 
     if (!canPublishJs(user)) {
       const published = jsOf(last?.config.experiments ?? []);
@@ -48,8 +51,7 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       experiments: running,
       ...(heatmapSampleRate > 0 ? { heatmap: { sampleRate: heatmapSampleRate } } : {}),
     });
-    await repo.insertPublication(accountId, config, user.id);
-    await writeAccountFiles(cdn, config);
+    await Promise.all([repo.insertPublication(accountId, config, user.id), writeAccountFiles(cdn, config)]);
     return { version: config.version };
   };
 }

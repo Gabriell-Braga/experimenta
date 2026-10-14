@@ -42,6 +42,7 @@ export default defineConfig({
         bloqueadoComSnippet: resolve(__dirname, 'bloqueado/com-snippet.html'),
         bloqueadoSemSnippet: resolve(__dirname, 'bloqueado/sem-snippet.html'),
         cookie: resolve(__dirname, 'cookie.html'),
+        loja: resolve(__dirname, 'loja/index.html'),
       },
     },
   },

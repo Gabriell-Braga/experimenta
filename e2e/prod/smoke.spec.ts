@@ -14,6 +14,8 @@ test('produção: login → editar → configurar → publicar → visitante vê
   await page.getByLabel('Senha').fill(process.env.PROD_PASSWORD!);
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByTestId('new-experiment').click();
+  await page.getByTestId('create-name').fill('Smoke');
+  await page.getByTestId('create-submit').click();
   await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true', { timeout: 30_000 });
   const site = page.frameLocator('[data-testid=site-frame]');
   const texto = `Smoke ${Date.now().toString(36)}`;
@@ -28,7 +30,7 @@ test('produção: login → editar → configurar → publicar → visitante vê
   await page.getByTestId('weight-controle').fill('0');
   await page.getByTestId('weight-controle').blur();
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice')).toContainText('Publicado', { timeout: 30_000 });
+  await expect(page.getByTestId('notice').last()).toContainText('Publicado', { timeout: 30_000 });
 
   // CDN com cache de 60 s: o visitante pode ver a versão anterior por até 1 min.
   const visitor = await browser.newContext();
@@ -42,5 +44,7 @@ test('produção: login → editar → configurar → publicar → visitante vê
   // Arquiva para não deixar o demo público alterado.
   await page.getByTestId('status-select').selectOption('archived');
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice')).toContainText('não entra na publicação', { timeout: 30_000 });
+  await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação', {
+    timeout: 30_000,
+  });
 });

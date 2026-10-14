@@ -13,8 +13,15 @@ export async function login(page: Page, cred = OWNER) {
 /** Loga no editor, cria um experimento novo e espera o agent conectar. Devolve o iframe do site. */
 export async function openEditor(page: Page) {
   await login(page);
-  await page.getByTestId('new-experiment').click();
-  await expect(page).toHaveURL(/\?exp=/);
+  await createExperiment(page);
   await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
   return page.frameLocator('[data-testid=site-frame]');
+}
+
+/** Na lista: abre o modal "Novo experimento", dá um nome e cria (página = site do projeto). */
+export async function createExperiment(page: Page, name = `Teste ${Math.random().toString(36).slice(2, 7)}`) {
+  await page.getByTestId('new-experiment').click();
+  await page.getByTestId('create-name').fill(name);
+  await page.getByTestId('create-submit').click();
+  await expect(page).toHaveURL(/\?exp=/);
 }

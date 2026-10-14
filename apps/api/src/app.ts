@@ -5,7 +5,7 @@ import { cors } from 'hono/cors';
 import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
 import { serveCdn, type CdnStore } from './cdn';
 import { findConflicts } from './conflicts';
-import { verifyPassword } from './crypto';
+import { newId, verifyPassword } from './crypto';
 import { NotFoundError, type Repo, type User } from './repo';
 import { createSessionStore, type SessionStore } from './sessions';
 
@@ -225,6 +225,8 @@ export function createApp(deps: AppDeps) {
               projectId: z.string(),
               editorUrl: z.string(),
               updatedAt: z.string(),
+              traffic: z.number(),
+              variations: z.number(),
             }),
           ),
           'experimentos da conta',
@@ -536,6 +538,67 @@ export function createApp(deps: AppDeps) {
       },
     }),
     async (c) => c.json(await repo.heatmap(c.get('user').accountId, c.req.valid('query')), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'patch',
+      path: '/experiments/{id}/status',
+      tags: ['experiments'],
+      security,
+      summary: 'Muda só o status (ação rápida da lista); gera nova versão',
+      request: {
+        params: IdParam,
+        body: json(z.object({ status: ExperimentSchema.innerType().shape.status }), 'novo status'),
+      },
+      responses: { 200: json(z.object({ version: z.number() }), 'salvo'), ...errors },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const r = await repo.getExperiment(user.accountId, c.req.valid('param').id);
+      if (!r) return c.json({ error: 'experimento não encontrado' }, 404);
+      const experiment = { ...r.experiment, status: c.req.valid('json').status };
+      return c.json(
+        { version: await save(user, { projectId: r.projectId, editorUrl: r.editorUrl, experiment }) },
+        200,
+      );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/experiments/{id}/duplicate',
+      tags: ['experiments'],
+      security,
+      summary: 'Cria uma cópia em rascunho (ids novos, inclusive das operações)',
+      request: { params: IdParam },
+      responses: { 201: json(z.object({ id: z.string() }), 'cópia criada'), ...errors },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const r = await repo.getExperiment(user.accountId, c.req.valid('param').id);
+      if (!r) return c.json({ error: 'experimento não encontrado' }, 404);
+      const e = r.experiment;
+      // Ids de operação também mudam: o snippet usa o id da operação para idempotência.
+      const experiment = {
+        ...e,
+        id: newId('exp'),
+        key: `${e.key}-copia-${Math.random().toString(36).slice(2, 6)}`.slice(0, 60),
+        name: `${e.name} (cópia)`,
+        status: 'draft' as const,
+        variations: e.variations.map((v) => ({
+          ...v,
+          id: newId('var'),
+          operations: v.operations.map((o) => ({ ...o, id: newId('op') })),
+        })),
+        goals: e.goals.map((g) => ({ ...g, id: newId('goal') })),
+      };
+      await save(user, { projectId: r.projectId, editorUrl: r.editorUrl, experiment });
+      return c.json({ id: experiment.id }, 201);
+    },
   );
 
   app.openapi(

@@ -1,7 +1,7 @@
 // Deploy completo na Cloudflare: API (Worker + D1 + KV), editor e demo (Workers com arquivos estáticos).
 // Uso: pnpm deploy:cf  (precisa de `wrangler login`; recursos e segredos: ver docs/DEPLOY.md)
 import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { zipSync } from 'fflate';
 import { compileAccountScript } from '../apps/api/src/cdn';
@@ -34,6 +34,7 @@ for (const { name } of keys.filter((k) => k.name.endsWith('.json'))) {
   const tmp = join(root, 'apps/api', '.tmp-account.js');
   writeFileSync(tmp, compileAccountScript(config, runtime));
   wrangler(`kv key put ${name.replace(/\.json$/, '.js')} --binding CDN --remote --path .tmp-account.js`);
+  rmSync(tmp);
 }
 
 // 2) API.

@@ -1,1 +1,46 @@
 @import 'tailwindcss';
+
+/* Identidade: um acento (laranja) + neutros; tipografia do sistema (zero download de fonte). */
+@theme {
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+/* Foco visível e consistente (teclado). */
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+.animate-toast {
+  animation: toast-in 0.18s ease-out;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%) 0 0 / 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+  border-radius: 6px;
+}

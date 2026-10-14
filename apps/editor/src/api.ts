@@ -24,6 +24,8 @@ export interface ExperimentSummary {
   status: string;
   editorUrl: string;
   updatedAt: string;
+  traffic: number;
+  variations: number;
 }
 export interface ExperimentRecord {
   experiment: Experiment;
@@ -139,3 +141,13 @@ export function getHeatmap(url: string, f: HeatmapFilters) {
   for (const [k, v] of Object.entries(f)) if (v) q.set(k, v);
   return api<import('@abtest/shared').HeatmapData & { page: string }>(`/heatmap?${q}`);
 }
+
+export const setStatus = (id: string, status: string) =>
+  api<{ version: number }>(`/experiments/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+export const duplicateExperiment = (id: string) =>
+  api<{ id: string }>(`/experiments/${encodeURIComponent(id)}/duplicate`, { method: 'POST' });
+export const deleteExperiment = (id: string) =>
+  api<void>(`/experiments/${encodeURIComponent(id)}`, { method: 'DELETE' });

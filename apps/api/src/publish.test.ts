@@ -324,3 +324,39 @@ describe('mapa de calor', () => {
     expect((await get('&device=mobile')).clicks.total).toBe(1);
   });
 });
+
+test('ações rápidas: listar com contagem, mudar status e duplicar', async () => {
+  await save('editor', exp('exp_acao', 'draft'));
+  const list = (await (await call('/experiments', 'viewer')).json()) as {
+    id: string;
+    variations: number;
+    traffic: number;
+  }[];
+  expect(list.find((e) => e.id === 'exp_acao')).toMatchObject({ variations: 2, traffic: 100 });
+  expect(
+    (
+      await call('/experiments/exp_acao/status', 'viewer', {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'running' }),
+      })
+    ).status,
+  ).toBe(403);
+  const st = await call('/experiments/exp_acao/status', 'editor', {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'paused' }),
+  });
+  expect(st.status).toBe(200);
+  expect(
+    ((await (await call('/experiments/exp_acao', 'viewer')).json()) as { experiment: { status: string } })
+      .experiment.status,
+  ).toBe('paused');
+  const dup = await call('/experiments/exp_acao/duplicate', 'editor', { method: 'POST' });
+  expect(dup.status).toBe(201);
+  const { id } = (await dup.json()) as { id: string };
+  const copy = (await (await call(`/experiments/${id}`, 'viewer')).json()) as {
+    experiment: { name: string; status: string; variations: { id: string; operations: { id: string }[] }[] };
+  };
+  expect(copy.experiment).toMatchObject({ name: 'exp_acao (cópia)', status: 'draft' });
+  expect(copy.experiment.variations[1]!.operations[0]!.id).not.toBe('o1');
+  expect(copy.experiment.variations[1]!.id).not.toBe('exp_acao_v1');
+});

@@ -45,11 +45,23 @@ const HISTORY_LIMIT = 100;
 
 export const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10)}`;
 
-export function newExperiment(url: string): Experiment {
+/** Chave legível a partir do nome + sufixo aleatório (única por conta). */
+export const keyFrom = (name: string) =>
+  `${
+    name
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '') // remove acentos
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'experimento'
+  }-${Math.random().toString(36).slice(2, 7)}`;
+
+export function newExperiment(url: string, name = 'Experimento 1'): Experiment {
   return ExperimentSchema.parse({
     id: uid('exp'),
-    key: `experimento-${Math.random().toString(36).slice(2, 8)}`,
-    name: 'Experimento 1',
+    key: keyFrom(name),
+    name,
     segmentation: { urls: [{ match: 'exact', value: url }] },
     variations: [
       { id: uid('var'), key: 'controle', name: 'Controle', weight: 50 },

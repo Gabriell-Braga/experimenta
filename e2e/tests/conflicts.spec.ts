@@ -1,5 +1,5 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
-import { EDITOR, openEditor } from '../editor';
+import { createExperiment, EDITOR, openEditor } from '../editor';
 
 async function editTitleAndName(page: Page, site: FrameLocator, name: string) {
   await site.locator('#hero-title').dblclick();
@@ -20,7 +20,7 @@ test('dois experimentos no mesmo elemento: o editor aponta o conflito', async ({
   await editTitleAndName(page, site, `Título A ${uniq}`);
 
   await page.goto(EDITOR);
-  await page.getByTestId('new-experiment').click();
+  await createExperiment(page);
   await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
   site = page.frameLocator('[data-testid=site-frame]');
   await editTitleAndName(page, site, `Título B ${uniq}`);

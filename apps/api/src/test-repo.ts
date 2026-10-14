@@ -22,7 +22,8 @@ export async function nodeD1(): Promise<D1Like> {
       db.exec('BEGIN');
       try {
         const out = [];
-        for (const s of list) out.push(await s.run());
+        // Como no D1: cada comando do lote devolve { results } (vazio para escrita).
+        for (const s of list) out.push(await s.all());
         db.exec('COMMIT');
         return out;
       } catch (e) {

@@ -19,10 +19,17 @@ export interface Env {
   HEATMAP_SAMPLE_RATE?: string;
 }
 
-const kvStore = (kv: KVNamespace): CdnStore => ({
-  get: (name) => kv.get(name),
-  put: (name, body) => kv.put(name, body),
-});
+/** KV como CDN. O runtime (abt.js) só muda a cada deploy: fica em memória no isolate. */
+function kvStore(kv: KVNamespace): CdnStore {
+  let runtime: string | null = null;
+  return {
+    async get(name) {
+      if (name === 'abt.js') return (runtime ??= await kv.get(name));
+      return kv.get(name);
+    },
+    put: (name, body) => kv.put(name, body),
+  };
+}
 
 let app: ReturnType<typeof createApp> | undefined;
 let booting: Promise<ReturnType<typeof createApp>> | undefined;

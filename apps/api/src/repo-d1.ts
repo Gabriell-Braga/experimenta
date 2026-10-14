@@ -28,7 +28,7 @@ export interface D1Stmt {
 }
 export interface D1Like {
   prepare(sql: string): D1Stmt;
-  batch(stmts: D1Stmt[]): Promise<unknown[]>;
+  batch(stmts: D1Stmt[]): Promise<{ results?: unknown[] }[]>;
 }
 
 type Row = Record<string, unknown>;
@@ -58,57 +58,73 @@ export function createD1Repo(d1: D1Like): Repo {
   const all = async <T = Row>(sql: string, ...v: unknown[]) => (await q(sql, ...v).all<T>()).results;
   const first = <T = Row>(sql: string, ...v: unknown[]) => q(sql, ...v).first<T>();
 
+  /**
+   * Várias leituras numa ida só ao banco. O Worker pode rodar longe do D1 (cada ida custa ~100+ ms),
+   * então agrupar leituras é o que mais pesa na latência.
+   */
+  const reads = async (...stmts: D1Stmt[]) =>
+    (await d1.batch(stmts)).map((r) => (r as { results: Row[] }).results ?? []);
+
+  const toRecord = (row: Row, vars: Row[], gs: Row[]): ExperimentRecord => ({
+    projectId: row.project_id as string,
+    editorUrl: row.editor_url as string,
+    updatedAt: date(row.updated_at),
+    experiment: ExperimentSchema.parse({
+      id: row.id,
+      key: row.key,
+      name: row.name,
+      status: row.status,
+      traffic: row.traffic,
+      segmentation: json(row.segmentation),
+      antiFlicker: json(row.anti_flicker),
+      variations: vars.map((v) => ({
+        id: v.id,
+        key: v.key,
+        name: v.name,
+        weight: v.weight,
+        operations: json(v.operations),
+        customCSS: v.custom_css,
+        customJS: v.custom_js,
+        ...(v.redirect ? { redirect: json(v.redirect) } : {}),
+      })),
+      goals: gs.map((g) => json<Goal>(g.definition)),
+    }),
+  });
+
   async function loadExperiment(accountId: string, id: string): Promise<ExperimentRecord | null> {
-    const row = await first('SELECT * FROM experiments WHERE account_id = ? AND id = ?', accountId, id);
-    if (!row) return null;
-    const vars = await all(
-      'SELECT * FROM variations WHERE account_id = ? AND experiment_id = ? ORDER BY position',
-      accountId,
-      id,
+    const [rows = [], vars = [], gs = []] = await reads(
+      q('SELECT * FROM experiments WHERE account_id = ? AND id = ?', accountId, id),
+      q(
+        'SELECT * FROM variations WHERE account_id = ? AND experiment_id = ? ORDER BY position',
+        accountId,
+        id,
+      ),
+      q(
+        'SELECT definition FROM goals WHERE account_id = ? AND experiment_id = ? ORDER BY position',
+        accountId,
+        id,
+      ),
     );
-    const gs = await all(
-      'SELECT definition FROM goals WHERE account_id = ? AND experiment_id = ? ORDER BY position',
-      accountId,
-      id,
-    );
-    return {
-      projectId: row.project_id as string,
-      editorUrl: row.editor_url as string,
-      updatedAt: date(row.updated_at),
-      experiment: ExperimentSchema.parse({
-        id: row.id,
-        key: row.key,
-        name: row.name,
-        status: row.status,
-        traffic: row.traffic,
-        segmentation: json(row.segmentation),
-        antiFlicker: json(row.anti_flicker),
-        variations: vars.map((v) => ({
-          id: v.id,
-          key: v.key,
-          name: v.name,
-          weight: v.weight,
-          operations: json(v.operations),
-          customCSS: v.custom_css,
-          customJS: v.custom_js,
-          ...(v.redirect ? { redirect: json(v.redirect) } : {}),
-        })),
-        goals: gs.map((g) => json<Goal>(g.definition)),
-      }),
-    };
+    const row = rows[0];
+    return row ? toRecord(row, vars, gs) : null;
   }
 
+  /** Todos os experimentos da conta com 3 consultas (não 3 por experimento). */
   async function loadAllRecords(accountId: string): Promise<ExperimentRecord[]> {
-    const ids = await all<{ id: string }>(
-      'SELECT id FROM experiments WHERE account_id = ? ORDER BY created_at',
-      accountId,
+    const [exps = [], vars = [], gs = []] = await reads(
+      q('SELECT * FROM experiments WHERE account_id = ? ORDER BY created_at', accountId),
+      q('SELECT * FROM variations WHERE account_id = ? ORDER BY position', accountId),
+      q('SELECT experiment_id, definition FROM goals WHERE account_id = ? ORDER BY position', accountId),
     );
-    const out: ExperimentRecord[] = [];
-    for (const { id } of ids) {
-      const r = await loadExperiment(accountId, id);
-      if (r) out.push(r);
-    }
-    return out;
+    const by = (list: Row[]) => {
+      const m = new Map<string, Row[]>();
+      for (const r of list)
+        m.set(r.experiment_id as string, [...(m.get(r.experiment_id as string) ?? []), r]);
+      return m;
+    };
+    const vm = by(vars);
+    const gm = by(gs);
+    return exps.map((e) => toRecord(e, vm.get(e.id as string) ?? [], gm.get(e.id as string) ?? []));
   }
 
   return {
@@ -185,7 +201,9 @@ export function createD1Repo(d1: D1Like): Repo {
 
     async listExperiments(accountId) {
       const rows = await all(
-        'SELECT id, key, name, status, project_id, editor_url, updated_at FROM experiments WHERE account_id = ? ORDER BY updated_at DESC',
+        `SELECT e.id, e.key, e.name, e.status, e.project_id, e.editor_url, e.updated_at, e.traffic,
+           (SELECT count(*) FROM variations v WHERE v.experiment_id = e.id AND v.account_id = e.account_id) AS variations
+         FROM experiments e WHERE e.account_id = ? ORDER BY e.updated_at DESC`,
         accountId,
       );
       return rows.map((r) => ({
@@ -196,35 +214,35 @@ export function createD1Repo(d1: D1Like): Repo {
         projectId: r.project_id as string,
         editorUrl: r.editor_url as string,
         updatedAt: date(r.updated_at),
+        traffic: Number(r.traffic),
+        variations: Number(r.variations),
       }));
     },
 
     /** D1 não tem transação interativa: lê e valida antes, depois grava tudo num `batch` (atômico). */
     async saveExperiment(accountId, input) {
       const exp = ExperimentSchema.parse(input.experiment);
-      if (
-        !(await first('SELECT id FROM projects WHERE account_id = ? AND id = ?', accountId, input.projectId))
-      )
-        throw new NotFoundError('projeto não encontrado');
-      const existing = await first<{ account_id: string; created_at: number }>(
-        'SELECT account_id, created_at FROM experiments WHERE id = ?',
-        exp.id,
+      const [projects = [], existings = [], dups = [], lasts = []] = await reads(
+        q('SELECT id FROM projects WHERE account_id = ? AND id = ?', accountId, input.projectId),
+        q('SELECT account_id, created_at FROM experiments WHERE id = ?', exp.id),
+        q(
+          'SELECT id FROM experiments WHERE account_id = ? AND key = ? AND id <> ?',
+          accountId,
+          exp.key,
+          exp.id,
+        ),
+        q(
+          'SELECT max(version) AS v FROM experiment_versions WHERE account_id = ? AND experiment_id = ?',
+          accountId,
+          exp.id,
+        ),
       );
+      const [project, existing, dup, last] = [projects[0], existings[0], dups[0], lasts[0]];
+      if (!project) throw new NotFoundError('projeto não encontrado');
       if (existing && existing.account_id !== accountId)
         throw new NotFoundError('experimento não encontrado');
-      const dup = await first(
-        'SELECT id FROM experiments WHERE account_id = ? AND key = ? AND id <> ?',
-        accountId,
-        exp.key,
-        exp.id,
-      );
       if (dup) throw new Error('chave de experimento já usada nesta conta');
-      const last = await first<{ v: number | null }>(
-        'SELECT max(version) AS v FROM experiment_versions WHERE account_id = ? AND experiment_id = ?',
-        accountId,
-        exp.id,
-      );
-      const version = (last?.v ?? 0) + 1;
+      const version = ((last?.v as number | null) ?? 0) + 1;
       const now = Date.now();
       const stmts: D1Stmt[] = [
         q(
@@ -244,7 +262,7 @@ export function createD1Repo(d1: D1Like): Repo {
           JSON.stringify(exp.segmentation),
           JSON.stringify(exp.antiFlicker),
           input.editorUrl,
-          existing?.created_at ?? now,
+          (existing?.created_at as number | undefined) ?? now,
           now,
         ),
         q('DELETE FROM variations WHERE account_id = ? AND experiment_id = ?', accountId, exp.id),

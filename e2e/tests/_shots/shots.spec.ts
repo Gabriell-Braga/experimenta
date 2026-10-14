@@ -1,0 +1,31 @@
+import { expect, test } from '@playwright/test';
+import { EDITOR, OWNER } from '../../editor';
+const OUT =
+  'C:/Users/Gabriel/AppData/Local/Temp/claude/C--Users-Gabriel-Documents-Projetos-vwo-paraguaia/82546517-542a-4b2e-9929-ad8d88b2b984/scratchpad/';
+test('shots', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 860 });
+  await page.goto(EDITOR);
+  await page.screenshot({ path: OUT + '1-login.png' });
+  await page.getByLabel('E-mail').fill(OWNER.email);
+  await page.getByLabel('Senha').fill(OWNER.password);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByTestId('new-experiment').click();
+  await page.getByTestId('create-name').fill('Botão de compra vermelho');
+  await page.screenshot({ path: OUT + '2-modal.png' });
+  await page.getByTestId('create-submit').click();
+  await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
+  const site = page.frameLocator('[data-testid=site-frame]');
+  await site.locator('#hero-title').dblclick();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type('Novo título');
+  await page.keyboard.press('Enter');
+  await site.locator('[data-testid=cta-comprar]').click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: OUT + '3-editor.png' });
+  await page.getByTestId('save').click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: OUT + '4-saved.png' });
+  await page.getByTestId('back').click();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: OUT + '5-list.png' });
+});

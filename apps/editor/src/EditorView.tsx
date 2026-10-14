@@ -1,4 +1,5 @@
 import { selectorFragility } from '@abtest/selector';
+import { matchUrl } from '@abtest/snippet/segment';
 import type { ApplyResult, ElementInfo, HeatmapData } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
@@ -12,7 +13,10 @@ import {
   type Conflict,
   type ExperimentRecord,
   type HeatmapFilters,
+  type Me,
 } from './api';
+import { go } from './nav';
+import { Button, Modal, Spinner, useToast } from './ui';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
 import { HealthPanel } from './components/HealthPanel';
@@ -31,13 +35,15 @@ type Tab = 'element' | 'changes' | 'code' | 'settings' | 'health' | 'versions';
 
 interface Props {
   record: ExperimentRecord;
-  accountId: string;
+  user: Me;
 }
 
 /** Sem `hello` do snippet nesse tempo, o site provavelmente bloqueia iframe ou não tem o snippet. */
 const CONNECT_TIMEOUT_MS = 5000;
 
-export function EditorView({ record, accountId }: Props) {
+export function EditorView({ record, user }: Props) {
+  const accountId = user.accountId;
+  const toast = useToast();
   const [state, dispatch] = useReducer(reducer, record, (r) => initialState(r.experiment, r.editorUrl));
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +60,11 @@ export function EditorView({ record, accountId }: Props) {
   const peer = useRef<AgentPeer | null>(null);
   const variation = activeVariation(state);
   const siteOrigin = new URL(state.url).origin;
+  /**
+   * URL carregada no iframe (só muda quando o usuário digita outra). `state.url` acompanha a página ATUAL
+   * (navegação dentro do iframe chega pelo `ready`/`navigated`) sem recarregar o iframe.
+   */
+  const [frameSrcUrl, setFrameSrcUrl] = useState(state.url);
 
   useEffect(() => {
     createEditSession().then(setToken, (e: Error) => setError(e.message));
@@ -71,7 +82,10 @@ export function EditorView({ record, accountId }: Props) {
     });
     peer.current = c.peer;
     const offs = [
-      c.peer.on('ready', () => {
+      c.peer.on('ready', ({ url }) => {
+        const clean = new URL(url);
+        clean.searchParams.delete('abt_edit');
+        dispatch({ type: 'setUrl', url: clean.href });
         setConnected(true);
         setReadyCount((n) => n + 1); // cada navegação do iframe gera novo ready → reenviar estado
       }),
@@ -111,7 +125,6 @@ export function EditorView({ record, accountId }: Props) {
       .then(setApplyResult, () => {});
   }, [connected, readyCount, variation, runJS]);
 
-  const [notice, setNotice] = useState<string | null>(null);
   // Mapa de calor: filtros, dados da API e quantos seletores não existem na página atual.
   const [heatFilters, setHeatFilters] = useState<HeatmapFilters>({});
   const [heat, setHeat] = useState<(HeatmapData & { page: string }) | null>(null);
@@ -134,7 +147,7 @@ export function EditorView({ record, accountId }: Props) {
         const r = await peer.current?.call('showHeatmap', { clicks: data.clicks, scroll: data.scroll });
         if (live) setHeatMissing(r?.missing ?? 0);
       })
-      .catch((e: Error) => setError(`Mapa de calor: ${e.message}`));
+      .catch((e: Error) => toast('error', `Mapa de calor: ${e.message}`));
     return () => {
       live = false;
     };
@@ -149,10 +162,10 @@ export function EditorView({ record, accountId }: Props) {
     if (!token) return;
     if (!(await extCall('ping'))) return setExt('missing');
     const r = await startExtensionSession({ siteOrigin, token, accountId, apiUrl: API_URL });
-    if (!r?.ok) return setError(`Extensão recusou a sessão: ${r?.error ?? 'sem resposta'}`);
+    if (!r?.ok) return toast('error', `Extensão recusou a sessão: ${r?.error ?? 'sem resposta'}`);
     setExt('active');
     setFrameKey((k) => k + 1); // recarrega o iframe já com os headers liberados
-  }, [token, siteOrigin, accountId]);
+  }, [token, siteOrigin, accountId, toast]);
 
   // Extensão instalada → abre a sessão ANTES de carregar o iframe: headers de bloqueio removidos e cookies do
   // site com SameSite=None (usuário continua logado no site dentro do editor). Sem extensão: segue direto.
@@ -160,6 +173,8 @@ export function EditorView({ record, accountId }: Props) {
   useEffect(() => {
     if (!token) return;
     let live = true;
+    // Domínio novo: segura o iframe até a sessão da extensão valer para ele (cookies/headers liberados antes).
+    setExtChecked(false);
     (async () => {
       if (await extCall('ping')) {
         const r = await startExtensionSession({ siteOrigin, token, accountId, apiUrl: API_URL });
@@ -187,33 +202,92 @@ export function EditorView({ record, accountId }: Props) {
     [record.experiment.id],
   );
   useEffect(() => void loadConflicts(), [loadConflicts]);
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+
+  /** Grava na API só se houver mudança. Conflitos são recarregados em segundo plano (não seguram o botão). */
   const persist = useCallback(async () => {
-    await saveExperiment({ experiment: state.experiment, projectId: record.projectId, editorUrl: state.url });
+    if (!state.dirty) return null;
+    const r = await saveExperiment({
+      experiment: state.experiment,
+      projectId: record.projectId,
+      editorUrl: state.url,
+    });
     dispatch({ type: 'saved' });
-    setError(null);
-    return loadConflicts();
-  }, [state.experiment, state.url, record.projectId, loadConflicts]);
-  const save = useCallback(() => {
-    persist().catch((e: Error) => setError(`Não foi possível salvar: ${e.message}`));
-  }, [persist]);
+    setSavedAt(new Date().toISOString());
+    void loadConflicts();
+    return r.version;
+  }, [state.dirty, state.experiment, state.url, record.projectId, loadConflicts]);
+
+  const save = useCallback(async () => {
+    if (saving || !state.dirty) return;
+    setSaving(true);
+    try {
+      const v = await persist();
+      toast('success', v ? `Salvo (versão ${v}).` : 'Nada para salvar.');
+    } catch (e) {
+      toast('error', `Não foi possível salvar: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, state.dirty, persist, toast]);
+
   const doPublish = async () => {
+    if (publishing) return;
+    setPublishing(true);
     try {
       await persist();
-      const live = (await getConflicts(record.experiment.id)).filter((c) => c.status === 'running');
       const { version } = await publish();
-      if (live.length)
-        setError(
-          `Atenção: ${live.map((c) => `"${c.name}"`).join(', ')} também altera(m) os mesmos elementos e está(ão) em execução — os resultados vão se contaminar.`,
-        );
-      setNotice(
-        state.experiment.status === 'running'
-          ? `Publicado (versão ${version}). Visitantes já recebem este experimento.`
+      const running = state.experiment.status === 'running';
+      toast(
+        running ? 'success' : 'info',
+        running
+          ? `Publicado (versão ${version}). Visitantes recebem o experimento em até 1 min.`
           : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação — mude o status em Config.`,
+        running
+          ? { label: 'Ver no site ↗', href: state.url }
+          : { label: 'Abrir Config', onClick: () => setTab('settings') },
+      );
+      // Aviso de conflito depois, sem atrasar a confirmação da publicação.
+      getConflicts(record.experiment.id).then(
+        (list) => {
+          const live = list.filter((c) => c.status === 'running');
+          if (running && live.length)
+            toast(
+              'error',
+              `Conflito: ${live.map((c) => `"${c.name}"`).join(', ')} também altera(m) os mesmos elementos e está(ão) em execução.`,
+            );
+        },
+        () => {},
       );
     } catch (e) {
-      setError(`Não foi possível publicar: ${e instanceof Error ? e.message : e}`);
+      toast('error', `Não foi possível publicar: ${(e as Error).message}`);
+    } finally {
+      setPublishing(false);
     }
   };
+
+  // Fechar/recarregar a aba com alterações não salvas: o navegador pergunta.
+  useEffect(() => {
+    if (!state.dirty) return;
+    const onUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    addEventListener('beforeunload', onUnload);
+    return () => removeEventListener('beforeunload', onUnload);
+  }, [state.dirty]);
+
+  /** A página aberta casa com as regras de URL do experimento? (mesma lógica do snippet) */
+  const pageInSegmentation = (() => {
+    const urls = state.experiment.segmentation.urls;
+    if (urls.some((r) => r.exclude && matchUrl(r, state.url))) return false;
+    const inc = urls.filter((r) => !r.exclude);
+    return !inc.length || inc.some((r) => matchUrl(r, state.url));
+  })();
+
+  useEffect(() => {
+    document.title = `${state.dirty ? '● ' : ''}${state.experiment.name} — Experimenta`;
+  }, [state.dirty, state.experiment.name]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -224,7 +298,7 @@ export function EditorView({ record, accountId }: Props) {
         dispatch({ type: e.shiftKey ? 'redo' : 'undo' });
       } else if (e.key.toLowerCase() === 's') {
         e.preventDefault();
-        save();
+        void save();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -235,6 +309,12 @@ export function EditorView({ record, accountId }: Props) {
     <div className="flex h-screen flex-col bg-gray-50 text-gray-900">
       <TopBar
         name={state.experiment.name}
+        status={state.experiment.status}
+        saving={saving}
+        publishing={publishing}
+        savedAt={savedAt}
+        onBack={() => (state.dirty ? setLeaving(true) : go(null))}
+        onRename={(name) => dispatch({ type: 'patchExperiment', patch: { name } })}
         variations={state.experiment.variations}
         activeId={state.activeVariationId}
         mode={mode}
@@ -250,11 +330,31 @@ export function EditorView({ record, accountId }: Props) {
         onDevice={setDevice}
         onUndo={() => dispatch({ type: 'undo' })}
         onRedo={() => dispatch({ type: 'redo' })}
-        onSave={save}
+        onSave={() => void save()}
         onPublish={doPublish}
         onUrl={(url) => {
           setConnected(false);
+          setFrameSrcUrl(url);
           dispatch({ type: 'setUrl', url });
+          // Segmentação ainda é a padrão (só a página inicial)? Acompanha a nova página.
+          const urls = state.experiment.segmentation.urls;
+          const only = urls.length === 1 ? urls[0] : undefined;
+          if (
+            only &&
+            only.match === 'exact' &&
+            !only.exclude &&
+            only.value === state.url &&
+            url !== state.url
+          ) {
+            dispatch({
+              type: 'patchExperiment',
+              patch: { segmentation: { ...state.experiment.segmentation, urls: [{ ...only, value: url }] } },
+            });
+            toast(
+              'info',
+              `O experimento agora roda em ${url.replace(/^https?:[/][/]/, '')} (ajuste em Config).`,
+            );
+          }
         }}
       />
       {!connected && ext === 'missing' && (
@@ -301,16 +401,34 @@ export function EditorView({ record, accountId }: Props) {
           </button>
         </div>
       )}
-      {notice && (
+      {!pageInSegmentation && (
         <div
-          role="status"
-          className="flex justify-between bg-green-50 px-4 py-2 text-sm text-green-800"
-          data-testid="notice"
+          className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+          data-testid="segment-warning"
         >
-          {notice}
-          <button onClick={() => setNotice(null)} aria-label="Fechar">
-            ✕
-          </button>
+          <span>
+            ⚠ Esta página não está na segmentação do experimento: visitantes aqui <b>não</b> verão as
+            alterações.
+          </span>
+          <Button
+            size="sm"
+            onClick={() =>
+              dispatch({
+                type: 'patchExperiment',
+                patch: {
+                  segmentation: {
+                    ...state.experiment.segmentation,
+                    urls: [
+                      ...state.experiment.segmentation.urls,
+                      { match: 'exact', value: state.url, exclude: false },
+                    ],
+                  },
+                },
+              })
+            }
+          >
+            Incluir esta página
+          </Button>
         </div>
       )}
       {mode === 'preview' && (
@@ -322,16 +440,29 @@ export function EditorView({ record, accountId }: Props) {
         </div>
       )}
       <div className="flex min-h-0 flex-1">
-        <main className="flex min-w-0 flex-1 justify-center overflow-auto bg-gray-200 p-3">
+        <main className="relative flex min-w-0 flex-1 justify-center overflow-auto bg-gray-100 p-3">
+          {!connected && ext !== 'missing' && !error && (
+            <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-gray-100/70 backdrop-blur-[1px]">
+              <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm text-gray-600 shadow-lg">
+                <Spinner className="h-5 w-5 text-brand-500" />
+                <span>
+                  Conectando ao site…
+                  <span className="block text-xs text-gray-400">
+                    {state.url.replace(/^https?:[/][/]/, '')}
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
           {token && extChecked && (
             <iframe
               ref={iframe}
               key={frameKey}
               title="Site em edição"
               data-testid="site-frame"
-              src={frameUrl(state.url, token)}
+              src={frameUrl(frameSrcUrl, token)}
               style={{ width: DEVICE_WIDTH[device] }}
-              className="h-full max-w-full rounded border-0 bg-white shadow transition-[width]"
+              className="h-full max-w-full rounded-lg border-0 bg-white shadow-md ring-1 ring-gray-200 transition-[width]"
             />
           )}
         </main>
@@ -349,10 +480,13 @@ export function EditorView({ record, accountId }: Props) {
         )}
         {mode !== 'preview' && mode !== 'heatmap' && (
           <aside
-            className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white"
+            className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white xl:w-96"
             data-testid="sidebar"
           >
-            <nav className="flex flex-wrap border-b border-gray-200 text-sm" role="tablist">
+            <nav
+              className="grid grid-cols-3 gap-1 border-b border-gray-200 bg-gray-50 p-1.5 text-xs"
+              role="tablist"
+            >
               {(
                 [
                   ['element', 'Elemento'],
@@ -369,7 +503,7 @@ export function EditorView({ record, accountId }: Props) {
                   aria-selected={tab === id}
                   data-testid={`side-${id}`}
                   onClick={() => setTab(id)}
-                  className={`min-w-[30%] flex-1 border-b-2 px-2 py-1.5 ${tab === id ? 'border-orange-500 font-medium' : 'border-transparent text-gray-500'}`}
+                  className={`rounded-md px-2 py-1.5 whitespace-nowrap ${tab === id ? 'bg-white font-medium text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-500 hover:bg-white/60 hover:text-gray-800'}`}
                 >
                   {label}
                   {id === 'changes' && applyResult && applyResult.failed.length > 0 && (
@@ -391,7 +525,16 @@ export function EditorView({ record, accountId }: Props) {
                   }
                 />
               ) : (
-                <p className="p-3 text-sm text-gray-500">Clique num elemento do site para editar.</p>
+                <div className="p-6 text-center text-sm text-gray-500">
+                  <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-brand-50 text-brand-600">
+                    ↖
+                  </div>
+                  <p className="font-medium text-gray-700">Selecione um elemento</p>
+                  <p className="mt-1">
+                    Clique para selecionar, duplo clique para editar o texto, botão direito para mais opções e
+                    ⠿ para arrastar.
+                  </p>
+                </div>
               ))}
             {tab === 'changes' && (
               <ChangesPanel
@@ -455,6 +598,40 @@ export function EditorView({ record, accountId }: Props) {
         )}
       </div>
       <PromptDialog req={prompt} onClose={() => setPrompt(null)} />
+      <Modal
+        open={leaving}
+        onClose={() => setLeaving(false)}
+        title="Sair sem salvar?"
+        testId="leave-modal"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setLeaving(false)}>
+              Continuar editando
+            </Button>
+            <Button variant="danger" onClick={() => go(null)} data-testid="leave-discard">
+              Descartar
+            </Button>
+            <Button
+              variant="primary"
+              loading={saving}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  await persist();
+                  go(null);
+                } catch (e) {
+                  toast('error', `Não foi possível salvar: ${(e as Error).message}`);
+                  setSaving(false);
+                }
+              }}
+            >
+              Salvar e sair
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600">Há alterações que ainda não foram salvas neste experimento.</p>
+      </Modal>
     </div>
   );
 }

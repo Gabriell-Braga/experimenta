@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Snippet A/B: primeiro script do head (ver docs/DECISOES.md D-008) -->
+    <script src="%VITE_API_URL%/cdn/demo.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Passo Firme — Tênis e acessórios para correr</title>
+    <link rel="stylesheet" href="./loja.css" />
+  </head>
+  <body>
+    <!-- Barra com contagem regressiva: muda o DOM a cada segundo (testa estabilidade do editor e do snippet). -->
+    <div class="announce" role="region" aria-label="Promoção">
+      <span>🔥 Semana do corredor: até <b>40% OFF</b> — termina em</span>
+      <span class="announce__timer" id="countdown">--:--:--</span>
+    </div>
+
+    <header class="site-header" id="topo">
+      <div class="container site-header__row">
+        <a href="/loja/" class="brand" aria-label="Passo Firme — início"
+          ><span class="brand__mark">PF</span> Passo Firme</a
+        >
+        <nav class="mainnav" aria-label="Principal">
+          <div class="mainnav__item mainnav__item--mega">
+            <button class="mainnav__link" aria-expanded="false" aria-haspopup="true">Masculino ▾</button>
+            <div class="mega" role="menu">
+              <div>
+                <h4>Corrida</h4>
+                <a href="#produtos">Asfalto</a><a href="#produtos">Trilha</a><a href="#produtos">Maratona</a>
+              </div>
+              <div>
+                <h4>Casual</h4>
+                <a href="#produtos">Lifestyle</a><a href="#produtos">Skate</a>
+              </div>
+              <div class="mega__promo">
+                <b>Nova coleção</b><span>Amortecimento Nuvem 2</span
+                ><a href="#produtos" class="btn btn--small">Ver agora</a>
+              </div>
+            </div>
+          </div>
+          <div class="mainnav__item"><a class="mainnav__link" href="#produtos">Feminino</a></div>
+          <div class="mainnav__item"><a class="mainnav__link" href="#produtos">Acessórios</a></div>
+          <div class="mainnav__item">
+            <a class="mainnav__link mainnav__link--sale" href="#produtos">Outlet</a>
+          </div>
+        </nav>
+        <form class="search" role="search" onsubmit="return false;">
+          <input type="search" placeholder="Buscar tênis, meias, garrafas…" aria-label="Buscar" />
+        </form>
+        <button class="cart-btn" id="cart-open" aria-label="Abrir carrinho">
+          🛒 <span class="cart-btn__count" id="cart-count" data-testid="cart-count">0</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-roledescription="carrossel" aria-label="Destaques">
+        <div class="hero__track" id="hero-track">
+          <article class="hero__slide is-active" data-slide="0">
+            <div class="container hero__inner">
+              <div>
+                <p class="eyebrow">Lançamento</p>
+                <h1 class="hero__title" id="hero-headline">Corra mais longe com menos impacto</h1>
+                <p class="hero__text">Tecnologia Nuvem 2: 30% mais retorno de energia em cada passada.</p>
+                <a href="#produtos" class="btn btn--primary hero__cta" data-testid="hero-cta"
+                  >Comprar agora</a
+                >
+                <a href="#faq" class="btn btn--ghost">Saiba mais</a>
+              </div>
+              <div class="hero__art hero__art--1" aria-hidden="true"></div>
+            </div>
+          </article>
+          <article class="hero__slide" data-slide="1">
+            <div class="container hero__inner">
+              <div>
+                <p class="eyebrow">Trilha</p>
+                <h2 class="hero__title">Aderência para qualquer terreno</h2>
+                <p class="hero__text">Solado com cravos de 5 mm e cabedal impermeável.</p>
+                <a href="#produtos" class="btn btn--primary">Ver tênis de trilha</a>
+              </div>
+              <div class="hero__art hero__art--2" aria-hidden="true"></div>
+            </div>
+          </article>
+          <article class="hero__slide" data-slide="2">
+            <div class="container hero__inner">
+              <div>
+                <p class="eyebrow">Frete grátis</p>
+                <h2 class="hero__title">Compras acima de R$ 199 sem frete</h2>
+                <p class="hero__text">Troca grátis em até 30 dias, sem perguntas.</p>
+                <a href="#produtos" class="btn btn--primary">Aproveitar</a>
+              </div>
+              <div class="hero__art hero__art--3" aria-hidden="true"></div>
+            </div>
+          </article>
+        </div>
+        <div class="hero__dots" id="hero-dots" role="tablist" aria-label="Escolher destaque"></div>
+      </section>
+
+      <ul class="benefits container">
+        <li><span>🚚</span><b>Frete grátis</b> acima de R$ 199</li>
+        <li><span>↩️</span><b>Troca grátis</b> em 30 dias</li>
+        <li><span>💳</span><b>10x sem juros</b> no cartão</li>
+        <li><span>🔒</span><b>Compra segura</b> certificada</li>
+      </ul>
+
+      <section class="container section" id="produtos">
+        <div class="section__head">
+          <h2>Mais vendidos</h2>
+          <div class="tabs" role="tablist" id="category-tabs">
+            <button role="tab" class="tabs__tab is-active" data-cat="todos">Todos</button>
+            <button role="tab" class="tabs__tab" data-cat="corrida">Corrida</button>
+            <button role="tab" class="tabs__tab" data-cat="casual">Casual</button>
+            <button role="tab" class="tabs__tab" data-cat="acessorios">Acessórios</button>
+          </div>
+        </div>
+        <!-- Grade preenchida por JS depois de ~700 ms (simula chamada de API). -->
+        <div class="grid" id="product-grid" aria-busy="true">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </section>
+
+      <section class="banner-split container">
+        <div class="banner-split__item banner-split__item--dark">
+          <h3>Clube Passo Firme</h3>
+          <p>Ganhe 10% de volta em créditos em todas as compras.</p>
+          <a href="#newsletter" class="btn btn--light" data-testid="club-cta">Quero participar</a>
+        </div>
+        <div class="banner-split__item banner-split__item--light">
+          <h3>Monte seu kit</h3>
+          <p>Tênis + meia + garrafa com 15% de desconto.</p>
+          <a href="#produtos" class="btn btn--primary">Montar kit</a>
+        </div>
+      </section>
+
+      <section class="section section--muted">
+        <div class="container">
+          <h2 class="section__title">Quem corre, recomenda</h2>
+          <div class="testimonials" id="testimonials">
+            <figure class="tm_q8h2k_1">
+              <blockquote>“Fiz minha primeira meia maratona com o Runner X e zero bolhas.”</blockquote>
+              <figcaption>Ana P. · São Paulo ★★★★★</figcaption>
+            </figure>
+            <figure class="tm_q8h2k_1">
+              <blockquote>“O amortecimento é absurdo. Joelho agradece.”</blockquote>
+              <figcaption>Bruno L. · Curitiba ★★★★★</figcaption>
+            </figure>
+            <figure class="tm_q8h2k_1">
+              <blockquote>“Troquei o tamanho sem custo nenhum. Atendimento nota 10.”</blockquote>
+              <figcaption>Carla M. · Recife ★★★★☆</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="container section" id="faq">
+        <h2 class="section__title">Perguntas frequentes</h2>
+        <div class="faq">
+          <details>
+            <summary>Qual o prazo de entrega?</summary>
+            <p>De 2 a 7 dias úteis para capitais; até 12 dias para o interior.</p>
+          </details>
+          <details>
+            <summary>Como funciona a troca?</summary>
+            <p>Solicite pelo site em até 30 dias; a coleta é gratuita.</p>
+          </details>
+          <details>
+            <summary>Os tênis têm garantia?</summary>
+            <p>Sim, 1 ano contra defeitos de fabricação.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="newsletter" id="newsletter">
+        <div class="container newsletter__inner">
+          <div>
+            <h2>Ganhe 10% na primeira compra</h2>
+            <p>Receba lançamentos e treinos semanais. Sem spam.</p>
+          </div>
+          <form class="newsletter__form" id="newsletter-form" novalidate>
+            <input type="email" name="email" placeholder="seu@email.com" aria-label="E-mail" required />
+            <button type="submit" class="btn btn--primary">Quero o cupom</button>
+            <output class="newsletter__msg" id="newsletter-msg"></output>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer__cols">
+        <div>
+          <a href="/loja/" class="brand brand--light"><span class="brand__mark">PF</span> Passo Firme</a>
+          <p>Equipamento para quem corre desde 2012.</p>
+        </div>
+        <div>
+          <h4>Comprar</h4>
+          <a href="#produtos">Masculino</a><a href="#produtos">Feminino</a><a href="#produtos">Outlet</a>
+        </div>
+        <div>
+          <h4>Ajuda</h4>
+          <a href="#faq">Entregas</a><a href="#faq">Trocas</a><a href="#faq">Garantia</a>
+        </div>
+        <div>
+          <h4>Siga</h4>
+          <a href="#">Instagram</a><a href="#">Strava</a><a href="#">YouTube</a>
+        </div>
+      </div>
+      <p class="container footer__legal">© Passo Firme — site de demonstração para testes A/B.</p>
+    </footer>
+
+    <!-- Modal de visualização rápida -->
+    <div class="modal" id="quick-view" role="dialog" aria-modal="true" aria-labelledby="qv-title" hidden>
+      <div class="modal__backdrop" data-close></div>
+      <div class="modal__box">
+        <button class="modal__close" data-close aria-label="Fechar">✕</button>
+        <div class="modal__img" id="qv-img"></div>
+        <div>
+          <h3 id="qv-title"></h3>
+          <p class="modal__price" id="qv-price"></p>
+          <p id="qv-desc"></p>
+          <div class="sizes" id="qv-sizes"></div>
+          <button class="btn btn--primary" id="qv-add">Adicionar ao carrinho</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gaveta do carrinho -->
+    <aside class="drawer" id="cart-drawer" aria-label="Carrinho" hidden>
+      <div class="drawer__backdrop" data-close-cart></div>
+      <div class="drawer__panel">
+        <header class="drawer__head">
+          <h3>Seu carrinho</h3>
+          <button data-close-cart aria-label="Fechar">✕</button>
+        </header>
+        <ul class="drawer__items" id="cart-items"></ul>
+        <footer class="drawer__foot">
+          <p class="drawer__total">Total <b id="cart-total">R$ 0,00</b></p>
+          <a href="/obrigado.html" class="btn btn--primary btn--block" id="checkout" data-testid="checkout"
+            >Finalizar compra</a
+          >
+        </footer>
+      </div>
+    </aside>
+
+    <script type="module" src="./loja.js"></script>
+  </body>
+</html>

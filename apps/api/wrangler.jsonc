@@ -5,6 +5,8 @@
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  // Roda o Worker perto do D1 (cada consulta ao banco deixa de cruzar o continente).
+  "placement": { "mode": "smart" },
   "d1_databases": [
     {
       "binding": "DB",

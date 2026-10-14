@@ -107,3 +107,15 @@ describe('generateSelector', () => {
     expect(cssEscape('a:b')).toBe('a\\:b');
   });
 });
+
+test('data-* com id numérico curto serve de âncora (cards de produto renderizados por JS)', () => {
+  document.body.innerHTML = `<div id="grid">${[1, 2, 3]
+    .map(
+      (i) =>
+        `<article class="card pc_x7a2f_3" data-product-id="${i}"><div class="card__body"><h3 class="card__title">P${i}</h3></div></article>`,
+    )
+    .join('')}</div>`;
+  const r = generateSelector(document.querySelectorAll('h3')[1]!);
+  expect(r.selector).toBe('[data-product-id="2"] h3.card__title');
+  expect(r.fragility).not.toBe('high');
+});

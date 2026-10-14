@@ -17,9 +17,11 @@ export function compileAccountScript(config: PublishedConfig, runtimeJs: string)
 
 export async function writeAccountFiles(store: CdnStore, config: PublishedConfig): Promise<void> {
   const runtime = (await store.get('abt.js')) ?? '';
-  // Grava o .js por último: é o que o site carrega; o .json é o contrato para integrações.
-  await store.put(`${config.accountId}.json`, JSON.stringify(config, null, 2));
-  await store.put(`${config.accountId}.js`, compileAccountScript(config, runtime));
+  // .js (o que o site carrega) e .json (contrato para integrações) em paralelo: na KV cada escrita custa caro.
+  await Promise.all([
+    store.put(`${config.accountId}.json`, JSON.stringify(config, null, 2)),
+    store.put(`${config.accountId}.js`, compileAccountScript(config, runtime)),
+  ]);
 }
 
 const TYPES: Record<string, string> = {

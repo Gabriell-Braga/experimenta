@@ -46,6 +46,8 @@ export function isStableId(id: string): boolean {
 
 /** Valor de atributo que vale usar em seletor: curto, sem quebra de linha e sem cara de hash. */
 export function isStableAttrValue(v: string): boolean {
+  // Ids numéricos curtos de domínio (data-product-id="42") são estáveis; o que parece hash é o resto.
+  if (/^\d{1,6}$/.test(v)) return true;
   return (
     v.length > 0 && v.length <= 80 && !/[\n\r]/.test(v) && !isGeneratedToken(v.replace(/[\s/.:?=&#]+/g, '-'))
   );

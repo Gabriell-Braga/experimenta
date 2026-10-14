@@ -178,6 +178,9 @@ export function createRepo(db: Db) {
           projectId: experiments.projectId,
           editorUrl: experiments.editorUrl,
           updatedAt: experiments.updatedAt,
+          traffic: experiments.traffic,
+          // Referências qualificadas à mão: dentro da subconsulta o Drizzle renderiza só "id" (ambíguo).
+          variations: sql<number>`(select count(*)::int from variations v where v.experiment_id = "experiments"."id" and v.account_id = "experiments"."account_id")`,
         })
         .from(experiments)
         .where(eq(experiments.accountId, accountId))

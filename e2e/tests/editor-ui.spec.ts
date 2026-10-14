@@ -57,6 +57,10 @@ test('modos: navegar deixa o site navegar e mantém a variação; preview escond
   await page.getByTestId('mode-browse').click();
   await site.locator('[data-testid=cta-comprar]').click();
   await expect(site.locator('.product-title')).toBeVisible();
+  // Navegou para fora da segmentação (URL exata da home): o editor avisa e oferece incluir a página.
+  await expect(page.getByTestId('segment-warning')).toBeVisible();
+  await page.getByTestId('segment-warning').getByRole('button', { name: 'Incluir esta página' }).click();
+  await expect(page.getByTestId('segment-warning')).toHaveCount(0);
   await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
   await site.locator('a.logo').click();
   await expect(site.locator('#hero-title')).toHaveText('Título B'); // agent reconectou e reaplicou
