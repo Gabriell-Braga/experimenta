@@ -1,9 +1,10 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
-import { ExperimentSchema, type Experiment, type PublishedConfig } from '@abtest/shared';
+import { ExperimentSchema, type Experiment, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
 import { and, asc, desc, eq, max } from 'drizzle-orm';
 import type { Db } from './db';
 import {
   accounts,
+  events,
   experiments,
   experimentVersions,
   goals,
@@ -318,6 +319,29 @@ export function createRepo(db: Db) {
         .orderBy(desc(publications.version))
         .limit(1);
       return row;
+    },
+
+    async accountExists(id: string): Promise<boolean> {
+      const [row] = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, id));
+      return !!row;
+    },
+
+    async insertEvents(accountId: string, list: TrackingEvent[]): Promise<void> {
+      if (!list.length) return;
+      await db
+        .insert(events)
+        .values(
+          list.map((e) => ({
+            id: e.eventId,
+            accountId,
+            type: e.type,
+            experimentId: e.experimentId,
+            variationId: e.variationId,
+            payload: e,
+            ts: new Date(e.ts),
+          })),
+        )
+        .onConflictDoNothing(); // eventId repetido (reenvio do beacon) é ignorado
     },
 
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {

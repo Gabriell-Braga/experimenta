@@ -4,6 +4,7 @@ import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { syncBundles, writeAccountFiles } from './cdn';
 import { createDb } from './db';
+import { createPublisher } from './publish';
 import { createRepo } from './repo';
 import { seedDev } from './seed';
 
@@ -40,6 +41,8 @@ const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-troque-em-producao';
 if (!process.env.JWT_SECRET)
   console.warn('[api] JWT_SECRET não definido — usando segredo de desenvolvimento');
 
-serve({ fetch: createApp({ db, repo, cdnDir, editorOrigins, jwtSecret }).fetch, port }, () =>
+const publish = createPublisher({ repo, cdnDir, publicUrl });
+
+serve({ fetch: createApp({ db, repo, cdnDir, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
   console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),
 );

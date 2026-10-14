@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 4 — API, persistência e publicação
-**Tarefa atual:** 4.3 — Publicação: compilar JSON e gravar na CDN local
-**Última atualização:** 2026-10-14 04:44
-**Próximo passo:** Criar apps/api/src/publish.ts: compilePublishedConfig(accountId) = experimentos com status running (validados), version = última+1, apiUrl/trackingUrl; recusa se houver customJS publicado por quem não tem permissão (403); grava publications (só inserção) e /cdn/<conta>.json + .js via writeAccountFiles; ligar em POST /publish; endpoint POST /collect (recebe eventos text/plain, valida, guarda para a fase 6). Testes.
+**Tarefa atual:** 4.4 — Teste Playwright do fluxo completo: criar → editar → configurar tráfego e meta → publicar → visitante cai na variação
+**Última atualização:** 2026-10-14 04:46
+**Próximo passo:** No editor: painel 'Configurações' (nome, status, tráfego %, pesos das variações, segmentação por URL, metas clique/URL/custom) e botão Publicar na barra superior (salva, marca running se o usuário pedir e chama /publish; mostra versão). E2E: login → novo experimento → editar texto → tráfego 100%, pesos 0/100, meta de clique → publicar → abrir o site demo como visitante (sem route, CDN real) → vê a variação → clique gera conversão em /collect (conferir via API ou interceptação).
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -181,3 +181,9 @@
 - Arquivos principais: apps/api/src/{app,auth,seed}.ts, apps/editor/src/{App,EditorView,api}.ts(x), e2e/editor.ts, e2e/host.ts
 - Como testar manualmente: pnpm dev → http://localhost:5173 (demo@abtest.dev / demo1234); http://localhost:4000/docs
 - Observações: ver D-021.
+
+### 2026-10-14 04:46 — Tarefa 4.3 concluída
+- O que foi feito: publish.ts (compila running, versiona, regra de customJS, grava CDN), tabela events + POST /collect com validação e deduplicação, rota /publish ligada no server.
+- Arquivos principais: apps/api/src/{publish,app,repo,schema}.ts, apps/api/drizzle/0001_*.sql
+- Como testar manualmente: pnpm dev; no editor salvar um experimento running e chamar POST /publish (botão na 4.4); conferir cdn/demo.json.
+- Observações: ver D-022.

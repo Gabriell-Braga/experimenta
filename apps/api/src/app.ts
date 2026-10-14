@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
-import { ExperimentSchema } from '@abtest/shared';
+import { ExperimentSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
 import { cors } from 'hono/cors';
 import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
 import { serveCdn } from './cdn';
@@ -95,6 +95,28 @@ export function createApp(deps: AppDeps) {
     const s = sessions.get(c.req.param('token'));
     if (!s) return c.json({ error: 'sessão inválida ou expirada' }, 404);
     return c.json({ accountId: s.accountId, appOrigin: s.appOrigin, expiresAt: s.expiresAt });
+  });
+
+  // Coleta de eventos do snippet: sendBeacon com text/plain (sem preflight). Ver docs/EVENTOS.md.
+  // ponytail: sem rate limit nem fila; colocar atrás de fila/limite quando houver tráfego real.
+  app.use('/collect', cors({ origin: '*', allowMethods: ['POST'] }));
+  app.post('/collect', async (c) => {
+    const raw = await c.req.text();
+    if (raw.length > 64 * 1024) return c.json({ error: 'lote grande demais' }, 413);
+    let body: { events?: unknown[] };
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return c.json({ error: 'JSON inválido' }, 400);
+    }
+    const valid = (Array.isArray(body.events) ? body.events.slice(0, 200) : [])
+      .map((e) => TrackingEventSchema.safeParse(e))
+      .flatMap((r) => (r.success ? [r.data] : []));
+    const byAccount = new Map<string, TrackingEvent[]>();
+    for (const e of valid) byAccount.set(e.accountId, [...(byAccount.get(e.accountId) ?? []), e]);
+    for (const [acc, list] of byAccount)
+      if (await repo.accountExists(acc)) await repo.insertEvents(acc, list);
+    return c.body(null, 204);
   });
 
   // ---------- Privadas (app do editor) ----------

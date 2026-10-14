@@ -156,3 +156,22 @@ export const publications = pgTable(
   },
   (t) => [uniqueIndex('publications_account_version_uq').on(t.accountId, t.version)],
 );
+
+/**
+ * Eventos recebidos do snippet (POST /collect). Fonte para o painel de saúde dos seletores (6.1);
+ * a análise estatística fica com o módulo de analytics.
+ */
+export const events = pgTable(
+  'events',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    type: text('type').notNull(),
+    experimentId: text('experiment_id'),
+    variationId: text('variation_id'),
+    payload: jsonb('payload').notNull(),
+    ts: timestamp('ts', { withTimezone: true }).notNull(),
+    receivedAt: createdAt(),
+  },
+  (t) => [index('events_account_type_idx').on(t.accountId, t.type, t.experimentId)],
+);

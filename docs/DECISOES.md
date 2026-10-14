@@ -125,3 +125,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Papéis: viewer (lê), editor (cria/salva/abre sessão de edição/publica), owner (tudo). Publicar customJS exige owner ou `can_publish_js` (checado na publicação, 4.3). Recursos de outra conta respondem 404 (não revelam existência).
 - CORS: rotas privadas só aceitam os origins do editor (`EDITOR_ORIGINS`); `/cdn/*`, `GET /edit-sessions/:token` e coleta de eventos são públicas.
 - O editor deixa de usar localStorage para o experimento: login → lista → `?exp=<id>`; salvar = PUT (nova versão). Seed de desenvolvimento com conta `demo` e um usuário de cada papel.
+
+## D-022 — Publicação e coleta
+- `POST /publish` (editor+) compila os experimentos com status `running` da conta num `PublishedConfig` versionado (última versão + 1), registra em `publications` (só inserção — histórico imutável) e grava `/cdn/<conta>.json` e `/cdn/<conta>.js`. Publicar = sobrescrever os arquivos (numa CDN real: + purge do caminho).
+- Regra do customJS: sem permissão (`owner` ou `can_publish_js`), a publicação é recusada (403) se algum customJS em execução for NOVO ou DIFERENTE do que já está publicado; republicar JS idêntico (aprovado antes) é permitido, para editores poderem publicar outras mudanças.
+- `POST /collect` público (CORS `*`, text/plain, até 64 KB e 200 eventos por lote): valida cada evento com o schema, ignora inválidos e contas inexistentes, deduplica por `eventId` (`ON CONFLICT DO NOTHING`), guarda em `events` para o painel de saúde. Responde 204 sem detalhes. Sem rate limit (ponytail).
