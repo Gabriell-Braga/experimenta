@@ -109,7 +109,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 
 ### Fase 6 — Robustez
 - [x] 6.1 Painel de saúde com selector_failed / selector_healed por experimento
-- [ ] 6.2 Aviso de seletor frágil no editor
+- [x] 6.2 Aviso de seletor frágil no editor
 - [ ] 6.3 Detecção de conflito entre experimentos no mesmo elemento
 - [ ] 6.4 Histórico de versões com restauração
 

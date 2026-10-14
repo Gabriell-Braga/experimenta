@@ -146,3 +146,7 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-025 — Saúde dos seletores
 - `GET /experiments/{id}/health` agrega a tabela `events` (filtrada por conta e experimento): exposições por variação e, por operação, contagem de `selector_failed`/`selector_healed`, último seletor curado (+via) e última ocorrência — uma consulta SQL com `count(*) filter` e `array_agg ... order by ts desc`.
 - Editor, aba "Saúde": por alteração da variação ativa mostra OK / falhou N× (taxa sobre exposições) / curado N× com o seletor usado. "Adotar este seletor" troca o seletor principal pelo curado e rebaixa o antigo para alternativo (mantém a cura possível se o site voltar atrás). Depois é preciso salvar e publicar.
+
+## D-026 — Aviso de seletor frágil
+- `selectorFragility(selector)` (packages/selector) avalia qualquer seletor só pelo texto (inclusive os editados/adotados): `high` se usa nth-* ou id/classe com cara de gerada; `low` se ancorado num id/data-* estável sem combinadores ou classe estável simples; `medium` no resto.
+- Três pontos de aviso no editor: dica no painel ao selecionar elemento frágil, faixa amarela ao criar uma alteração frágil (com sugestão de pedir `data-testid`) e ⚠ na lista de alterações. Não bloqueia: a impressão digital ainda tenta curar.

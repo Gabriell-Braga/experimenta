@@ -109,6 +109,9 @@ importers:
 
   apps/editor:
     dependencies:
+      '@abtest/selector':
+        specifier: workspace:^
+        version: link:../../packages/selector
       '@abtest/shared':
         specifier: workspace:^
         version: link:../../packages/shared

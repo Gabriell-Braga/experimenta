@@ -1,4 +1,5 @@
 import type { ApplyResult, Operation } from '@abtest/shared';
+import { selectorFragility } from '@abtest/selector';
 import { describeOperation } from '../describe';
 
 interface Props {
@@ -33,7 +34,18 @@ export function ChangesPanel({ operations, result, onHighlight, onSelect, onRemo
             <span className="block truncate" data-testid="change-desc">
               {describeOperation(op)}
             </span>
-            <code className="block truncate text-xs text-gray-500">{op.target.selector}</code>
+            <code className="block truncate text-xs text-gray-500">
+              {selectorFragility(op.target.selector) === 'high' && (
+                <span
+                  className="text-yellow-700"
+                  title="Seletor frágil: depende de posição ou de classes geradas"
+                  data-testid="fragile"
+                >
+                  ⚠{' '}
+                </span>
+              )}
+              {op.target.selector}
+            </code>
             {failed.has(op.id) && (
               <span className="text-xs text-red-700">⚠ elemento não encontrado nesta página</span>
             )}

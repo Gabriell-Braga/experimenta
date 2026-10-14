@@ -1,3 +1,4 @@
+import { selectorFragility } from '@abtest/selector';
 import type { ApplyResult, ElementInfo } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { API_URL, createEditSession, frameUrl, publish, saveExperiment, type ExperimentRecord } from './api';
@@ -65,7 +66,10 @@ export function EditorView({ record, accountId }: Props) {
         setSelected(info);
         if (info) setTab('element');
       }),
-      c.peer.on('operation', ({ draft }) => dispatch({ type: 'addOperation', draft })),
+      c.peer.on('operation', ({ draft }) => {
+        dispatch({ type: 'addOperation', draft });
+        if (selectorFragility(draft.target.selector) === 'high') setFragileWarning(draft.target.selector);
+      }),
       c.peer.on('navigated', ({ url }) => dispatch({ type: 'setUrl', url })),
     ];
     return () => {
@@ -95,6 +99,8 @@ export function EditorView({ record, accountId }: Props) {
   }, [connected, readyCount, variation, runJS]);
 
   const [notice, setNotice] = useState<string | null>(null);
+  /** Seletor frágil da última alteração criada (aviso até o usuário fechar). */
+  const [fragileWarning, setFragileWarning] = useState<string | null>(null);
   /** Fallback da extensão: 'idle' → 'missing' (não instalada) | 'active' (sessão aberta; iframe recarregado). */
   const [ext, setExt] = useState<'idle' | 'missing' | 'active'>('idle');
   const [frameKey, setFrameKey] = useState(0);
@@ -202,6 +208,23 @@ export function EditorView({ record, accountId }: Props) {
       {error && (
         <div role="alert" className="bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {fragileWarning && (
+        <div
+          role="alert"
+          className="flex justify-between gap-2 bg-yellow-50 px-4 py-2 text-sm text-yellow-900"
+          data-testid="fragile-warning"
+        >
+          <span>
+            ⚠ Alteração com seletor frágil (<code>{fragileWarning}</code>): depende da posição ou de classes
+            geradas e pode quebrar quando o site mudar. Peça ao time do site um <code>id</code> ou{' '}
+            <code>data-testid</code> estável nesse elemento — a impressão digital tenta curar, mas não é
+            garantida.
+          </span>
+          <button onClick={() => setFragileWarning(null)} aria-label="Fechar">
+            ✕
+          </button>
         </div>
       )}
       {notice && (

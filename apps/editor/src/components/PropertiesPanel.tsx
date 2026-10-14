@@ -115,6 +115,12 @@ export function PropertiesPanel({ info, operations, onUpsert, onSelectSelector }
             {frag}
           </span>
         </div>
+        {info.fragility === 'high' && (
+          <p className="mt-2 rounded bg-yellow-50 p-2 text-xs text-yellow-900" data-testid="fragile-hint">
+            Seletor frágil: este elemento não tem id, data-* nem classe estável. Prefira editar um ancestral
+            estável ou peça ao time do site um <code>data-testid</code>.
+          </p>
+        )}
         <nav className="mt-2 flex flex-wrap gap-1 text-xs" aria-label="Ancestrais">
           {[...info.breadcrumb].reverse().map((b) => (
             <button

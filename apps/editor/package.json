@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@abtest/selector": "workspace:^",
     "@abtest/shared": "workspace:^",
     "@monaco-editor/react": "4.7",
     "monaco-editor": "0.52",

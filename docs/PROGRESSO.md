@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 6 — Robustez
-**Tarefa atual:** 6.2 — Aviso de seletor frágil no editor
-**Última atualização:** 2026-10-14 04:59
-**Próximo passo:** Mostrar aviso de fragilidade: na criação da operação (toast/alerta no painel quando fragility=high), ícone ⚠ na lista de alterações para operações cujo seletor é frágil (calcular localmente com heurística: nth-of-type, tokens gerados) e sugestão de adicionar data-testid/id estável; exportar isFragileSelector do packages/selector com teste.
+**Tarefa atual:** 6.3 — Detecção de conflito entre experimentos no mesmo elemento
+**Última atualização:** 2026-10-14 08:16
+**Próximo passo:** API: GET /experiments/{id}/conflicts — compara alvos (seletor principal/alternativos normalizados) das operações deste experimento com os de outros experimentos running/paused da mesma conta cujas segmentações de URL podem se sobrepor (mesma URL exata, contains/regex testados contra editorUrl); editor: aviso na aba Alterações e no Publicar (confirmação). Testes.
 
 ## Bloqueios / perguntas para os humanos
 - (não bloqueante) Extensão: não reescrevemos `SameSite` de cookies (limitação do declarativeNetRequest; ver D-024). Sites com login em cookie Lax/Strict podem deslogar dentro do iframe. Aprovar a permissão `cookies` para implementar a reescrita?
@@ -224,3 +224,9 @@
 - Arquivos principais: apps/api/src/{repo,app}.ts, apps/editor/src/components/HealthPanel.tsx, e2e/tests/health.spec.ts
 - Como testar manualmente: publicar um experimento, mudar o HTML do demo para quebrar um seletor, visitar o site e abrir a aba Saúde.
 - Observações: ver D-025.
+
+### 2026-10-14 08:16 — Tarefa 6.2 concluída
+- O que foi feito: selectorFragility no packages/selector; editor mostra dica no painel, aviso ao criar alteração frágil e ⚠ na lista.
+- Arquivos principais: packages/selector/src/fragility.ts, apps/editor/src/{EditorView.tsx,components/ChangesPanel.tsx,components/PropertiesPanel.tsx}, e2e/tests/fragile.spec.ts
+- Como testar manualmente: no editor, esconder um item da lista 'Por que escolher' (sem classe/id).
+- Observações: ver D-026.
