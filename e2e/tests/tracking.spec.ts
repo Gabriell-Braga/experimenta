@@ -1,4 +1,4 @@
-import type { TrackingEvent } from '@abtest/shared';
+import type { ExperimentEvent as TrackingEvent } from '@abtest/shared';
 import { expect, test, type Page } from '@playwright/test';
 import { experiment, makeConfig, serveSnippet } from '../helpers';
 
@@ -90,4 +90,30 @@ test('bots não entram em experimentos', async ({ browser }) => {
   await expect(page.locator('#hero-title')).toHaveText('O melhor tênis para correr');
   expect(await page.evaluate(() => window.abt)).toBeUndefined();
   await ctx.close();
+});
+
+test('mapa de calor: cliques com posição relativa e profundidade de scroll ao sair', async ({ page }) => {
+  await serveSnippet(page, { ...config(), heatmap: { sampleRate: 1 } });
+  const events = (await collect(page)) as unknown as {
+    type: string;
+    selector?: string;
+    rx?: number;
+    depth?: number;
+    variations?: object;
+  }[];
+  await page.setViewportSize({ width: 1000, height: 400 });
+  await page.goto('/');
+  const box = (await page.locator('.hero-subtitle').boundingBox())!;
+  await page.locator('.hero-subtitle').click({ position: { x: box.width * 0.5, y: box.height * 0.5 } });
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await page.waitForTimeout(100);
+  // Saída da página: o Playwright não intercepta beacons disparados durante o unload real, então simulamos o pagehide.
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await expect.poll(() => events.filter((e) => e.type === 'scroll').length).toBeGreaterThan(0);
+  const click = events.find((e) => e.type === 'click')!;
+  expect(click.selector).toBe('#hero > p');
+  expect(click.rx).toBeCloseTo(0.5, 1);
+  expect(click.variations).toEqual({ e1: 'v1' });
+  const scroll = events.find((e) => e.type === 'scroll')!;
+  expect(scroll.depth).toBeGreaterThan(40);
 });

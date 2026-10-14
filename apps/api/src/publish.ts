@@ -8,6 +8,8 @@ export interface PublisherDeps {
   cdnDir: string;
   /** URL pública da API (validação de sessões de edição e coleta de eventos). */
   publicUrl: string;
+  /** Fração de visitantes com captura de mapa de calor (0 desliga). */
+  heatmapSampleRate?: number;
 }
 
 /** customJS por variação (id → código) de uma lista de experimentos. */
@@ -22,7 +24,7 @@ const jsOf = (exps: Experiment[]) =>
  * Compila os experimentos EM EXECUÇÃO da conta num JSON versionado, registra a publicação (só inserção)
  * e grava `/cdn/<conta>.json` + `/cdn/<conta>.js`. customJS novo ou alterado exige permissão.
  */
-export function createPublisher({ repo, cdnDir, publicUrl }: PublisherDeps) {
+export function createPublisher({ repo, cdnDir, publicUrl, heatmapSampleRate = 0 }: PublisherDeps) {
   return async (
     accountId: string,
     user: User,
@@ -44,6 +46,7 @@ export function createPublisher({ repo, cdnDir, publicUrl }: PublisherDeps) {
       apiUrl: publicUrl,
       trackingUrl: `${publicUrl}/collect`,
       experiments: running,
+      ...(heatmapSampleRate > 0 ? { heatmap: { sampleRate: heatmapSampleRate } } : {}),
     });
     await repo.insertPublication(accountId, config, user.id);
     writeAccountFiles(cdnDir, config);

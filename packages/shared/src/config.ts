@@ -11,5 +11,7 @@ export const PublishedConfigSchema = z.object({
   /** Base da API (o snippet valida tokens de edição em `${apiUrl}/edit-sessions/:token`). */
   apiUrl: z.string().optional(),
   experiments: z.array(ExperimentSchema),
+  /** Mapa de calor: fração de visitantes amostrados (0 = desligado). */
+  heatmap: z.object({ sampleRate: z.number().min(0).max(1) }).optional(),
 });
 export type PublishedConfig = z.infer<typeof PublishedConfigSchema>;

@@ -340,8 +340,9 @@ export function createRepo(db: Db) {
             id: e.eventId,
             accountId,
             type: e.type,
-            experimentId: e.experimentId,
-            variationId: e.variationId,
+            // Eventos de mapa de calor não pertencem a um experimento só (ver payload.variations).
+            experimentId: 'experimentId' in e ? e.experimentId : null,
+            variationId: 'variationId' in e ? e.variationId : null,
             payload: e,
             ts: new Date(e.ts),
           })),

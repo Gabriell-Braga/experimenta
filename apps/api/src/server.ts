@@ -41,7 +41,13 @@ const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-troque-em-producao';
 if (!process.env.JWT_SECRET)
   console.warn('[api] JWT_SECRET não definido — usando segredo de desenvolvimento');
 
-const publish = createPublisher({ repo, cdnDir, publicUrl });
+// ponytail: amostragem global por env; vira configuração por conta quando houver tela de conta.
+const publish = createPublisher({
+  repo,
+  cdnDir,
+  publicUrl,
+  heatmapSampleRate: Number(process.env.HEATMAP_SAMPLE_RATE ?? 1),
+});
 
 serve({ fetch: createApp({ db, repo, cdnDir, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
   console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),

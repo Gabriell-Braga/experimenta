@@ -160,3 +160,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Toda gravação já gera um snapshot completo (D-020). Restaurar = gravar o snapshot escolhido como NOVA versão (v1 → restaurada como v3): o histórico é append-only, dá para "desfazer a restauração" restaurando a v2.
 - `GET /experiments/{id}/versions/{v}` devolve o snapshot; `POST .../restore` exige editor. Restaurar não publica — publicar continua sendo ação explícita.
 - Editor: aba "Versões" com confirmação em dois cliques (sem diálogo nativo) e aviso de alterações não salvas; após restaurar recarrega o experimento.
+
+## D-029 — Captura para mapa de calor (snippet)
+- Ligado pela config publicada (`heatmap.sampleRate`; hoje global via `HEATMAP_SAMPLE_RATE`, padrão 1 em dev). Amostragem determinística por visitante (`murmurhash3(visitorId + ':heatmap')`), nunca em modo QA.
+- Clique: seletor curto do elemento clicado (`pathOf`, ancorado no id mais próximo) + posição RELATIVA dentro do elemento (rx, ry 0..1) + coordenadas de página e viewport. Desenhar pela posição relativa ao elemento sobrevive a layouts responsivos e conteúdo dinâmico (melhor que só px/py).
+- Scroll: profundidade máxima (% da altura da página), um evento por página vista — no `pagehide` e a cada navegação de SPA (com a URL antiga); força flush do lote.
+- Cada evento leva `device` e `variations` (experimentos ATIVOS na página → variação) para filtrar o mapa por variação e dispositivo. Mesmo transporte (lote/sendBeacon) e endpoint `/collect`; o schema `TrackingEventSchema` ganhou os tipos `click` e `scroll` (`HeatmapEvent`).
+- Runtime: 7,2 KB gzip.

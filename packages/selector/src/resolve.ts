@@ -69,7 +69,7 @@ export function pathOf(el: Element): string {
     const tag = cur.tagName.toLowerCase();
     parts.unshift(same.length > 1 ? `${tag}:nth-of-type(${same.indexOf(cur) + 1})` : tag);
   }
-  return parts.join(' > ');
+  return parts.join(' > ') || el.tagName.toLowerCase();
 }
 
 /** Resolve o alvo: seletor principal → alternativos → impressão digital. */

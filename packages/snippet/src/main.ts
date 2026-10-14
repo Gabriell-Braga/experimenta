@@ -2,6 +2,7 @@
 import { readConfig } from './config';
 import { bootEditor, editToken } from './editor';
 import { installGoals } from './goals';
+import { installHeatmap } from './heatmap';
 import { readForce, showBadge } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
@@ -30,6 +31,8 @@ if (config && token) {
   const rt = start(window, config, { forced, sink: tracker.send });
   if (rt) {
     const track = installGoals(window, rt);
+    // Mapa de calor: só visitantes amostrados e nunca em modo QA (não polui os dados).
+    if (config.heatmap?.sampleRate && !forced) installHeatmap(window, rt, tracker, config.heatmap.sampleRate);
     const run = (c: Command) => {
       if (c[0] === 'track') track(c[1], c[2]);
       else if (c[0] === 'adapter') tracker.addAdapter(c[1]);
