@@ -87,3 +87,50 @@ describe('store do editor', () => {
     expect(s.past.length).toBe(len);
   });
 });
+
+describe('upsert (painel de propriedades)', () => {
+  const style = (value: Record<string, string>): OperationDraft => ({
+    type: 'setStyle',
+    target: { selector: '.btn', alternates: [] },
+    value,
+  });
+
+  test('setStyle no mesmo alvo faz merge numa única operação', () => {
+    const s = run(
+      start(),
+      { type: 'upsertOperation', draft: style({ color: 'red' }) },
+      { type: 'upsertOperation', draft: style({ 'font-size': '20px' }) },
+      { type: 'upsertOperation', draft: style({ color: 'blue' }) },
+    );
+    expect(activeVariation(s).operations).toHaveLength(1);
+    expect(activeVariation(s).operations[0]).toMatchObject({ value: { color: 'blue', 'font-size': '20px' } });
+    expect(s.past).toHaveLength(3);
+  });
+
+  test('setAttribute por nome; alvo diferente cria outra operação', () => {
+    const attr = (name: string, value: string, selector = '.btn'): OperationDraft => ({
+      type: 'setAttribute',
+      target: { selector, alternates: [] },
+      value: { name, value },
+    });
+    const s = run(
+      start(),
+      { type: 'upsertOperation', draft: attr('href', '/a') },
+      { type: 'upsertOperation', draft: attr('title', 'x') },
+      { type: 'upsertOperation', draft: attr('href', '/b') },
+      { type: 'upsertOperation', draft: attr('href', '/c', '#outro') },
+    );
+    expect(activeVariation(s).operations.map((o) => (o as { value: { value: string } }).value.value)).toEqual(
+      ['/b', 'x', '/c'],
+    );
+  });
+
+  test('coalesceKey junta edições seguidas numa entrada do histórico', () => {
+    let s = start();
+    for (const c of ['#100000', '#200000', '#300000'])
+      s = reducer(s, { type: 'upsertOperation', draft: style({ color: c }), coalesceKey: 'color' });
+    expect(s.past).toHaveLength(1);
+    s = reducer(s, { type: 'undo' });
+    expect(activeVariation(s).operations).toEqual([]);
+  });
+});

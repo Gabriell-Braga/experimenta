@@ -101,3 +101,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Modos: Editar (agent intercepta), Navegar (site interativo, variação aplicada, navegação real no iframe com reconexão automática), Preview (como Navegar, sem painéis e com faixa indicando a variação). "Preview" não abre nova aba com `?ab_force` porque o rascunho ainda não está publicado.
 - Dispositivo = largura do iframe (100% / 768 px / 390 px). O User-Agent não muda — segmentação por dispositivo depende de UA e não é simulada no editor.
 - Salvar grava em localStorage até a fase 4 (API). Ctrl+Z / Ctrl+Shift+Z / Ctrl+S no app.
+
+## D-018 — Painel de propriedades
+- Cada elemento tem no máximo UMA operação `setStyle` (as propriedades fazem merge), uma `setText` e uma `setAttribute` por nome — `upsertOperation` no store localiza a equivalente (mesmo seletor + tipo [+ nome do atributo]). Mantém a lista de alterações curta e legível.
+- Campos de texto confirmam no Enter/blur (uma operação por edição, não por tecla). O seletor de cor usa `coalesceKey`: arrastar no picker gera uma única entrada no histórico.
+- Valor exibido = valor da variação, se houver; senão o estilo computado enviado pelo agent na seleção. Borda é editada pelos atalhos `border-width/style/color` (exibe o lado superior).
+- Indicador de fragilidade (estável/médio/frágil) já aparece no painel (base para 6.2).

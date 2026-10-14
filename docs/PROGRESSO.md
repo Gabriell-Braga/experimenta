@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.6 — UI: painel de propriedades
-**Última atualização:** 2026-10-14 04:28
-**Próximo passo:** Criar apps/editor/src/components/PropertiesPanel.tsx: mostra seletor + fragilidade + breadcrumb do elemento selecionado; seções texto (setText), tipografia (fonte, tamanho, peso, alinhamento, cor), cores (texto, fundo), espaçamento (margin/padding), borda (largura, estilo, cor, raio) e atributos (href/src/alt/qualquer); cada alteração gera/atualiza UMA operação setStyle por elemento (merge) e setAttribute por atributo; teste unitário do merge + E2E.
+**Tarefa atual:** 3.7 — UI: lista de alterações e CSS/JS custom com Monaco
+**Última atualização:** 2026-10-14 04:31
+**Próximo passo:** Criar ChangesPanel (lista das operações da variação: descrição legível, destacar no site via highlight ao passar o mouse/clicar, excluir, subir/descer; marca em vermelho as que falharam no applyVariation) e CodePanel com Monaco (monaco-editor local, sem CDN) para customCSS e customJS (JS só roda no preview mediante botão). Testes unitários de descrição + E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -145,3 +145,9 @@
 - Arquivos principais: apps/editor/src/{App.tsx,store.ts,connection.ts,api.ts,components/TopBar.tsx,components/PromptDialog.tsx}, e2e/tests/editor-ui.spec.ts
 - Como testar manualmente: pnpm dev; abrir http://localhost:5173 (demo em :5180, API em :4000); duplo clique no título, Navegar/Preview, abas.
 - Observações: ver D-017.
+
+### 2026-10-14 04:31 — Tarefa 3.6 concluída
+- O que foi feito: PropertiesPanel (seletor + fragilidade + breadcrumb; texto, tipografia, cores, espaçamento, borda, atributos) e upsertOperation/findEquivalent/coalesceKey no store.
+- Arquivos principais: apps/editor/src/components/PropertiesPanel.tsx, apps/editor/src/store.ts, e2e/tests/editor-properties.spec.ts
+- Como testar manualmente: pnpm dev → http://localhost:5173, clicar no botão 'Comprar agora' e mudar fundo/tamanho/href no painel.
+- Observações: ver D-018.

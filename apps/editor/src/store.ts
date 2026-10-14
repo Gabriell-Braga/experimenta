@@ -14,6 +14,8 @@ export interface EditorState {
   past: Experiment[];
   future: Experiment[];
   dirty: boolean;
+  /** Chave da última edição coalescível (ex.: arrastar o seletor de cor gera uma entrada só no histórico). */
+  lastKey?: string;
 }
 
 export type Action =
@@ -22,6 +24,8 @@ export type Action =
   | { type: 'addVariation' }
   | { type: 'renameVariation'; id: string; name: string }
   | { type: 'addOperation'; draft: OperationDraft }
+  /** Cria ou atualiza a operação equivalente (mesmo alvo + tipo [+ atributo]); setStyle faz merge das propriedades. */
+  | { type: 'upsertOperation'; draft: OperationDraft; coalesceKey?: string }
   | { type: 'updateOperation'; id: string; draft: OperationDraft }
   | { type: 'removeOperation'; id: string }
   | { type: 'moveOperation'; id: string; to: number }
@@ -74,9 +78,22 @@ function editVariation(s: EditorState, fn: (v: Variation) => Variation): Experim
 }
 
 /** Mudanças no experimento entram no histórico (desfazer/refazer); navegação de abas não. */
-function commit(s: EditorState, experiment: Experiment): EditorState {
+function commit(s: EditorState, experiment: Experiment, key?: string): EditorState {
   if (experiment === s.experiment) return s;
-  return { ...s, experiment, past: [...s.past, s.experiment].slice(-HISTORY_LIMIT), future: [], dirty: true };
+  // Mesma chave da edição anterior: substitui o estado atual sem nova entrada no histórico.
+  const past = key && key === s.lastKey ? s.past : [...s.past, s.experiment].slice(-HISTORY_LIMIT);
+  return { ...s, experiment, past, future: [], dirty: true, lastKey: key };
+}
+
+/** Operação já existente que a nova edição deve atualizar em vez de criar outra. */
+export function findEquivalent(ops: Operation[], d: OperationDraft): Operation | undefined {
+  return ops.find(
+    (o) =>
+      o.type === d.type &&
+      o.target.selector === d.target.selector &&
+      ['setStyle', 'setText', 'setHTML', 'setAttribute', 'replaceImage'].includes(o.type) &&
+      (o.type !== 'setAttribute' || (d.type === 'setAttribute' && o.value.name === d.value.name)),
+  );
 }
 
 export function reducer(s: EditorState, a: Action): EditorState {
@@ -84,7 +101,9 @@ export function reducer(s: EditorState, a: Action): EditorState {
     case 'load':
       return initialState(a.experiment, a.url);
     case 'selectVariation':
-      return s.experiment.variations.some((v) => v.id === a.id) ? { ...s, activeVariationId: a.id } : s;
+      return s.experiment.variations.some((v) => v.id === a.id)
+        ? { ...s, activeVariationId: a.id, lastKey: undefined }
+        : s;
     case 'addVariation': {
       const n = s.experiment.variations.length;
       const v: Variation = {
@@ -114,6 +133,34 @@ export function reducer(s: EditorState, a: Action): EditorState {
             { ...a.draft, id: uid('op'), order: v.operations.length } as Operation,
           ]),
         })),
+      );
+    case 'upsertOperation':
+      return commit(
+        s,
+        editVariation(s, (v) => {
+          const prev = findEquivalent(v.operations, a.draft);
+          if (!prev)
+            return {
+              ...v,
+              operations: [
+                ...v.operations,
+                { ...a.draft, id: uid('op'), order: v.operations.length } as Operation,
+              ],
+            };
+          // findEquivalent garante mesmo tipo; setStyle soma as propriedades.
+          const next = (
+            prev.type === 'setStyle' && a.draft.type === 'setStyle'
+              ? { ...a.draft, value: { ...prev.value, ...a.draft.value } }
+              : a.draft
+          ) as OperationDraft;
+          return {
+            ...v,
+            operations: v.operations.map((o) =>
+              o === prev ? ({ ...next, id: o.id, order: o.order } as Operation) : o,
+            ),
+          };
+        }),
+        a.coalesceKey,
       );
     case 'updateOperation':
       return commit(
@@ -157,6 +204,7 @@ export function reducer(s: EditorState, a: Action): EditorState {
         past: s.past.slice(0, -1),
         future: [s.experiment, ...s.future],
         dirty: true,
+        lastKey: undefined,
       };
     }
     case 'redo': {
@@ -168,6 +216,7 @@ export function reducer(s: EditorState, a: Action): EditorState {
         past: [...s.past, s.experiment],
         future: s.future.slice(1),
         dirty: true,
+        lastKey: undefined,
       };
     }
     case 'saved':

@@ -2,6 +2,7 @@ import type { ApplyResult, ElementInfo } from '@abtest/shared';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { createEditSession, DEFAULT_SITE_URL, frameUrl, loadDraft, saveDraft } from './api';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
+import { PropertiesPanel } from './components/PropertiesPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { connectAgent, type AgentPeer } from './connection';
 import { activeVariation, initialState, newExperiment, reducer } from './store';
@@ -156,16 +157,18 @@ export function App() {
             className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white"
             data-testid="sidebar"
           >
-            <section className="border-b p-3 text-sm">
-              <h2 className="mb-1 font-semibold">Elemento</h2>
-              {selected ? (
-                <code className="break-all text-xs" data-testid="selected-selector">
-                  {selected.target.selector}
-                </code>
-              ) : (
-                <p className="text-gray-500">Clique num elemento do site para editar.</p>
-              )}
-            </section>
+            {selected ? (
+              <PropertiesPanel
+                info={selected}
+                operations={variation.operations}
+                onUpsert={(draft, coalesceKey) => dispatch({ type: 'upsertOperation', draft, coalesceKey })}
+                onSelectSelector={(selector) =>
+                  peer.current?.call('select', { selector }).then(setSelected, () => {})
+                }
+              />
+            ) : (
+              <p className="border-b p-3 text-sm text-gray-500">Clique num elemento do site para editar.</p>
+            )}
             <section className="p-3 text-sm">
               <h2 className="mb-1 font-semibold">Alterações ({variation.operations.length})</h2>
               {applyResult && applyResult.failed.length > 0 && (
