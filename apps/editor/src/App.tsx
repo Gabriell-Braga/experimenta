@@ -1,11 +1,16 @@
 import type { ApplyResult, ElementInfo } from '@abtest/shared';
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { createEditSession, DEFAULT_SITE_URL, frameUrl, loadDraft, saveDraft } from './api';
+import { ChangesPanel } from './components/ChangesPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { connectAgent, type AgentPeer } from './connection';
 import { activeVariation, initialState, newExperiment, reducer } from './store';
+
+// Monaco é pesado: só carrega quando a aba de código é aberta.
+const CodePanel = lazy(() => import('./components/CodePanel'));
+type Tab = 'element' | 'changes' | 'code';
 
 function boot() {
   const draft = loadDraft();
@@ -24,6 +29,8 @@ export function App() {
   const [device, setDevice] = useState<Device>('desktop');
   const [selected, setSelected] = useState<ElementInfo | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
+  const [tab, setTab] = useState<Tab>('element');
+  const [runJS, setRunJS] = useState(false);
   const [prompt, setPrompt] = useState<PromptRequest | null>(null);
   const iframe = useRef<HTMLIFrameElement>(null);
   const peer = useRef<AgentPeer | null>(null);
@@ -50,7 +57,10 @@ export function App() {
         setConnected(true);
         setReadyCount((n) => n + 1); // cada navegação do iframe gera novo ready → reenviar estado
       }),
-      c.peer.on('selected', setSelected),
+      c.peer.on('selected', (info) => {
+        setSelected(info);
+        if (info) setTab('element');
+      }),
       c.peer.on('operation', ({ draft }) => dispatch({ type: 'addOperation', draft })),
       c.peer.on('navigated', ({ url }) => dispatch({ type: 'setUrl', url })),
     ];
@@ -75,10 +85,10 @@ export function App() {
         operations: variation.operations,
         customCSS: variation.customCSS,
         customJS: variation.customJS,
-        runJS: false,
+        runJS,
       })
       .then(setApplyResult, () => {});
-  }, [connected, readyCount, variation]);
+  }, [connected, readyCount, variation, runJS]);
 
   const save = useCallback(() => {
     saveDraft(state.experiment, state.url);
@@ -157,26 +167,69 @@ export function App() {
             className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white"
             data-testid="sidebar"
           >
-            {selected ? (
-              <PropertiesPanel
-                info={selected}
+            <nav className="flex border-b border-gray-200 text-sm" role="tablist">
+              {(
+                [
+                  ['element', 'Elemento'],
+                  ['changes', `Alterações (${variation.operations.length})`],
+                  ['code', 'CSS/JS'],
+                ] as [Tab, string][]
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  role="tab"
+                  aria-selected={tab === id}
+                  data-testid={`side-${id}`}
+                  onClick={() => setTab(id)}
+                  className={`flex-1 border-b-2 px-2 py-2 ${tab === id ? 'border-orange-500 font-medium' : 'border-transparent text-gray-500'}`}
+                >
+                  {label}
+                  {id === 'changes' && applyResult && applyResult.failed.length > 0 && (
+                    <span className="ml-1 text-red-600" title="Alterações que não encontraram o elemento">
+                      ⚠{applyResult.failed.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </nav>
+            {tab === 'element' &&
+              (selected ? (
+                <PropertiesPanel
+                  info={selected}
+                  operations={variation.operations}
+                  onUpsert={(draft, coalesceKey) => dispatch({ type: 'upsertOperation', draft, coalesceKey })}
+                  onSelectSelector={(selector) =>
+                    peer.current?.call('select', { selector }).then(setSelected, () => {})
+                  }
+                />
+              ) : (
+                <p className="p-3 text-sm text-gray-500">Clique num elemento do site para editar.</p>
+              ))}
+            {tab === 'changes' && (
+              <ChangesPanel
                 operations={variation.operations}
-                onUpsert={(draft, coalesceKey) => dispatch({ type: 'upsertOperation', draft, coalesceKey })}
-                onSelectSelector={(selector) =>
+                result={applyResult}
+                onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
+                onSelect={(selector) =>
                   peer.current?.call('select', { selector }).then(setSelected, () => {})
                 }
+                onRemove={(id) => dispatch({ type: 'removeOperation', id })}
+                onMove={(id, to) => dispatch({ type: 'moveOperation', id, to })}
               />
-            ) : (
-              <p className="border-b p-3 text-sm text-gray-500">Clique num elemento do site para editar.</p>
             )}
-            <section className="p-3 text-sm">
-              <h2 className="mb-1 font-semibold">Alterações ({variation.operations.length})</h2>
-              {applyResult && applyResult.failed.length > 0 && (
-                <p className="text-red-600">
-                  {applyResult.failed.length} alteração(ões) não encontraram o elemento.
-                </p>
-              )}
-            </section>
+            {tab === 'code' && (
+              <Suspense fallback={<p className="p-3 text-sm text-gray-500">Carregando editor…</p>}>
+                <CodePanel
+                  key={variation.id}
+                  css={variation.customCSS}
+                  js={variation.customJS}
+                  runJS={runJS}
+                  onCSS={(value) => dispatch({ type: 'setCustom', field: 'customCSS', value })}
+                  onJS={(value) => dispatch({ type: 'setCustom', field: 'customJS', value })}
+                  onRunJS={setRunJS}
+                />
+              </Suspense>
+            )}
           </aside>
         )}
       </div>

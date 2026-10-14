@@ -107,3 +107,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Campos de texto confirmam no Enter/blur (uma operação por edição, não por tecla). O seletor de cor usa `coalesceKey`: arrastar no picker gera uma única entrada no histórico.
 - Valor exibido = valor da variação, se houver; senão o estilo computado enviado pelo agent na seleção. Borda é editada pelos atalhos `border-width/style/color` (exibe o lado superior).
 - Indicador de fragilidade (estável/médio/frágil) já aparece no painel (base para 6.2).
+
+## D-019 — Lista de alterações e código custom
+- Barra lateral com abas Elemento / Alterações / CSS-JS. A lista mostra cada operação em ordem de aplicação com descrição legível, destaca o alvo no site ao passar o mouse (`highlight`), seleciona ao clicar, reordena (↑/↓) e exclui. Operações que não acharam o elemento na página atual ficam em vermelho e a aba mostra ⚠N (base do "alerta quando uma alteração não encontra o elemento"); curadas por alternativo/impressão digital ficam em amarelo.
+- Monaco empacotado localmente (`monaco-editor` + workers via `?worker` do Vite, sem CDN) e carregado sob demanda (`React.lazy`) — o chunk é grande, mas só baixa ao abrir a aba de código.
+- customCSS aplica ao vivo. customJS só executa no editor quando o usuário marca "Executar o JS no editor" (roda na página real do cliente). A permissão de PUBLICAR customJS fica na API (4.2).

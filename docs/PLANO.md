@@ -94,7 +94,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 3.4 Agent: edição de texto inline, arrastar para mover, menu de contexto (editar, esconder, remover, inserir antes/depois, trocar imagem, copiar seletor)
 - [x] 3.5 UI: barra superior (abas de variação, troca de dispositivo, desfazer/refazer, preview, salvar) e modo navegar vs editar
 - [x] 3.6 UI: painel de propriedades (texto, tipografia, cores, espaçamento, borda, atributos)
-- [ ] 3.7 UI: lista de alterações (destacar, excluir, reordenar) e CSS/JS custom com Monaco
+- [x] 3.7 UI: lista de alterações (destacar, excluir, reordenar) e CSS/JS custom com Monaco
 - [ ] 3.8 Teste ponta a ponta: variação com texto, cor, elemento escondido, elemento movido e CSS custom, aplicada ao vivo e persistida após recarregar
 
 ### Fase 4 — API, persistência e publicação

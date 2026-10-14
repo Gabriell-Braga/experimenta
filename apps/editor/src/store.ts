@@ -192,6 +192,8 @@ export function reducer(s: EditorState, a: Action): EditorState {
       return commit(
         s,
         editVariation(s, (v) => (v[a.field] === a.value ? v : { ...v, [a.field]: a.value })),
+        // Digitação contínua no editor de código vira uma entrada só no histórico.
+        `custom:${a.field}`,
       );
     case 'setUrl':
       return { ...s, url: a.url };

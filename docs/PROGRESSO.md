@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.7 — UI: lista de alterações e CSS/JS custom com Monaco
-**Última atualização:** 2026-10-14 04:31
-**Próximo passo:** Criar ChangesPanel (lista das operações da variação: descrição legível, destacar no site via highlight ao passar o mouse/clicar, excluir, subir/descer; marca em vermelho as que falharam no applyVariation) e CodePanel com Monaco (monaco-editor local, sem CDN) para customCSS e customJS (JS só roda no preview mediante botão). Testes unitários de descrição + E2E.
+**Tarefa atual:** 3.8 — Teste ponta a ponta: texto, cor, esconder, mover e CSS custom, ao vivo e após recarregar
+**Última atualização:** 2026-10-14 04:34
+**Próximo passo:** Escrever e2e/tests/editor-flow.spec.ts: no editor real, criar variação com setText (inline), cor (painel), esconder (menu), mover (arrastar) e CSS custom (Monaco); conferir no iframe ao vivo; salvar, recarregar e conferir de novo que tudo foi reaplicado; fechar a fase 3 com resumo.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -151,3 +151,9 @@
 - Arquivos principais: apps/editor/src/components/PropertiesPanel.tsx, apps/editor/src/store.ts, e2e/tests/editor-properties.spec.ts
 - Como testar manualmente: pnpm dev → http://localhost:5173, clicar no botão 'Comprar agora' e mudar fundo/tamanho/href no painel.
 - Observações: ver D-018.
+
+### 2026-10-14 04:34 — Tarefa 3.7 concluída
+- O que foi feito: ChangesPanel (descrição, destacar, selecionar, ↑/↓, excluir, falha/curado), CodePanel com Monaco local e lazy (customCSS ao vivo, customJS com opt-in), abas da barra lateral, coalescência do código no histórico.
+- Arquivos principais: apps/editor/src/components/{ChangesPanel,CodePanel}.tsx, apps/editor/src/describe.ts, apps/editor/src/App.tsx, e2e/tests/editor-changes.spec.ts
+- Como testar manualmente: pnpm dev → editor → aba Alterações / CSS-JS.
+- Observações: ver D-019.
