@@ -1,3 +1,4 @@
+import { Check, Ellipsis, FlaskConical, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ApiError,
@@ -48,9 +49,7 @@ function Login({ onLogin }: { onLogin(u: Me): void }) {
               ['Mapa de calor', 'veja onde cada variação recebe cliques'],
             ].map(([t, d]) => (
               <li key={t} className="flex gap-3">
-                <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-500/20 text-xs text-brand-500">
-                  ✓
-                </span>
+                <Check size={18} className="mt-0.5 shrink-0 text-brand-500" aria-hidden="true" />
                 <span>
                   <b className="font-medium text-white">{t}</b> — {d}
                 </span>
@@ -351,7 +350,7 @@ function RowActions({
         loading={busy}
         data-testid="row-actions"
       >
-        {!busy && '•••'}
+        {!busy && <Ellipsis size={16} />}
       </Button>
       {open && (
         <div
@@ -492,7 +491,7 @@ function ExperimentList({ user }: { user: Me }) {
           </div>
           {canEdit && (
             <Button variant="primary" onClick={() => setCreating(true)} data-testid="new-experiment">
-              + Novo experimento
+              <Plus size={16} aria-hidden="true" /> Novo experimento
             </Button>
           )}
         </div>
@@ -601,8 +600,8 @@ function ExperimentList({ user }: { user: Me }) {
           </table>
           {items !== null && shown.length === 0 && (
             <div className="px-6 py-16 text-center">
-              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-xl">
-                🧪
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-600">
+                <FlaskConical size={22} aria-hidden="true" />
               </div>
               <p className="mt-4 font-medium">
                 {items.length ? 'Nada encontrado com esse filtro.' : 'Nenhum experimento ainda.'}
@@ -614,7 +613,7 @@ function ExperimentList({ user }: { user: Me }) {
               </p>
               {!items.length && canEdit && (
                 <Button variant="primary" className="mt-6" onClick={() => setCreating(true)}>
-                  + Novo experimento
+                  <Plus size={16} aria-hidden="true" /> Novo experimento
                 </Button>
               )}
             </div>

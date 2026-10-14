@@ -736,3 +736,40 @@ a {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Ícones (SVG inline, conjunto Lucide) */
+.ico {
+  display: inline-block;
+  vertical-align: -3px;
+  flex-shrink: 0;
+}
+.ico--flame {
+  color: #fb7185;
+}
+.benefits__ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: var(--accent);
+}
+.stars {
+  display: inline-flex;
+  gap: 1px;
+  vertical-align: -2px;
+  color: #f59e0b;
+}
+.star--off {
+  color: #e2e8f0;
+}
+.cart-btn {
+  display: inline-flex;
+  align-items: center;
+}
+.modal__close,
+.drawer__head button {
+  display: grid;
+  place-items: center;
+}

@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import type { Experiment, Goal, UrlRule } from '@abtest/shared';
 import { useState, type Dispatch } from 'react';
 import { uid, type Action } from '../store';
@@ -164,7 +165,7 @@ export function SettingsPanel({
               aria-label="Remover regra"
               className="px-1 text-red-600"
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
         ))}
@@ -194,7 +195,7 @@ export function SettingsPanel({
               aria-label="Remover meta"
               className="px-1 text-red-600"
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
         ))}

@@ -1,3 +1,4 @@
+import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import type { Operation, Variation } from '@abtest/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { getHealth, type Health } from '../api';
@@ -58,15 +59,22 @@ export function HealthPanel({ experimentId, variation, onAdopt, onHighlight }: P
             >
               <span className="block truncate">{describeOperation(op)}</span>
               <code className="block truncate text-xs text-gray-500">{op.target.selector}</code>
-              {!h && <span className="text-xs text-green-700">✓ sem falhas registradas</span>}
+              {!h && (
+                <span className="text-xs text-green-700">
+                  <CircleCheck size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" /> sem falhas
+                  registradas
+                </span>
+              )}
               {h && h.failed > 0 && (
                 <span className="block text-xs text-red-700">
-                  ✕ não encontrou o elemento {h.failed}× ({pct(h.failed, exposures)} das exposições)
+                  <CircleX size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+                  não encontrou o elemento {h.failed}× ({pct(h.failed, exposures)} das exposições)
                 </span>
               )}
               {h?.lastHealed && (
                 <span className="block text-xs text-yellow-800">
-                  ⚠ curado {h.healed}× via{' '}
+                  <TriangleAlert size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+                  curado {h.healed}× via{' '}
                   {h.lastHealed.via === 'fingerprint' ? 'impressão digital' : 'seletor alternativo'}:{' '}
                   <code>{h.lastHealed.healedSelector}</code>
                   {h.lastHealed.healedSelector !== op.target.selector && (

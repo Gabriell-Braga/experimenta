@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowUp, GitCompareArrows, Trash2, TriangleAlert } from 'lucide-react';
 import type { ApplyResult, Operation } from '@abtest/shared';
 import type { Conflict } from '../api';
 import { selectorFragility } from '@abtest/selector';
@@ -34,7 +35,8 @@ export function ChangesPanel({
     <ol className="divide-y divide-gray-100" data-testid="changes">
       {conflicts.length > 0 && (
         <li className="bg-orange-50 px-3 py-2 text-xs text-orange-900" data-testid="conflicts">
-          ⚔ Conflito: {conflicts.map((c) => `${c.name} (${c.status})`).join(', ')} também altera(m) elementos
+          <GitCompareArrows size={13} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+          Conflito: {conflicts.map((c) => `${c.name} (${c.status})`).join(', ')} também altera(m) elementos
           desta página.
         </li>
       )}
@@ -59,26 +61,31 @@ export function ChangesPanel({
                   title="Seletor frágil: depende de posição ou de classes geradas"
                   data-testid="fragile"
                 >
-                  ⚠{' '}
+                  <TriangleAlert size={12} className="inline align-[-1px]" aria-hidden="true" />{' '}
                 </span>
               )}
               {op.target.selector}
             </code>
             {conflictsOf(op.target.selector).length > 0 && (
               <span className="block text-xs text-orange-800" data-testid="change-conflict">
-                ⚔ também alterado por{' '}
+                <GitCompareArrows size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+                também alterado por{' '}
                 {conflictsOf(op.target.selector)
                   .map((c) => c.name)
                   .join(', ')}
               </span>
             )}
             {failed.has(op.id) && (
-              <span className="text-xs text-red-700">⚠ elemento não encontrado nesta página</span>
+              <span className="text-xs text-red-700">
+                <TriangleAlert size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+                elemento não encontrado nesta página
+              </span>
             )}
             {healed.has(op.id) && (
               <span className="text-xs text-yellow-700">
-                ⚠ seletor curado ({healed.get(op.id) === 'fingerprint' ? 'impressão digital' : 'alternativo'})
-                — revise
+                <TriangleAlert size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+                seletor curado ({healed.get(op.id) === 'fingerprint' ? 'impressão digital' : 'alternativo'}) —
+                revise
               </span>
             )}
           </button>
@@ -89,7 +96,7 @@ export function ChangesPanel({
               aria-label="Subir"
               className="px-1 disabled:opacity-30"
             >
-              ↑
+              <ArrowUp size={14} />
             </button>
             <button
               disabled={i === operations.length - 1}
@@ -97,7 +104,7 @@ export function ChangesPanel({
               aria-label="Descer"
               className="px-1 disabled:opacity-30"
             >
-              ↓
+              <ArrowDown size={14} />
             </button>
             <button
               onClick={() => onRemove(op.id)}
@@ -105,7 +112,7 @@ export function ChangesPanel({
               data-testid="change-remove"
               className="px-1 text-red-600"
             >
-              ✕
+              <Trash2 size={14} />
             </button>
           </span>
         </li>

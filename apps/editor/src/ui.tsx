@@ -1,3 +1,4 @@
+import { CircleAlert, CircleCheck, ExternalLink, Info, X } from 'lucide-react';
 // Primitivas de UI do app (sem biblioteca de componentes: só Tailwind).
 import {
   createContext,
@@ -102,12 +103,13 @@ type Push = (kind: ToastKind, text: ReactNode, action?: Toast['action']) => void
 const ToastCtx = createContext<Push>(() => {});
 export const useToast = () => useContext(ToastCtx);
 
-const ICON: Record<ToastKind, string> = { success: '✓', error: '!', info: 'i' };
-const TONE: Record<ToastKind, string> = {
-  success: 'bg-green-500',
-  error: 'bg-red-500',
-  info: 'bg-gray-500',
-};
+function ToastIcon({ kind }: { kind: ToastKind }) {
+  const cls = 'mt-0.5 shrink-0';
+  if (kind === 'success')
+    return <CircleCheck size={18} className={`${cls} text-green-600`} aria-hidden="true" />;
+  if (kind === 'error') return <CircleAlert size={18} className={`${cls} text-red-600`} aria-hidden="true" />;
+  return <Info size={18} className={`${cls} text-gray-500`} aria-hidden="true" />;
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -135,11 +137,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             data-testid={t.kind === 'error' ? 'toast-error' : 'notice'}
             className="animate-toast pointer-events-auto flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 text-sm shadow-lg"
           >
-            <span
-              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${TONE[t.kind]}`}
-            >
-              {ICON[t.kind]}
-            </span>
+            <ToastIcon kind={t.kind} />
             <div className="min-w-0 flex-1 text-gray-800">
               {t.text}
               {t.action &&
@@ -148,9 +146,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                     href={t.action.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="ml-1 font-medium text-brand-600 hover:underline"
+                    className="ml-1 inline-flex items-center gap-1 font-medium text-brand-600 hover:underline"
                   >
                     {t.action.label}
+                    <ExternalLink size={13} aria-hidden="true" />
                   </a>
                 ) : (
                   <button
@@ -166,7 +165,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className="text-gray-400 hover:text-gray-600"
               aria-label="Fechar"
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         ))}
@@ -215,7 +214,7 @@ export function Modal({
           <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h2 className="text-base font-semibold">{title}</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Fechar">
-              ✕
+              <X size={16} />
             </button>
           </header>
           <div className="px-5 py-4">{children}</div>

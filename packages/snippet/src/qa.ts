@@ -34,7 +34,7 @@ export function showBadge(doc: Document, active: { experiment: string; variation
 :host{all:initial;position:fixed;right:12px;bottom:12px;z-index:2147483647}
 .b{font:12px/1.4 system-ui,sans-serif;background:#111827;color:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 4px 12px #0004}
 button{all:unset;cursor:pointer;float:right;margin-left:8px;opacity:.7}
-</style><div class="b" role="status"><button aria-label="Fechar">✕</button><div>Modo QA A/B</div>${lines}</div>`;
+</style><div class="b" role="status"><button aria-label="Fechar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button><div>Modo QA A/B</div>${lines}</div>`;
   root.querySelector('button')!.addEventListener('click', () => host.remove());
   const mount = () => doc.body.appendChild(host);
   if (doc.body) mount();

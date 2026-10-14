@@ -1,3 +1,16 @@
+import {
+  ArrowLeft,
+  Eye,
+  Flame,
+  Monitor,
+  MousePointerClick,
+  Pencil,
+  Redo2,
+  Smartphone,
+  Tablet,
+  Undo2,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Variation } from '@abtest/shared';
 import { useState } from 'react';
 import { Button, Spinner, StatusBadge, timeAgo } from '../ui';
@@ -35,16 +48,16 @@ interface Props {
   onUrl(url: string): void;
 }
 
-const MODES: [Mode, string, string][] = [
-  ['edit', 'Editar', '✎'],
-  ['browse', 'Navegar', '↗'],
-  ['preview', 'Preview', '◉'],
-  ['heatmap', 'Mapa de calor', '🔥'],
+const MODES: [Mode, string, LucideIcon][] = [
+  ['edit', 'Editar', Pencil],
+  ['browse', 'Navegar', MousePointerClick],
+  ['preview', 'Preview', Eye],
+  ['heatmap', 'Mapa de calor', Flame],
 ];
-const DEVICES: [Device, string, string][] = [
-  ['desktop', 'Desktop', '🖥'],
-  ['tablet', 'Tablet', '▭'],
-  ['mobile', 'Celular', '📱'],
+const DEVICES: [Device, string, LucideIcon][] = [
+  ['desktop', 'Desktop', Monitor],
+  ['tablet', 'Tablet', Tablet],
+  ['mobile', 'Celular', Smartphone],
 ];
 
 const seg = (active: boolean) =>
@@ -65,7 +78,7 @@ export function TopBar(p: Props) {
           title="Voltar aos experimentos"
           data-testid="back"
         >
-          ← <span className="hidden sm:inline">Experimentos</span>
+          <ArrowLeft size={15} aria-hidden="true" /> <span className="hidden sm:inline">Experimentos</span>
         </Button>
         <span className="h-6 w-px bg-gray-200" />
         {editingName ? (
@@ -107,7 +120,7 @@ export function TopBar(p: Props) {
             data-testid="undo"
             title="Desfazer (Ctrl+Z)"
           >
-            ↶ <span className="hidden xl:inline">Desfazer</span>
+            <Undo2 size={15} aria-hidden="true" /> <span className="hidden xl:inline">Desfazer</span>
           </Button>
           <Button
             variant="ghost"
@@ -117,7 +130,7 @@ export function TopBar(p: Props) {
             data-testid="redo"
             title="Refazer (Ctrl+Shift+Z)"
           >
-            ↷ <span className="hidden xl:inline">Refazer</span>
+            <Redo2 size={15} aria-hidden="true" /> <span className="hidden xl:inline">Refazer</span>
           </Button>
         </div>
 
@@ -129,7 +142,9 @@ export function TopBar(p: Props) {
           {p.saving ? (
             'Salvando…'
           ) : p.dirty ? (
-            <span className="text-amber-600">● Alterações não salvas</span>
+            <span className="flex items-center gap-1.5 text-amber-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Alterações não salvas
+            </span>
           ) : p.savedAt ? (
             `Salvo ${timeAgo(p.savedAt)}`
           ) : (
@@ -193,7 +208,7 @@ export function TopBar(p: Props) {
 
         <span className="h-5 w-px bg-gray-200" />
         <div className="flex rounded-lg bg-gray-200/60 p-0.5" role="group" aria-label="Modo">
-          {MODES.map(([m, label, icon]) => (
+          {MODES.map(([m, label, Icon]) => (
             <button
               key={m}
               className={seg(p.mode === m)}
@@ -202,13 +217,13 @@ export function TopBar(p: Props) {
               aria-pressed={p.mode === m}
               title={label}
             >
-              <span aria-hidden="true">{icon}</span>
+              <Icon size={15} aria-hidden="true" />
               <span className="hidden lg:inline">{label}</span>
             </button>
           ))}
         </div>
         <div className="flex rounded-lg bg-gray-200/60 p-0.5" role="group" aria-label="Dispositivo">
-          {DEVICES.map(([d, label, icon]) => (
+          {DEVICES.map(([d, label, Icon]) => (
             <button
               key={d}
               className={seg(p.device === d)}
@@ -217,7 +232,7 @@ export function TopBar(p: Props) {
               aria-pressed={p.device === d}
               title={label}
             >
-              <span aria-hidden="true">{icon}</span>
+              <Icon size={15} aria-hidden="true" />
               <span className="sr-only">{label}</span>
             </button>
           ))}

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { openEditor } from '../editor';
 
-test('seletor frágil: dica no painel, aviso ao criar a alteração e ⚠ na lista; estável não avisa', async ({
+test('seletor frágil: dica no painel, aviso ao criar a alteração e alerta na lista; estável não avisa', async ({
   page,
 }) => {
   const site = await openEditor(page);

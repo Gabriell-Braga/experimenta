@@ -1,3 +1,4 @@
+import { GripVertical, MousePointer2, TriangleAlert, X } from 'lucide-react';
 import { selectorFragility } from '@abtest/selector';
 import { matchUrl } from '@abtest/snippet/segment';
 import type { ApplyResult, ElementInfo, HeatmapData } from '@abtest/shared';
@@ -247,7 +248,7 @@ export function EditorView({ record, user }: Props) {
           ? `Publicado (versão ${version}). Visitantes recebem o experimento em até 1 min.`
           : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação — mude o status em Config.`,
         running
-          ? { label: 'Ver no site ↗', href: state.url }
+          ? { label: 'Ver no site', href: state.url }
           : { label: 'Abrir Config', onClick: () => setTab('settings') },
       );
       // Aviso de conflito depois, sem atrasar a confirmação da publicação.
@@ -391,13 +392,14 @@ export function EditorView({ record, user }: Props) {
           data-testid="fragile-warning"
         >
           <span>
-            ⚠ Alteração com seletor frágil (<code>{fragileWarning}</code>): depende da posição ou de classes
+            <TriangleAlert size={15} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+            Alteração com seletor frágil (<code>{fragileWarning}</code>): depende da posição ou de classes
             geradas e pode quebrar quando o site mudar. Peça ao time do site um <code>id</code> ou{' '}
             <code>data-testid</code> estável nesse elemento — a impressão digital tenta curar, mas não é
             garantida.
           </span>
           <button onClick={() => setFragileWarning(null)} aria-label="Fechar">
-            ✕
+            <X size={16} />
           </button>
         </div>
       )}
@@ -407,7 +409,8 @@ export function EditorView({ record, user }: Props) {
           data-testid="segment-warning"
         >
           <span>
-            ⚠ Esta página não está na segmentação do experimento: visitantes aqui <b>não</b> verão as
+            <TriangleAlert size={15} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+            Esta página não está na segmentação do experimento: visitantes aqui <b>não</b> verão as
             alterações.
           </span>
           <Button
@@ -508,7 +511,8 @@ export function EditorView({ record, user }: Props) {
                   {label}
                   {id === 'changes' && applyResult && applyResult.failed.length > 0 && (
                     <span className="ml-1 text-red-600" title="Alterações que não encontraram o elemento">
-                      ⚠{applyResult.failed.length}
+                      <TriangleAlert size={12} className="inline align-[-1px]" aria-hidden="true" />
+                      {applyResult.failed.length}
                     </span>
                   )}
                 </button>
@@ -527,12 +531,13 @@ export function EditorView({ record, user }: Props) {
               ) : (
                 <div className="p-6 text-center text-sm text-gray-500">
                   <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-brand-50 text-brand-600">
-                    ↖
+                    <MousePointer2 size={18} aria-hidden="true" />
                   </div>
                   <p className="font-medium text-gray-700">Selecione um elemento</p>
                   <p className="mt-1">
                     Clique para selecionar, duplo clique para editar o texto, botão direito para mais opções e
-                    ⠿ para arrastar.
+                    a alça <GripVertical size={13} className="inline align-[-2px]" aria-label="alça" /> para
+                    arrastar.
                   </p>
                 </div>
               ))}

@@ -9,7 +9,7 @@ const CSS = `
 .sel{border:2px solid #f97316}
 .label{position:fixed;display:none;font:11px/1.6 ui-monospace,monospace;background:#3b82f6;color:#fff;padding:0 6px;border-radius:3px;white-space:nowrap;pointer-events:none}
 .label.sel-label{background:#f97316}
-.handle{position:fixed;display:none;width:20px;height:18px;border-radius:3px;background:#f97316;color:#fff;font:12px/18px system-ui;text-align:center;cursor:grab;pointer-events:auto;user-select:none}
+.handle{position:fixed;display:none;width:20px;height:18px;border-radius:3px;background:#f97316;color:#fff;cursor:grab;pointer-events:auto;user-select:none;place-items:center}.handle svg{display:block;margin:2px auto 0}
 .drop{position:fixed;display:none;pointer-events:none;box-sizing:border-box}
 .drop.line{border-top:3px solid #16a34a}
 .drop.inside{border:2px dashed #16a34a;background:#16a34a1a}
@@ -54,7 +54,7 @@ export function createOverlay(doc: Document): Overlay {
   root.innerHTML = `<style>${CSS}</style>
     <div class="box hover"></div><div class="label hover-label"></div>
     <div class="box sel"></div><div class="label sel-label"></div>
-    <div class="handle" title="Arrastar para mover" aria-label="Arrastar para mover">⠿</div>
+    <div class="handle" title="Arrastar para mover" aria-label="Arrastar para mover"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg></div>
     <div class="drop"></div>
     <div class="crumbs" role="navigation" aria-label="Ancestrais"></div>
     <div class="menu" role="menu"></div>

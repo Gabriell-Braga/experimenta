@@ -53,7 +53,9 @@ test('alteração cujo elemento não existe na página fica marcada em vermelho'
   await expect(site.locator('.product-title')).toBeVisible();
   await page.getByTestId('side-changes').click();
   await expect(page.getByTestId('change')).toHaveAttribute('data-status', 'failed', { timeout: 5000 });
-  await expect(page.getByTestId('side-changes')).toContainText('⚠1');
+  await expect(
+    page.getByTestId('side-changes').getByTitle('Alterações que não encontraram o elemento'),
+  ).toHaveText('1');
 });
 
 test('CSS e JS custom com Monaco: CSS aplica ao vivo; JS só roda quando habilitado', async ({ page }) => {
