@@ -11,3 +11,11 @@ Formato: contexto, opções, escolha, motivo.
 ## D-002 — pnpm instalado via npm global
 - Contexto: `corepack enable` falhou com EPERM em `C:\Program Files\nodejs`.
 - Escolha: `npm i -g pnpm@9`. Versão fixada em `packageManager` no package.json raiz.
+
+## D-003 — Pesquisa: premissas vs VWO/Optimizely (2026-10-14)
+Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcurve.com/blog/web-performance-anti-flicker-snippets, docs da Adobe Target (Flicker Management), docs de extensões de Builder.io, Adobe Visual Editing Helper, Webtrends Optimize, Mida.
+- **Confirmado — anti-flicker do VWO esconde a página inteira:** o SmartCode async esconde o `body` (campo `hide_element`), com `settings_tolerance` 2000 ms e `library_tolerance` 2500 ms. No timeout mostra o original e não rastreia. Nosso anti-flicker por elemento + timeout 1500 ms é diferencial real.
+- **Diverge parcialmente — "por elemento" não é inédito:** Adobe Target (Flicker Management V2) pré-esconde só seletores extraídos das atividades. Continua sendo diferencial frente a VWO/Optimizely, não frente a todo o mercado.
+- **Confirmado — extensão para iframe bloqueado:** padrão de mercado (Adobe Visual Editing Helper, Builder.io, Webtrends, Mida) remove X-Frame-Options e CSP frame-ancestors. Adobe e Builder.io também ajustam `SameSite` dos cookies para o login do site funcionar dentro do iframe. **Adição ao plano:** a extensão (5.1) também reescreverá `SameSite=None; Secure` em Set-Cookie apenas nas sessões de edição, senão sites com login quebram no iframe. Builder.io limita a reescrita ao contexto do próprio app, mesma ideia do nosso "só sessões iniciadas pelo app".
+- **Confirmado — snippet síncrono no `<head>`:** recomendação de VWO e Optimizely para reduzir flicker. Nosso snippet deve ser instalado como primeiro script do head; o `<style>` anti-flicker é injetado de forma síncrona.
+- **Não verificado:** documentação oficial do Optimizely sobre timeout padrão (fontes de terceiros divergem: 1–3 s). Não afeta o plano.
