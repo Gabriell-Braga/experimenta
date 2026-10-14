@@ -7,6 +7,8 @@ async function main() {
   if (window.top === window) return;
   const params = new URLSearchParams(location.search);
   if (!params.has('abt_edit') && !sessionStorage.getItem('_abt_edit')) return;
+  // SPAs (ex.: Instagram) reescrevem a URL antes do snippet injetado rodar: guarda o token já (o snippet lê daqui).
+  if (params.has('abt_edit')) sessionStorage.setItem('_abt_edit', params.get('abt_edit')!);
   const session = (await chrome.runtime.sendMessage({ type: 'session' })) as {
     token: string;
     accountId: string;
