@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 3 — Editor (núcleo)
-**Tarefa atual:** 3.5 — UI: barra superior e modo navegar vs editar
-**Última atualização:** 2026-10-14 04:24
-**Próximo passo:** Criar apps/editor (React+Vite+Tailwind, porta 5173): store do experimento (localStorage até a fase 4), iframe do site com handshake (connectAgent), barra superior com abas de variação, troca de dispositivo (largura do iframe), desfazer/refazer (histórico da lista de operações), preview (abre o site com ?ab_force), salvar, alternância navegar/editar; recebe drafts do agent e reaplica; diálogo para prompt. Testes Vitest de store/histórico + E2E.
+**Tarefa atual:** 3.6 — UI: painel de propriedades
+**Última atualização:** 2026-10-14 04:28
+**Próximo passo:** Criar apps/editor/src/components/PropertiesPanel.tsx: mostra seletor + fragilidade + breadcrumb do elemento selecionado; seções texto (setText), tipografia (fonte, tamanho, peso, alinhamento, cor), cores (texto, fundo), espaçamento (margin/padding), borda (largura, estilo, cor, raio) e atributos (href/src/alt/qualquer); cada alteração gera/atualiza UMA operação setStyle por elemento (merge) e setAttribute por atributo; teste unitário do merge + E2E.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio)
@@ -139,3 +139,9 @@
 - Arquivos principais: packages/agent/src/{editing,overlay,agent}.ts, e2e/tests/agent-edit.spec.ts
 - Como testar manualmente: pnpm e2e (agent-edit.spec.ts)
 - Observações: ver D-016.
+
+### 2026-10-14 04:28 — Tarefa 3.5 concluída
+- O que foi feito: apps/editor (React 18 + Vite 6 + Tailwind 4): store com histórico, connectAgent (hello-ack + peer), TopBar (abas de variação, Editar/Navegar/Preview, dispositivo, desfazer/refazer, URL, status, salvar), PromptDialog (<dialog>), sincronização modo/variação a cada ready; atalhos de teclado.
+- Arquivos principais: apps/editor/src/{App.tsx,store.ts,connection.ts,api.ts,components/TopBar.tsx,components/PromptDialog.tsx}, e2e/tests/editor-ui.spec.ts
+- Como testar manualmente: pnpm dev; abrir http://localhost:5173 (demo em :5180, API em :4000); duplo clique no título, Navegar/Preview, abas.
+- Observações: ver D-017.

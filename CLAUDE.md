@@ -16,6 +16,9 @@ Editor visual de testes A/B (substituto do VWO), futuro SaaS multi-tenant. O sit
 - `packages/agent` — editor agent, UI em Shadow DOM, só carregado no modo edição.
 - `apps/editor` (React+Vite+Tailwind+Monaco), `apps/api` (Hono+Drizzle+Postgres), `apps/extension` (Chrome MV3), `apps/demo` (sites de teste).
 
+## Editor (apps/editor)
+Estado = `useReducer` em `src/store.ts` (experimento + histórico desfazer/refazer; a lista de operações da variação ativa é a fonte da verdade). Agent só manda rascunhos (`operation`) → app adiciona → reenvia `applyVariation` com a lista completa. A cada `ready` (nova página no iframe) o app reenvia modo e variação (`src/App.tsx`). Conexão: `src/connection.ts`. Até a fase 4 o rascunho fica no localStorage (`src/api.ts`).
+
 ## Modo edição (handshake)
 1. App cria sessão: `POST /edit-sessions {accountId}` (CORS só para `EDITOR_ORIGINS`) → token de 15 min (memória, `apps/api/src/sessions.ts`).
 2. App abre o site em iframe com `?abt_edit=<token>`. Snippet (`packages/snippet/src/editor.ts`) só entra em modo edição dentro de iframe: valida o token em `GET /edit-sessions/:token` (conta precisa bater), envia `hello` com targetOrigin = origin do app, e só aceita `hello-ack` do `window.parent` vindo desse origin com o mesmo token. Então carrega `agent.js` (mesma pasta do script da conta) com `window.__ABT_AGENT__`.
@@ -27,7 +30,7 @@ pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos wor
 - `pnpm test` — Vitest em todos os workspaces. Um pacote: `pnpm --filter @abtest/shared test`. Um teste: `pnpm --filter @abtest/shared exec vitest run src/arquivo.test.ts -t "nome"`.
 - `pnpm lint` — ESLint (flat config na raiz) + `prettier --check`. `pnpm format` corrige formatação.
 - `pnpm typecheck` — `tsc --noEmit` por workspace.
-- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: API 4000 (serve também `/cdn/:arquivo` da pasta `cdn/`, recompilando as configs com o runtime atual ao subir), demo 5180 (`/` HTML estático, `/spa/*` SPA React com emotion).
+- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: editor 5173, API 4000 (serve também `/cdn/:arquivo` da pasta `cdn/`, recompilando as configs com o runtime atual ao subir), demo 5180 (`/` HTML estático, `/spa/*` SPA React com emotion).
 - `pnpm build`. Snippet: `pnpm --filter @abtest/snippet build` → `packages/snippet/dist/abt.js` (imprime tamanho gzip).
 - `pnpm e2e` — Playwright (`e2e/`); sobe API (PGlite em memória, CDN em `e2e/.cdn`) e demo, compilando snippet e agent antes. Páginas "host" de teste são servidas por `page.route` (Chrome roda com `LocalNetworkAccessChecks` desligado). Um teste: `pnpm --filter @abtest/e2e e2e tests/antiflicker.spec.ts -g "nome"`. Chromium: `pnpm --filter @abtest/e2e exec playwright install chromium`.
 

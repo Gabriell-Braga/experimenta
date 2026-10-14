@@ -95,3 +95,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Edição inline: duplo clique → `contenteditable`; Enter/blur confirma, Shift+Enter quebra linha, Esc cancela. Sem filhos elemento → `setText`; com filhos → `setHTML`.
 - Arrastar: alça (⠿) ao lado do rótulo do selecionado; usa pointer events + `elementsFromPoint`; faixa superior 25% = antes, inferior 25% = depois, meio = dentro (exceto elementos vazios/void). Listeners de arraste registrados antes do bloqueio de eventos (que usa stopImmediatePropagation).
 - Inserir HTML e trocar imagem pedem o valor ao app via RPC `prompt` (o diálogo fica fora do iframe).
+
+## D-017 — App do editor
+- Estado com `useReducer` puro (testável sem React) em vez de lib de estado: experimento, variação ativa, histórico (100 passos) com desfazer/refazer; trocar de aba não entra no histórico.
+- Modos: Editar (agent intercepta), Navegar (site interativo, variação aplicada, navegação real no iframe com reconexão automática), Preview (como Navegar, sem painéis e com faixa indicando a variação). "Preview" não abre nova aba com `?ab_force` porque o rascunho ainda não está publicado.
+- Dispositivo = largura do iframe (100% / 768 px / 390 px). O User-Agent não muda — segmentação por dispositivo depende de UA e não é simulada no editor.
+- Salvar grava em localStorage até a fase 4 (API). Ctrl+Z / Ctrl+Shift+Z / Ctrl+S no app.

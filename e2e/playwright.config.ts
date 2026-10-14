@@ -23,6 +23,12 @@ export default defineConfig({
       env: { PGLITE_DIR: 'memory://', CDN_DIR: 'e2e/.cdn', EDITOR_ORIGINS: 'http://localhost:5173' },
     },
     {
+      command: 'pnpm --filter @abtest/editor dev',
+      url: 'http://localhost:5173',
+      reuseExistingServer: true,
+      cwd: '..',
+    },
+    {
       command: 'pnpm --filter @abtest/demo dev',
       url: 'http://localhost:5180',
       reuseExistingServer: true,
