@@ -51,6 +51,27 @@ test.describe('com a extensão instalada', () => {
     await page.close();
   });
 
+  test('login em cookie SameSite=Lax continua valendo dentro do editor (e volta ao normal ao sair)', async () => {
+    // Site em 127.0.0.1 = outro site em relação ao editor (localhost): sem a extensão o cookie Lax não iria.
+    const COOKIE_PAGE = 'http://127.0.0.1:5180/cookie.html';
+    const tab = await ctx.newPage();
+    await tab.goto(`${COOKIE_PAGE}?login`);
+    await expect(tab.locator('#estado')).toHaveText('logado');
+
+    const page = await ctx.newPage();
+    const site = await openEditor(page);
+    await openUrl(page, COOKIE_PAGE);
+    await expect(page.getByTestId('ext-active')).toBeVisible();
+    await expect(site.locator('#estado')).toHaveText('logado');
+    await page.close(); // encerra a sessão → SameSite original restaurado
+    await expect
+      .poll(
+        async () => (await ctx.cookies('http://127.0.0.1:5180')).find((c) => c.name === 'sessao')?.sameSite,
+      )
+      .toBe('Lax');
+    await tab.close();
+  });
+
   test('outra aba sem sessão de edição continua bloqueada', async () => {
     // Abre uma sessão numa aba (regras valem só nela)...
     const editor = await ctx.newPage();
@@ -69,6 +90,16 @@ test.describe('com a extensão instalada', () => {
     await editor.close();
     await other.close();
   });
+});
+
+test('sem a extensão: cookie SameSite=Lax não chega ao site no editor (por isso a extensão)', async ({
+  page,
+  context,
+}) => {
+  await context.addCookies([{ name: 'sessao', value: 'ok', url: 'http://127.0.0.1:5180', sameSite: 'Lax' }]);
+  const site = await openEditor(page);
+  await openUrl(page, 'http://127.0.0.1:5180/cookie.html');
+  await expect(site.locator('#estado')).toHaveText('deslogado');
 });
 
 test('sem a extensão: o editor avisa que o site bloqueia iframe', async ({ page }) => {

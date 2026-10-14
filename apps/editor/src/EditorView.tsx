@@ -154,6 +154,24 @@ export function EditorView({ record, accountId }: Props) {
     setFrameKey((k) => k + 1); // recarrega o iframe já com os headers liberados
   }, [token, siteOrigin, accountId]);
 
+  // Extensão instalada → abre a sessão ANTES de carregar o iframe: headers de bloqueio removidos e cookies do
+  // site com SameSite=None (usuário continua logado no site dentro do editor). Sem extensão: segue direto.
+  const [extChecked, setExtChecked] = useState(false);
+  useEffect(() => {
+    if (!token) return;
+    let live = true;
+    (async () => {
+      if (await extCall('ping')) {
+        const r = await startExtensionSession({ siteOrigin, token, accountId, apiUrl: API_URL });
+        if (live && r?.ok) setExt('active');
+      }
+      if (live) setExtChecked(true);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [token, siteOrigin, accountId]);
+
   // Não conectou a tempo → tenta a extensão automaticamente (uma vez).
   useEffect(() => {
     if (!token || connected || ext !== 'idle') return;
@@ -305,7 +323,7 @@ export function EditorView({ record, accountId }: Props) {
       )}
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 justify-center overflow-auto bg-gray-200 p-3">
-          {token && (
+          {token && extChecked && (
             <iframe
               ref={iframe}
               key={frameKey}

@@ -8,6 +8,8 @@ const sessions = createSessions(
     set: (list) => chrome.storage.session.set({ [KEY]: list }),
   },
   chrome.declarativeNetRequest,
+  undefined,
+  chrome.cookies,
 );
 
 chrome.runtime.onMessage.addListener((msg: { type?: string; payload?: unknown }, sender, reply) => {
@@ -38,3 +40,6 @@ chrome.runtime.onMessage.addListener((msg: { type?: string; payload?: unknown },
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => void sessions.end(tabId));
+chrome.cookies.onChanged.addListener(({ removed, cookie }) => {
+  if (!removed) void sessions.onCookie(cookie);
+});

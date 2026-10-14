@@ -1,3 +1,5 @@
+import { relaxCookies, restoreCookies, type CookiesApi, type SavedCookie } from './cookies';
+
 /** Sessão de edição aberta pelo app numa aba específica. */
 export interface EditSession {
   /** Aba do app do editor que pediu a sessão (as regras só valem nela). */
@@ -10,6 +12,8 @@ export interface EditSession {
   /** ID da regra declarativeNetRequest desta sessão. */
   ruleId: number;
   expiresAt: number;
+  /** Cookies do site afrouxados para SameSite=None nesta sessão (restaurados no fim). */
+  cookies?: SavedCookie[];
 }
 
 export const SESSION_TTL_MS = 15 * 60 * 1000;
@@ -75,7 +79,7 @@ export interface Dnr {
   }): Promise<void>;
 }
 
-export function createSessions(store: Store, dnr: Dnr, now = () => Date.now()) {
+export function createSessions(store: Store, dnr: Dnr, now = () => Date.now(), cookies?: CookiesApi) {
   const alive = (list: EditSession[]) => list.filter((s) => s.expiresAt > now());
 
   async function prune(): Promise<EditSession[]> {
@@ -85,6 +89,7 @@ export function createSessions(store: Store, dnr: Dnr, now = () => Date.now()) {
     if (dead.length) {
       await dnr.updateSessionRules({ removeRuleIds: dead.map((s) => s.ruleId) });
       await store.set(keep);
+      if (cookies) for (const d of dead) await restoreCookies(cookies, d.cookies ?? []);
     }
     return keep;
   }
@@ -95,8 +100,15 @@ export function createSessions(store: Store, dnr: Dnr, now = () => Date.now()) {
       const list = await prune();
       const prev = list.find((s) => s.tabId === tabId);
       const ruleId = prev?.ruleId ?? Math.max(0, ...list.map((s) => s.ruleId)) + 1;
-      const session: EditSession = { ...req, tabId, ruleId, expiresAt: now() + SESSION_TTL_MS };
+      const session: EditSession = {
+        ...req,
+        tabId,
+        ruleId,
+        expiresAt: now() + SESSION_TTL_MS,
+        cookies: prev?.cookies ?? [],
+      };
       await dnr.updateSessionRules({ removeRuleIds: [ruleId], addRules: [buildRule(session)] });
+      if (cookies) session.cookies!.push(...(await relaxCookies(cookies, req.siteOrigin)));
       await store.set([...list.filter((s) => s.tabId !== tabId), session]);
       return session;
     },
@@ -107,6 +119,19 @@ export function createSessions(store: Store, dnr: Dnr, now = () => Date.now()) {
       if (!s) return;
       await dnr.updateSessionRules({ removeRuleIds: [s.ruleId] });
       await store.set(list.filter((x) => x !== s));
+      if (cookies) await restoreCookies(cookies, s.cookies ?? []);
+    },
+
+    /** Cookie criado/alterado durante a sessão (ex.: login feito em outra aba): afrouxa também. */
+    async onCookie(c: chrome.cookies.Cookie): Promise<void> {
+      if (!cookies || c.sameSite === 'no_restriction') return;
+      const list = await prune();
+      for (const s of list) {
+        const saved = await relaxCookies(cookies, s.siteOrigin, [c]);
+        if (!saved.length) continue;
+        s.cookies = [...(s.cookies ?? []).filter((x) => x.name !== c.name || x.path !== c.path), ...saved];
+        await store.set(list);
+      }
     },
 
     /** Sessão visível para um frame: precisa estar na aba do editor e no origin do site da sessão. */

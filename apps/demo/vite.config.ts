@@ -30,6 +30,8 @@ const blockFraming: Plugin = {
 export default defineConfig({
   plugins: [react(), spaFallback, blockFraming],
   appType: 'mpa',
+  // Também em 127.0.0.1: é outro "site" em relação ao editor em localhost (testes de SameSite).
+  server: { host: true },
   build: {
     rollupOptions: {
       input: {
@@ -39,6 +41,7 @@ export default defineConfig({
         spa: resolve(__dirname, 'spa/index.html'),
         bloqueadoComSnippet: resolve(__dirname, 'bloqueado/com-snippet.html'),
         bloqueadoSemSnippet: resolve(__dirname, 'bloqueado/sem-snippet.html'),
+        cookie: resolve(__dirname, 'cookie.html'),
       },
     },
   },

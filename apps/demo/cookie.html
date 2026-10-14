@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <script src="%VITE_API_URL%/cdn/demo.js"></script>
+    <title>Login (cookie) — Loja Demo</title>
+    <link rel="stylesheet" href="/site.css" />
+  </head>
+  <body>
+    <main>
+      <h1 id="estado">…</h1>
+      <p>
+        Simula um site com login em cookie <code>SameSite=Lax</code>. Abra com <code>?login</code> para
+        "logar".
+      </p>
+    </main>
+    <script>
+      if (location.search.includes('login'))
+        document.cookie = 'sessao=ok; path=/; max-age=3600; SameSite=Lax';
+      document.getElementById('estado').textContent = document.cookie.includes('sessao=ok')
+        ? 'logado'
+        : 'deslogado';
+    </script>
+  </body>
+</html>

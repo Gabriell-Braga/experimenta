@@ -187,3 +187,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-033 — Respostas às perguntas abertas
 - **Config embutida no JS (D-008): mantida.** É o que permite o anti-flicker por elemento sem esconder a página; o `.json` continua publicado para o analytics. Custo aceito: um arquivo por conta e cache de 60 s após publicar.
 - **SameSite na extensão: implementar** com a permissão `cookies` — durante a sessão de edição, cookies do site com SameSite Lax/Strict passam a `None; Secure` e são restaurados ao fim da sessão (ver D-034).
+
+## D-034 — SameSite na extensão (resolve a pergunta de D-024)
+- Permissão `cookies`. Ao abrir a sessão de edição, os cookies do site com SameSite Lax/Strict passam a `None; Secure` (só onde Secure é aceito: https, localhost, 127.0.0.1); cookies criados durante a sessão (ex.: login numa aba normal) também (`cookies.onChanged`). O SameSite/Secure original fica guardado na sessão e é restaurado quando a sessão termina (aba fechada, `end` ou expiração), preservando o valor atual do cookie.
+- Com a extensão instalada o editor abre a sessão ANTES de carregar o iframe (não espera os 5 s): headers e cookies já liberados.
+- Limites: login feito DENTRO do iframe em site que responde `Set-Cookie` Lax continua sendo recusado pelo navegador (o cookie nem chega a existir) — logar no site numa aba normal resolve. Duas abas de editor no mesmo site: fechar uma restaura os cookies da outra (raro; aceito).
+- Teste: demo `cookie.html` em 127.0.0.1 (outro site em relação ao editor em localhost) — sem extensão aparece "deslogado", com extensão "logado", e o SameSite volta a Lax ao fechar o editor.
