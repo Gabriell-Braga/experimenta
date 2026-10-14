@@ -35,7 +35,7 @@ const IGNORED_DATA =
 export function cssEscape(value: string): string {
   if (typeof CSS !== 'undefined' && CSS.escape) return CSS.escape(value);
   return value
-    .replace(/[^a-zA-Z0-9_ -￿-]/g, (c) => `\\${c}`)
+    .replace(/[^w-]/g, (c) => (c.charCodeAt(0) > 127 ? c : `\${c}`))
     .replace(/^(-?)(\d)/, (_, dash: string, d: string) => `${dash}\\3${d} `);
 }
 
