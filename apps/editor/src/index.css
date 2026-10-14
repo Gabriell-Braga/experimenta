@@ -44,3 +44,16 @@ body {
   animation: shimmer 1.2s linear infinite;
   border-radius: 6px;
 }
+
+/* Tailwind 4 tirou o cursor pointer dos botões: devolve nos clicáveis habilitados. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label[for],
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled) {
+    cursor: pointer;
+  }
+}
