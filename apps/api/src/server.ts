@@ -6,7 +6,7 @@ import { writeAccountFiles } from './cdn';
 import { fsCdnStore, syncBundles } from './cdn-fs';
 import { createDb } from './db';
 import { createPublisher } from './publish';
-import { createRepo } from './repo';
+import { createRepo, retentionCutoff } from './repo';
 import { seedDev } from './seed';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
@@ -43,13 +43,21 @@ const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-troque-em-producao';
 if (!process.env.JWT_SECRET)
   console.warn('[api] JWT_SECRET não definido — usando segredo de desenvolvimento');
 
-// ponytail: amostragem global por env; vira configuração por conta quando houver tela de conta.
+// Padrão do servidor; cada conta pode sobrescrever (D-038).
 const publish = createPublisher({
   repo,
   cdn,
   publicUrl,
   heatmapSampleRate: Number(process.env.HEATMAP_SAMPLE_RATE ?? 1),
 });
+
+// Retenção dos eventos crus: expurgo ao subir e a cada 24 h (EVENTS_RETENTION_DAYS, 0 desliga).
+const purge = () => {
+  const cutoff = retentionCutoff(Number(process.env.EVENTS_RETENTION_DAYS ?? 90));
+  if (cutoff) repo.purgeEventsBefore(cutoff).catch((e) => console.error('[api] expurgo de eventos', e));
+};
+purge();
+setInterval(purge, 86_400_000).unref();
 
 serve({ fetch: createApp({ repo, cdn, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
   console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),

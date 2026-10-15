@@ -1,6 +1,6 @@
 import { ExperimentSchema } from '@abtest/shared';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { NotFoundError, verifyPassword, type Repo } from './repo';
+import { NotFoundError, retentionCutoff, verifyPassword, type Repo } from './repo';
 import { testRepo } from './test-repo';
 
 let repo: Repo;
@@ -145,5 +145,7 @@ describe('repositório', () => {
     expect(await exposures()).toBe(2);
     await repo.purgeEventsBefore(new Date(Date.now() + 60_000));
     expect(await exposures()).toBe(0);
+    expect(retentionCutoff(90, 100 * 86_400_000)).toEqual(new Date(10 * 86_400_000));
+    expect(retentionCutoff(0)).toBeNull();
   });
 });

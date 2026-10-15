@@ -20,6 +20,9 @@
     "PUBLIC_URL": "https://abtest-api.hub-villa-deli.workers.dev",
     "EDITOR_ORIGINS": "https://abtest-editor.hub-villa-deli.workers.dev,http://localhost:5173",
     "DEMO_SITE_URL": "https://abtest-demo.hub-villa-deli.workers.dev/",
-    "HEATMAP_SAMPLE_RATE": "1"
-  }
+    "HEATMAP_SAMPLE_RATE": "1",
+    "EVENTS_RETENTION_DAYS": "90"
+  },
+  // Expurgo diário dos eventos crus (retenção).
+  "triggers": { "crons": ["0 4 * * *"] }
 }

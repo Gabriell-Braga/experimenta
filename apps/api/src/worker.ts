@@ -4,6 +4,7 @@ import type { D1Database, ExecutionContext, KVNamespace } from '@cloudflare/work
 import { createApp } from './app';
 import { writeAccountFiles, type CdnStore } from './cdn';
 import { createPublisher } from './publish';
+import { retentionCutoff } from './repo';
 import { createD1Repo, createD1SessionStore, type D1Like } from './repo-d1';
 import { seedDev } from './seed';
 
@@ -17,6 +18,8 @@ export interface Env {
   EDITOR_ORIGINS: string;
   DEMO_SITE_URL: string;
   HEATMAP_SAMPLE_RATE?: string;
+  /** Dias de retenção dos eventos crus (0 desliga o expurgo). */
+  EVENTS_RETENTION_DAYS?: string;
 }
 
 /** KV como CDN. O runtime (abt.js) só muda a cada deploy: fica em memória no isolate. */
@@ -68,5 +71,10 @@ export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext) {
     app ??= await (booting ??= build(env));
     return app.fetch(req, env, ctx);
+  },
+  /** Cron diário (wrangler.jsonc → triggers): retenção dos eventos crus. */
+  async scheduled(_event: unknown, env: Env) {
+    const cutoff = retentionCutoff(Number(env.EVENTS_RETENTION_DAYS ?? 90));
+    if (cutoff) await createD1Repo(env.DB as unknown as D1Like).purgeEventsBefore(cutoff);
   },
 };

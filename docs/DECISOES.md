@@ -212,3 +212,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-038 — Amostragem do mapa de calor por conta
 - Por conta, não por experimento: a captura de cliques/scroll não pertence a um experimento (ver D-029) e o custo de eventos é da conta. `accounts.heatmap_sample_rate` (0..1, NULL = padrão do servidor `HEATMAP_SAMPLE_RATE`); só owner altera; vale a partir da próxima publicação (a taxa vai na config publicada).
 
+## D-039 — Retenção dos eventos crus e rotas de SPA
+- Expurgo por `received_at` (não `ts`, que vem do relógio do visitante), `EVENTS_RETENTION_DAYS` (padrão 90). É a única consulta sem filtro de conta, de propósito: manutenção do sistema, sem rota exposta. Worker: cron diário em `wrangler.jsonc`; Node: ao subir + `setInterval` de 24 h.
+- ponytail: DELETE sem índice em `received_at` (varredura diária); criar índice quando a tabela crescer. Pré-agregação do heatmap por dia/página continua adiada.
+- SPA: além de patch em pushState/replaceState e `popstate`, ouve `hashchange` e `navigation.currententrychange` (Chromium) — cobre routers que guardaram o `pushState` original antes do snippet (snippet via tag manager). Lembrete: no editor, modo "Editar" bloqueia cliques do site; para trocar de rota use "Navegar".
+

@@ -124,7 +124,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 8.3 CSS/JS da variação em janela grande (expandir)
 - [x] 8.4 Configurações do experimento separadas da edição (janela própria), meta escolhida clicando no site, validação visível ao adicionar meta/regra
 - [x] 8.5 Amostragem do mapa de calor por conta (configurável pelo owner) em vez da env global
-- [ ] 8.6 Retenção dos eventos crus (expurgo diário) + detecção de rota de SPA mais robusta (hashchange)
+- [x] 8.6 Retenção dos eventos crus (expurgo diário) + detecção de rota de SPA mais robusta (hashchange)
 
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.

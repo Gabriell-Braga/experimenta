@@ -29,6 +29,10 @@ export interface ExperimentRecord {
 
 export class NotFoundError extends Error {}
 
+/** Data de corte da retenção de eventos crus (`days` <= 0 desliga: devolve null). */
+export const retentionCutoff = (days: number, now = Date.now()) =>
+  days > 0 ? new Date(now - days * 86_400_000) : null;
+
 export interface AccountSettings {
   /** null = padrão do servidor. */
   heatmapSampleRate: number | null;

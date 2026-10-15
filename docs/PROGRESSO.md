@@ -1,8 +1,8 @@
 # Progresso
-**Status:** em andamento
-**Fase atual:** 8 — Feedback dos primeiros usuários + dados
-**Tarefa atual:** 8.6 (em andamento)
-**Última atualização:** 2026-10-14 22:52
+**Status:** concluído
+**Fase atual:** concluído
+**Tarefa atual:** — (fase 8 concluída)
+**Última atualização:** 2026-10-14 22:55
 **Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
@@ -300,4 +300,14 @@
 - Arquivos principais: apps/api/src/{schema,repo,repo-d1,app,publish}.ts, apps/api/drizzle/0002_*.sql, apps/api/migrations-d1/0002_account_settings.sql, apps/editor/src/{App.tsx,api.ts}
 - Como testar manualmente: logar como owner → menu do usuário → Configurações da conta → 10 → publicar → `/cdn/demo.json` traz `heatmap.sampleRate: 0.1`.
 - Observações: ver D-038. Deploy precisa de `wrangler d1 migrations apply` (já no `pnpm deploy:cf`).
+
+### 2026-10-14 22:55 — Tarefa 8.6 concluída
+- O que foi feito: expurgo dos eventos crus mais antigos que `EVENTS_RETENTION_DAYS` (padrão 90; 0 desliga) — no Node ao subir e a cada 24 h, no Worker por cron diário (04:00 UTC); detecção de rota de SPA também por `hashchange` e Navigation API (`currententrychange`).
+- Arquivos principais: apps/api/src/{repo,repo-d1,server,worker}.ts, apps/api/wrangler.jsonc, packages/snippet/src/spa.ts
+- Como testar manualmente: `EVENTS_RETENTION_DAYS=0` desliga; eventos antigos somem no próximo ciclo.
+- Observações: ver D-039. Pré-agregação do mapa de calor continua adiada (agregação na leitura segura enquanto a retenção limita o volume).
+
+### Resumo da Fase 8
+- Entregue: correção da duplicação de HTML inserido e do arrastar que não fixava (engine), Editar HTML, CSS/JS em janela grande, configurações separadas da edição com meta escolhida no site, amostragem do mapa de calor por conta, retenção dos eventos e SPA mais robusta.
+- Testes: unitários (engine persist, agent, API settings/expurgo, SPA) + 41 E2E.
 
