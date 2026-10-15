@@ -163,6 +163,16 @@ describe('agent: edição inline e menu de contexto', () => {
     expect((drafts()[0]!.value as string).includes('Mudou')).toBe(true);
   });
 
+  test('edição de texto não copia nós inseridos pela variação (evita duplicar)', () => {
+    const section = document.querySelector('section')!;
+    section.insertAdjacentHTML('beforeend', '<form data-abt-inserted="op1">cadastro</form>');
+    agent.editing.startEdit(section);
+    section.querySelector('h1')!.textContent = 'Mudou';
+    agent.editing.finishEdit(true);
+    expect(drafts()[0]!.value as string).not.toContain('cadastro');
+    expect(section.querySelector('form')).not.toBeNull(); // DOM restaurado
+  });
+
   test('menu de contexto: esconder, remover, inserir (pede HTML ao app), copiar seletor, selecionar pai', async () => {
     const a = document.querySelector('a')!;
     const menu = () => shadow().querySelector('.menu') as HTMLElement;
@@ -175,6 +185,7 @@ describe('agent: edição inline e menu de contexto', () => {
     expect(menu().style.display).toBe('flex');
     expect([...menu().querySelectorAll('button')].map((b) => b.dataset.action)).toEqual([
       'edit',
+      'edit-html',
       'hide',
       'remove',
       'insert-before',
@@ -216,6 +227,25 @@ describe('agent: edição inline e menu de contexto', () => {
     open();
     pick('parent');
     expect(agent.selected).toBe(document.querySelector('section'));
+  });
+
+  test('Editar HTML pede o HTML atual ao app e emite setHTML', async () => {
+    const section = document.querySelector('section')!;
+    section.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    (shadow().querySelector('[data-action="edit-html"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(posted.some((p) => p.msg.kind === 'req')).toBe(true));
+    const req = posted.find((p) => p.msg.kind === 'req')!.msg as { id: string; params: { initial: string } };
+    expect(req.params.initial).toBe(section.innerHTML);
+    window.dispatchEvent(
+      Object.assign(new Event('message'), {
+        data: { abt: 1, kind: 'res', id: req.id, ok: true, result: '<h2>novo</h2>' },
+        origin: APP,
+        source: parent,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(drafts()).toEqual([expect.objectContaining({ type: 'setHTML', value: '<h2>novo</h2>' })]),
+    );
   });
 
   test('imagem: menu tem trocar imagem e não tem editar texto', () => {

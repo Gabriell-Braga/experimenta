@@ -181,4 +181,64 @@ describe('regras de aplicação', () => {
     expect(r.applied[0]!.res.via).toBe('alternate');
     expect($('h1').textContent).toBe('curado');
   });
+
+  describe('persist: não reaplica em outro elemento enquanto o original está na página', () => {
+    const tick = () => new Promise((r) => setTimeout(r, 20));
+
+    test('insertHTML antes do alvo não duplica quando o seletor passa a casar com o nó inserido', async () => {
+      const o = op({
+        type: 'insertHTML',
+        target: t('#list li'),
+        value: { position: 'before', html: '<li>novo</li>' },
+      });
+      const h = applyOperations([o], { persist: true });
+      await h.done;
+      $('#late').append(document.createElement('span')); // qualquer mutação dispara nova rodada
+      await tick();
+      expect([...$('#list').children].map((c) => c.textContent)).toEqual(['novo', '1', '2', '3']);
+      h.stop();
+    });
+
+    test('remove não remove em cadeia', async () => {
+      const h = applyOperations([op({ type: 'remove', target: t('#list li') })], { persist: true });
+      await h.done;
+      await tick();
+      expect([...$('#list').children].map((c) => c.id)).toEqual(['li2', 'li3']);
+      h.stop();
+    });
+
+    test('move por posição fica onde foi solto', async () => {
+      const h = applyOperations(
+        [
+          op({
+            type: 'move',
+            target: t('#list > li:nth-of-type(1)'),
+            value: { position: 'after', anchor: t('#list > li:nth-of-type(3)') },
+          }),
+        ],
+        { persist: true },
+      );
+      await h.done;
+      await tick();
+      expect([...$('#list').children].map((c) => c.id)).toEqual(['li2', 'li3', 'li1']);
+      h.stop();
+    });
+
+    test('re-render do framework: aplica no nó novo (setText e remove)', async () => {
+      $('#late').innerHTML = '<p class="promo">a</p><p class="ad">x</p>';
+      const h = applyOperations(
+        [
+          op({ type: 'setText', target: t('.promo'), value: 'mudou' }),
+          op({ type: 'remove', target: t('.ad') }),
+        ],
+        { persist: true },
+      );
+      await h.done;
+      $('#late').innerHTML = '<p class="promo">a</p><p class="ad">x</p>'; // re-render
+      await tick();
+      expect($('.promo').textContent).toBe('mudou');
+      expect($('.ad')).toBeNull();
+      h.stop();
+    });
+  });
 });

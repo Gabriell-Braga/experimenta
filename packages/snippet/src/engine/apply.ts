@@ -47,6 +47,12 @@ export function applyOperations(ops: Operation[], opts: ApplyOptions = {}): Appl
   const timeoutMs = opts.timeoutMs ?? 1500;
   const all = [...ops].sort((a, b) => a.order - b.order);
   const appliedIds = new Set<string>();
+  /**
+   * Último elemento em que cada operação foi aplicada (+ outerHTML, para `remove`). Enquanto ele segue na
+   * página a operação NÃO é reaplicada em outro elemento: seletores por posição/classe passam a casar com
+   * nós inseridos/movidos pela própria variação (duplicava insertHTML, removia/movia em cadeia).
+   */
+  const current = new Map<string, { el: Element; html?: string }>();
   const touched: { op: Operation; el: Element }[] = [];
   const undos: Undo[] = [];
   const report: ApplyReport = { applied: [], failed: [] };
@@ -78,9 +84,14 @@ export function applyOperations(ops: Operation[], opts: ApplyOptions = {}): Appl
     observer.disconnect();
     for (const op of all) {
       if (!opts.persist && appliedIds.has(op.id)) continue;
+      const prev = current.get(op.id);
+      if (prev?.el.isConnected) continue;
       const res = resolveTarget(op.target, doc);
       const anchor = op.type === 'move' ? resolveTarget(op.value.anchor, doc) : null;
       if (!res || (op.type === 'move' && !anchor)) continue;
+      // `remove` tira o próprio alvo da página: só reaplica se o framework recriou o MESMO elemento.
+      if (prev && op.type === 'remove' && res.el.outerHTML !== prev.html) continue;
+      current.set(op.id, { el: res.el, html: op.type === 'remove' ? res.el.outerHTML : undefined });
       let seen = processed.get(op.id);
       if (!seen) processed.set(op.id, (seen = new WeakSet()));
       if (!seen.has(res.el)) {

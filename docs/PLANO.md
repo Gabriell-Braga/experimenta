@@ -118,6 +118,14 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 7.2 Agregação na API e eventos documentados em docs/EVENTOS.md
 - [x] 7.3 Overlay no agent: heatmap em canvas, contagem de cliques por elemento, faixas de scroll, filtros por variação e dispositivo
 
+### Fase 8 — Feedback dos primeiros usuários + dados
+- [x] 8.1 Engine: operação não é reaplicada em OUTRO elemento enquanto o original segue na página (corrige HTML inserido duplicado e arrastar que "não fica"); edição de texto não copia nós inseridos
+- [x] 8.2 Agent: "Editar HTML" do elemento (menu de contexto) e diálogo de HTML maior
+- [x] 8.3 CSS/JS da variação em janela grande (expandir)
+- [x] 8.4 Configurações do experimento separadas da edição (janela própria), meta escolhida clicando no site, validação visível ao adicionar meta/regra
+- [ ] 8.5 Amostragem do mapa de calor por conta (configurável pelo owner) em vez da env global
+- [ ] 8.6 Retenção dos eventos crus (expurgo diário) + detecção de rota de SPA mais robusta (hashchange)
+
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.
 - Se encontrar um caminho tecnicamente melhor que o descrito, registre a justificativa em docs/DECISOES.md e siga com ele. Se mudar a arquitetura de forma significativa, registre também em "Bloqueios / perguntas" para os humanos revisarem depois.

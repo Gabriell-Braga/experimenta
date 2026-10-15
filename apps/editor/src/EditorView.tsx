@@ -1,4 +1,4 @@
-import { GripVertical, MousePointer2, TriangleAlert, X } from 'lucide-react';
+import { GripVertical, MousePointer2, MousePointerClick, TriangleAlert, X } from 'lucide-react';
 import { selectorFragility } from '@abtest/selector';
 import { matchUrl } from '@abtest/snippet/segment';
 import type { ApplyResult, ElementInfo, HeatmapData } from '@abtest/shared';
@@ -24,7 +24,7 @@ import { HealthPanel } from './components/HealthPanel';
 import { HeatmapPanel } from './components/HeatmapPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
-import { SettingsPanel } from './components/SettingsPanel';
+import { EMPTY_GOAL, SettingsPanel, type GoalDraft } from './components/SettingsPanel';
 import { VersionsPanel } from './components/VersionsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { connectAgent, type AgentPeer } from './connection';
@@ -32,7 +32,7 @@ import { activeVariation, initialState, reducer } from './store';
 
 // Monaco é pesado: só carrega quando a aba de código é aberta.
 const CodePanel = lazy(() => import('./components/CodePanel'));
-type Tab = 'element' | 'changes' | 'code' | 'settings' | 'health' | 'versions';
+type Tab = 'element' | 'changes' | 'code' | 'health' | 'versions';
 
 interface Props {
   record: ExperimentRecord;
@@ -57,6 +57,12 @@ export function EditorView({ record, user }: Props) {
   const [tab, setTab] = useState<Tab>('element');
   const [runJS, setRunJS] = useState(false);
   const [prompt, setPrompt] = useState<PromptRequest | null>(null);
+  /** Configurações (status, tráfego, páginas, metas) ficam numa janela própria, fora da edição. */
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [goal, setGoal] = useState<GoalDraft>(EMPTY_GOAL);
+  /** "Escolher no site": o próximo elemento selecionado vira o seletor da meta. */
+  const picking = useRef(false);
+  const [pickingGoal, setPickingGoal] = useState(false);
   const iframe = useRef<HTMLIFrameElement>(null);
   const peer = useRef<AgentPeer | null>(null);
   const variation = activeVariation(state);
@@ -91,6 +97,13 @@ export function EditorView({ record, user }: Props) {
         setReadyCount((n) => n + 1); // cada navegação do iframe gera novo ready → reenviar estado
       }),
       c.peer.on('selected', (info) => {
+        if (picking.current && info) {
+          picking.current = false;
+          setPickingGoal(false);
+          setGoal((g) => ({ ...g, value: info.target.selector }));
+          setSettingsOpen(true);
+          return;
+        }
         setSelected(info);
         if (info) setTab('element');
       }),
@@ -246,10 +259,10 @@ export function EditorView({ record, user }: Props) {
         running ? 'success' : 'info',
         running
           ? `Publicado (versão ${version}). Visitantes recebem o experimento em até 1 min.`
-          : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação — mude o status em Config.`,
+          : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação — mude o status em Configurações.`,
         running
           ? { label: 'Ver no site', href: state.url }
-          : { label: 'Abrir Config', onClick: () => setTab('settings') },
+          : { label: 'Abrir configurações', onClick: () => setSettingsOpen(true) },
       );
       // Aviso de conflito depois, sem atrasar a confirmação da publicação.
       getConflicts(record.experiment.id).then(
@@ -333,6 +346,7 @@ export function EditorView({ record, user }: Props) {
         onRedo={() => dispatch({ type: 'redo' })}
         onSave={() => void save()}
         onPublish={doPublish}
+        onSettings={() => setSettingsOpen(true)}
         onUrl={(url) => {
           setConnected(false);
           setFrameSrcUrl(url);
@@ -353,7 +367,7 @@ export function EditorView({ record, user }: Props) {
             });
             toast(
               'info',
-              `O experimento agora roda em ${url.replace(/^https?:[/][/]/, '')} (ajuste em Config).`,
+              `O experimento agora roda em ${url.replace(/^https?:[/][/]/, '')} (ajuste em Configurações).`,
             );
           }
         }}
@@ -434,6 +448,27 @@ export function EditorView({ record, user }: Props) {
           </Button>
         </div>
       )}
+      {pickingGoal && (
+        <div
+          className="flex items-center justify-between gap-3 bg-brand-50 px-4 py-2 text-sm text-brand-900"
+          data-testid="goal-picking"
+        >
+          <span>
+            <MousePointerClick size={15} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+            Clique no elemento da meta no site.
+          </span>
+          <Button
+            size="sm"
+            onClick={() => {
+              picking.current = false;
+              setPickingGoal(false);
+              setSettingsOpen(true);
+            }}
+          >
+            Cancelar
+          </Button>
+        </div>
+      )}
       {mode === 'preview' && (
         <div
           className="bg-orange-50 px-4 py-1 text-center text-sm text-orange-800"
@@ -495,7 +530,6 @@ export function EditorView({ record, user }: Props) {
                   ['element', 'Elemento'],
                   ['changes', `Alterações (${variation.operations.length})`],
                   ['code', 'CSS/JS'],
-                  ['settings', 'Config'],
                   ['health', 'Saúde'],
                   ['versions', 'Versões'],
                 ] as [Tab, string][]
@@ -554,7 +588,6 @@ export function EditorView({ record, user }: Props) {
                 onMove={(id, to) => dispatch({ type: 'moveOperation', id, to })}
               />
             )}
-            {tab === 'settings' && <SettingsPanel experiment={state.experiment} dispatch={dispatch} />}
             {tab === 'versions' && (
               <VersionsPanel
                 experimentId={state.experiment.id}
@@ -603,6 +636,56 @@ export function EditorView({ record, user }: Props) {
         )}
       </div>
       <PromptDialog req={prompt} onClose={() => setPrompt(null)} />
+      {settingsOpen && (
+        <div
+          className="fixed inset-0 z-40 grid place-items-center bg-gray-900/40 p-4"
+          onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setSettingsOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-label="Configurações do experimento"
+            data-testid="settings-modal"
+            className="flex max-h-[90vh] w-[min(56rem,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          >
+            <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold">Configurações do experimento</h2>
+                <p className="text-xs text-gray-500">
+                  Quem entra, em quais páginas e o que conta como conversão. Salve para gravar.
+                </p>
+              </div>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Fechar"
+                data-testid="settings-close"
+              >
+                <X size={16} />
+              </button>
+            </header>
+            <div className="overflow-y-auto px-5 py-4">
+              <SettingsPanel
+                experiment={state.experiment}
+                dispatch={dispatch}
+                goal={goal}
+                onGoal={setGoal}
+                onPick={() => {
+                  picking.current = true;
+                  setPickingGoal(true);
+                  setSettingsOpen(false);
+                  setMode('edit');
+                }}
+              />
+            </div>
+            <footer className="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-3">
+              <Button variant="primary" onClick={() => setSettingsOpen(false)} data-testid="settings-done">
+                Concluir
+              </Button>
+            </footer>
+          </div>
+        </div>
+      )}
       <Modal
         open={leaving}
         onClose={() => setLeaving(false)}

@@ -22,7 +22,7 @@ export function PromptDialog({ req, onClose }: { req: PromptRequest | null; onCl
   return (
     <dialog
       ref={ref}
-      className="m-auto w-[32rem] rounded-xl p-0 shadow-2xl backdrop:bg-black/30"
+      className="m-auto w-[48rem] max-w-[calc(100vw-2rem)] rounded-xl p-0 shadow-2xl backdrop:bg-black/30"
       onCancel={() => finish(null)}
     >
       <form
@@ -38,8 +38,9 @@ export function PromptDialog({ req, onClose }: { req: PromptRequest | null; onCl
           <textarea
             name="value"
             defaultValue={req.initial}
-            rows={6}
+            rows={18}
             autoFocus
+            spellCheck={false}
             className="rounded border p-2 font-mono text-sm"
             data-testid="prompt-input"
           />

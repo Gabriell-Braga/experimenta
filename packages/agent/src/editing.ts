@@ -1,4 +1,5 @@
 import type { OperationDraft, Target } from '@abtest/shared';
+import { INSERTED_ATTR } from '@abtest/snippet/engine';
 import { elementInfo } from './inspect';
 import type { MenuItem, Overlay } from './overlay';
 
@@ -15,6 +16,13 @@ export interface EditContext {
 const VOID =
   /^(IMG|INPUT|BR|HR|META|LINK|AREA|BASE|COL|EMBED|SOURCE|TRACK|WBR|TEXTAREA|SELECT|IFRAME|VIDEO|AUDIO|CANVAS|SVG)$/i;
 const targetOf = (el: Element): Target => elementInfo(el).target;
+
+/** innerHTML sem os nós inseridos pela variação (eles já vêm de um insertHTML; copiá-los duplicaria). */
+export function cleanHTML(el: Element): string {
+  const copy = el.cloneNode(true) as Element;
+  copy.querySelectorAll(`[${INSERTED_ATTR}]`).forEach((n) => n.remove());
+  return copy.innerHTML;
+}
 
 /**
  * Interações de edição sobre a página real. O agent NUNCA altera o DOM de forma definitiva por conta própria:
@@ -33,10 +41,11 @@ export function createEditing(ctx: EditContext) {
     if (!editing) return;
     const { el, html, text, target, hadChildren } = editing;
     editing = null;
-    const value = hadChildren ? el.innerHTML : (el.textContent ?? '');
     el.removeAttribute('contenteditable');
+    const value = hadChildren ? cleanHTML(el) : (el.textContent ?? '');
+    const before = Object.assign(doc.createElement('div'), { innerHTML: html });
     el.innerHTML = html; // volta ao original: a alteração chega pela variação reaplicada
-    if (commit && value !== (hadChildren ? html : text))
+    if (commit && value !== (hadChildren ? cleanHTML(before) : text))
       ctx.emit(hadChildren ? { type: 'setHTML', target, value } : { type: 'setText', target, value });
     overlay.refresh();
   };
@@ -144,9 +153,19 @@ export function createEditing(ctx: EditContext) {
     if (html) ctx.emit({ type: 'insertHTML', target: targetOf(el), value: { position, html } });
   };
 
+  const editHTML = async (el: Element) => {
+    const initial = cleanHTML(el);
+    const html = await ctx.prompt('html', `Editar HTML de <${el.tagName.toLowerCase()}>`, initial);
+    if (html !== null && html !== initial) ctx.emit({ type: 'setHTML', target: targetOf(el), value: html });
+  };
+
   const menuFor = (el: Element): MenuItem[] => {
     const items: MenuItem[] = [];
-    if (!VOID.test(el.tagName)) items.push({ id: 'edit', label: 'Editar texto', run: () => startEdit(el) });
+    if (!VOID.test(el.tagName))
+      items.push(
+        { id: 'edit', label: 'Editar texto', run: () => startEdit(el) },
+        { id: 'edit-html', label: 'Editar HTML', run: () => editHTML(el) },
+      );
     if (el.tagName === 'IMG')
       items.push({
         id: 'image',

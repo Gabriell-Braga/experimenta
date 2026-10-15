@@ -57,10 +57,11 @@ test('loja completa: editar conteúdo dinâmico, sobreviver a re-render e public
   await page.getByTestId('mode-edit').click();
 
   // Publicar 100% na variação.
-  await page.getByTestId('side-settings').click();
+  await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('running');
   await page.getByTestId('weight-controle').fill('0');
   await page.getByTestId('weight-controle').blur();
+  await page.getByTestId('settings-done').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('Publicado (versão');
 
@@ -78,7 +79,9 @@ test('loja completa: editar conteúdo dinâmico, sobreviver a re-render e public
   await visitor.close();
 
   // Não deixa o experimento valendo para os outros testes.
+  await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('archived');
+  await page.getByTestId('settings-done').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação');
 });

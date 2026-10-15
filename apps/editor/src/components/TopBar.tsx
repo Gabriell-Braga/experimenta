@@ -6,6 +6,7 @@ import {
   MousePointerClick,
   Pencil,
   Redo2,
+  Settings,
   Smartphone,
   Tablet,
   Undo2,
@@ -45,6 +46,7 @@ interface Props {
   onRedo(): void;
   onSave(): void;
   onPublish(): void;
+  onSettings(): void;
   onUrl(url: string): void;
 }
 
@@ -151,6 +153,9 @@ export function TopBar(p: Props) {
             'Tudo salvo'
           )}
         </span>
+        <Button onClick={p.onSettings} data-testid="open-settings" title="Status, tráfego, páginas e metas">
+          <Settings size={15} aria-hidden="true" /> <span className="hidden lg:inline">Configurações</span>
+        </Button>
         <Button
           onClick={p.onSave}
           disabled={!p.dirty}

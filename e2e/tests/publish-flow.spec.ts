@@ -24,7 +24,7 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   await expect(site.locator('#hero-title')).toHaveText('Tênis com 30% OFF hoje');
 
   // Configurar: em execução, 100% do tráfego, tudo na variação, meta de clique no CTA.
-  await page.getByTestId('side-settings').click();
+  await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('running');
   await page.getByTestId('traffic').fill('100');
   await page.getByTestId('traffic').blur();
@@ -33,10 +33,22 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   await page.getByTestId('weight-variacao-1').fill('100');
   await page.getByTestId('weight-variacao-1').blur();
   await page.getByTestId('goal-type').selectOption('click');
-  await page.getByTestId('goal-value').fill('[data-testid="cta-comprar"]');
+  // Sem seletor: aviso visível em vez de não fazer nada.
+  await page.getByTestId('goal-add').click();
+  await expect(page.getByTestId('goal-error')).toBeVisible();
+  // Meta escolhida clicando no site: a janela fecha, o clique no CTA preenche o seletor e ela reabre.
+  await page.getByTestId('goal-pick').click();
+  await expect(page.getByTestId('goal-picking')).toBeVisible();
+  await site.getByTestId('cta-comprar').click();
+  await expect(page.getByTestId('goal-value')).toHaveValue('[data-testid="cta-comprar"]');
   await page.getByTestId('goal-name').fill('Clique em comprar');
   await page.getByTestId('goal-add').click();
   await expect(page.getByTestId('goal')).toContainText('clique-em-comprar');
+  // Regra de URL nova aparece vazia e com foco.
+  await page.getByTestId('add-url-rule').click();
+  await expect(page.getByPlaceholder('parte da URL, ex.: /produto/').last()).toBeFocused();
+  await page.getByRole('button', { name: 'Remover regra' }).last().click();
+  await page.getByTestId('settings-done').click();
 
   // Publicar.
   await page.getByTestId('publish').click();
@@ -72,7 +84,9 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   await visitor.close();
 
   // Controle intacto para quem não está no experimento: pausar, republicar e conferir com visitante novo.
+  await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('paused');
+  await page.getByTestId('settings-done').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação');
   const v2 = await browser.newContext();

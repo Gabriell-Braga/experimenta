@@ -65,6 +65,11 @@ test('CSS e JS custom com Monaco: CSS aplica ao vivo; JS só roda quando habilit
   await cssEditor.focus();
   await page.keyboard.insertText('.hero { background: rgb(0, 128, 0); }');
   await expect(site.locator('.hero')).toHaveCSS('background-color', 'rgb(0, 128, 0)');
+  // Janela grande para ler o código.
+  await page.getByTestId('expand-css').click();
+  await expect(page.getByTestId('code-big')).toContainText('rgb(0, 128, 0)');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('code-big')).toHaveCount(0);
 
   const jsEditor = page.getByTestId('code-js').locator('.monaco-editor textarea');
   await jsEditor.focus();

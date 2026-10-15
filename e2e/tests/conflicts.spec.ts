@@ -6,10 +6,11 @@ async function editTitleAndName(page: Page, site: FrameLocator, name: string) {
   await page.keyboard.press('Control+A');
   await page.keyboard.type(name);
   await page.keyboard.press('Enter');
-  await page.getByTestId('side-settings').click();
+  await page.getByTestId('open-settings').click();
   const field = page.getByTestId('settings').getByRole('textbox').first();
   await field.fill(name);
   await field.blur();
+  await page.getByTestId('settings-done').click();
   await page.getByTestId('save').click();
   await expect(page.getByTestId('save')).toHaveText('Salvo');
 }

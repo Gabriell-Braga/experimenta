@@ -202,3 +202,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 
 ## D-036 — Ícones em vez de emojis
 - Interface sem emojis nem símbolos tipográficos decorativos. Editor usa `lucide-react` (só os ícones importados entram no bundle); onde não há React (alça de arrastar do agent, selo de QA do snippet, loja de demonstração) usamos os SVGs do mesmo conjunto (Lucide) inline, com `currentColor` e `aria-hidden`.
+
+## D-037 — Reaplicação em modo persist e configurações fora da edição
+- Bug: no modo `persist` (snippet e agent) cada mutação do DOM re-resolvia todos os seletores e aplicava a operação em qualquer elemento ainda não processado. Seletores por posição/classe passam a casar com nós inseridos ou movidos pela própria variação: `insertHTML` antes do alvo duplicava o bloco, `remove` removia em cadeia, `move` movia o vizinho e o elemento "não ficava".
+- Regra nova: cada operação lembra o último elemento em que foi aplicada; enquanto ele segue conectado, não é reaplicada. Só re-resolve quando o elemento sai da página (re-render do framework). `remove` tira o próprio alvo: só reaplica se o elemento novo tiver o mesmo `outerHTML` do removido (re-render idêntico).
+- Edição inline/“Editar HTML” capturam o innerHTML sem os nós `data-abt-inserted` (copiá-los gerava a duplicação na própria setHTML).
+- Configurações (status, tráfego, pesos, páginas, metas) viraram janela própria aberta pela barra superior: separadas da edição visual, como pedido. A meta de clique/formulário pode ser escolhida clicando no site (o próximo elemento selecionado preenche o seletor).
+

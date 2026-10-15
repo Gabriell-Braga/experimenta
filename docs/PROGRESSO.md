@@ -1,8 +1,8 @@
 # Progresso
-**Status:** concluído
-**Fase atual:** concluído
-**Tarefa atual:** — (plano concluído)
-**Última atualização:** 2026-10-14 15:09
+**Status:** em andamento
+**Fase atual:** 8 — Feedback dos primeiros usuários + dados
+**Tarefa atual:** 8.5 (em andamento)
+**Última atualização:** 2026-10-14 22:48
 **Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
@@ -288,3 +288,10 @@
 - Arquivos principais: apps/editor/src/{App.tsx,EditorView.tsx,ui.tsx,components/TopBar.tsx}, apps/api/src/{repo-d1.ts,app.ts,publish.ts,cdn.ts,worker.ts}, apps/demo/loja/*, e2e/tests/loja.spec.ts
 - Como testar manualmente: https://abtest-editor.hub-villa-deli.workers.dev → Novo experimento → atalho "Loja completa".
 - Observações: tempos medidos em produção — salvar ~0,5–0,7 s, publicar ~0,85 s (antes 1 s e 3,6 s).
+
+### 2026-10-14 22:48 — Tarefas 8.1–8.4 concluídas (feedback dos primeiros usuários)
+- O que foi feito: engine não reaplica operação em outro elemento enquanto o original segue na página (HTML inserido duplicava; arrastar/remover por seletor de posição andava em cadeia); edição de texto ignora nós inseridos; menu "Editar HTML"; diálogo de HTML maior; CSS/JS com botão Expandir (janela grande); Configurações saíram da barra lateral para uma janela própria (botão na barra superior) com "Escolher no site" para a meta, aviso quando falta o seletor e regra de URL nova vazia com foco.
+- Arquivos principais: packages/snippet/src/engine/apply.ts, packages/agent/src/editing.ts, apps/editor/src/{EditorView.tsx,components/SettingsPanel.tsx,components/CodePanel.tsx,components/TopBar.tsx,components/PromptDialog.tsx}
+- Como testar manualmente: inserir HTML antes de um item de lista e mexer na página (não duplica); arrastar um card para depois do terceiro (fica); Configurações → Metas → Escolher no site → clicar no botão.
+- Observações: ver D-037. "+ regra de URL" funcionava no Chromium (testado); a regra nova agora vem vazia e focada para ficar evidente.
+
