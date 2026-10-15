@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 8 — Feedback dos primeiros usuários + dados
-**Tarefa atual:** 8.5 (em andamento)
-**Última atualização:** 2026-10-14 22:48
+**Tarefa atual:** 8.6 (em andamento)
+**Última atualização:** 2026-10-14 22:52
 **Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
 
 ## Bloqueios / perguntas para os humanos
@@ -294,4 +294,10 @@
 - Arquivos principais: packages/snippet/src/engine/apply.ts, packages/agent/src/editing.ts, apps/editor/src/{EditorView.tsx,components/SettingsPanel.tsx,components/CodePanel.tsx,components/TopBar.tsx,components/PromptDialog.tsx}
 - Como testar manualmente: inserir HTML antes de um item de lista e mexer na página (não duplica); arrastar um card para depois do terceiro (fica); Configurações → Metas → Escolher no site → clicar no botão.
 - Observações: ver D-037. "+ regra de URL" funcionava no Chromium (testado); a regra nova agora vem vazia e focada para ficar evidente.
+
+### 2026-10-14 22:52 — Tarefa 8.5 concluída
+- O que foi feito: coluna `accounts.heatmap_sample_rate` (Postgres + D1), `GET/PUT /account/settings` (PUT só owner), publicação usa a taxa da conta e cai no `HEATMAP_SAMPLE_RATE` quando vazia; menu do usuário → "Configurações da conta" (owner).
+- Arquivos principais: apps/api/src/{schema,repo,repo-d1,app,publish}.ts, apps/api/drizzle/0002_*.sql, apps/api/migrations-d1/0002_account_settings.sql, apps/editor/src/{App.tsx,api.ts}
+- Como testar manualmente: logar como owner → menu do usuário → Configurações da conta → 10 → publicar → `/cdn/demo.json` traz `heatmap.sampleRate: 0.1`.
+- Observações: ver D-038. Deploy precisa de `wrangler d1 migrations apply` (já no `pnpm deploy:cf`).
 

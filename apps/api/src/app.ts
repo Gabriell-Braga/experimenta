@@ -134,6 +134,7 @@ export function createApp(deps: AppDeps) {
     '/edit-sessions',
     '/publish',
     '/heatmap',
+    '/account/settings',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
   const auth = requireAuth(repo, deps.jwtSecret);
@@ -650,6 +651,44 @@ export function createApp(deps: AppDeps) {
       const r = await deps.publish(user.accountId, user);
       if ('error' in r) return c.json({ error: r.error }, r.status);
       return c.json(r, 200);
+    },
+  );
+
+  const AccountSettingsSchema = z
+    .object({
+      /** null = padrão do servidor (HEATMAP_SAMPLE_RATE). */
+      heatmapSampleRate: z.number().min(0).max(1).nullable(),
+    })
+    .openapi('AccountSettings');
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/account/settings',
+      tags: ['conta'],
+      security,
+      summary: 'Configurações da conta (amostragem do mapa de calor)',
+      responses: { 200: json(AccountSettingsSchema, 'configurações'), ...errors },
+    }),
+    async (c) => c.json(await repo.getAccountSettings(c.get('user').accountId), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/account/settings',
+      tags: ['conta'],
+      security,
+      summary: 'Altera as configurações da conta (só owner; vale a partir da próxima publicação)',
+      request: { body: { content: { 'application/json': { schema: AccountSettingsSchema } } } },
+      responses: { 200: json(AccountSettingsSchema, 'salvo'), ...errors },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'owner')) return forbid(c);
+      const body = c.req.valid('json');
+      await repo.updateAccountSettings(user.accountId, body);
+      return c.json(body, 200);
     },
   );
 

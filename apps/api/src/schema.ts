@@ -22,6 +22,8 @@ const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull(
 export const accounts = pgTable('accounts', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  /** Fração de visitantes com captura de mapa de calor (null = padrão do servidor, HEATMAP_SAMPLE_RATE). */
+  heatmapSampleRate: real('heatmap_sample_rate'),
   createdAt: createdAt(),
 });
 

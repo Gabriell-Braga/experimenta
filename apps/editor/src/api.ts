@@ -84,6 +84,14 @@ export function saveExperiment(rec: ExperimentRecord, isNew = false): Promise<{ 
   });
 }
 
+export interface AccountSettings {
+  /** Fração 0..1; null = padrão do servidor. */
+  heatmapSampleRate: number | null;
+}
+export const getAccountSettings = () => api<AccountSettings>('/account/settings');
+export const saveAccountSettings = (s: AccountSettings) =>
+  api<AccountSettings>('/account/settings', { method: 'PUT', body: JSON.stringify(s) });
+
 export const publish = () => api<{ version: number }>('/publish', { method: 'POST' });
 
 export async function createEditSession(): Promise<string> {

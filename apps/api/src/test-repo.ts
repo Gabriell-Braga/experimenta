@@ -1,6 +1,6 @@
 // Repositório para os testes: Postgres (PGlite) por padrão, ou D1 (SQLite via node:sqlite) com REPO=d1.
 // A mesma suíte roda contra as duas implementações (vitest.config.ts).
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createDb } from './db';
 import { createRepo, type Repo } from './repo';
 import { createD1Repo, type D1Like, type D1Stmt } from './repo-d1';
@@ -9,7 +9,11 @@ import { createD1Repo, type D1Like, type D1Stmt } from './repo-d1';
 export async function nodeD1(): Promise<D1Like> {
   const { DatabaseSync } = await import('node:sqlite');
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../migrations-d1/0001_init.sql', import.meta.url), 'utf8'));
+  const dir = new URL('../migrations-d1/', import.meta.url);
+  for (const f of readdirSync(dir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort())
+    db.exec(readFileSync(new URL(f, dir), 'utf8'));
   const stmt = (sql: string, args: unknown[] = []): D1Stmt => ({
     bind: (...v) => stmt(sql, v),
     all: async <T>() => ({ results: db.prepare(sql).all(...(args as never[])) as T[] }),

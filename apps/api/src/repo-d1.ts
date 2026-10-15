@@ -371,6 +371,26 @@ export function createD1Repo(d1: D1Like): Repo {
       return !!(await first('SELECT id FROM accounts WHERE id = ?', id));
     },
 
+    async getAccountSettings(accountId) {
+      const row = await first<{ heatmap_sample_rate: number | null }>(
+        'SELECT heatmap_sample_rate FROM accounts WHERE id = ?',
+        accountId,
+      );
+      return { heatmapSampleRate: row?.heatmap_sample_rate ?? null };
+    },
+
+    async updateAccountSettings(accountId, s) {
+      await q(
+        'UPDATE accounts SET heatmap_sample_rate = ? WHERE id = ?',
+        s.heatmapSampleRate,
+        accountId,
+      ).run();
+    },
+
+    async purgeEventsBefore(cutoff) {
+      await q('DELETE FROM events WHERE received_at < ?', cutoff.getTime()).run();
+    },
+
     async insertEvents(accountId, list: TrackingEvent[]) {
       if (!list.length) return;
       const now = Date.now();

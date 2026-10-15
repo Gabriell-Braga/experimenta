@@ -4,6 +4,7 @@ import {
   ApiError,
   deleteExperiment,
   duplicateExperiment,
+  getAccountSettings,
   getExperiment,
   getToken,
   listExperiments,
@@ -11,6 +12,7 @@ import {
   login,
   logout,
   me,
+  saveAccountSettings,
   saveExperiment,
   setStatus,
   type ExperimentRecord,
@@ -133,8 +135,75 @@ function Login({ onLogin }: { onLogin(u: Me): void }) {
 
 // ---------------------------------------------------------------- Shell
 
+/** Configurações da conta (só owner): amostragem do mapa de calor. */
+function AccountSettingsModal({ open, onClose }: { open: boolean; onClose(): void }) {
+  const toast = useToast();
+  const [pct, setPct] = useState<string | null>(null); // null = carregando; '' = padrão do servidor
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setPct(null);
+    getAccountSettings().then(
+      (s) => setPct(s.heatmapSampleRate === null ? '' : String(s.heatmapSampleRate * 100)),
+      (e: Error) => toast('error', e.message),
+    );
+  }, [open, toast]);
+  const save = async () => {
+    const n = Number(pct);
+    if (pct !== '' && !(n >= 0 && n <= 100)) return toast('error', 'Use um número de 0 a 100.');
+    setBusy(true);
+    try {
+      await saveAccountSettings({ heatmapSampleRate: pct === '' ? null : n / 100 });
+      toast('success', 'Salvo. Vale a partir da próxima publicação.');
+      onClose();
+    } catch (e) {
+      toast('error', (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Configurações da conta"
+      testId="account-modal"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" loading={busy} onClick={save} data-testid="account-save">
+            Salvar
+          </Button>
+        </>
+      }
+    >
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium text-gray-700">Mapa de calor: % de visitantes com captura</span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step="any"
+          disabled={pct === null}
+          value={pct ?? ''}
+          placeholder="padrão do servidor"
+          onChange={(e) => setPct(e.target.value)}
+          className={inputCls}
+          data-testid="heatmap-rate"
+        />
+        <span className="text-xs text-gray-500">
+          0 desliga a captura. Vazio usa o padrão do servidor. Menos visitantes = menos eventos (e custo).
+        </span>
+      </label>
+    </Modal>
+  );
+}
+
 export function AppHeader({ user, children }: { user: Me; children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [account, setAccount] = useState(false);
   const initials = user.name
     .split(' ')
     .map((p) => p[0])
@@ -170,6 +239,19 @@ export function AppHeader({ user, children }: { user: Me; children?: React.React
               <br />
               Papel: <b className="text-gray-700">{user.role}</b>
             </div>
+            {user.role === 'owner' && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  setAccount(true);
+                }}
+                className="w-full rounded-lg px-3 py-2 text-left hover:bg-gray-100"
+                data-testid="account-settings"
+              >
+                Configurações da conta
+              </button>
+            )}
             <button
               role="menuitem"
               onClick={() => {
@@ -183,6 +265,7 @@ export function AppHeader({ user, children }: { user: Me; children?: React.React
           </div>
         )}
       </div>
+      <AccountSettingsModal open={account} onClose={() => setAccount(false)} />
     </header>
   );
 }

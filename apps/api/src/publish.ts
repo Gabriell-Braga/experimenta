@@ -8,7 +8,7 @@ export interface PublisherDeps {
   cdn: CdnStore;
   /** URL pública da API (validação de sessões de edição e coleta de eventos). */
   publicUrl: string;
-  /** Fração de visitantes com captura de mapa de calor (0 desliga). */
+  /** Fração padrão de visitantes com captura de mapa de calor (0 desliga); a conta pode sobrescrever. */
   heatmapSampleRate?: number;
 }
 
@@ -29,10 +29,12 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last] = await Promise.all([
+    const [all, last, settings] = await Promise.all([
       repo.loadAllExperiments(accountId),
       repo.lastPublication(accountId),
+      repo.getAccountSettings(accountId),
     ]);
+    const sampleRate = settings.heatmapSampleRate ?? heatmapSampleRate;
     const running = all.filter((e) => e.status === 'running');
 
     if (!canPublishJs(user)) {
@@ -49,7 +51,7 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       apiUrl: publicUrl,
       trackingUrl: `${publicUrl}/collect`,
       experiments: running,
-      ...(heatmapSampleRate > 0 ? { heatmap: { sampleRate: heatmapSampleRate } } : {}),
+      ...(sampleRate > 0 ? { heatmap: { sampleRate } } : {}),
     });
     await Promise.all([repo.insertPublication(accountId, config, user.id), writeAccountFiles(cdn, config)]);
     return { version: config.version };

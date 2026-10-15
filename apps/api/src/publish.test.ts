@@ -107,6 +107,24 @@ describe('publicação', () => {
     await save('editor', exp('exp_js', 'running', 'console.log(2)'));
     expect((await call('/publish', 'editor', { method: 'POST' })).status).toBe(403);
   });
+
+  test('amostragem do mapa de calor por conta: só owner altera; vale na próxima publicação', async () => {
+    const put = (as: string, body: unknown) =>
+      call('/account/settings', as, { method: 'PUT', body: JSON.stringify(body) });
+    const published = () =>
+      PublishedConfigSchema.parse(JSON.parse(readFileSync(join(cdnDir, 'demo.json'), 'utf8')));
+    expect(await (await call('/account/settings', 'viewer')).json()).toEqual({ heatmapSampleRate: null });
+    expect((await put('editor', { heatmapSampleRate: 0.5 })).status).toBe(403);
+    expect((await put('owner', { heatmapSampleRate: 2 })).status).toBe(400);
+    expect((await put('owner', { heatmapSampleRate: 0.25 })).status).toBe(200);
+    expect(await (await call('/account/settings', 'viewer')).json()).toEqual({ heatmapSampleRate: 0.25 });
+    await call('/publish', 'owner', { method: 'POST' });
+    expect(published().heatmap).toEqual({ sampleRate: 0.25 });
+    // null volta ao padrão do servidor (0 neste teste → sem captura).
+    await put('owner', { heatmapSampleRate: null });
+    await call('/publish', 'owner', { method: 'POST' });
+    expect(published().heatmap).toBeUndefined();
+  });
 });
 
 describe('coleta de eventos', () => {

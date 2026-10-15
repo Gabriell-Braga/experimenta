@@ -118,4 +118,32 @@ describe('repositório', () => {
     expect((await repo.lastPublication(a.id))?.version).toBe(1);
     expect(await repo.lastPublication(b.id)).toBeUndefined();
   });
+
+  test('configurações da conta e expurgo de eventos antigos', async () => {
+    expect(await repo.getAccountSettings(a.id)).toEqual({ heatmapSampleRate: null });
+    await repo.updateAccountSettings(a.id, { heatmapSampleRate: 0.1 });
+    expect(await repo.getAccountSettings(a.id)).toEqual({ heatmapSampleRate: 0.1 });
+    expect(await repo.getAccountSettings(b.id)).toEqual({ heatmapSampleRate: null });
+
+    const ev = (id: string) =>
+      ({
+        type: 'exposure',
+        eventId: id,
+        ts: Date.now(),
+        accountId: a.id,
+        visitorId: 'v',
+        url: 'https://a.com/',
+        experimentId: 'exp_a1',
+        experimentKey: 'hero',
+        variationId: 'exp_a1_v1',
+        variationKey: 'b',
+      }) as const;
+    await repo.insertEvents(a.id, [ev('e1'), ev('e2')]);
+    const exposures = async () => (await repo.experimentHealth(a.id, 'exp_a1')).exposures['exp_a1_v1'] ?? 0;
+    expect(await exposures()).toBe(2);
+    await repo.purgeEventsBefore(new Date(Date.now() - 86_400_000)); // corte no passado: nada sai
+    expect(await exposures()).toBe(2);
+    await repo.purgeEventsBefore(new Date(Date.now() + 60_000));
+    expect(await exposures()).toBe(0);
+  });
 });

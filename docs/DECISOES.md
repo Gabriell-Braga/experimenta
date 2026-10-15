@@ -209,3 +209,6 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Edição inline/“Editar HTML” capturam o innerHTML sem os nós `data-abt-inserted` (copiá-los gerava a duplicação na própria setHTML).
 - Configurações (status, tráfego, pesos, páginas, metas) viraram janela própria aberta pela barra superior: separadas da edição visual, como pedido. A meta de clique/formulário pode ser escolhida clicando no site (o próximo elemento selecionado preenche o seletor).
 
+## D-038 — Amostragem do mapa de calor por conta
+- Por conta, não por experimento: a captura de cliques/scroll não pertence a um experimento (ver D-029) e o custo de eventos é da conta. `accounts.heatmap_sample_rate` (0..1, NULL = padrão do servidor `HEATMAP_SAMPLE_RATE`); só owner altera; vale a partir da próxima publicação (a taxa vai na config publicada).
+

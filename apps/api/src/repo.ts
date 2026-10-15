@@ -1,5 +1,5 @@
 import { ExperimentSchema, type Experiment, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
-import { and, asc, desc, eq, inArray, max, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm';
 import type { Db } from './db';
 import {
   accounts,
@@ -28,6 +28,11 @@ export interface ExperimentRecord {
 }
 
 export class NotFoundError extends Error {}
+
+export interface AccountSettings {
+  /** null = padrão do servidor. */
+  heatmapSampleRate: number | null;
+}
 
 /** Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. */
 export function normalizePage(url: string): string {
@@ -346,6 +351,29 @@ export function createRepo(db: Db) {
     async accountExists(id: string): Promise<boolean> {
       const [row] = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, id));
       return !!row;
+    },
+
+    async getAccountSettings(accountId: string): Promise<AccountSettings> {
+      const [row] = await db
+        .select({ heatmapSampleRate: accounts.heatmapSampleRate })
+        .from(accounts)
+        .where(eq(accounts.id, accountId));
+      return { heatmapSampleRate: row?.heatmapSampleRate ?? null };
+    },
+
+    async updateAccountSettings(accountId: string, s: AccountSettings): Promise<void> {
+      await db
+        .update(accounts)
+        .set({ heatmapSampleRate: s.heatmapSampleRate })
+        .where(eq(accounts.id, accountId));
+    },
+
+    /**
+     * Retenção: apaga eventos recebidos antes de `cutoff`. Manutenção do sistema (todas as contas) —
+     * única consulta sem filtro de conta, de propósito; não é exposta em rota.
+     */
+    async purgeEventsBefore(cutoff: Date): Promise<void> {
+      await db.delete(events).where(lt(events.receivedAt, cutoff));
     },
 
     async insertEvents(accountId: string, list: TrackingEvent[]): Promise<void> {

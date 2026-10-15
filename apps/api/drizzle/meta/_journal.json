@@ -15,6 +15,13 @@
       "when": 1791963901759,
       "tag": "0001_demonic_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792028939914,
+      "tag": "0002_overjoyed_rattler",
+      "breakpoints": true
     }
   ]
 }

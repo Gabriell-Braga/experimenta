@@ -1,0 +1,1 @@
+ALTER TABLE "accounts" ADD COLUMN "heatmap_sample_rate" real;

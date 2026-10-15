@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openEditor } from '../editor';
+import { login, openEditor } from '../editor';
 
 test('barra superior: edição pelo site, abas, desfazer/refazer, dispositivo, salvar e recarregar', async ({
   page,
@@ -79,4 +79,22 @@ test('prompt do agent abre diálogo no app (inserir HTML)', async ({ page }) => 
   await page.getByTestId('prompt-input').fill('<p class="selo">Frete grátis hoje</p>');
   await page.getByTestId('prompt-ok').click();
   await expect(site.locator('.selo')).toHaveText('Frete grátis hoje');
+});
+
+test('owner ajusta a amostragem do mapa de calor da conta', async ({ page }) => {
+  await login(page);
+  const open = async () => {
+    await page.getByTestId('user-menu').click();
+    await page.getByTestId('account-settings').click();
+  };
+  await open();
+  // 100% = mesmo valor do padrão de dev, para não afetar testes em paralelo.
+  await page.getByTestId('heatmap-rate').fill('100');
+  await page.getByTestId('account-save').click();
+  await expect(page.getByTestId('notice').last()).toContainText('próxima publicação');
+  await open();
+  await expect(page.getByTestId('heatmap-rate')).toHaveValue('100');
+  await page.getByTestId('heatmap-rate').fill('');
+  await page.getByTestId('account-save').click();
+  await expect(page.getByTestId('account-modal')).not.toBeVisible();
 });
