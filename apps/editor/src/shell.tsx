@@ -23,6 +23,7 @@ import {
   Video,
   X,
   type LucideIcon,
+  Plug,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
@@ -79,7 +80,13 @@ export const NAV: NavGroup[] = [
       { view: 'segments', label: 'Segmentos', icon: Boxes },
     ],
   },
-  { label: 'Configurar', items: [{ view: 'install', label: 'Instalação', icon: Code2 }] },
+  {
+    label: 'Configurar',
+    items: [
+      { view: 'install', label: 'Instalação', icon: Code2 },
+      { view: 'integrations', label: 'Integrações', icon: Plug },
+    ],
+  },
 ];
 
 /** Configurações da conta (só owner): amostragem do mapa de calor. */

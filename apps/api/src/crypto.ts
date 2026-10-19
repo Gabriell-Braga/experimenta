@@ -47,6 +47,24 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return diff === 0;
 }
 
+export async function sha256hex(text: string): Promise<string> {
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(text)));
+  return [...d].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Assinatura HMAC-SHA256 (hex) — webhooks. */
+export async function hmacHex(secret: string, body: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(body)));
+  return [...sig].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function sha1(text: string): Promise<string> {
   return b64url(new Uint8Array(await crypto.subtle.digest('SHA-1', enc.encode(text))));
 }

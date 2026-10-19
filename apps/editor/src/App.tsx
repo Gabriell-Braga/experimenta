@@ -13,6 +13,7 @@ import { FunnelsPage } from './pages/Funnels';
 import { JourneysPage } from './pages/Journeys';
 import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
+import { IntegrationsPage } from './pages/Integrations';
 import { Login } from './pages/Login';
 import { PopupsPage } from './pages/Popups';
 import { ProfilePage, ProfilesPage } from './pages/Profiles';
@@ -35,6 +36,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
     />
   ),
   install: (user) => <InstallPage user={user} />,
+  integrations: (user) => <IntegrationsPage user={user} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
   popups: (user) => <PopupsPage user={user} />,

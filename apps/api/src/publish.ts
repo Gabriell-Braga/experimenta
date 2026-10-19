@@ -3,6 +3,7 @@ import {
   type Audience,
   type Experiment,
   type Flag,
+  type Integrations,
   type SdkConfig,
   type Popup,
   type RecoWidget,
@@ -40,16 +41,19 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last, settings, audiences, popupList, surveyList, recoList, flags] = await Promise.all([
-      repo.loadAllExperiments(accountId),
-      repo.lastPublication(accountId),
-      repo.getAccountSettings(accountId),
-      repo.listEntities<Audience>(accountId, 'audience'),
-      repo.listEntities<Popup>(accountId, 'popup'),
-      repo.listEntities<Survey>(accountId, 'survey'),
-      repo.listEntities<RecoWidget>(accountId, 'reco'),
-      repo.listEntities<Flag>(accountId, 'flag'),
-    ]);
+    const [all, last, settings, audiences, popupList, surveyList, recoList, flags, integ] = await Promise.all(
+      [
+        repo.loadAllExperiments(accountId),
+        repo.lastPublication(accountId),
+        repo.getAccountSettings(accountId),
+        repo.listEntities<Audience>(accountId, 'audience'),
+        repo.listEntities<Popup>(accountId, 'popup'),
+        repo.listEntities<Survey>(accountId, 'survey'),
+        repo.listEntities<RecoWidget>(accountId, 'reco'),
+        repo.listEntities<Flag>(accountId, 'flag'),
+        repo.listEntities<Integrations>(accountId, 'integrations'),
+      ],
+    );
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');
     const popups = popupList.filter((p) => p.data.status === 'running');
@@ -83,6 +87,7 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       ...(popups.length ? { popups: popups.map((p) => ({ id: p.id, name: p.name, ...p.data })) } : {}),
       ...(surveys.length ? { surveys: surveys.map((s) => ({ id: s.id, name: s.name, ...s.data })) } : {}),
       ...(recos.length ? { recos: recos.map((r) => ({ id: r.id, name: r.name, ...r.data })) } : {}),
+      ...(integ[0] && (integ[0].data.ga4 || integ[0].data.gtm) ? { integrations: integ[0].data } : {}),
       ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
     // SDK server-side: flags + campanhas server-side, num arquivo próprio (o site não precisa dele).

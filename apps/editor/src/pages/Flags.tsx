@@ -13,7 +13,7 @@ const OPS: [Flag['rules'][number]['op'], string][] = [
   ['lte', '≤'],
 ];
 
-function Switch({ on, onChange, label }: { on: boolean; onChange(v: boolean): void; label: string }) {
+export function Switch({ on, onChange, label }: { on: boolean; onChange(v: boolean): void; label: string }) {
   return (
     <button
       role="switch"

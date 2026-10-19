@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AudienceSchema, PopupSchema, RecoWidgetSchema, SurveySchema } from './entities';
+import { AudienceSchema, IntegrationsSchema, PopupSchema, RecoWidgetSchema, SurveySchema } from './entities';
 import { ExperimentSchema } from './experiment';
 
 /** JSON publicado na CDN por conta (`/cdn/<accountId>.json`). Só experimentos em execução. */
@@ -19,6 +19,8 @@ export const PublishedConfigSchema = z.object({
   surveys: z.array(SurveySchema.extend({ id: z.string(), name: z.string() })).optional(),
   /** Vitrines de recomendação (modelo em `<conta>.reco.json` na mesma pasta). */
   recos: z.array(RecoWidgetSchema.extend({ id: z.string(), name: z.string() })).optional(),
+  /** GA4 / GTM no navegador. */
+  integrations: IntegrationsSchema.optional(),
   /** Mapa de calor: fração de visitantes amostrados (0 = desligado). */
   heatmap: z
     .object({

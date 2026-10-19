@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 14
-**Tarefa atual:** 14.4 (em andamento desde 2026-10-19 18:59)
-**Última atualização:** 2026-10-19 18:59
+**Fase atual:** 15
+**Tarefa atual:** 15.1 (em andamento desde 2026-10-19 19:10)
+**Última atualização:** 2026-10-19 19:10
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -465,3 +465,9 @@
 - Arquivos principais: packages/sdk/*, packages/shared/src/{entities,sdk-config}.ts, apps/api/src/publish.ts, apps/editor/src/pages/Flags.tsx
 - Como testar manualmente: Testes → Feature flags → Nova → /cdn/demo.sdk.json.
 - Observações: ver D-062.
+
+### 2026-10-19 19:10 — Tarefa 14.4 concluída
+- O que foi feito: Chaves de API (hash, papel, revogação), webhooks assinados (eventos e publicação, teste), GA4/GTM no snippet; tela Configurar → Integrações
+- Arquivos principais: apps/api/src/{auth,webhooks}.ts, apps/api/src/routes/integrations.ts, packages/snippet/src/integrations.ts, apps/editor/src/pages/Integrations.tsx
+- Como testar manualmente: Integrações: criar chave e chamar curl -H 'Authorization: Bearer <chave>' localhost:4000/experiments; webhook para webhook.site e Enviar teste; ligar GA4 e ver gtag no console do site
+- Observações: Snippet 9,3 KB gzip. Retry de webhook fica para quando houver fila.

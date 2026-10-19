@@ -2,7 +2,9 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { ENTITY_SCHEMAS, type EntityKind } from '@abtest/shared';
 import { forbid, hasRole } from '../auth';
 import { errors, json, Report, security, type Api } from '../http';
+import { randomToken } from '../crypto';
 import { NotFoundError, type Repo } from '../repo';
+import { forgetWebhooks } from '../webhooks';
 
 export const ENTITY_PATHS = ['/entities/*'];
 
@@ -18,6 +20,9 @@ function validate(
   data: unknown,
 ): { ok: true; data: unknown } | { ok: false; error: string } {
   const r = ENTITY_SCHEMAS[kind].safeParse(data);
+  // Webhook sem segredo ganha um gerado aqui (o destino usa para validar a assinatura).
+  if (r.success && kind === 'webhook' && !(r.data as { secret: string }).secret)
+    (r.data as { secret: string }).secret = `whsec_${randomToken(24)}`;
   return r.success
     ? { ok: true, data: r.data }
     : { ok: false, error: r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
@@ -67,6 +72,7 @@ export function entityRoutes(app: Api, repo: Repo) {
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
+      forgetWebhooks(user.accountId); // escrita: webhooks podem ter mudado
       const { kind } = c.req.valid('param');
       const body = c.req.valid('json');
       const v = validate(kind, body.data);
@@ -93,6 +99,7 @@ export function entityRoutes(app: Api, repo: Repo) {
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
+      forgetWebhooks(user.accountId); // escrita: webhooks podem ter mudado
       const { kind, id } = c.req.valid('param');
       const body = c.req.valid('json');
       const v = validate(kind, body.data);
@@ -119,6 +126,7 @@ export function entityRoutes(app: Api, repo: Repo) {
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
+      forgetWebhooks(user.accountId); // escrita: webhooks podem ter mudado
       const { kind, id } = c.req.valid('param');
       return (await repo.deleteEntity(user.accountId, kind, id))
         ? c.body(null, 204)

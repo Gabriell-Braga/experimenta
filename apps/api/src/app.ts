@@ -12,6 +12,8 @@ import { behavior } from './analytics/behavior';
 import { normalizePage, NotFoundError, type Repo, type User } from './repo';
 import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
+import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
+import { dispatchEvents, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
 import { reportRoutes } from './routes/report';
@@ -113,7 +115,10 @@ export function createApp(deps: AppDeps) {
     const byAccount = new Map<string, TrackingEvent[]>();
     for (const e of valid) byAccount.set(e.accountId, [...(byAccount.get(e.accountId) ?? []), e]);
     for (const [acc, list] of byAccount)
-      if (await repo.accountExists(acc)) await repo.insertEvents(acc, list);
+      if (await repo.accountExists(acc)) {
+        await repo.insertEvents(acc, list);
+        background(c, dispatchEvents(repo, acc, list));
+      }
     return c.body(null, 204);
   });
 
@@ -137,6 +142,7 @@ export function createApp(deps: AppDeps) {
     ...RECORDING_PATHS,
     ...ENTITY_PATHS,
     ...CDP_PATHS,
+    ...INTEGRATION_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
@@ -672,6 +678,7 @@ export function createApp(deps: AppDeps) {
       if (!deps.publish) return c.json({ error: 'publicação indisponível' }, 400);
       const r = await deps.publish(user.accountId, user);
       if ('error' in r) return c.json({ error: r.error }, r.status);
+      background(c, dispatchPublish(repo, user.accountId, r.version));
       return c.json(r, 200);
     },
   );
@@ -719,6 +726,7 @@ export function createApp(deps: AppDeps) {
   recordingRoutes(app, repo);
   entityRoutes(app, repo);
   cdpRoutes(app, repo, deps.cdn);
+  integrationRoutes(app, repo);
 
   app.openapi(
     createRoute({

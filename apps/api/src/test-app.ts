@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp, type AppDeps } from './app';
 import { fsCdnStore } from './cdn-fs';
+import { createPublisher } from './publish';
 import { DEMO, seedDev } from './seed';
 import { createSessionStore } from './sessions';
 import { testRepo } from './test-repo';
@@ -16,9 +17,11 @@ export async function setupApp(extra: Partial<AppDeps> = {}) {
   await seedDev(repo);
   const cdnDir = mkdtempSync(join(tmpdir(), 'abt-cdn-'));
   writeFileSync(join(cdnDir, 'abt.js'), '/*runtime*/');
+  const cdn = extra.cdn ?? fsCdnStore(cdnDir);
   const app = createApp({
     repo,
-    cdn: fsCdnStore(cdnDir),
+    cdn,
+    publish: createPublisher({ repo, cdn, publicUrl: 'http://cdn.test' }),
     editorOrigins: [APP_ORIGIN],
     jwtSecret: 'teste',
     sessions: createSessionStore(),

@@ -315,3 +315,22 @@ export async function downloadFile(path: string, filename: string) {
   a.download = filename;
   a.click();
 }
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  role: 'viewer' | 'editor';
+  createdAt: string;
+}
+export const apiKeys = {
+  list: () => api<ApiKey[]>('/account/api-keys'),
+  create: (name: string, role: ApiKey['role']) =>
+    api<{ id: string; key: string }>('/account/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name, role }),
+    }),
+  revoke: (id: string) => api<void>(`/account/api-keys/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+export const testWebhook = (id: string) =>
+  api<{ status: number }>(`/webhooks/${encodeURIComponent(id)}/test`, { method: 'POST' });

@@ -6,6 +6,7 @@ import { bootEditor, editToken } from './editor';
 import { installGoals } from './goals';
 import { engageBoot, loadBundle } from './engage';
 import { insightsBoot, sampled } from './insights';
+import { integrationsAdapter } from './integrations';
 import { readForce, showBadge } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
@@ -47,6 +48,7 @@ if (config && token) {
 } else if (config) {
   const forced = readForce(window);
   const tracker = createTracker(window, config.trackingUrl);
+  if (config.integrations) tracker.addAdapter(integrationsAdapter(window, config.integrations));
   const rt = start(window, config, { forced, sink: tracker.send });
   if (rt) {
     const goal = installGoals(window, rt);

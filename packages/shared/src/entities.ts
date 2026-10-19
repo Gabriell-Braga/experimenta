@@ -238,6 +238,36 @@ export const FlagSchema = z.object({
 });
 export type Flag = z.infer<typeof FlagSchema>;
 
+/** Tipos de evento que podem disparar webhook. */
+export const WEBHOOK_EVENTS = [
+  'conversion',
+  'survey',
+  'form',
+  'engage',
+  'identify',
+  'event',
+  'publish',
+] as const;
+
+/** Webhook: POST JSON assinado (HMAC-SHA256 em `X-Abt-Signature`) para cada evento escolhido. */
+export const WebhookSchema = z.object({
+  url: z.string().url(),
+  events: z.array(z.enum(WEBHOOK_EVENTS)).min(1),
+  enabled: z.boolean().default(true),
+  /** Gerado pela API quando vazio; o destino valida a assinatura com ele. */
+  secret: z.string().default(''),
+});
+export type Webhook = z.infer<typeof WebhookSchema>;
+
+/** Integrações nativas no navegador (publicadas na config). */
+export const IntegrationsSchema = z.object({
+  /** Envia `experiment_impression` para o GA4 (gtag) a cada exposição. */
+  ga4: z.boolean().default(false),
+  /** Empurra `abt_exposure` / `abt_conversion` no dataLayer do Google Tag Manager. */
+  gtm: z.boolean().default(false),
+});
+export type Integrations = z.infer<typeof IntegrationsSchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
@@ -246,5 +276,7 @@ export const ENTITY_SCHEMAS = {
   reco: RecoWidgetSchema,
   segment: SegmentSchema,
   flag: FlagSchema,
+  webhook: WebhookSchema,
+  integrations: IntegrationsSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;
