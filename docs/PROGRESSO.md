@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 13
-**Tarefa atual:** 13.2 (em andamento desde 2026-10-19 15:17)
-**Última atualização:** 2026-10-19 15:17
+**Tarefa atual:** 13.3 (em andamento desde 2026-10-19 15:19)
+**Última atualização:** 2026-10-19 15:19
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -419,3 +419,9 @@
 - Arquivos principais: packages/shared/src/entities.ts, packages/snippet/src/{audience,data,runtime,insights,main}.ts, packages/insights/src/heatmap.ts, apps/api/src/publish.ts, apps/editor/src/{pages/Audiences.tsx,components/SettingsPanel.tsx}
 - Como testar manualmente: Dados → Audiências → Nova; abrir experimento → Configurações → marcar a audiência → Publicar.
 - Observações: ver D-055. Snippet 8,5 KB.
+
+### 2026-10-19 15:19 — Tarefa 13.2 concluída
+- O que foi feito: renderTemplate/renderOperations no snippet com escape por contexto (HTML, URL, evento), aplicados na ativação da variação; dica no painel de texto.
+- Arquivos principais: packages/snippet/src/dynamic.ts, apps/editor/src/components/PropertiesPanel.tsx
+- Como testar manualmente: Texto da variação: 'Olá, {{attr.nome|visitante}}' → abq.push(['set',{nome:'Ana'}]) no site.
+- Observações: ver D-056. Snippet 8,9 KB.

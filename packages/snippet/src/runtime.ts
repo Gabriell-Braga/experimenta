@@ -3,6 +3,7 @@ import { hide } from './antiflicker';
 import { assign, loadAssignments, saveAssignments } from './bucket';
 import { matchAudience } from './audience';
 import { loadProfile, notePage, saveProfile, type Profile } from './data';
+import { renderOperations } from './dynamic';
 import { applyOperations, type ApplyHandle } from './engine/apply';
 import { detectDevice, getVisitor, isBot, randomId, type Visitor } from './env';
 import { matchSegmentation } from './segment';
@@ -147,7 +148,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
         exp.antiFlicker.timeoutMs,
       );
       a.cleanup.push(af.release);
-      a.handle = applyOperations(variation.operations, {
+      a.handle = applyOperations(renderOperations(variation.operations, win, profile), {
         root: doc,
         timeoutMs: exp.antiFlicker.timeoutMs,
         persist: true,

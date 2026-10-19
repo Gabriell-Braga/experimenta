@@ -303,3 +303,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - A publicação leva só as audiências usadas por experimentos publicados. Audiência ausente (excluída depois) = ninguém entra (mais seguro que liberar para todos); a interface avisa.
 - Geolocalização por IP ficou de fora: a config é estática por conta (CDN) e não conhece o IP do visitante.
 - Espaço no snippet: a captura de mapa de calor/frustração/movimento saiu do runtime para o `insights.js` (carregado só para amostrados). Runtime com audiências: 8,5 KB gzip (era 9,3 KB antes da mudança). Custo: cliques nos primeiros milissegundos antes do insights.js carregar não entram no mapa de calor (aceito).
+
+## D-056 — Conteúdo dinâmico (fase 13.2)
+- Tokens `{{fonte.chave|padrão}}` em setText/setHTML/insertHTML/setAttribute, resolvidos no navegador na ativação: `attr` (atributos do visitante), `query` (URL), `utm` (URL ou 1ª visita), `cookie`, `js` (variável global com pontos).
+- Segurança: parâmetros de URL são controlados por quem envia o link. Em HTML o valor vira entidades; em atributos de URL (`href`, `src`, `action`…) vai com `encodeURIComponent` (bloqueia `javascript:`); atributos de evento (`on*`) nunca recebem dados; em texto (`textContent`) não há risco.
+- O editor mostra o token cru (o visitante real é que tem os dados); dica de uso no painel de texto.

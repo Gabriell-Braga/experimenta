@@ -147,6 +147,18 @@ export function PropertiesPanel({ info, operations, onUpsert, onSelectSelector }
               if (e.target.value !== cur) onUpsert({ type: 'setText', target, value: e.target.value });
             }}
           />
+          <details className="text-xs text-gray-500">
+            <summary className="cursor-pointer font-mono text-[11px]">conteúdo dinâmico</summary>
+            <p className="mt-1">
+              Personalize com dados do visitante:{' '}
+              <code className="font-mono">{'{{attr.nome|visitante}}'}</code>,{' '}
+              <code className="font-mono">{'{{query.cupom}}'}</code>,{' '}
+              <code className="font-mono">{'{{utm.utm_campaign}}'}</code>,{' '}
+              <code className="font-mono">{'{{cookie.cidade}}'}</code>,{' '}
+              <code className="font-mono">{'{{js.usuario.plano}}'}</code>. O texto depois de{' '}
+              <code className="font-mono">|</code> é o padrão. Vale também em HTML (escapado) e atributos.
+            </p>
+          </details>
         </Section>
       )}
 
