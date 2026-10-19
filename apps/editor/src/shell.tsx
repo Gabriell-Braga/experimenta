@@ -24,6 +24,7 @@ import {
   X,
   type LucideIcon,
   Plug,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
@@ -42,6 +43,7 @@ export interface NavGroup {
 
 /** Menu lateral por módulo. `tela:tipo` filtra a lista de campanhas por tipo. Cada tela entra quando fica pronta. */
 export const NAV: NavGroup[] = [
+  { label: 'Visão geral', items: [{ view: 'home', label: 'Painel', icon: LayoutDashboard }] },
   {
     label: 'Testes',
     items: [

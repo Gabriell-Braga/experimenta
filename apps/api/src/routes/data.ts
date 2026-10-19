@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { Funnel, Survey } from '@abtest/shared';
 import { cohortsReport } from '../analytics/cohorts';
+import { dashboard, DASHBOARD_TYPES } from '../analytics/dashboard';
 import { engageReport } from '../analytics/engage';
 import { surveyReport } from '../analytics/surveys';
 import { formsReport } from '../analytics/forms';
@@ -16,6 +17,43 @@ export const DATA_PATHS = ['/analytics/*', '/events'];
 
 /** Coleta de dados (tarefa 9.2): visão geral do período e fluxo de eventos recentes. */
 export function dataRoutes(app: Api, repo: Repo) {
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/dashboard',
+      tags: ['relatórios'],
+      security,
+      summary:
+        'Painel geral: tráfego (com variação vs período anterior), experimentos em execução, comportamento, formulários, engajamento e perfis',
+      request: { query: PeriodQuery },
+      responses: { 200: json(Report, 'painel'), ...errors },
+    }),
+    async (c) => {
+      const accountId = c.get('user').accountId;
+      const range = period(c.req.valid('query'));
+      const prevFrom = new Date(2 * range.from.getTime() - range.to.getTime());
+      const [all, list] = await Promise.all([
+        repo.listEvents(accountId, { from: prevFrom, to: range.to, types: [...DASHBOARD_TYPES] }),
+        repo.listExperiments(accountId),
+      ]);
+      const running = (
+        await Promise.all(
+          list.filter((e) => e.status === 'running').map((e) => repo.getExperiment(accountId, e.id)),
+        )
+      ).flatMap((r) => (r ? [r.experiment] : []));
+      const from = range.from.getTime();
+      return c.json(
+        dashboard(
+          all.filter((e) => e.ts >= from),
+          all.filter((e) => e.ts < from),
+          range,
+          running,
+        ),
+        200,
+      );
+    },
+  );
+
   app.openapi(
     createRoute({
       method: 'get',

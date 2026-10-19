@@ -185,6 +185,29 @@ export interface Overview {
   devices: Record<string, number>;
   referrers: { key: string; count: number }[];
 }
+/** Painel geral (GET /analytics/dashboard). */
+export interface Dashboard {
+  traffic: Overview['totals'] & {
+    deltas: Record<'visitors' | 'sessions' | 'pageviews' | 'conversions' | 'revenue', number | null>;
+    series: { day: string; visitors: number }[];
+    devices: Record<string, number>;
+  };
+  experiments: {
+    id: string;
+    name: string;
+    type: string;
+    visitors: number;
+    goal: string | null;
+    leader: { name: string; lift: number | null; probBeatControl: number | null; verdict: Verdict } | null;
+    srm: boolean;
+    daysRemaining: number | null;
+  }[];
+  behavior: { rage: number; dead: number; avgScroll: number | null; worstPage: string | null };
+  forms: { landed: number; interacted: number; submitted: number; completion: number | null };
+  engage: { views: number; clicks: number; submits: number; surveyResponses: number };
+  profiles: { identified: number; multiDevice: number };
+}
+export const getDashboard = (days: number) => query<Dashboard>('/analytics/dashboard', { days });
 export const getOverview = (days: number) => query<Overview>('/analytics/overview', { days });
 export const listEvents = (
   p: { type?: string; visitorId?: string; sessionId?: string; limit?: number } = {},

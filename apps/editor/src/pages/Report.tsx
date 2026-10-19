@@ -42,7 +42,7 @@ const VERDICT: Record<Verdict, [string, string]> = {
   baseline: ['Base', 'bg-gray-100 text-gray-500'],
 };
 
-function VerdictTag({ v }: { v: Verdict }) {
+export function VerdictTag({ v }: { v: Verdict }) {
   const [label, cls] = VERDICT[v];
   return (
     <span

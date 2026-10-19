@@ -5,6 +5,7 @@ import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
 import { AudiencesPage } from './pages/Audiences';
 import { CohortsPage } from './pages/Cohorts';
+import { DashboardPage } from './pages/Dashboard';
 import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
 import { FlagsPage } from './pages/Flags';
@@ -35,6 +36,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
       type={(r.params.get('type') as CampaignType) || undefined}
     />
   ),
+  home: () => <DashboardPage />,
   install: (user) => <InstallPage user={user} />,
   integrations: (user) => <IntegrationsPage user={user} />,
   events: () => <EventsPage />,

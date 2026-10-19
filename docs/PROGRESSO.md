@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 15
-**Tarefa atual:** 15.1 (em andamento desde 2026-10-19 19:10)
-**Última atualização:** 2026-10-19 19:10
+**Tarefa atual:** 15.2 (em andamento desde 2026-10-19 19:17)
+**Última atualização:** 2026-10-19 19:17
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -471,3 +471,9 @@
 - Arquivos principais: apps/api/src/{auth,webhooks}.ts, apps/api/src/routes/integrations.ts, packages/snippet/src/integrations.ts, apps/editor/src/pages/Integrations.tsx
 - Como testar manualmente: Integrações: criar chave e chamar curl -H 'Authorization: Bearer <chave>' localhost:4000/experiments; webhook para webhook.site e Enviar teste; ligar GA4 e ver gtag no console do site
 - Observações: Snippet 9,3 KB gzip. Retry de webhook fica para quando houver fila.
+
+### 2026-10-19 19:17 — Tarefa 15.1 concluída
+- O que foi feito: Painel geral com tráfego e variação vs período anterior, testes no ar com líder/SRM, frustração, scroll, formulários, engajamento, perfis e dispositivos
+- Arquivos principais: apps/api/src/analytics/dashboard.ts, apps/api/src/routes/data.ts, apps/editor/src/pages/Dashboard.tsx
+- Como testar manualmente: pnpm seed:data e abrir ?view=home; trocar período 7/30/90 dias; clicar num teste abre o relatório
+- Observações: Uma leitura de eventos (até 50 mil) cobre os dois períodos.
