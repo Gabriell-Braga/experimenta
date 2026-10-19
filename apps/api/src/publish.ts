@@ -2,6 +2,8 @@ import {
   PublishedConfigSchema,
   type Audience,
   type Experiment,
+  type Flag,
+  type SdkConfig,
   type Popup,
   type RecoWidget,
   type Survey,
@@ -38,7 +40,7 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last, settings, audiences, popupList, surveyList, recoList] = await Promise.all([
+    const [all, last, settings, audiences, popupList, surveyList, recoList, flags] = await Promise.all([
       repo.loadAllExperiments(accountId),
       repo.lastPublication(accountId),
       repo.getAccountSettings(accountId),
@@ -46,6 +48,7 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       repo.listEntities<Popup>(accountId, 'popup'),
       repo.listEntities<Survey>(accountId, 'survey'),
       repo.listEntities<RecoWidget>(accountId, 'reco'),
+      repo.listEntities<Flag>(accountId, 'flag'),
     ]);
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');
@@ -82,9 +85,21 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       ...(recos.length ? { recos: recos.map((r) => ({ id: r.id, name: r.name, ...r.data })) } : {}),
       ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
+    // SDK server-side: flags + campanhas server-side, num arquivo próprio (o site não precisa dele).
+    const sdk: SdkConfig = {
+      accountId,
+      version: config.version,
+      publishedAt: config.publishedAt,
+      trackingUrl: config.trackingUrl,
+      flags: flags.map((f) => f.data),
+      experiments: running
+        .filter((e) => e.type === 'server')
+        .map(({ id, key, traffic, variations, goals }) => ({ id, key, traffic, variations, goals })),
+    };
     await Promise.all([
       repo.insertPublication(accountId, config, user.id),
       writeAccountFiles(cdn, config),
+      cdn.put(`${accountId}.sdk.json`, JSON.stringify(sdk)),
       // Vitrine no ar precisa do modelo na CDN antes do primeiro visitante.
       recos.length ? rebuildReco(repo, cdn, accountId) : null,
     ]);

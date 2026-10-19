@@ -215,6 +215,29 @@ export const SegmentSchema = z.object({
 });
 export type Segment = z.infer<typeof SegmentSchema>;
 
+/**
+ * Feature flag: ligada/desligada, liberada para uma fração dos usuários (rollout determinístico por usuário),
+ * com regras de atributo (todas precisam bater) e variáveis entregues quando ativa. Avaliada pelo SDK.
+ */
+export const FlagSchema = z.object({
+  key: z.string().regex(/^[a-z0-9][a-z0-9-_.]*$/, 'use minúsculas, números, - _ .'),
+  description: z.string().max(300).default(''),
+  enabled: z.boolean().default(false),
+  rollout: z.number().min(0).max(100).default(100),
+  rules: z
+    .array(
+      z.object({
+        attribute: z.string().min(1),
+        op: z.enum(['eq', 'neq', 'in', 'contains', 'gte', 'lte']),
+        /** `in`: valores separados por vírgula. */
+        value: z.string(),
+      }),
+    )
+    .default([]),
+  variables: z.record(z.unknown()).default({}),
+});
+export type Flag = z.infer<typeof FlagSchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
@@ -222,5 +245,6 @@ export const ENTITY_SCHEMAS = {
   survey: SurveySchema,
   reco: RecoWidgetSchema,
   segment: SegmentSchema,
+  flag: FlagSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;

@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 14
-**Tarefa atual:** 14.3 (em andamento desde 2026-10-19 18:51)
-**Última atualização:** 2026-10-19 18:51
+**Tarefa atual:** 14.4 (em andamento desde 2026-10-19 18:59)
+**Última atualização:** 2026-10-19 18:59
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -459,3 +459,9 @@
 - Arquivos principais: packages/shared/src/entities.ts, apps/api/src/{analytics/profiles.ts,routes/cdp.ts}, apps/editor/src/pages/Segments.tsx
 - Como testar manualmente: Dados → Segmentos → Novo (ex.: Atributo plano = pro) → CSV.
 - Observações: ver D-061.
+
+### 2026-10-19 18:59 — Tarefa 14.3 concluída
+- O que foi feito: Entidade flag, publicação de <conta>.sdk.json, packages/sdk (isEnabled, getVariables, getVariation com exposição, track com conversões, recarga periódica, envio em lote), tela Testes → Feature flags (liga/desliga na lista, rollout, regras, variáveis, exemplo de SDK).
+- Arquivos principais: packages/sdk/*, packages/shared/src/{entities,sdk-config}.ts, apps/api/src/publish.ts, apps/editor/src/pages/Flags.tsx
+- Como testar manualmente: Testes → Feature flags → Nova → /cdn/demo.sdk.json.
+- Observações: ver D-062.

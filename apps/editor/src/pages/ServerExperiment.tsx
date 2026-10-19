@@ -1,7 +1,7 @@
 import type { Experiment, Goal } from '@abtest/shared';
 import { ArrowLeft, BarChart3, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getExperiment, publish, saveExperiment, type ExperimentRecord } from '../api';
+import { API_URL, getExperiment, publish, saveExperiment, type ExperimentRecord } from '../api';
 import { navigate } from '../nav';
 import { uid } from '../store';
 import { Button, Card, inputCls, PageHeader, selectCls, Spinner, StatusBadge, useToast } from '../ui';
@@ -69,8 +69,8 @@ export function ServerExperimentPage({ id }: { id: string }) {
   };
   const sdk = `import { createClient } from '@abtest/sdk';
 
-const abt = await createClient({ accountId: '${'{'}conta{'}'}' });
-const v = abt.getVariation('${exp.key}', usuario.id, { plano: usuario.plano });
+const abt = await createClient({ accountId: '<conta>', cdnUrl: '${API_URL}/cdn' });
+const v = abt.getVariation('${exp.key}', usuario.id);
 // v.key → '${exp.variations[1]?.key ?? exp.variations[0]!.key}', v.variables → { ... }
 abt.track('${exp.goals.find((g): g is Extract<Goal, { type: 'custom' }> => g.type === 'custom')?.event ?? 'compra'}', usuario.id, { value: 99.9 });`;
   return (

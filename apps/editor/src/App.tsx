@@ -7,6 +7,7 @@ import { AudiencesPage } from './pages/Audiences';
 import { CohortsPage } from './pages/Cohorts';
 import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
+import { FlagsPage } from './pages/Flags';
 import { FormsPage } from './pages/Forms';
 import { FunnelsPage } from './pages/Funnels';
 import { JourneysPage } from './pages/Journeys';
@@ -35,6 +36,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   ),
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
+  flags: (user) => <FlagsPage user={user} />,
   popups: (user) => <PopupsPage user={user} />,
   profiles: () => <ProfilesPage />,
   segments: (user) => <SegmentsPage user={user} />,

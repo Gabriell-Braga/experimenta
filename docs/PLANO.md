@@ -159,7 +159,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 ### Fase 14 — CDP, feature flags e integrações
 - [x] 14.1 Perfis + resolução de identidade (identify liga visitantes a um usuário), linha do tempo, análise cross-device
 - [x] 14.2 Audiências do CDP (regras sobre perfis), exportação e API de decisão (personalização cross-channel)
-- [ ] 14.3 Feature flags e experimentação server-side com SDK (packages/sdk)
+- [x] 14.3 Feature flags e experimentação server-side com SDK (packages/sdk)
 - [ ] 14.4 Integrações: webhooks assinados, chaves de API, GA4 e GTM
 
 ### Fase 15 — Reporting e IA

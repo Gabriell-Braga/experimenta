@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PublishedConfigSchema } from '@abtest/shared';
+import { PublishedConfigSchema, type SdkConfig } from '@abtest/shared';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app';
 import { fsCdnStore } from './cdn-fs';
@@ -400,4 +400,35 @@ test('ações rápidas: listar com contagem, mudar status e duplicar', async () 
   expect(copy.experiment).toMatchObject({ name: 'exp_acao (cópia)', status: 'draft' });
   expect(copy.experiment.variations[1]!.operations[0]!.id).not.toBe('o1');
   expect(copy.experiment.variations[1]!.id).not.toBe('exp_acao_v1');
+});
+
+test('SDK: flags e campanhas server-side vão para <conta>.sdk.json; o SDK decide a partir dele', async () => {
+  await call('/entities/flag', 'editor', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'novo-frete',
+      data: { key: 'novo-frete', enabled: true, rollout: 100, variables: { gratis: true } },
+    }),
+  });
+  const body = exp('exp_srv', 'running');
+  await save('owner', {
+    ...body,
+    experiment: { ...body.experiment, type: 'server' } as typeof body.experiment,
+  });
+  await call('/publish', 'owner', { method: 'POST' });
+  const sdk = JSON.parse(readFileSync(join(cdnDir, 'demo.sdk.json'), 'utf8')) as SdkConfig;
+  expect(sdk.flags.map((f) => f.key)).toEqual(['novo-frete']);
+  expect(sdk.experiments.map((e) => e.key)).toEqual(['exp-srv']);
+  const { createClient } = await import('@abtest/sdk');
+  const c = await createClient({
+    accountId: 'demo',
+    cdnUrl: '',
+    config: sdk,
+    refreshMs: 0,
+    fetch: async () => new Response(null),
+  });
+  expect(c.isEnabled('novo-frete', 'qualquer')).toBe(true);
+  expect(c.getVariables('novo-frete', 'qualquer')).toEqual({ gratis: true });
+  expect(['controle', 'b']).toContain(c.getVariation('exp-srv', 'u1')!.key);
+  await c.close();
 });

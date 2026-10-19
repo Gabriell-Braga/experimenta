@@ -17,6 +17,7 @@ import {
   Server,
   ShoppingBag,
   Settings2,
+  ToggleRight,
   UserRoundCog,
   Users,
   Video,
@@ -47,6 +48,7 @@ export const NAV: NavGroup[] = [
       { view: 'tests:personalization', label: 'Personalização', icon: UserRoundCog },
       { view: 'tests:rollout', label: 'Rollouts', icon: Rocket },
       { view: 'tests:server', label: 'Server-side', icon: Server },
+      { view: 'flags', label: 'Feature flags', icon: ToggleRight },
     ],
   },
   {

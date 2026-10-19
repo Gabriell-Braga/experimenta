@@ -26,6 +26,7 @@
     "@cloudflare/workers-types": "4",
     "drizzle-kit": "0.31",
     "tsx": "4",
-    "wrangler": "4"
+    "wrangler": "4",
+    "@abtest/sdk": "workspace:*"
   }
 }
