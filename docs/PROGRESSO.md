@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 10
-**Tarefa atual:** 10.1 (em andamento desde 2026-10-19 14:09)
-**Última atualização:** 2026-10-19 14:09
+**Tarefa atual:** 10.2 (em andamento desde 2026-10-19 14:16)
+**Última atualização:** 2026-10-19 14:16
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -334,3 +334,9 @@
 - Arquivos principais: apps/api/src/{analytics/report.ts,routes/report.ts}, apps/editor/src/pages/Report.tsx, scripts/seed-data.ts, e2e/tests/report.spec.ts
 - Como testar manualmente: pnpm seed:data → Experimentos → ícone de gráfico na linha 'Home: chamada Corra mais'.
 - Observações: ver D-043.
+
+### 2026-10-19 14:16 — Tarefa 10.1 concluída
+- O que foi feito: Snippet detecta rage click, dead click e movimento do mouse (eventos frustration/move). /heatmap devolve movimento e frustração (filtros de dispositivo/variação). Agent desenha 5 modos (calor normalizado, cliques, scrollmap, movimento, frustração); painel com seletor de modo, resumo e lista de elementos. Gerador de dados com comportamento na home.
+- Arquivos principais: packages/snippet/src/heatmap.ts, packages/agent/src/heatmap.ts, apps/api/src/analytics/behavior.ts, apps/editor/src/components/HeatmapPanel.tsx
+- Como testar manualmente: pnpm seed:data → abrir 'Home: chamada Corra mais' → Mapa de calor → Frustração.
+- Observações: ver D-044. Snippet 8,3 KB gzip.

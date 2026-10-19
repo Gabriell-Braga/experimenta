@@ -65,7 +65,23 @@ export const HeatmapDataSchema = z.object({
     pageviews: z.number(),
     reached: z.array(z.object({ depth: z.number(), pct: z.number() })),
   }),
+  /** Movimento do mouse: [x 0..1 da largura, y px do documento]. */
+  moves: z.array(z.tuple([z.number(), z.number()])).default([]),
+  /** Cliques de frustração por elemento. */
+  frustration: z
+    .array(
+      z.object({
+        selector: z.string(),
+        rage: z.number(),
+        dead: z.number(),
+        points: z.array(z.tuple([z.number(), z.number()])),
+      }),
+    )
+    .default([]),
+  /** O que desenhar: calor (cliques), mapa de cliques (contagens), scroll, movimento ou frustração. */
+  mode: z.enum(['heat', 'click', 'scroll', 'move', 'frustration']).default('heat'),
 });
+export type HeatmapMode = HeatmapData['mode'];
 export type HeatmapData = z.infer<typeof HeatmapDataSchema>;
 
 // ---------- Métodos e eventos ----------

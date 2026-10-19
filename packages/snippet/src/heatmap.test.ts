@@ -32,7 +32,8 @@ let sent: TrackingEvent[];
 let flushes: number;
 // Tracker novo por teste: listeners de testes anteriores (window é compartilhado) ficam presos ao antigo.
 let tracker: { send(e: TrackingEvent): void; flush(): void };
-const heat = () => sent.filter((e): e is HeatmapEvent => e.type === 'click' || e.type === 'scroll');
+const HEAT = ['click', 'scroll', 'frustration', 'move'];
+const heat = () => sent.filter((e): e is HeatmapEvent => HEAT.includes(e.type));
 
 beforeEach(() => {
   history.replaceState(null, '', '/home');
@@ -91,4 +92,56 @@ test('visitante fora da amostra não instala nada', () => {
   expect(installHeatmap(window, rt, tracker, 0)).toBe(false);
   expect(spy).not.toHaveBeenCalled();
   rt.stop();
+});
+
+const click = (el: Element, x = 150, y = 60) =>
+  el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: x, clientY: y }));
+
+test('rage click: 3+ cliques rápidos no mesmo ponto geram um evento de frustração', () => {
+  vi.useFakeTimers();
+  const rt = start(window, config)!;
+  installHeatmap(window, rt, tracker, 1);
+  const btn = document.querySelector('.buy')!;
+  for (let i = 0; i < 5; i++) {
+    click(btn);
+    vi.advanceTimersByTime(100);
+  }
+  vi.advanceTimersByTime(2000);
+  const fr = heat().filter((e) => e.type === 'frustration');
+  expect(fr).toEqual([expect.objectContaining({ kind: 'rage', selector: '#m > button', count: 3 })]);
+  rt.stop();
+  vi.useRealTimers();
+});
+
+test('dead click: clique sem reação da página em 1 s; clique que muda o DOM não conta', async () => {
+  vi.useFakeTimers();
+  const rt = start(window, config)!;
+  installHeatmap(window, rt, tracker, 1);
+  const btn = document.querySelector('.buy')!;
+  click(btn);
+  await vi.advanceTimersByTimeAsync(1100);
+  btn.addEventListener('click', () => btn.append('!'));
+  click(btn, 400, 400);
+  await vi.advanceTimersByTimeAsync(1100);
+  const dead = heat().filter((e) => e.type === 'frustration' && e.kind === 'dead');
+  expect(dead).toHaveLength(1);
+  rt.stop();
+  vi.useRealTimers();
+});
+
+test('movimento do mouse: pontos amostrados enviados em lote ao sair da página', () => {
+  vi.useFakeTimers();
+  const rt = start(window, config)!;
+  installHeatmap(window, rt, tracker, 1);
+  for (let i = 0; i < 4; i++) {
+    vi.advanceTimersByTime(200);
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 100 + i, clientY: 50 }));
+  }
+  document.dispatchEvent(new MouseEvent('mousemove', { clientX: 1, clientY: 1 })); // < 150 ms: ignorado
+  window.dispatchEvent(new Event('pagehide'));
+  const mv = heat().filter((e) => e.type === 'move');
+  expect(mv).toHaveLength(1);
+  expect(mv[0]!.type === 'move' && mv[0]!.points).toHaveLength(4);
+  rt.stop();
+  vi.useRealTimers();
 });

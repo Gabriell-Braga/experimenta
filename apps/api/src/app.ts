@@ -7,7 +7,8 @@ import { serveCdn, type CdnStore } from './cdn';
 import { findConflicts } from './conflicts';
 import { newId, verifyPassword } from './crypto';
 import { errors, ErrorSchema, json, security } from './http';
-import { NotFoundError, type Repo, type User } from './repo';
+import { behavior } from './analytics/behavior';
+import { normalizePage, NotFoundError, type Repo, type User } from './repo';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { reportRoutes } from './routes/report';
 import { createSessionStore, type SessionStore } from './sessions';
@@ -523,6 +524,15 @@ export function createApp(deps: AppDeps) {
                 pageviews: z.number(),
                 reached: z.array(z.object({ depth: z.number(), pct: z.number() })),
               }),
+              moves: z.array(z.tuple([z.number(), z.number()])),
+              frustration: z.array(
+                z.object({
+                  selector: z.string(),
+                  rage: z.number(),
+                  dead: z.number(),
+                  points: z.array(z.tuple([z.number(), z.number()])),
+                }),
+              ),
             })
             .openapi('Heatmap'),
           'agregado',
@@ -530,7 +540,15 @@ export function createApp(deps: AppDeps) {
         401: errors[401],
       },
     }),
-    async (c) => c.json(await repo.heatmap(c.get('user').accountId, c.req.valid('query')), 200),
+    async (c) => {
+      const accountId = c.get('user').accountId;
+      const q = c.req.valid('query');
+      const [base, extra] = await Promise.all([
+        repo.heatmap(accountId, q),
+        repo.listEvents(accountId, { page: normalizePage(q.url), types: ['move', 'frustration'] }),
+      ]);
+      return c.json({ ...base, ...behavior(extra, q) }, 200);
+    },
   );
 
   app.openapi(

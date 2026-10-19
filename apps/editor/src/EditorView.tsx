@@ -1,7 +1,7 @@
 import { GripVertical, MousePointer2, MousePointerClick, TriangleAlert, X } from 'lucide-react';
 import { selectorFragility } from '@abtest/selector';
 import { matchUrl } from '@abtest/snippet/segment';
-import type { ApplyResult, ElementInfo, HeatmapData } from '@abtest/shared';
+import type { ApplyResult, ElementInfo, HeatmapMode } from '@abtest/shared';
 import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   API_URL,
@@ -21,7 +21,7 @@ import { Button, Modal, Spinner, useToast } from './ui';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
 import { HealthPanel } from './components/HealthPanel';
-import { HeatmapPanel } from './components/HeatmapPanel';
+import { HeatmapPanel, type HeatmapResult } from './components/HeatmapPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { EMPTY_GOAL, SettingsPanel, type GoalDraft } from './components/SettingsPanel';
@@ -141,7 +141,8 @@ export function EditorView({ record, user }: Props) {
 
   // Mapa de calor: filtros, dados da API e quantos seletores não existem na página atual.
   const [heatFilters, setHeatFilters] = useState<HeatmapFilters>({});
-  const [heat, setHeat] = useState<(HeatmapData & { page: string }) | null>(null);
+  const [heat, setHeat] = useState<HeatmapResult | null>(null);
+  const [heatMode, setHeatMode] = useState<HeatmapMode>('heat');
   const [heatMissing, setHeatMissing] = useState(0);
   useEffect(() => {
     if (!connected) return;
@@ -155,17 +156,21 @@ export function EditorView({ record, user }: Props) {
       ? { ...heatFilters, experimentId: state.experiment.id }
       : heatFilters;
     getHeatmap(state.url, filters)
-      .then(async (data) => {
-        if (!live) return;
-        setHeat(data);
-        const r = await peer.current?.call('showHeatmap', { clicks: data.clicks, scroll: data.scroll });
-        if (live) setHeatMissing(r?.missing ?? 0);
-      })
+      .then((data) => live && setHeat(data))
       .catch((e: Error) => toast('error', `Mapa de calor: ${e.message}`));
     return () => {
       live = false;
     };
   }, [mode, connected, readyCount, heatFilters, state.url, state.experiment.id]);
+  // Desenha (ou redesenha ao trocar o tipo de mapa, sem buscar de novo).
+  useEffect(() => {
+    if (!connected || mode !== 'heatmap' || !heat) return;
+    const { page: _page, ...data } = heat;
+    peer.current?.call('showHeatmap', { ...data, mode: heatMode }).then(
+      (r) => setHeatMissing(r.missing),
+      () => {},
+    );
+  }, [connected, mode, heat, heatMode]);
   /** Seletor frágil da última alteração criada (aviso até o usuário fechar). */
   const [fragileWarning, setFragileWarning] = useState<string | null>(null);
   /** Fallback da extensão: 'idle' → 'missing' (não instalada) | 'active' (sessão aberta; iframe recarregado). */
@@ -508,6 +513,8 @@ export function EditorView({ record, user }: Props) {
         {mode === 'heatmap' && (
           <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white">
             <HeatmapPanel
+              mode={heatMode}
+              onMode={setHeatMode}
               variations={state.experiment.variations}
               filters={heatFilters}
               onFilters={setHeatFilters}

@@ -241,3 +241,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Filtro de dispositivo: as exposições não carregam dispositivo; usa-se o dispositivo predominante das páginas vistas de cada visitante exposto (pageviews são coletados de todos, D-041).
 - Duração estimada: amostra para detectar +10% sobre a taxa atual do controle ÷ ritmo médio diário de visitantes.
 - `pnpm seed:data` gera tráfego realista para a conta demo (dev) pelo próprio `/collect` — os módulos de insights vão estender o gerador.
+
+## D-044 — Cliques de frustração e movimento do mouse (fase 10.1)
+- Rage click: 3+ cliques em 700 ms num raio de 30 px (um evento por rajada). Dead click: clique sem nenhuma reação em 1 s — um `MutationObserver` no documento conta mutações, e navegação/`hashchange`/foco também contam como reação. Cliques em campos e com texto selecionado ficam de fora (a reação deles não mexe no DOM). Heurística parecida com a de Hotjar/Contentsquare; não exige saber se o elemento "deveria" ser clicável.
+- Movimento: x relativo à largura da janela + y em px do documento (layouts responsivos de largura cheia ficam alinhados); um ponto a cada 150 ms, lotes de 50.
+- Overlay com modos: calor (normalizado pela maior densidade, para não saturar), mapa de cliques (contagem e % por elemento), scrollmap (trechos pintados pela % que chegou), movimento e frustração. Todos amostrados pela taxa de insights da conta.
+- Snippet subiu para 8,3 KB gzip. Próximas capturas pesadas (formulários, gravação) vão para um bundle sob demanda.

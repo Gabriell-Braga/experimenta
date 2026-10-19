@@ -70,6 +70,26 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
     vw: z.number(),
     vh: z.number(),
   }),
+  /**
+   * Clique de frustração: `rage` = 3+ cliques rápidos no mesmo ponto; `dead` = clique sem reação da página
+   * (nenhuma mutação do DOM, navegação ou foco em 1 s). Ponto relativo ao elemento, como em `click`.
+   */
+  z.object({
+    ...heatmapBase,
+    type: z.literal('frustration'),
+    kind: z.enum(['rage', 'dead']),
+    selector: z.string().max(500),
+    rx: z.number().min(0).max(1),
+    ry: z.number().min(0).max(1),
+    count: z.number().int().positive(),
+  }),
+  /** Movimento do mouse amostrado: [x relativo à largura da janela (0..1), y em px do documento]. */
+  z.object({
+    ...heatmapBase,
+    type: z.literal('move'),
+    points: z.array(z.tuple([z.number().min(0).max(1), z.number()])).max(100),
+    vw: z.number(),
+  }),
   /** Profundidade máxima de scroll da página (0..100 % da altura), enviada ao sair/navegar. */
   z.object({
     ...heatmapBase,
@@ -103,6 +123,6 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
 ]);
 export type TrackingEvent = z.infer<typeof TrackingEventSchema>;
 export type TrackingEventType = TrackingEvent['type'];
-export type HeatmapEvent = Extract<TrackingEvent, { type: 'click' | 'scroll' }>;
+export type HeatmapEvent = Extract<TrackingEvent, { type: 'click' | 'scroll' | 'frustration' | 'move' }>;
 export type DataEvent = Extract<TrackingEvent, { type: 'pageview' | 'event' | 'identify' }>;
 export type ExperimentEvent = Exclude<TrackingEvent, HeatmapEvent | DataEvent>;

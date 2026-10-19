@@ -101,6 +101,15 @@ Só para visitantes amostrados (`PublishedConfig.heatmap.sampleRate`, decisão d
 | `device` | `desktop` \| `tablet` \| `mobile` | dispositivo detectado |
 | `variations` | objeto | experimentos ATIVOS na página → variação (`{ "<experimentId>": "<variationId>" }`) |
 
+### `frustration` (rage / dead click)
+Amostrado como o mapa de calor. `kind: 'rage'` = 3+ cliques em até 700 ms num raio de 30 px (um evento por rajada);
+`kind: 'dead'` = clique sem reação da página em 1 s (nenhuma mutação do DOM, navegação, `hashchange` ou foco;
+cliques em campos de formulário e seleção de texto não contam). Campos: `selector`, `rx`, `ry`, `count`, `device`, `variations`.
+
+### `move` (movimento do mouse)
+Amostrado. Um ponto a cada 150 ms em movimento, em lotes de até 50 (e ao sair/navegar). `points: [x, y][]` com
+x relativo à largura da janela (0..1) e y em px do documento; `vw`, `device`, `variations`.
+
 ### `scroll`
 Um por página vista: no `pagehide` e a cada navegação de SPA (com a URL da página que ficou para trás).
 

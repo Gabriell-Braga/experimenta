@@ -42,24 +42,74 @@ export function installHeatmap(
       variations: Object.fromEntries([...rt.active.values()].map((a) => [a.experiment.id, a.variation.id])),
     } as HeatmapEvent);
 
+  // Frustração: rajada de cliques perto do mesmo ponto (rage) e clique sem reação (dead).
+  let burst: { x: number; y: number; t: number; n: number; sent: boolean } | null = null;
+  let changed = 0; // mutações/navegação/foco desde o último clique
+  const mo = typeof MutationObserver === 'function' ? new MutationObserver(() => changed++) : null;
+  mo?.observe(doc, { childList: true, subtree: true, attributes: true, characterData: true });
+  const bump = () => changed++;
+  win.addEventListener('pagehide', bump);
+  win.addEventListener('hashchange', bump);
+  doc.addEventListener('focusin', bump);
+  rt.onNavigate.push(bump);
+
   doc.addEventListener(
     'click',
     (e) => {
       const el = e.target;
       if (!(el instanceof Element) || el.closest('[data-abt-qa]')) return;
       const r = el.getBoundingClientRect();
+      const selector = pathOf(el).slice(0, 500);
+      const rx = round(r.width ? Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) : 0.5);
+      const ry = round(r.height ? Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) : 0.5);
       send({
         type: 'click',
-        selector: pathOf(el).slice(0, 500),
-        rx: round(r.width ? Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) : 0.5),
-        ry: round(r.height ? Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) : 0.5),
+        selector,
+        rx,
+        ry,
         px: Math.round(e.pageX),
         py: Math.round(e.pageY),
         vw: win.innerWidth,
         vh: win.innerHeight,
       });
+      const now = Date.now();
+      if (burst && now - burst.t < 700 && Math.hypot(e.clientX - burst.x, e.clientY - burst.y) < 30) {
+        burst.n++;
+        burst.t = now;
+        if (burst.n === 3 && !burst.sent) {
+          burst.sent = true;
+          send({ type: 'frustration', kind: 'rage', selector, rx, ry, count: 3 });
+        }
+      } else burst = { x: e.clientX, y: e.clientY, t: now, n: 1, sent: false };
+      // Campos de formulário e seleção de texto reagem sem mexer no DOM: não contam como dead click.
+      if (el.closest('input,textarea,select,label,[contenteditable]') || String(win.getSelection?.() ?? ''))
+        return;
+      const before = changed;
+      setTimeout(() => {
+        if (changed === before && burst?.n === 1)
+          send({ type: 'frustration', kind: 'dead', selector, rx, ry, count: 1 });
+      }, 1000);
     },
     { capture: true, passive: true },
+  );
+
+  // Movimento do mouse: um ponto a cada 150 ms em movimento, enviados em lotes de 50.
+  let moves: [number, number][] = [];
+  let lastMove = 0;
+  const flushMoves = () => {
+    if (moves.length) send({ type: 'move', points: moves, vw: win.innerWidth });
+    moves = [];
+  };
+  doc.addEventListener(
+    'mousemove',
+    (e) => {
+      const now = Date.now();
+      if (now - lastMove < 150) return;
+      lastMove = now;
+      moves.push([round(e.clientX / (win.innerWidth || 1)), Math.round(e.pageY)]);
+      if (moves.length >= 50) flushMoves();
+    },
+    { passive: true },
   );
 
   const measure = () => {
@@ -81,6 +131,7 @@ export function installHeatmap(
 
   /** Um evento de scroll por página vista (ao sair ou ao navegar na SPA). */
   const flushScroll = () => {
+    flushMoves();
     measure();
     send({
       type: 'scroll',

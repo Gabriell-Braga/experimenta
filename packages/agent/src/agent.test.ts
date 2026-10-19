@@ -286,4 +286,33 @@ describe('agent: mapa de calor', () => {
     expect(shadow().querySelector('.heat-badge')).toBeNull();
     expect(shadow().querySelector('canvas')).toBeNull();
   });
+
+  test('modos: frustração marca o elemento com rage/dead; scrollmap pinta trechos', async () => {
+    document.querySelector('#t')!.getBoundingClientRect = () =>
+      ({ left: 10, top: 20, right: 210, bottom: 60, width: 200, height: 40 }) as DOMRect;
+    const base = {
+      clicks: { total: 0, elements: [] },
+      scroll: {
+        pageviews: 2,
+        reached: [
+          { depth: 10, pct: 100 },
+          { depth: 20, pct: 50 },
+        ],
+      },
+      moves: [[0.5, 30]],
+      frustration: [{ selector: '#t', rage: 2, dead: 1, points: [[0.5, 0.5]] }],
+    };
+    let r = await call('showHeatmap', { ...base, mode: 'frustration' });
+    expect(r.result).toEqual({ resolved: 1, missing: 0 });
+    expect(shadow().querySelector('.heat-badge.fr')!.textContent).toBe('2 rage · 1 dead');
+    expect(shadow().querySelector('.heat-band')).toBeNull();
+    // jsdom: documento com altura para o scrollmap.
+    Object.defineProperty(document.documentElement, 'scrollHeight', { value: 1000, configurable: true });
+    r = await call('showHeatmap', { ...base, mode: 'scroll' });
+    expect(
+      [...shadow().querySelectorAll('.heat-slice')].map((s) => (s as HTMLElement).dataset.depth),
+    ).toEqual(['10', '20']);
+    expect(shadow().querySelector('.heat-badge')).toBeNull();
+    await call('hideHeatmap', {});
+  });
 });

@@ -147,7 +147,7 @@ export interface HeatmapFilters {
 export function getHeatmap(url: string, f: HeatmapFilters) {
   const q = new URLSearchParams({ url });
   for (const [k, v] of Object.entries(f)) if (v) q.set(k, v);
-  return api<import('@abtest/shared').HeatmapData & { page: string }>(`/heatmap?${q}`);
+  return api<import('./components/HeatmapPanel').HeatmapResult>(`/heatmap?${q}`);
 }
 
 export const setStatus = (id: string, status: string) =>

@@ -86,6 +86,15 @@ const DEVICES = [
   ['mobile', 390, 0.38],
   ['tablet', 820, 0.07],
 ] as const;
+/** Alvos de clique na home (seletor, tipo). A imagem do herói não é clicável: gera dead/rage clicks. */
+const CLICK_TARGETS = [
+  ['[data-testid=cta-comprar]', 'cta'],
+  ['[data-testid=cta-comprar]', 'cta'],
+  ['#hero > img', 'img'],
+  ['#hero-title', 'text'],
+  ['body > header > nav > a:nth-of-type(2)', 'nav'],
+  ['#newsletter-form > button', 'form'],
+] as const;
 const REFERRERS = ['https://www.google.com/', 'https://www.instagram.com/', 'https://t.co/x', '', '', ''];
 
 for (let i = 0; i < VISITORS; i++) {
@@ -118,6 +127,53 @@ for (let i = 0; i < VISITORS; i++) {
       t += 5_000 + Math.floor(rand() * 60_000);
     };
     pv('/', 'Loja Demo', s === 0 ? pick(REFERRERS) : undefined);
+    // Comportamento na home (todos amostrados no dev): cliques, frustração, movimento e scroll.
+    const hb = { ...base(`${SITE}/`), device, variations: { [expId!]: `seed_v${arm}` } };
+    const clicks = Math.floor(rand() * 4);
+    for (let c = 0; c < clicks; c++) {
+      const [sel, w] = pick(CLICK_TARGETS);
+      events.push({
+        ...hb,
+        eventId: randomUUID(),
+        type: 'click',
+        selector: sel,
+        rx: +(0.2 + rand() * 0.6).toFixed(3),
+        ry: +(0.2 + rand() * 0.6).toFixed(3),
+        px: 0,
+        py: 0,
+        vw,
+        vh: 800,
+      });
+      if (w === 'img' && chance(0.35))
+        events.push({
+          ...hb,
+          eventId: randomUUID(),
+          type: 'frustration',
+          kind: chance(0.3) ? 'rage' : 'dead',
+          selector: sel,
+          rx: +rand().toFixed(3),
+          ry: +rand().toFixed(3),
+          count: 1,
+        });
+    }
+    events.push({
+      ...hb,
+      eventId: randomUUID(),
+      type: 'move',
+      vw,
+      points: Array.from({ length: 30 }, () => [
+        +(0.15 + rand() * 0.5).toFixed(3),
+        Math.round(80 + rand() ** 1.6 * 900),
+      ]),
+    });
+    events.push({
+      ...hb,
+      eventId: randomUUID(),
+      type: 'scroll',
+      depth: Math.round(Math.min(100, 35 + rand() ** 0.7 * 70)),
+      vh: 800,
+      ph: 1600,
+    });
     events.push({
       ...base(`${SITE}/`),
       type: 'exposure',
