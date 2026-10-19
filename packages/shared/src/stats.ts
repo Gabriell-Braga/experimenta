@@ -218,7 +218,11 @@ function summarize(samples: Float64Array[], point: number[], pValues: (number | 
   for (let i = 0; i < draws; i++) {
     let best = 0;
     let max = -Infinity;
-    for (let j = 0; j < k; j++) if (samples[j]![i]! > max) ((max = samples[j]![i]!), (best = j));
+    for (let j = 0; j < k; j++)
+      if (samples[j]![i]! > max) {
+        max = samples[j]![i]!;
+        best = j;
+      }
     wins[best]!++;
     const base = samples[0]![i]!;
     for (let j = 0; j < k; j++) {
