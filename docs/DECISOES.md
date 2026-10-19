@@ -272,3 +272,6 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-049 — Entidades genéricas e funis (fase 11.2)
 - Os módulos novos têm configurações pequenas (funis, audiências, campanhas, pesquisas, flags, webhooks…). Em vez de uma tabela + 4 funções × 2 bancos por módulo, uma tabela `entities (account_id, kind, name, data)` com CRUD genérico (`/entities/{kind}`) e validação por schema zod do tipo (`@abtest/shared/entities`, `ENTITY_SCHEMAS`). Ler: qualquer papel; gravar: editor. Tipos novos entram só no registro de schemas.
 - Funil: ordem estrita por visitante (passo N só conta depois do N−1), janela a partir do 1º passo (padrão 7 dias), passos por regra de URL (mesma `matchUrl` do snippet) ou evento customizado. Análise de abandono: para quem parou num passo, a próxima página visitada (ou "saiu do site"). Funciona retroativamente sobre os pageviews já coletados (não precisa configurar antes, ao contrário do VWO).
+
+## D-050 — Jornadas (fase 11.3)
+- Calculadas por sessão sobre os pageviews (todos os visitantes, D-041): entradas, saídas, taxa de saída na 1ª página, caminhos mais comuns (primeiras 4 páginas, recargas da mesma página não contam como passo) e um explorador "de onde vêm / para onde vão" por página — mais legível que um Sankey completo e navegável por clique.

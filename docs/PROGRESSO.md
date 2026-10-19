@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 11
-**Tarefa atual:** 11.3 (em andamento desde 2026-10-19 14:40)
-**Última atualização:** 2026-10-19 14:40
+**Tarefa atual:** 11.4 (em andamento desde 2026-10-19 14:42)
+**Última atualização:** 2026-10-19 14:42
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -377,3 +377,9 @@
 - Arquivos principais: packages/shared/src/entities.ts, apps/api/src/{routes/entities.ts,analytics/funnel.ts}, apps/editor/src/pages/Funnels.tsx
 - Como testar manualmente: Insights → Funis → Novo funil (Home exata + /produto contém).
 - Observações: ver D-049.
+
+### 2026-10-19 14:42 — Tarefa 11.3 concluída
+- O que foi feito: GET /analytics/journeys (entradas, saídas, bounce, caminhos, explorador de página); tela Insights → Jornadas com explorador clicável.
+- Arquivos principais: apps/api/src/analytics/journeys.ts, apps/editor/src/pages/Journeys.tsx
+- Como testar manualmente: Insights → Jornadas; clicar numa página para explorar.
+- Observações: ver D-050.

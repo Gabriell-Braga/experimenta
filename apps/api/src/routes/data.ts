@@ -2,6 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import type { Funnel } from '@abtest/shared';
 import { formsReport } from '../analytics/forms';
 import { funnelReport } from '../analytics/funnel';
+import { journeysReport } from '../analytics/journeys';
 import { deviceByVisitor } from '../analytics/report';
 import { overview } from '../analytics/overview';
 import { pagesReport } from '../analytics/pages';
@@ -101,6 +102,30 @@ export function dataRoutes(app: Api, repo: Repo) {
         },
         200,
       );
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/journeys',
+      tags: ['insights'],
+      security,
+      summary:
+        'Jornadas: entradas, saídas, caminhos mais comuns e, com `page`, de onde vêm e para onde vão os visitantes',
+      request: {
+        query: PeriodQuery.extend({
+          device: z.enum(['desktop', 'tablet', 'mobile']).optional(),
+          page: z.string().optional(),
+          depth: z.coerce.number().int().min(2).max(8).default(4),
+        }),
+      },
+      responses: { 200: json(Report, 'jornadas'), ...errors },
+    }),
+    async (c) => {
+      const q = c.req.valid('query');
+      const list = await repo.listEvents(c.get('user').accountId, { ...period(q), types: ['pageview'] });
+      return c.json(journeysReport(list, { focus: q.page, depth: q.depth, device: q.device }), 200);
     },
   );
 
