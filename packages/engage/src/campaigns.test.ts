@@ -25,6 +25,7 @@ function boot(
   };
   return {
     config,
+    cdnBase: '',
     send: (e) => sent.push(e),
     flush: () => {},
     base: () => ({ eventId: `e${sent.length}`, ts: 1, accountId: 'acc', visitorId: 'v', url: location.href }),

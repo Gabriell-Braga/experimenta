@@ -8,3 +8,4 @@ export * from './rpc-peer';
 export * from './stats';
 export * from './entities';
 export * from './mvt';
+export * from './reco';

@@ -4,6 +4,7 @@ import { ExperimentSchema, TrackingEventSchema, type TrackingEvent } from '@abte
 import { cors } from 'hono/cors';
 import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
 import { serveCdn, type CdnStore } from './cdn';
+import { rebuildReco, serveReco } from './reco';
 import { findConflicts } from './conflicts';
 import { newId, verifyPassword } from './crypto';
 import { errors, ErrorSchema, json, security } from './http';
@@ -84,6 +85,8 @@ export function createApp(deps: AppDeps) {
   // ---------- Públicas (site do cliente) ----------
   app.get('/health', async (c) => c.json({ ok: await repo.ping() }));
   app.get('/cdn/:file', serveCdn(deps.cdn));
+  app.use('/reco/*', cors({ origin: '*', allowMethods: ['GET'] }));
+  app.get('/reco/:account/:strategy', serveReco(deps.cdn));
   app.use('/edit-sessions/:token', cors({ origin: '*', allowMethods: ['GET'] }));
   app.get('/edit-sessions/:token', async (c) => {
     const s = await sessions.get(c.req.param('token'));
@@ -132,6 +135,7 @@ export function createApp(deps: AppDeps) {
     ...DATA_PATHS,
     ...RECORDING_PATHS,
     ...ENTITY_PATHS,
+    '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
   const auth = requireAuth(repo, deps.jwtSecret);
@@ -712,6 +716,24 @@ export function createApp(deps: AppDeps) {
   reportRoutes(app, repo, deps.publish);
   recordingRoutes(app, repo);
   entityRoutes(app, repo);
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/recommendations/rebuild',
+      tags: ['engajamento'],
+      security,
+      summary:
+        'Recalcula agora o modelo de recomendações da conta (também roda de hora em hora e ao publicar)',
+      responses: { 200: json(z.object({ products: z.number(), builtAt: z.string() }), 'modelo'), ...errors },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const m = await rebuildReco(repo, deps.cdn, user.accountId);
+      return c.json({ products: Object.keys(m.catalog).length, builtAt: m.builtAt }, 200);
+    },
+  );
 
   app.doc31('/openapi.json', { openapi: '3.1.0', info: { title: 'A/B Editor API', version: '0.1.0' } });
   app.get('/docs', swaggerUI({ url: '/openapi.json' }));

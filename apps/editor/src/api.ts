@@ -302,3 +302,6 @@ export const entities = {
   remove: (kind: string, id: string) =>
     api<void>(`/entities/${kind}/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
+
+export const rebuildRecos = () =>
+  api<{ products: number; builtAt: string }>('/recommendations/rebuild', { method: 'POST' });

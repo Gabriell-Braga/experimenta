@@ -1,6 +1,8 @@
 import { banditWeights } from '@abtest/shared';
 import { experimentReport } from './analytics/report';
 import type { AppDeps } from './app';
+import type { CdnStore } from './cdn';
+import { rebuildReco } from './reco';
 import type { Repo, User } from './repo';
 
 const DAY = 86_400_000;
@@ -52,6 +54,7 @@ export const banditUser = (accountId: string): User => ({
 });
 
 /** Job periódico: rebalanceia todos os bandits em execução e republica as contas que mudaram. */
+// (os modelos de recomendação são recalculados no mesmo ciclo: ver `hourlyJobs`)
 export async function rebalanceAll(repo: Repo, publish: AppDeps['publish']) {
   const touched = new Set<string>();
   for (const { accountId, id } of await repo.listBanditExperiments()) {
@@ -60,4 +63,11 @@ export async function rebalanceAll(repo: Repo, publish: AppDeps['publish']) {
   }
   for (const accountId of touched) await publish?.(accountId, banditUser(accountId)).catch(() => undefined);
   return [...touched];
+}
+
+/** Ciclo de hora em hora: bandits e modelos de recomendação das contas com vitrine. */
+export async function hourlyJobs(repo: Repo, cdn: CdnStore, publish: AppDeps['publish']) {
+  await rebalanceAll(repo, publish);
+  for (const accountId of await repo.listAccountsWithEntity('reco'))
+    await rebuildReco(repo, cdn, accountId).catch(() => undefined);
 }

@@ -138,6 +138,14 @@ document.querySelector('.hero').addEventListener('mouseleave', restart);
 
 // ---------- Produtos (carregados depois, re-renderizados por aba) ----------
 const grid = document.getElementById('product-grid');
+
+// Integração e-commerce com o snippet (recomendações e receita): produto visto, carrinho e compra.
+const abq = (window.abq = window.abq || []);
+const viewProduct = (p) =>
+  abq.push([
+    'product',
+    { id: p.id, name: p.name, price: p.price, category: p.cat, url: `/loja/#produto-${p.id}` },
+  ]);
 let category = 'todos';
 
 function card(p) {
@@ -197,6 +205,8 @@ function renderCart() {
 }
 function add(id) {
   const p = PRODUCTS.find((x) => x.id === Number(id));
+  viewProduct(p);
+  abq.push(['cart', p.id]);
   const item = cart.get(p.id) ?? { p, qty: 0 };
   item.qty++;
   cart.set(p.id, item);
@@ -204,6 +214,11 @@ function add(id) {
   openCart();
 }
 renderCart();
+document.getElementById('checkout').addEventListener('click', () => {
+  const items = [...cart.values()];
+  if (items.length)
+    abq.push(['purchase', items.map(({ p }) => p.id), items.reduce((s, { p, qty }) => s + p.price * qty, 0)]);
+});
 document.getElementById('cart-open').addEventListener('click', openCart);
 drawer.addEventListener('click', (e) => e.target.closest('[data-close-cart]') && closeCart());
 
@@ -217,6 +232,7 @@ grid.addEventListener('click', (e) => {
   if (!quick) return;
   const p = PRODUCTS.find((x) => x.id === Number(quick.dataset.quick));
   qvId = p.id;
+  viewProduct(p);
   document.getElementById('qv-title').textContent = p.name;
   document.getElementById('qv-price').innerHTML =
     `${p.old ? `<s>${brl(p.old)}</s> ` : ''}<b>${brl(p.price)}</b>`;

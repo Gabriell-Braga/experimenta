@@ -13,6 +13,7 @@ import {
   Rocket,
   Route,
   Server,
+  ShoppingBag,
   Settings2,
   UserRoundCog,
   Users,
@@ -62,6 +63,7 @@ export const NAV: NavGroup[] = [
     items: [
       { view: 'popups', label: 'Pop-ups e barras', icon: Megaphone },
       { view: 'surveys', label: 'Pesquisas', icon: MessageSquareText },
+      { view: 'recos', label: 'Recomendações', icon: ShoppingBag },
     ],
   },
   {

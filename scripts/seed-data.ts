@@ -97,6 +97,17 @@ const CLICK_TARGETS = [
   ['body > header > nav > a:nth-of-type(2)', 'nav'],
   ['#newsletter-form > button', 'form'],
 ] as const;
+/** Catálogo da loja demo (apps/demo/loja/loja.js). */
+const STORE = [
+  { id: 1, name: 'Runner X Nuvem 2', price: 599.9, category: 'corrida' },
+  { id: 2, name: 'Trail Grip Pro', price: 689.9, category: 'corrida' },
+  { id: 3, name: 'Urban Flex', price: 399.9, category: 'casual' },
+  { id: 4, name: 'Maratona Elite', price: 999.9, category: 'corrida' },
+  { id: 5, name: 'Skate Classic', price: 299.9, category: 'casual' },
+  { id: 6, name: 'Meia Compressão (3 pares)', price: 89.9, category: 'acessorios' },
+  { id: 7, name: 'Garrafa Térmica 750 ml', price: 129.9, category: 'acessorios' },
+  { id: 8, name: 'Runner Kids', price: 249.9, category: 'corrida' },
+];
 const REFERRERS = ['https://www.google.com/', 'https://www.instagram.com/', 'https://t.co/x', '', '', ''];
 
 for (let i = 0; i < VISITORS; i++) {
@@ -241,7 +252,37 @@ for (let i = 0; i < VISITORS; i++) {
         pv('/obrigado.html', 'Obrigado!', `${SITE}/produto.html`);
         exp('seed_g_thanks', 'obrigado');
       }
-    } else if (chance(0.3)) pv('/loja/', 'Loja completa', `${SITE}/`);
+    } else if (chance(0.3)) {
+      pv('/loja/', 'Loja completa', `${SITE}/`);
+      // Loja: produtos vistos com afinidade de categoria e, às vezes, compra (alimenta as recomendações).
+      const cat = pick(['corrida', 'corrida', 'casual', 'acessorios']);
+      const pool = STORE.filter((p) => p.category === cat || chance(0.2));
+      const seenIds: number[] = [];
+      for (let k = 0; k < 1 + Math.floor(rand() * 4); k++) {
+        const p = pick(pool);
+        if (seenIds.includes(p.id)) continue;
+        seenIds.push(p.id);
+        events.push({
+          ...base(`${SITE}/loja/`),
+          type: 'event',
+          name: 'product_view',
+          props: { ...p, url: `/loja/#produto-${p.id}` },
+        });
+        t += 4000 + Math.floor(rand() * 20_000);
+      }
+      if (seenIds.length && chance(0.25)) {
+        // Corredores costumam levar meia ou garrafa junto.
+        const ids = [seenIds[0]!, ...(cat === 'corrida' && chance(0.6) ? [pick([6, 7])] : [])];
+        const value = ids.reduce((sum, id) => sum + STORE.find((p) => p.id === id)!.price, 0);
+        events.push({
+          ...base(`${SITE}/loja/`),
+          type: 'event',
+          name: 'purchase',
+          value,
+          props: { ids: ids.join(',') },
+        });
+      }
+    }
     if (chance(0.08))
       events.push({
         ...base(`${SITE}/`),
@@ -265,6 +306,7 @@ if (process.env.DUMP) (await import('node:fs')).writeFileSync(process.env.DUMP, 
 const returning = [...sessionsByVisitor.values()].filter((s) => s.size > 1).length;
 for (let i = 0; i < (DRY ? 0 : events.length); i += 60)
   await call('/collect', { method: 'POST', body: JSON.stringify({ events: events.slice(i, i + 60) }) });
+await call('/recommendations/rebuild', { method: 'POST', token });
 console.log(
   `[seed:data] ${VISITORS} visitantes (${returning} recorrentes), ${events.length} eventos enviados para ${API} (experimento ${KEY}).`,
 );

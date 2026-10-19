@@ -16,6 +16,7 @@ import { Login } from './pages/Login';
 import { PopupsPage } from './pages/Popups';
 import { SurveyReportPage, SurveysPage } from './pages/Surveys';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
+import { RecosPage } from './pages/Recos';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
 import { AppShell } from './shell';
@@ -33,6 +34,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
   popups: (user) => <PopupsPage user={user} />,
+  recos: (user) => <RecosPage user={user} />,
   surveys: (user) => <SurveysPage user={user} />,
   survey: (_, r) => <SurveyReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   audiences: (user) => <AudiencesPage user={user} />,

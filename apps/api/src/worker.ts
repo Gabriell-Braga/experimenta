@@ -2,7 +2,7 @@
 // O servidor Node (src/server.ts) continua sendo o caminho de dev/self-host com Postgres.
 import type { D1Database, ExecutionContext, KVNamespace } from '@cloudflare/workers-types';
 import { createApp } from './app';
-import { rebalanceAll } from './bandit';
+import { hourlyJobs } from './bandit';
 import { writeAccountFiles, type CdnStore } from './cdn';
 import { createPublisher } from './publish';
 import { retentionCutoff } from './repo';
@@ -80,10 +80,10 @@ export default {
     app ??= await (booting ??= build(env));
     return app.fetch(req, env, ctx);
   },
-  /** Crons (wrangler.jsonc → triggers): de hora em hora rebalanceia os bandits; às 04:00 UTC, retenção. */
+  /** Crons (wrangler.jsonc → triggers): de hora em hora bandits e recomendações; às 04:00 UTC, retenção. */
   async scheduled(event: { cron: string }, env: Env) {
-    const { repo, publish } = core(env);
-    await rebalanceAll(repo, publish);
+    const { repo, cdn, publish } = core(env);
+    await hourlyJobs(repo, cdn, publish);
     if (event.cron !== '0 4 * * *') return;
     const cutoff = retentionCutoff(Number(env.EVENTS_RETENTION_DAYS ?? 90));
     if (cutoff) await repo.purgeEventsBefore(cutoff);

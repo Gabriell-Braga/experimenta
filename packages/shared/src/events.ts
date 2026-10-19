@@ -122,7 +122,7 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
     ...base,
     type: z.literal('engage'),
     campaignId: z.string(),
-    kind: z.enum(['popup', 'survey']),
+    kind: z.enum(['popup', 'survey', 'reco']),
     action: z.enum(['view', 'click', 'close', 'submit']),
   }),
   /** Respostas de uma pesquisa (ao concluir, ou parciais ao fechar). */

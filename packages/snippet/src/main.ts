@@ -16,6 +16,10 @@ type Command =
   | ['event', string, Props?]
   | ['identify', string | null, Props?]
   | ['set', Props]
+  /** E-commerce (recomendações): produto visto, adicionado ao carrinho e compra. */
+  | ['product', Props & { id: string | number }]
+  | ['cart', string | number]
+  | ['purchase', (string | number)[], number?]
   | ['adapter', Adapter];
 
 declare global {
@@ -68,13 +72,23 @@ if (config && token) {
         insightsBoot(window, rt, tracker, config),
       );
     // Engajamento: só quando há pop-up/pesquisa publicado.
-    if ((config.popups?.length || config.surveys?.length) && !forced)
-      loadBundle(window, sibling('engage.js'), '__ABT_ENGAGE__', engageBoot(window, rt, tracker));
+    if ((config.popups?.length || config.surveys?.length || config.recos?.length) && !forced)
+      loadBundle(
+        window,
+        sibling('engage.js'),
+        '__ABT_ENGAGE__',
+        engageBoot(window, rt, tracker, sibling('./')),
+      );
     const run = (c: Command) => {
       if (c[0] === 'track') track(c[1], c[2], c[3]);
       else if (c[0] === 'event') track(c[1], typeof c[2]?.value === 'number' ? c[2].value : undefined, c[2]);
       else if (c[0] === 'identify') data.identify(c[1], c[2]);
       else if (c[0] === 'set') data.identify(null, c[1]);
+      else if (c[0] === 'product') {
+        data.viewed(String(c[1].id));
+        track('product_view', undefined, { ...c[1], id: String(c[1].id) });
+      } else if (c[0] === 'cart') track('add_to_cart', undefined, { id: String(c[1]) });
+      else if (c[0] === 'purchase') track('purchase', c[2], { ids: c[1].map(String).join(',') });
       else if (c[0] === 'adapter') tracker.addAdapter(c[1]);
     };
     // Processa o que o site enfileirou antes do snippet e troca a fila por um executor imediato.

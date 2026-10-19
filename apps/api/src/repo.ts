@@ -619,6 +619,15 @@ export function createRepo(db: Db) {
         .where(and(eq(experiments.status, 'running'), sql`${experiments.options}->>'allocation' = 'bandit'`));
     },
 
+    /** Contas que têm entidades de um tipo — manutenção do sistema (jobs), sem rota exposta. */
+    async listAccountsWithEntity(kind: string): Promise<string[]> {
+      const rows = await db
+        .selectDistinct({ a: entities.accountId })
+        .from(entities)
+        .where(eq(entities.kind, kind));
+      return rows.map((r) => r.a);
+    },
+
     async listEntities<T = unknown>(accountId: string, kind: string): Promise<Entity<T>[]> {
       const rows = await db
         .select()

@@ -573,6 +573,14 @@ export function createD1Repo(d1: D1Like): Repo {
       return rows.map((r) => ({ accountId: r.account_id, id: r.id }));
     },
 
+    async listAccountsWithEntity(kind) {
+      const rows = await all<{ account_id: string }>(
+        'SELECT DISTINCT account_id FROM entities WHERE kind = ?',
+        kind,
+      );
+      return rows.map((r) => r.account_id);
+    },
+
     async listEntities<T = unknown>(accountId: string, kind: string) {
       const rows = await all(
         'SELECT * FROM entities WHERE account_id = ? AND kind = ? ORDER BY updated_at DESC',

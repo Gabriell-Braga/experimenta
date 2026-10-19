@@ -7,6 +7,8 @@ import type { EventBase, Runtime } from './runtime';
 /** Contexto que o snippet entrega ao engage.js (window.__ABT_ENGAGE__). */
 export interface EngageBoot {
   config: PublishedConfig;
+  /** Pasta da CDN da conta (modelo de recomendações `<conta>.reco.json`). */
+  cdnBase: string;
   send(e: TrackingEvent): void;
   flush(): void;
   base(): EventBase;
@@ -25,9 +27,11 @@ export function engageBoot(
   win: Window,
   rt: Runtime,
   tracker: { send(e: TrackingEvent): void; flush(): void },
+  cdnBase = '',
 ): EngageBoot {
   return {
     config: rt.config,
+    cdnBase,
     send: tracker.send,
     flush: tracker.flush,
     base: rt.base,

@@ -187,3 +187,11 @@ Enviado pelo `engage.js` (carregado sob demanda quando há campanha publicada; n
 `surveyId`, `answers[]` (`questionId`, `value`: número, texto ou lista de opções) e `completed` (false = fechou no
 meio; vale a última resposta de cada visitante). `GET /analytics/survey/{id}` calcula NPS, CSAT, CES, médias,
 distribuições, escolhas e palavras frequentes nas respostas abertas.
+
+## E-commerce (recomendações)
+- `abq.push(['product', { id, name, price, category, url, image }])` → evento `product_view` (props = produto) e o id
+  entra no perfil local (`_abt_p.r`, últimos 20).
+- `abq.push(['cart', id])` → `add_to_cart`; `abq.push(['purchase', [id1, id2], total])` → `purchase` (valor = total,
+  `props.ids` = ids separados por vírgula; conta como receita em metas `purchase`).
+- Modelo pré-calculado em `/cdn/<conta>.reco.json` (de hora em hora, ao publicar e em `POST /recommendations/rebuild`);
+  API pública `GET /reco/{conta}/{coview|copurchase|upsell|nbo|trending|bestsellers}?product=&viewed=&limit=`.

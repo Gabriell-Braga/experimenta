@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
-import { rebalanceAll } from './bandit';
+import { hourlyJobs } from './bandit';
 import { writeAccountFiles } from './cdn';
 import { fsCdnStore, syncBundles } from './cdn-fs';
 import { createDb } from './db';
@@ -61,7 +61,7 @@ purge();
 setInterval(purge, 86_400_000).unref();
 // Bandits: pesos recalculados de hora em hora (D-054).
 setInterval(
-  () => void rebalanceAll(repo, publish).catch((e) => console.error('[api] bandit', e)),
+  () => void hourlyJobs(repo, cdn, publish).catch((e) => console.error('[api] jobs', e)),
   3_600_000,
 ).unref();
 

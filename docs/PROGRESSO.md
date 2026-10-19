@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 13
-**Tarefa atual:** 13.5 (em andamento desde 2026-10-19 18:32)
-**Última atualização:** 2026-10-19 18:32
+**Fase atual:** 14
+**Tarefa atual:** 14.1 (em andamento desde 2026-10-19 18:43)
+**Última atualização:** 2026-10-19 18:43
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -437,3 +437,13 @@
 - Arquivos principais: packages/engage/src/survey.ts, apps/api/src/analytics/surveys.ts, apps/editor/src/pages/Surveys.tsx
 - Como testar manualmente: Engajamento → Pesquisas → Nova → 'Ao carregar' → publicar → responder no demo → abrir a pesquisa.
 - Observações: ver D-058.
+
+### 2026-10-19 18:43 — Tarefa 13.5 concluída
+- O que foi feito: Comandos product/cart/purchase no snippet; modelo de recomendação (catálogo, co-visualização, comprados juntos, em alta, mais vendidos, por categoria) na CDN; estratégias puras compartilhadas; API pública /reco; rebuild por rota, publicação e job horário; vitrine no engage.js; loja demo integrada; tela Engajamento → Recomendações com pré-visualização.
+- Arquivos principais: packages/shared/src/reco.ts, apps/api/src/reco.ts, packages/engage/src/reco.ts, apps/editor/src/pages/Recos.tsx, apps/demo/loja/loja.js
+- Como testar manualmente: Engajamento → Recomendações → Nova vitrine (#produtos) → publicar → abrir /loja/.
+- Observações: ver D-059.
+
+### Resumo da Fase 13 — Segmentação, personalização e engajamento
+- Entregue: audiências com 14 tipos de regra avaliadas no navegador, conteúdo dinâmico seguro, pop-ups/barras com gatilhos, pesquisas NPS/CSAT/CES com lógica e relatório, recomendações (cross-sell, upsell, próxima melhor oferta) com vitrine e API pública.
+- Bundles: snippet 9,15 KB gzip; insights.js ~25 KB (amostrados); engage.js 6,8 KB (só com campanha publicada).

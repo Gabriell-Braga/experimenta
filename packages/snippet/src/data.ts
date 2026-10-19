@@ -24,6 +24,8 @@ export interface Profile {
   p?: string[];
   /** Origem da 1ª visita (first-touch): UTMs e `ref` (host de referência). */
   t?: Record<string, string>;
+  /** Produtos vistos (últimos 20 ids, o mais recente no fim) — recomendações. */
+  r?: string[];
 }
 
 export function loadProfile(storage: Storage | undefined): Profile {
@@ -69,6 +71,7 @@ export function notePage(p: Profile, url: string, referrer = '', newSession = fa
 
 export interface DataApi {
   profile: Profile;
+  viewed(productId: string): void;
   track(name: string, value?: number, props?: Props): void;
   identify(userId: string | null | undefined, attrs?: Props): void;
 }
@@ -100,6 +103,10 @@ export function installData(
 
   return {
     profile,
+    viewed(id) {
+      profile.r = [...(profile.r ?? []).filter((x) => x !== id), id].slice(-20);
+      saveProfile(storage, profile);
+    },
     track(name, value, props) {
       profile.ev[name] = (profile.ev[name] ?? 0) + 1;
       saveProfile(storage, profile);

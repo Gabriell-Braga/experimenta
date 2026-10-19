@@ -156,10 +156,28 @@ export const SurveySchema = z.object({
 });
 export type Survey = z.infer<typeof SurveySchema>;
 
+/** Vitrine de recomendações inserida numa posição da página. */
+export const RecoWidgetSchema = z.object({
+  status: z.enum(['draft', 'running', 'paused']).default('draft'),
+  strategy: z.enum(['coview', 'copurchase', 'upsell', 'nbo', 'trending', 'bestsellers']).default('coview'),
+  title: z.string().max(80).default('Você também pode gostar'),
+  /** Onde inserir: seletor do elemento de referência e posição relativa a ele. */
+  selector: z.string().min(1),
+  position: z.enum(['before', 'after', 'prepend', 'append']).default('after'),
+  limit: z.number().int().min(1).max(12).default(4),
+  targeting: EngageTargetingSchema.default({}),
+  accent: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .default('#16181d'),
+});
+export type RecoWidget = z.infer<typeof RecoWidgetSchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
   popup: PopupSchema,
   survey: SurveySchema,
+  reco: RecoWidgetSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;
