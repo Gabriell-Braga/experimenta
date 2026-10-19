@@ -126,6 +126,18 @@ describe('publicação', () => {
     expect(published().heatmap).toBeUndefined();
   });
 
+  test('publicações simultâneas da mesma conta saem em fila: versões distintas e a última vale', async () => {
+    const rs = await Promise.all([1, 2, 3].map(() => call('/publish', 'editor', { method: 'POST' })));
+    const versions = (await Promise.all(rs.map((r) => r.json()))).map(
+      (b) => (b as { version: number }).version,
+    );
+    expect(new Set(versions).size).toBe(3);
+    const cfg = JSON.parse(readFileSync(join(cdnDir, `${DEMO.accountId}.json`), 'utf8')) as {
+      version: number;
+    };
+    expect(cfg.version).toBe(Math.max(...versions));
+  });
+
   test('audiências: só as usadas por experimentos publicados vão para a config', async () => {
     const mk = async (name: string) => {
       const r = await call('/entities/audience', 'editor', {

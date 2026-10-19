@@ -97,6 +97,7 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
 
   // Contrato público da publicação.
   const cfg = await (await request.get('http://localhost:4000/cdn/demo.json')).json();
-  expect(cfg.experiments).toEqual([]);
+  // Só o nosso: outros testes publicam em paralelo na mesma conta.
+  expect(cfg.experiments.map((e: { id: string }) => e.id)).not.toContain(expId);
   expect(await apiToken(request)).toBeTruthy();
 });

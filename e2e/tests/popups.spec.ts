@@ -13,12 +13,16 @@ test('pop-up: cria com pré-visualização, publica, aparece no site e registra 
   await page.getByTestId('popup-title').fill(title);
   await expect(page.getByTestId('popup-preview').locator('abt-engage')).toHaveCount(1);
   await page.getByTestId('engage-trigger').selectOption('load');
+  // Só na página deste teste: os outros rodam em paralelo na mesma conta.
+  const tag = Date.now();
+  await page.getByTestId('engage-add-url').click();
+  await page.getByTestId('engage-url').fill(`e2e=${tag}`);
   await page.getByTestId('popup-publish').click();
   await expect(page.getByTestId('popup-row').filter({ hasText: title })).toBeVisible();
 
   const ctx = await browser.newContext();
   const v = await ctx.newPage();
-  await v.goto('http://localhost:5180/');
+  await v.goto(`http://localhost:5180/?e2e=${tag}`);
   const host = v.locator('abt-engage');
   await expect(host.locator('h2')).toHaveText(title, { timeout: 15_000 });
   await host.getByRole('button', { name: 'Fechar' }).click();

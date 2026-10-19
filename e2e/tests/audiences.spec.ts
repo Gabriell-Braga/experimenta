@@ -24,6 +24,11 @@ test('audiência: só quem atende às regras entra no experimento', async ({ pag
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('running');
   await page.getByTestId('audiences-picker').getByText(name).click();
+  // Tudo na variação: quem atende à audiência sempre vê a mudança.
+  await page.getByTestId('weight-controle').fill('0');
+  await page.getByTestId('weight-controle').blur();
+  await page.getByTestId('weight-variacao-1').fill('100');
+  await page.getByTestId('weight-variacao-1').blur();
   await page.getByTestId('settings-done').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('Publicado');

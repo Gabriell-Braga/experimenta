@@ -1,9 +1,9 @@
 # Progresso
-**Status:** em andamento
+**Status:** concluído (fases 0–15)
 **Fase atual:** concluído
 **Tarefa atual:** —
 **Última atualização:** 2026-10-19 19:39
-**Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
+**Próximo passo:** revisão humana; ver "Resumo final das fases 9–15" no fim do histórico.
 
 ## Bloqueios / perguntas para os humanos
 - (vazio) — perguntas anteriores respondidas em docs/DECISOES.md D-033.
@@ -495,3 +495,17 @@
 - Arquivos principais: apps/api/src/ai.ts, apps/api/src/routes/ai.ts, apps/api/src/bandit.ts, apps/editor/src/pages/Optimize.tsx, apps/editor/src/components/SettingsPanel.tsx
 - Como testar manualmente: Sem chave: Otimização por IA → Gerar ideias (por regras). Com ANTHROPIC_API_KEY na API: idem, por Claude. Num teste: Configurações → Alocação → Piloto automático; Relatório → Rebalancear
 - Observações: Fase 15 concluída.
+
+### Resumo das Fases 14 e 15 — CDP, flags, integrações, reporting e IA
+- CDP: perfis com resolução de identidade e cross-device, segmentos sobre o perfil unificado com exportação CSV, `GET /decide` para personalização cross-channel.
+- Feature flags e experimentos server-side com `@abtest/sdk` (decisão local, mesmo hash do snippet).
+- Integrações: chaves de API (hash, papel, revogação), webhooks assinados (eventos e publicação), GA4 e GTM pelo snippet.
+- Painel geral com KPIs de todos os módulos e insights automáticos (vencedor, SRM, frustração, campo de formulário, passo de funil, scroll baixo, segmento divergente).
+- Analytics preditivo: regressão logística treinada na API, publicada na config e avaliada no navegador (regra de audiência `score`).
+- Otimização por IA: ideias de teste com Claude (`ANTHROPIC_API_KEY`) ou por regras; piloto automático (bandit + corta perdedoras + tudo para a vencedora).
+- Robustez achada no E2E final: publicações simultâneas da mesma conta agora saem em fila (antes a mais lenta podia gravar config velha); testes E2E de pop-up/pesquisa isolados por URL e teste de audiência com pesos 0/100.
+
+### Resumo final das fases 9–15
+- Testes: Vitest em todos os workspaces + E2E Playwright 53/53 (três execuções seguidas sem falha). Snippet 9,6 KB gzip (< 10 KB).
+- Pendências conhecidas (ver DECISOES): retry/fila de webhooks; fila de publicação vale só por processo/isolate; ideias com Claude dependem da chave no ambiente.
+

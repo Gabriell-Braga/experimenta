@@ -12,12 +12,16 @@ test('pesquisa NPS: cria, publica, visitante responde e o relatório mostra o NP
   await page.getByTestId('survey-name').fill(name);
   await expect(page.getByTestId('survey-preview').locator('abt-engage')).toHaveCount(1);
   await page.getByTestId('engage-trigger').selectOption('load');
+  // Só na página deste teste: os outros rodam em paralelo na mesma conta.
+  const tag = Date.now();
+  await page.getByTestId('engage-add-url').click();
+  await page.getByTestId('engage-url').fill(`e2e=${tag}`);
   await page.getByTestId('survey-publish').click();
   await expect(page.getByTestId('survey-row').filter({ hasText: name })).toBeVisible();
 
   const ctx = await browser.newContext();
   const v = await ctx.newPage();
-  await v.goto('http://localhost:5180/produto.html');
+  await v.goto(`http://localhost:5180/produto.html?e2e=${tag}`);
   const w = v.locator('abt-engage');
   await expect(w.getByRole('dialog', { name: 'Pesquisa' })).toBeVisible({ timeout: 15_000 });
   await w.getByRole('button', { name: '10', exact: true }).click();

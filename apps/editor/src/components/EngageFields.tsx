@@ -150,6 +150,7 @@ export function EngageFields<T extends EngageCommon>({
               }
               className={`${small} font-mono`}
               placeholder="/checkout"
+              data-testid="engage-url"
             />
             <button
               onClick={() => set({ targeting: { ...tg, urls: tg.urls.filter((_, j) => j !== i) } })}
@@ -168,6 +169,7 @@ export function EngageFields<T extends EngageCommon>({
             })
           }
           className="text-xs text-brand-700 hover:underline"
+          data-testid="engage-add-url"
         >
           + página
         </button>

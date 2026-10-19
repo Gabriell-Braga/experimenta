@@ -38,7 +38,23 @@ const jsOf = (exps: Experiment[]) =>
  * Compila os experimentos EM EXECUÇÃO da conta num JSON versionado, registra a publicação (só inserção)
  * e grava `/cdn/<conta>.json` + `/cdn/<conta>.js`. customJS novo ou alterado exige permissão.
  */
-export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDeps) {
+export function createPublisher(deps: PublisherDeps) {
+  const run = publisher(deps);
+  // Uma publicação por conta de cada vez: duas simultâneas leriam o banco antes e a mais lenta gravaria a
+  // config velha por cima da nova. ponytail: só dentro do processo/isolate; entre isolates do Worker
+  // continua valendo a última gravação (fila ou Durable Object se virar problema).
+  const queue = new Map<string, Promise<unknown>>();
+  return (accountId: string, user: User) => {
+    const p = (queue.get(accountId) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => run(accountId, user));
+    queue.set(accountId, p);
+    void p.finally(() => queue.get(accountId) === p && queue.delete(accountId)).catch(() => undefined);
+    return p;
+  };
+}
+
+function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDeps) {
   return async (
     accountId: string,
     user: User,
