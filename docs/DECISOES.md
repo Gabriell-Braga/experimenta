@@ -259,3 +259,7 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Armazenamento: `recordings` (metadados por sessão: início/fim, páginas em ordem pelos eventos Meta, dispositivo, viewport, nº de eventos) + `recording_chunks` (JSON dos eventos). As duas implementações (Postgres e D1) seguem o mesmo contrato. Retenção junto com os eventos crus.
 - Privacidade por padrão: `maskAllInputs`, classes `abt-block`/`abt-mask` para o time do site esconder trechos.
 - ponytail: metadados atualizados por leitura+escrita (sem lock): dois blocos simultâneos da mesma sessão podem perder uma página da lista; os eventos não se perdem.
+
+## D-047 — Player de sessões (fase 10.4)
+- `@rrweb/replay` (Replayer) com controles próprios no visual do produto: linha do tempo com marcadores dos NOSSOS eventos da mesma sessão (páginas, cliques, frustração, conversões, eventos customizados; clicar pula para o momento), velocidade 1–8×, pular inatividade, escala automática do viewport gravado (desktop e celular) e trilha do mouse em lima. Carregado sob demanda (import dinâmico) para não pesar no app.
+- Lista com filtros de período, dispositivo, página visitada, duração mínima e "só com frustração"; aceita `?visitor=` (usado pelos perfis do CDP).

@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 10
-**Tarefa atual:** 10.4 (em andamento desde 2026-10-19 14:26)
-**Última atualização:** 2026-10-19 14:26
+**Fase atual:** 11
+**Tarefa atual:** 11.1 (em andamento desde 2026-10-19 14:29)
+**Última atualização:** 2026-10-19 14:29
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -352,3 +352,9 @@
 - Arquivos principais: packages/insights/*, packages/snippet/src/insights.ts, apps/api/src/routes/recordings.ts, apps/api/src/{schema,repo,repo-d1}.ts, migrations
 - Como testar manualmente: Navegar no demo e GET /recordings?days=1 com token.
 - Observações: ver D-046.
+
+### 2026-10-19 14:29 — Tarefa 10.4 concluída
+- O que foi feito: Tela Insights → Gravações (filtros: período, dispositivo, página, duração, frustração, visitante) e player em tela cheia (rrweb Replayer, linha do tempo com marcadores clicáveis, velocidade, pular inatividade, escala do viewport, lista lateral de eventos).
+- Arquivos principais: apps/editor/src/pages/Recordings.tsx, e2e/tests/recordings.spec.ts
+- Como testar manualmente: Navegar no demo; Insights → Gravações → abrir a sessão.
+- Observações: ver D-047.

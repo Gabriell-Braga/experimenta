@@ -231,3 +231,29 @@ export interface ExperimentReport {
 }
 export const getReport = (id: string, p: { days?: number; device?: string }) =>
   query<ExperimentReport>(`/experiments/${encodeURIComponent(id)}/report`, p);
+
+export interface RecordingRow {
+  sessionId: string;
+  visitorId: string;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  pages: string[];
+  device: string;
+  vw: number;
+  vh: number;
+  events: number;
+  clicks: number;
+  rage: number;
+  dead: number;
+  conversions: number;
+  customEvents: number;
+}
+export const listRecordings = (p: Record<string, string | number | undefined>) =>
+  query<RecordingRow[]>('/recordings', p);
+export const getRecording = (sessionId: string) =>
+  query<{
+    sessionId: string;
+    events: { timestamp: number; type: number }[];
+    timeline: import('@abtest/shared').TrackingEvent[];
+  }>(`/recordings/${encodeURIComponent(sessionId)}`);

@@ -7,6 +7,7 @@ import { ExperimentList } from './pages/Experiments';
 import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
+import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { ReportPage } from './pages/Report';
 import { AppShell } from './shell';
 import { Button, Spinner } from './ui';
@@ -17,6 +18,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
   heatmaps: () => <HeatmapsPage />,
+  recordings: (_, r) => <RecordingsPage params={r.params} />,
   report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
 };
 
@@ -61,6 +63,8 @@ export function App() {
   if (!user) return <Login onLogin={setUser} />;
   if (!exp && route.view === 'heatmap' && route.params.get('url'))
     return <HeatmapViewer key={route.params.get('url')} url={route.params.get('url')!} />;
+  if (!exp && route.view === 'recording' && route.params.get('id'))
+    return <RecordingPlayer key={route.params.get('id')} id={route.params.get('id')!} />;
   if (!exp) {
     const view = PAGES[route.view] ? route.view : 'tests';
     return (
