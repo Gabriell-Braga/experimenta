@@ -119,7 +119,7 @@ describe('publicação', () => {
     expect((await put('owner', { heatmapSampleRate: 0.25 })).status).toBe(200);
     expect(await (await call('/account/settings', 'viewer')).json()).toEqual({ heatmapSampleRate: 0.25 });
     await call('/publish', 'owner', { method: 'POST' });
-    expect(published().heatmap).toEqual({ sampleRate: 0.25 });
+    expect(published().heatmap).toEqual({ sampleRate: 0.25, recordings: true, forms: true });
     // null volta ao padrão do servidor (0 neste teste → sem captura).
     await put('owner', { heatmapSampleRate: null });
     await call('/publish', 'owner', { method: 'POST' });
