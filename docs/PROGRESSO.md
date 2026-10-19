@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 13
-**Tarefa atual:** 13.3 (em andamento desde 2026-10-19 15:19)
-**Última atualização:** 2026-10-19 15:19
+**Tarefa atual:** 13.4 (em andamento desde 2026-10-19 18:25)
+**Última atualização:** 2026-10-19 18:25
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -425,3 +425,9 @@
 - Arquivos principais: packages/snippet/src/dynamic.ts, apps/editor/src/components/PropertiesPanel.tsx
 - Como testar manualmente: Texto da variação: 'Olá, {{attr.nome|visitante}}' → abq.push(['set',{nome:'Ana'}]) no site.
 - Observações: ver D-056. Snippet 8,9 KB.
+
+### 2026-10-19 18:25 — Tarefa 13.3 concluída
+- O que foi feito: Schema popup + gatilhos + segmentação; packages/engage (engage.js: gatilhos, renderizador em Shadow DOM, frequência, eventos engage); snippet carrega sob demanda; publicação; GET /analytics/engage; tela Engajamento → Pop-ups com editor e pré-visualização real.
+- Arquivos principais: packages/engage/*, packages/snippet/src/engage.ts, apps/api/src/{publish.ts,analytics/engage.ts}, apps/editor/src/{pages/Popups.tsx,components/EngageFields.tsx}
+- Como testar manualmente: Engajamento → Novo pop-up → gatilho 'Ao carregar' → Salvar e publicar → abrir o demo.
+- Observações: ver D-057.

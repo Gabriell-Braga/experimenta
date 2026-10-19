@@ -152,7 +152,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 ### Fase 13 — Segmentação, personalização e engajamento
 - [x] 13.1 Audiências salvas com regras ricas (referrer, UTM, atributos, comportamento, cookie, variável JS, horário, idioma) usadas na segmentação
 - [x] 13.2 Conteúdo dinâmico (`{{attr.nome|padrão}}`) nas operações de texto/HTML
-- [ ] 13.3 Pop-ups e banners com gatilhos (carregamento, atraso, scroll, intenção de saída, inatividade, clique) em `engage.js`; relatório
+- [x] 13.3 Pop-ups e banners com gatilhos (carregamento, atraso, scroll, intenção de saída, inatividade, clique) em `engage.js`; relatório
 - [ ] 13.4 Pesquisas (NPS, CSAT, CES, escolha, texto) com gatilhos e lógica; relatório
 - [ ] 13.5 Recomendações (cross-sell, upsell, próxima melhor oferta, mais vendidos): catálogo via snippet, API pública, widget
 

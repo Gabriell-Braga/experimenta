@@ -7,6 +7,7 @@ import {
   FlaskConical,
   Grid3x3,
   LogOut,
+  Megaphone,
   Menu,
   Rocket,
   Route,
@@ -55,6 +56,7 @@ export const NAV: NavGroup[] = [
       { view: 'cohorts', label: 'Coortes', icon: Grid3x3 },
     ],
   },
+  { label: 'Engajamento', items: [{ view: 'popups', label: 'Pop-ups e barras', icon: Megaphone }] },
   {
     label: 'Dados',
     items: [

@@ -1,6 +1,7 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { Funnel } from '@abtest/shared';
 import { cohortsReport } from '../analytics/cohorts';
+import { engageReport } from '../analytics/engage';
 import { formsReport } from '../analytics/forms';
 import { funnelReport } from '../analytics/funnel';
 import { journeysReport } from '../analytics/journeys';
@@ -155,6 +156,26 @@ export function dataRoutes(app: Api, repo: Repo) {
         types: ['pageview', 'event', 'conversion'],
       });
       return c.json(cohortsReport(list, { unit: q.unit, metric: q.metric, event: q.event }), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/engage',
+      tags: ['engajamento'],
+      security,
+      summary:
+        'Pop-ups e pesquisas: exibições, visitantes, cliques (CTR), fechamentos e respostas por campanha',
+      request: { query: PeriodQuery },
+      responses: { 200: json(Report, 'por campanha'), ...errors },
+    }),
+    async (c) => {
+      const list = await repo.listEvents(c.get('user').accountId, {
+        ...period(c.req.valid('query')),
+        types: ['engage'],
+      });
+      return c.json(engageReport(list), 200);
     },
   );
 

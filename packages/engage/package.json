@@ -1,0 +1,21 @@
+{
+  "name": "@abtest/engage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@abtest/shared": "workspace:*",
+    "@abtest/snippet": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "0.25",
+    "jsdom": "26"
+  }
+}

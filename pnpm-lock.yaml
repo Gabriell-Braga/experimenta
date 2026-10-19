@@ -124,6 +124,9 @@ importers:
 
   apps/editor:
     dependencies:
+      '@abtest/engage':
+        specifier: workspace:^
+        version: link:../../packages/engage
       '@abtest/selector':
         specifier: workspace:^
         version: link:../../packages/selector
@@ -215,6 +218,22 @@ importers:
       '@abtest/selector':
         specifier: workspace:*
         version: link:../selector
+      '@abtest/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@abtest/snippet':
+        specifier: workspace:*
+        version: link:../snippet
+    devDependencies:
+      esbuild:
+        specifier: '0.25'
+        version: 0.25.12
+      jsdom:
+        specifier: '26'
+        version: 26.1.0
+
+  packages/engage:
+    dependencies:
       '@abtest/shared':
         specifier: workspace:*
         version: link:../shared

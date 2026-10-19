@@ -12,7 +12,9 @@
     "./spa": "./src/spa.ts",
     "./segment": "./src/segment.ts",
     "./insights": "./src/insights.ts",
-    "./runtime": "./src/runtime.ts"
+    "./runtime": "./src/runtime.ts",
+    "./engage": "./src/engage.ts",
+    "./audience": "./src/audience.ts"
   },
   "scripts": {
     "test": "vitest run",

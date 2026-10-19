@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@abtest/engage": "workspace:^",
     "@abtest/selector": "workspace:^",
     "@abtest/shared": "workspace:^",
     "@abtest/snippet": "workspace:^",

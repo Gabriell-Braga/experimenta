@@ -177,3 +177,8 @@ Enviado pelo `insights.js` (amostrado) uma vez por formulário por página vista
 foco de quem saiu sem enviar) e `fields[]` com `name`, `kind`, `time` (ms com foco), `hesitation?` (foco → primeira
 digitação), `focus`, `refills` (editou de novo depois de sair preenchido) e `filled`. **Nenhum valor digitado é
 enviado.** `GET /analytics/forms?days=&device=` agrega por página + formulário.
+
+### `engage` (pop-ups e pesquisas)
+Enviado pelo `engage.js` (carregado sob demanda quando há campanha publicada; nunca em QA/edição).
+`campaignId`, `kind` (`popup` | `survey`), `action` (`view`, `click` no CTA, `close`, `submit`).
+`GET /analytics/engage?days=` agrega por campanha (exibições, visitantes, cliques/CTR, fechamentos, respostas).

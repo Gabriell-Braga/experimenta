@@ -188,6 +188,7 @@ export function Modal({
   children,
   footer,
   testId,
+  wide = false,
 }: {
   open: boolean;
   onClose(): void;
@@ -195,6 +196,8 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
   testId?: string;
+  /** Janela larga (editores com pré-visualização). */
+  wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -211,7 +214,7 @@ export function Modal({
         e.preventDefault();
         onClose();
       }}
-      className="m-auto w-[30rem] max-w-[calc(100vw-2rem)] rounded-lg border border-gray-900/10 p-0 shadow-2xl backdrop:bg-ink/50 backdrop:backdrop-blur-[2px]"
+      className={`m-auto ${wide ? 'w-[60rem]' : 'w-[30rem]'} max-w-[calc(100vw-2rem)] rounded-lg border border-gray-900/10 p-0 shadow-2xl backdrop:bg-ink/50 backdrop:backdrop-blur-[2px]`}
     >
       {open && (
         <div className="flex flex-col">

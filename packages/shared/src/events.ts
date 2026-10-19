@@ -117,6 +117,14 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
     /** Último campo com foco (onde o visitante parou, se não enviou). */
     lastField: z.string().max(200).optional(),
   }),
+  /** Pop-up/pesquisa exibido, clicado (CTA), fechado ou respondido. */
+  z.object({
+    ...base,
+    type: z.literal('engage'),
+    campaignId: z.string(),
+    kind: z.enum(['popup', 'survey']),
+    action: z.enum(['view', 'click', 'close', 'submit']),
+  }),
   /** Profundidade máxima de scroll da página (0..100 % da altura), enviada ao sair/navegar. */
   z.object({
     ...heatmapBase,
@@ -154,5 +162,5 @@ export type HeatmapEvent = Extract<
   TrackingEvent,
   { type: 'click' | 'scroll' | 'frustration' | 'move' | 'form' }
 >;
-export type DataEvent = Extract<TrackingEvent, { type: 'pageview' | 'event' | 'identify' }>;
+export type DataEvent = Extract<TrackingEvent, { type: 'pageview' | 'event' | 'identify' | 'engage' }>;
 export type ExperimentEvent = Exclude<TrackingEvent, HeatmapEvent | DataEvent>;

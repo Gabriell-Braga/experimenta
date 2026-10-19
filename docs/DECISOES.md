@@ -308,3 +308,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Tokens `{{fonte.chave|padrão}}` em setText/setHTML/insertHTML/setAttribute, resolvidos no navegador na ativação: `attr` (atributos do visitante), `query` (URL), `utm` (URL ou 1ª visita), `cookie`, `js` (variável global com pontos).
 - Segurança: parâmetros de URL são controlados por quem envia o link. Em HTML o valor vira entidades; em atributos de URL (`href`, `src`, `action`…) vai com `encodeURIComponent` (bloqueia `javascript:`); atributos de evento (`on*`) nunca recebem dados; em texto (`textContent`) não há risco.
 - O editor mostra o token cru (o visitante real é que tem os dados); dica de uso no painel de texto.
+
+## D-057 — Pop-ups, barras e gatilhos (fase 13.3)
+- Entidade `popup` (formato modal/slide-in/barra topo/rodapé, título, texto, CTA, cupom copiável, imagem, tema, cor), com gatilho (carregamento, atraso, scroll %, intenção de saída — mouse saindo pelo topo no desktop, subida rápida no celular —, inatividade, clique em seletor), frequência (uma vez, por visita, sempre) e segmentação (páginas, dispositivos, audiências). Publicação leva os em execução para `config.popups`.
+- `engage.js` (bundle sob demanda, ~3,7 KB gzip, mesma pasta do script da conta) só é carregado quando há campanha publicada. Renderiza em Shadow DOM (CSS do site não interfere), textos por `textContent` (nunca HTML), CTA só aceita links `http(s)`, `/` ou `#` (bloqueia `javascript:`), Esc/fundo/× fecham, respeita `prefers-reduced-motion`. Um pop-up por vez; reavalia a cada rota de SPA.
+- A pré-visualização no app usa o MESMO renderizador do site, preso a uma "janela" falsa via `transform` (o `position:fixed` do widget fica relativo à caixa).

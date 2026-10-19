@@ -29,6 +29,7 @@ export function syncBundles(cdnDir: string, repoRoot: string): void {
     ['packages/snippet/dist/abt.js', 'abt.js'],
     ['packages/agent/dist/agent.js', 'agent.js'],
     ['packages/insights/dist/insights.js', 'insights.js'],
+    ['packages/engage/dist/engage.js', 'engage.js'],
   ] as const) {
     const from = join(repoRoot, src);
     if (existsSync(from)) copyFileSync(from, join(cdnDir, dest));

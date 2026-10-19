@@ -4,7 +4,8 @@ import { readConfig } from './config';
 import { installData } from './data';
 import { bootEditor, editToken } from './editor';
 import { installGoals } from './goals';
-import { insightsBoot, loadInsights, sampled } from './insights';
+import { engageBoot, loadBundle } from './engage';
+import { insightsBoot, sampled } from './insights';
 import { readForce, showBadge } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
@@ -30,6 +31,8 @@ declare global {
 }
 
 const script = document.currentScript as HTMLScriptElement | null;
+/** Bundles sob demanda ficam na mesma pasta do script da conta. */
+const sibling = (file: string) => new URL(file, script?.src || location.href).href;
 const config = readConfig();
 const token = config && editToken(window);
 if (config && token) {
@@ -58,11 +61,15 @@ if (config && token) {
     // Insights (mapa de calor, frustração, formulários, gravação): só amostrados e nunca em QA.
     const hm = config.heatmap;
     if (hm?.sampleRate && !forced && sampled(rt.visitor.id, hm.sampleRate))
-      loadInsights(
+      loadBundle(
         window,
-        new URL('insights.js', script?.src || location.href).href,
+        sibling('insights.js'),
+        '__ABT_INSIGHTS__',
         insightsBoot(window, rt, tracker, config),
       );
+    // Engajamento: só quando há pop-up/pesquisa publicado.
+    if (config.popups?.length && !forced)
+      loadBundle(window, sibling('engage.js'), '__ABT_ENGAGE__', engageBoot(window, rt, tracker));
     const run = (c: Command) => {
       if (c[0] === 'track') track(c[1], c[2], c[3]);
       else if (c[0] === 'event') track(c[1], typeof c[2]?.value === 'number' ? c[2].value : undefined, c[2]);

@@ -33,14 +33,6 @@ declare global {
   }
 }
 
-export function loadInsights(win: Window, src: string, boot: InsightsBoot): void {
-  win.__ABT_INSIGHTS__ = boot;
-  const s = win.document.createElement('script');
-  s.src = src;
-  s.async = true;
-  (win.document.head ?? win.document.documentElement).appendChild(s);
-}
-
 /** Contexto do insights.js a partir do runtime (snippet e testes). */
 export function insightsBoot(
   win: Window,

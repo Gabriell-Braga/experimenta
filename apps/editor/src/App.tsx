@@ -13,6 +13,7 @@ import { JourneysPage } from './pages/Journeys';
 import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
+import { PopupsPage } from './pages/Popups';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
@@ -30,6 +31,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   ),
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
+  popups: (user) => <PopupsPage user={user} />,
   audiences: (user) => <AudiencesPage user={user} />,
   server: (_, r) => <ServerExperimentPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   heatmaps: () => <HeatmapsPage />,

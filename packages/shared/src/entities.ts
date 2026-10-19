@@ -77,8 +77,55 @@ export const AudienceSchema = z.object({
 });
 export type Audience = z.infer<typeof AudienceSchema>;
 
+/** Quando um pop-up/pesquisa aparece. */
+export const TriggerSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('load') }),
+  z.object({ type: z.literal('delay'), seconds: z.number().min(0).max(600).default(5) }),
+  z.object({ type: z.literal('scroll'), percent: z.number().min(1).max(100).default(50) }),
+  /** Mouse saindo pelo topo da janela (desktop) ou "voltar" rápido no celular. */
+  z.object({ type: z.literal('exit') }),
+  z.object({ type: z.literal('inactive'), seconds: z.number().min(1).max(600).default(20) }),
+  z.object({ type: z.literal('click'), selector: z.string().min(1) }),
+]);
+export type Trigger = z.infer<typeof TriggerSchema>;
+
+/** Onde e para quem: páginas, dispositivos e audiências (todas). */
+export const EngageTargetingSchema = z.object({
+  urls: z.array(UrlRuleSchema).default([]),
+  devices: z.array(z.enum(['desktop', 'tablet', 'mobile'])).default([]),
+  audiences: z.array(z.string()).default([]),
+});
+
+const engageBase = {
+  status: z.enum(['draft', 'running', 'paused']).default('draft'),
+  trigger: TriggerSchema.default({ type: 'delay', seconds: 5 }),
+  targeting: EngageTargetingSchema.default({}),
+  /** Quantas vezes mostrar ao mesmo visitante. */
+  frequency: z.enum(['once', 'session', 'always']).default('once'),
+};
+
+/** Pop-up, barra ou slide-in com chamada para ação (Campaign Management). */
+export const PopupSchema = z.object({
+  ...engageBase,
+  format: z.enum(['modal', 'bar-top', 'bar-bottom', 'slide-in']).default('modal'),
+  title: z.string().max(140).default(''),
+  body: z.string().max(600).default(''),
+  image: z.string().url().optional(),
+  cta: z.object({ label: z.string().min(1).max(60), url: z.string().optional() }).optional(),
+  /** Código exibido com botão de copiar (ex.: cupom). */
+  code: z.string().max(40).optional(),
+  theme: z.enum(['light', 'dark', 'brand']).default('light'),
+  /** Cor de destaque (botão). */
+  accent: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .default('#16181d'),
+});
+export type Popup = z.infer<typeof PopupSchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
+  popup: PopupSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;
