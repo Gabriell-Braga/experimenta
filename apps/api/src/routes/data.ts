@@ -15,6 +15,29 @@ import type { Repo } from '../repo';
 
 export const DATA_PATHS = ['/analytics/*', '/events'];
 
+/** Painel do período (período anterior de mesma duração para as variações). Usado também pelas ideias de IA. */
+export async function loadDashboard(repo: Repo, accountId: string, range: { from: Date; to: Date }) {
+  const prevFrom = new Date(2 * range.from.getTime() - range.to.getTime());
+  const [all, list, funnels] = await Promise.all([
+    repo.listEvents(accountId, { from: prevFrom, to: range.to, types: [...DASHBOARD_TYPES] }),
+    repo.listExperiments(accountId),
+    repo.listEntities<Funnel>(accountId, 'funnel'),
+  ]);
+  const running = (
+    await Promise.all(
+      list.filter((e) => e.status === 'running').map((e) => repo.getExperiment(accountId, e.id)),
+    )
+  ).flatMap((r) => (r ? [r.experiment] : []));
+  const from = range.from.getTime();
+  return dashboard(
+    all.filter((e) => e.ts >= from),
+    all.filter((e) => e.ts < from),
+    range,
+    running,
+    funnels,
+  );
+}
+
 /** Coleta de dados (tarefa 9.2): visão geral do período e fluxo de eventos recentes. */
 export function dataRoutes(app: Api, repo: Repo) {
   app.openapi(
@@ -28,32 +51,8 @@ export function dataRoutes(app: Api, repo: Repo) {
       request: { query: PeriodQuery },
       responses: { 200: json(Report, 'painel'), ...errors },
     }),
-    async (c) => {
-      const accountId = c.get('user').accountId;
-      const range = period(c.req.valid('query'));
-      const prevFrom = new Date(2 * range.from.getTime() - range.to.getTime());
-      const [all, list, funnels] = await Promise.all([
-        repo.listEvents(accountId, { from: prevFrom, to: range.to, types: [...DASHBOARD_TYPES] }),
-        repo.listExperiments(accountId),
-        repo.listEntities<Funnel>(accountId, 'funnel'),
-      ]);
-      const running = (
-        await Promise.all(
-          list.filter((e) => e.status === 'running').map((e) => repo.getExperiment(accountId, e.id)),
-        )
-      ).flatMap((r) => (r ? [r.experiment] : []));
-      const from = range.from.getTime();
-      return c.json(
-        dashboard(
-          all.filter((e) => e.ts >= from),
-          all.filter((e) => e.ts < from),
-          range,
-          running,
-          funnels,
-        ),
-        200,
-      );
-    },
+    async (c) =>
+      c.json(await loadDashboard(repo, c.get('user').accountId, period(c.req.valid('query'))), 200),
   );
 
   app.openapi(

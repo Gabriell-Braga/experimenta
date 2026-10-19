@@ -166,7 +166,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 15.1 Painel geral com KPIs de todos os módulos
 - [x] 15.2 Insights automáticos (vencedor, SRM, frustração, campo com abandono, passo de funil, scroll baixo, segmento divergente)
 - [x] 15.3 Analytics preditivo (propensão a converter; modelo publicado e avaliado no snippet; audiência por score)
-- [ ] 15.4 Otimização por IA: ideias de teste com Claude (quando houver chave) + piloto automático
+- [x] 15.4 Otimização por IA: ideias de teste com Claude (quando houver chave) + piloto automático
 
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.

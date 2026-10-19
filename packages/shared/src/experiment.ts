@@ -102,7 +102,8 @@ export const ExperimentSchema = z
     /** MVT: seções e opções; as variações são as combinações (ver `mvtVariations`). */
     sections: z.array(MvtSectionSchema).optional(),
     /** `bandit`: os pesos são recalculados periodicamente pela API (Thompson sampling). */
-    allocation: z.enum(['manual', 'bandit']).default('manual'),
+    /** `autopilot` = bandit + corta perdedoras e, com vencedora declarada, manda todo o tráfego para ela. */
+    allocation: z.enum(['manual', 'bandit', 'autopilot']).default('manual'),
     /** Audiências salvas que o visitante precisa satisfazer (todas), além da segmentação. */
     audiences: z.array(z.string()).default([]),
   })

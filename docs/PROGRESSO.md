@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 15
-**Tarefa atual:** 15.4 (em andamento desde 2026-10-19 19:31)
-**Última atualização:** 2026-10-19 19:31
+**Fase atual:** concluído
+**Tarefa atual:** —
+**Última atualização:** 2026-10-19 19:39
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -489,3 +489,9 @@
 - Arquivos principais: packages/shared/src/predict.ts, apps/api/src/predict.ts, apps/api/src/routes/predictive.ts, packages/snippet/src/runtime.ts, apps/editor/src/pages/Predictive.tsx
 - Como testar manualmente: pnpm seed:data; Insights → Preditivo, meta compra, Treinar; criar audiência Score ≥ valor sugerido
 - Observações: Retreino junto com o job de hora em hora.
+
+### 2026-10-19 19:39 — Tarefa 15.4 concluída
+- O que foi feito: Ideias de teste com Claude (saída estruturada, fallback de recusa, validação) ou por regras sem chave; piloto automático (bandit + corta perdedoras + tudo para a vencedora); telas Testes → Otimização por IA e alocação em 3 modos
+- Arquivos principais: apps/api/src/ai.ts, apps/api/src/routes/ai.ts, apps/api/src/bandit.ts, apps/editor/src/pages/Optimize.tsx, apps/editor/src/components/SettingsPanel.tsx
+- Como testar manualmente: Sem chave: Otimização por IA → Gerar ideias (por regras). Com ANTHROPIC_API_KEY na API: idem, por Claude. Num teste: Configurações → Alocação → Piloto automático; Relatório → Rebalancear
+- Observações: Fase 15 concluída.

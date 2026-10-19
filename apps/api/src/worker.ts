@@ -1,3 +1,4 @@
+import Anthropic from '@anthropic-ai/sdk';
 // Entrada para Cloudflare Workers: D1 no lugar do Postgres, KV como CDN, sessões de edição no D1.
 // O servidor Node (src/server.ts) continua sendo o caminho de dev/self-host com Postgres.
 import type { D1Database, ExecutionContext, KVNamespace } from '@cloudflare/workers-types';
@@ -21,6 +22,8 @@ export interface Env {
   HEATMAP_SAMPLE_RATE?: string;
   /** Dias de retenção dos eventos crus (0 desliga o expurgo). */
   EVENTS_RETENTION_DAYS?: string;
+  /** Secret opcional: liga as ideias de teste com Claude. */
+  ANTHROPIC_API_KEY?: string;
 }
 
 /** KV como CDN. O runtime (abt.js) só muda a cada deploy: fica em memória no isolate. */
@@ -72,6 +75,7 @@ async function build(env: Env) {
     jwtSecret: env.JWT_SECRET,
     sessions: createD1SessionStore(d1),
     publish,
+    ai: env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : undefined,
   });
 }
 

@@ -84,6 +84,20 @@ function goalTarget(g: Goal): string {
   return g.selector;
 }
 
+const ALLOCATIONS: [Experiment['allocation'], string, string][] = [
+  ['manual', 'Pesos fixos', 'A divisão que você definir abaixo. O melhor para aprender com o teste.'],
+  [
+    'bandit',
+    'Bandit (multi-armed)',
+    'A cada hora, mais tráfego para a variação com mais chance de vencer na meta primária (Thompson sampling, mínimo de 5% para cada). Bom para promoções curtas.',
+  ],
+  [
+    'autopilot',
+    'Piloto automático',
+    'Bandit + corta as variações perdedoras e, quando houver vencedora, manda todo o tráfego para ela. Republica sozinho.',
+  ],
+];
+
 export function SettingsPanel({
   experiment,
   dispatch,
@@ -158,27 +172,30 @@ export function SettingsPanel({
         </label>
 
         {experiment.variations.length > 1 && experiment.type !== 'rollout' && (
-          <label className="flex items-start gap-2 rounded-md border border-gray-900/10 p-2">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={experiment.allocation === 'bandit'}
-              onChange={(e) => patch({ allocation: e.target.checked ? 'bandit' : 'manual' })}
-              data-testid="allocation-bandit"
-            />
-            <span>
-              <span className="font-medium text-ink">Alocação automática (multi-armed bandit)</span>
-              <span className="block text-xs text-gray-500">
-                A cada hora, mais tráfego vai para a variação com mais chance de vencer na meta primária
-                (Thompson sampling, mínimo de 5% para cada uma). Bom para promoções curtas; para aprender,
-                prefira pesos fixos.
-              </span>
-            </span>
-          </label>
+          <fieldset className="flex flex-col gap-1.5 rounded-md border border-gray-900/10 p-2">
+            <legend className="px-1 text-gray-600">Alocação do tráfego</legend>
+            {ALLOCATIONS.map(([value, label, hint]) => (
+              <label key={value} className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="allocation"
+                  className="mt-0.5"
+                  checked={experiment.allocation === value}
+                  onChange={() => patch({ allocation: value })}
+                  data-testid={`allocation-${value}`}
+                />
+                <span>
+                  <span className="font-medium text-ink">{label}</span>
+                  <span className="block text-xs text-gray-500">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
         )}
-        <fieldset className="flex flex-col gap-1" disabled={experiment.allocation === 'bandit'}>
+        <fieldset className="flex flex-col gap-1" disabled={experiment.allocation !== 'manual'}>
           <legend className="mb-1 text-gray-600">
-            Divisão entre variações (pesos){experiment.allocation === 'bandit' && ' — controlada pelo bandit'}
+            Divisão entre variações (pesos)
+            {experiment.allocation !== 'manual' && ' — controlada automaticamente'}
           </legend>
           {experiment.variations.map((v, i) => (
             <div key={v.id}>

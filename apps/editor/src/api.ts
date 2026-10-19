@@ -383,3 +383,20 @@ export interface Predictive {
 }
 export const getPredictive = () => api<Predictive>('/predictive');
 export const trainPredictive = () => api<unknown>('/predictive/train', { method: 'POST' });
+
+export interface Idea {
+  title: string;
+  hypothesis: string;
+  page: string;
+  change: string;
+  metric: string;
+  impact: string;
+  effort: string;
+  basedOn: string;
+}
+export interface Ideas {
+  source: 'claude' | 'regras';
+  model?: string;
+  ideas: Idea[];
+}
+export const getIdeas = (days: number) => api<Ideas>(`/ai/ideas?days=${days}`, { method: 'POST' });

@@ -1,0 +1,105 @@
+import type Anthropic from '@anthropic-ai/sdk';
+import { expect, test, vi } from 'vitest';
+import { claudeIdeas, ruleIdeas } from './ai';
+import type { Dashboard } from './analytics/dashboard';
+import type { Insight } from './analytics/insights';
+import { autopilotWeights } from './bandit';
+import { setupApp } from './test-app';
+
+const insight = (kind: Insight['kind'], extra: Partial<Insight> = {}): Insight => ({
+  id: kind,
+  kind,
+  severity: 'warning',
+  title: `achado ${kind}`,
+  detail: 'detalhe',
+  link: { view: 'heatmap', params: { url: 'http://x.com/carrinho' } },
+  ...extra,
+});
+
+const idea = {
+  title: 'CTA no topo',
+  hypothesis: 'Se o CTA subir, mais cliques',
+  page: '/',
+  change: 'mover CTA',
+  metric: 'compra',
+  impact: 'alto',
+  effort: 'baixo',
+  basedOn: 'scroll baixo',
+};
+
+/** Cliente falso: só o `beta.messages.parse` que o módulo usa. */
+const fake = (res: unknown) => {
+  const parse = vi.fn().mockResolvedValue(res);
+  return { client: { beta: { messages: { parse } } } as unknown as Anthropic, parse };
+};
+
+test('regras: uma ideia por achado acionável, com a página do achado', () => {
+  const ideas = ruleIdeas([insight('frustration'), insight('low-scroll'), insight('srm'), insight('winner')]);
+  expect(ideas.map((i) => i.title)).toEqual([
+    'Tornar clicável o que parece clicável',
+    'Subir o CTA e a prova social',
+    'Implementar a vencedora',
+  ]);
+  expect(ideas[0]!.page).toBe('/carrinho');
+});
+
+test('Claude: modelo, fallback e saída estruturada; resposta validada', async () => {
+  const d = { insights: [insight('low-scroll')], traffic: { series: [] } } as unknown as Dashboard;
+  const ok = fake({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
+  expect(await claudeIdeas(ok.client, d)).toEqual([idea]);
+  const params = ok.parse.mock.calls[0]![0];
+  expect(params).toMatchObject({
+    model: 'claude-opus-5-5',
+    fallbacks: 'default',
+    betas: ['server-side-fallback-2026-07-01'],
+  });
+  expect(params.output_config.format.type).toBe('json_schema');
+  expect(params.messages[0].content).toContain('achado low-scroll');
+
+  await expect(claudeIdeas(fake({ stop_reason: 'refusal', parsed_output: null }).client, d)).rejects.toThrow(
+    'refusal',
+  );
+  await expect(
+    claudeIdeas(fake({ stop_reason: 'end_turn', parsed_output: { ideas: [{ title: 1 }] } }).client, d),
+  ).rejects.toThrow('formato');
+});
+
+test('rota: sem chave usa regras; com Claude falhando também cai nas regras; viewer não pede', async () => {
+  const t = await setupApp();
+  const post = (as: string) => t.req('/ai/ideas', { method: 'POST', as });
+  expect((await post('viewer')).status).toBe(403);
+  expect(await (await post('editor')).json()).toMatchObject({ source: 'regras' });
+  const broken = {
+    beta: { messages: { parse: vi.fn().mockRejectedValue(new Error('rede')) } },
+  } as unknown as Anthropic;
+  const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const t2 = await setupApp({ ai: broken });
+  expect(await (await t2.req('/ai/ideas', { method: 'POST', as: 'editor' })).json()).toMatchObject({
+    source: 'regras',
+  });
+  err.mockRestore();
+  const good = fake({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
+  const t3 = await setupApp({ ai: good.client });
+  expect(await (await t3.req('/ai/ideas', { method: 'POST', as: 'editor' })).json()).toEqual({
+    source: 'claude',
+    model: 'claude-opus-5-5',
+    ideas: [idea],
+  });
+}, 30_000); // três apps com banco cada
+
+test('piloto automático: perdedora sai e não volta; com vencedora, só ela recebe tráfego', () => {
+  const exp = (w: number[]) => ({ variations: w.map((weight) => ({ weight })) });
+  const v = (...xs: string[]) => xs.map((verdict) => ({ verdict }));
+  expect(autopilotWeights([400, 300, 300], v('baseline', 'loser', 'leading'), exp([1, 1, 1]))).toEqual([
+    400, 0, 300,
+  ]);
+  // Pausada antes continua pausada, mesmo sem veredito agora.
+  expect(autopilotWeights([400, 300, 300], v('baseline', 'inconclusive', 'leading'), exp([1, 0, 1]))).toEqual(
+    [400, 0, 300],
+  );
+  expect(autopilotWeights([100, 800, 100], v('baseline', 'winner', 'inconclusive'), exp([1, 1, 1]))).toEqual([
+    0, 800, 0,
+  ]);
+  // Nunca zera tudo.
+  expect(autopilotWeights([500, 500], v('baseline', 'loser'), exp([0, 1]))).toEqual([500, 500]);
+});

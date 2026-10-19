@@ -16,6 +16,7 @@ import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
 import { IntegrationsPage } from './pages/Integrations';
 import { Login } from './pages/Login';
+import { OptimizePage } from './pages/Optimize';
 import { PopupsPage } from './pages/Popups';
 import { PredictivePage } from './pages/Predictive';
 import { ProfilePage, ProfilesPage } from './pages/Profiles';
@@ -42,6 +43,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   integrations: (user) => <IntegrationsPage user={user} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
+  optimize: (user) => <OptimizePage user={user} />,
   popups: (user) => <PopupsPage user={user} />,
   profiles: () => <ProfilesPage />,
   segments: (user) => <SegmentsPage user={user} />,

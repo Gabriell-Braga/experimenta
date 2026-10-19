@@ -1,3 +1,4 @@
+import type Anthropic from '@anthropic-ai/sdk';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { ExperimentSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
@@ -14,6 +15,7 @@ import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
 import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
+import { AI_PATHS, aiRoutes } from './routes/ai';
 import { dispatchEvents, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
@@ -32,6 +34,8 @@ export interface AppDeps {
     accountId: string,
     user: User,
   ) => Promise<{ version: number } | { error: string; status: 403 | 400 }>;
+  /** Cliente da API do Claude (só com ANTHROPIC_API_KEY); sem ele as ideias vêm das regras. */
+  ai?: Anthropic;
 }
 
 const UserOut = z
@@ -145,6 +149,7 @@ export function createApp(deps: AppDeps) {
     ...CDP_PATHS,
     ...INTEGRATION_PATHS,
     ...PREDICTIVE_PATHS,
+    ...AI_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
@@ -730,6 +735,7 @@ export function createApp(deps: AppDeps) {
   cdpRoutes(app, repo, deps.cdn);
   integrationRoutes(app, repo);
   predictiveRoutes(app, repo, deps.publish);
+  aiRoutes(app, repo, deps.ai);
 
   app.openapi(
     createRoute({

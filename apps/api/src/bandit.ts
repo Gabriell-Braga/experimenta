@@ -11,12 +11,30 @@ const DAY = 86_400_000;
 export const BANDIT_WINDOW_DAYS = 30;
 
 /**
+ * Piloto automático sobre os pesos do bandit: perdedora (veredito na meta primária) sai do ar e não volta;
+ * com vencedora declarada, só as vencedoras recebem tráfego. Sempre sobra ao menos uma variação.
+ */
+export function autopilotWeights(
+  weights: number[],
+  arms: { verdict: string }[],
+  exp: { variations: { weight: number }[] },
+): number[] {
+  const winners = arms.some((a) => a.verdict === 'winner');
+  const out = weights.map((w, i) => {
+    const v = arms[i]?.verdict;
+    if (winners) return v === 'winner' ? w : 0;
+    return v === 'loser' || exp.variations[i]?.weight === 0 ? 0 : w;
+  });
+  return out.some((w) => w > 0) ? out : weights;
+}
+
+/**
  * Recalcula os pesos de um experimento com alocação `bandit` pela meta primária (Thompson sampling) e salva
  * uma nova versão se mudaram. Só afeta visitantes NOVOS: a atribuição de quem já entrou é persistida.
  */
 export async function rebalance(repo: Repo, accountId: string, experimentId: string, now = Date.now()) {
   const rec = await repo.getExperiment(accountId, experimentId);
-  if (!rec || rec.experiment.allocation !== 'bandit' || rec.experiment.status !== 'running') return null;
+  if (!rec || rec.experiment.allocation === 'manual' || rec.experiment.status !== 'running') return null;
   const exp = rec.experiment;
   const range = { from: new Date(now - BANDIT_WINDOW_DAYS * DAY), to: new Date(now) };
   const events = await repo.listEvents(accountId, {
@@ -28,7 +46,10 @@ export async function rebalance(repo: Repo, accountId: string, experimentId: str
   const arms =
     report.goals[0]?.arms.map((a) => ({ visitors: a.visitors, conversions: a.conversions })) ??
     report.variations.map((v) => ({ visitors: v.visitors, conversions: 0 }));
-  const weights = banditWeights(arms);
+  const weights =
+    exp.allocation === 'autopilot'
+      ? autopilotWeights(banditWeights(arms), report.goals[0]?.arms ?? [], exp)
+      : banditWeights(arms);
   const changed = exp.variations.some((v, i) => v.weight !== weights[i]);
   if (changed)
     await repo.saveExperiment(accountId, {

@@ -18,6 +18,7 @@ Tudo roda em Workers (conta Cloudflare do projeto, subdomínio `hub-villa-deli.w
 - D1 `abtest-db` (schema SQLite em `apps/api/migrations-d1/`, aplicado por `wrangler d1 migrations apply abtest-db --remote`).
 - KV `abtest-cdn` (binding `CDN`): `abt.js`, `agent.js`, `<conta>.js`, `<conta>.json`.
 - Segredos do Worker: `JWT_SECRET`, `SEED_PASSWORD` (senha dos usuários da conta demo, criados no primeiro acesso). Trocar com `wrangler secret put`.
+- Opcional: `ANTHROPIC_API_KEY` (`wrangler secret put ANTHROPIC_API_KEY`) liga as ideias de teste com Claude em Testes → Otimização por IA; sem ela, as ideias vêm das regras dos insights. No Node, a mesma variável de ambiente.
 - Variáveis em `apps/api/wrangler.jsonc`: `PUBLIC_URL`, `EDITOR_ORIGINS`, `DEMO_SITE_URL`, `HEATMAP_SAMPLE_RATE`.
 
 ## Para instalar num site real

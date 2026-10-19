@@ -26,6 +26,7 @@ import {
   Plug,
   LayoutDashboard,
   BrainCircuit,
+  Sparkles,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
@@ -53,6 +54,7 @@ export const NAV: NavGroup[] = [
       { view: 'tests:rollout', label: 'Rollouts', icon: Rocket },
       { view: 'tests:server', label: 'Server-side', icon: Server },
       { view: 'flags', label: 'Feature flags', icon: ToggleRight },
+      { view: 'optimize', label: 'Otimização por IA', icon: Sparkles },
     ],
   },
   {

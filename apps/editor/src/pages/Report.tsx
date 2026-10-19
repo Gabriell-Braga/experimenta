@@ -411,7 +411,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
         }
         actions={
           <span className="no-print flex gap-2">
-            {exp.allocation === 'bandit' && exp.status === 'running' && (
+            {exp.allocation !== 'manual' && exp.status === 'running' && (
               <Button
                 data-testid="rebalance"
                 onClick={async () => {

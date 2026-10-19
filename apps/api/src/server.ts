@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import Anthropic from '@anthropic-ai/sdk';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { hourlyJobs } from './bandit';
@@ -65,6 +66,18 @@ setInterval(
   3_600_000,
 ).unref();
 
-serve({ fetch: createApp({ repo, cdn, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
-  console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),
+serve(
+  {
+    fetch: createApp({
+      repo,
+      cdn,
+      editorOrigins,
+      jwtSecret,
+      publish,
+      // Ideias de teste com Claude só quando há chave (sem ela, as regras dos insights).
+      ai: process.env.ANTHROPIC_API_KEY ? new Anthropic() : undefined,
+    }).fetch,
+    port,
+  },
+  () => console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),
 );

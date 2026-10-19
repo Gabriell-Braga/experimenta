@@ -616,7 +616,12 @@ export function createRepo(db: Db) {
       return db
         .select({ accountId: experiments.accountId, id: experiments.id })
         .from(experiments)
-        .where(and(eq(experiments.status, 'running'), sql`${experiments.options}->>'allocation' = 'bandit'`));
+        .where(
+          and(
+            eq(experiments.status, 'running'),
+            sql`${experiments.options}->>'allocation' in ('bandit', 'autopilot')`,
+          ),
+        );
     },
 
     /** Contas que têm entidades de um tipo — manutenção do sistema (jobs), sem rota exposta. */

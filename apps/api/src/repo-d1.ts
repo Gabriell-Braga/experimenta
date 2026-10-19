@@ -568,7 +568,7 @@ export function createD1Repo(d1: D1Like): Repo {
 
     async listBanditExperiments() {
       const rows = await all<{ account_id: string; id: string }>(
-        "SELECT account_id, id FROM experiments WHERE status = 'running' AND json_extract(options, '$.allocation') = 'bandit'",
+        "SELECT account_id, id FROM experiments WHERE status = 'running' AND json_extract(options, '$.allocation') IN ('bandit', 'autopilot')",
       );
       return rows.map((r) => ({ accountId: r.account_id, id: r.id }));
     },
