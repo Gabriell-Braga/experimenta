@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 15
-**Tarefa atual:** 15.3 (em andamento desde 2026-10-19 19:21)
-**Última atualização:** 2026-10-19 19:21
+**Tarefa atual:** 15.4 (em andamento desde 2026-10-19 19:31)
+**Última atualização:** 2026-10-19 19:31
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -483,3 +483,9 @@
 - Arquivos principais: apps/api/src/analytics/insights.ts, apps/editor/src/pages/Dashboard.tsx
 - Como testar manualmente: Abrir ?view=home com dados do seed; clicar num achado abre a tela que o prova
 - Observações: Limiares em LIMITS.
+
+### 2026-10-19 19:31 — Tarefa 15.3 concluída
+- O que foi feito: Propensão a converter: features compartilhadas snippet/API, regressão logística com teste separado (AUC, decis, pesos), modelo publicado na config, score no navegador para a regra de audiência; tela Insights → Preditivo
+- Arquivos principais: packages/shared/src/predict.ts, apps/api/src/predict.ts, apps/api/src/routes/predictive.ts, packages/snippet/src/runtime.ts, apps/editor/src/pages/Predictive.tsx
+- Como testar manualmente: pnpm seed:data; Insights → Preditivo, meta compra, Treinar; criar audiência Score ≥ valor sugerido
+- Observações: Retreino junto com o job de hora em hora.

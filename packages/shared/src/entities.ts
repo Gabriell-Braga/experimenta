@@ -268,6 +268,14 @@ export const IntegrationsSchema = z.object({
 });
 export type Integrations = z.infer<typeof IntegrationsSchema>;
 
+/** Analytics preditivo: qual evento prever e em quantos dias. O modelo treinado fica em `propensity-model`. */
+export const PropensityConfigSchema = z.object({
+  goal: z.string().min(1).max(100),
+  horizonDays: z.number().int().min(1).max(30).default(7),
+  enabled: z.boolean().default(true),
+});
+export type PropensityConfig = z.infer<typeof PropensityConfigSchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
@@ -278,5 +286,6 @@ export const ENTITY_SCHEMAS = {
   flag: FlagSchema,
   webhook: WebhookSchema,
   integrations: IntegrationsSchema,
+  propensity: PropensityConfigSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;

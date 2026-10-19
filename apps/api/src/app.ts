@@ -13,6 +13,7 @@ import { normalizePage, NotFoundError, type Repo, type User } from './repo';
 import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
+import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
 import { dispatchEvents, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
@@ -143,6 +144,7 @@ export function createApp(deps: AppDeps) {
     ...ENTITY_PATHS,
     ...CDP_PATHS,
     ...INTEGRATION_PATHS,
+    ...PREDICTIVE_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
@@ -727,6 +729,7 @@ export function createApp(deps: AppDeps) {
   entityRoutes(app, repo);
   cdpRoutes(app, repo, deps.cdn);
   integrationRoutes(app, repo);
+  predictiveRoutes(app, repo, deps.publish);
 
   app.openapi(
     createRoute({

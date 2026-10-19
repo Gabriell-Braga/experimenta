@@ -1,4 +1,5 @@
 import { banditWeights } from '@abtest/shared';
+import { retrainPropensity } from './predict';
 import { experimentReport } from './analytics/report';
 import type { AppDeps } from './app';
 import type { CdnStore } from './cdn';
@@ -70,4 +71,9 @@ export async function hourlyJobs(repo: Repo, cdn: CdnStore, publish: AppDeps['pu
   await rebalanceAll(repo, publish);
   for (const accountId of await repo.listAccountsWithEntity('reco'))
     await rebuildReco(repo, cdn, accountId).catch(() => undefined);
+  // Propensão: retreina e republica (o modelo vai na config do site).
+  for (const accountId of await repo.listAccountsWithEntity('propensity')) {
+    const r = await retrainPropensity(repo, accountId).catch(() => null);
+    if (r && !('error' in r)) await publish?.(accountId, banditUser(accountId)).catch(() => undefined);
+  }
 }

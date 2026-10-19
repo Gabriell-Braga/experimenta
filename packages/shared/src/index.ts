@@ -10,3 +10,4 @@ export * from './entities';
 export * from './mvt';
 export * from './reco';
 export * from './sdk-config';
+export * from './predict';

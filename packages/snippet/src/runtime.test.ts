@@ -161,3 +161,25 @@ test('SPA: pushState/popstate reavaliam a segmentação, ativam e revertem', asy
   history.pushState(null, '', '/sobre');
   expect(urls).toHaveLength(3); // patches desfeitos
 });
+
+test('score preditivo: audiência "score ≥ 0,5" só entra com modelo publicado e score alto', () => {
+  document.body.innerHTML = '<b id="sc">x</b>';
+  const op = {
+    operations: [{ id: 'o1', order: 0, type: 'setText', target: { selector: '#sc' }, value: 'Novo' }],
+  };
+  const aud = {
+    id: 'quentes',
+    name: 'Quentes',
+    rules: [{ type: 'score', op: 'gte', value: 0.5 }],
+    match: 'all',
+  };
+  const base = { ...config(op, { audiences: ['quentes'] }), audiences: [aud] } as PublishedConfig;
+  // Sem modelo: sem score, ninguém entra.
+  expect(start(window, base)!.ctx().score).toBeUndefined();
+  expect(document.querySelector('#sc')!.textContent).toBe('x');
+  // Modelo "páginas vistas pesam muito": 1 página já dá score alto.
+  resetProcessed();
+  const rt = start(window, { ...base, propensity: { goal: 'compra', w: [5], b: -1 } })!;
+  expect(rt.ctx().score).toBeGreaterThan(0.5);
+  expect(document.querySelector('#sc')!.textContent).toBe('Novo');
+});

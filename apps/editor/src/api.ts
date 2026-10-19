@@ -366,3 +366,20 @@ export const apiKeys = {
 };
 export const testWebhook = (id: string) =>
   api<{ status: number }>(`/webhooks/${encodeURIComponent(id)}/test`, { method: 'POST' });
+
+export interface Predictive {
+  config: Entity<import('@abtest/shared').PropensityConfig> | null;
+  model: {
+    goal: string;
+    trainedAt: string;
+    horizonDays: number;
+    samples: number;
+    positives: number;
+    baseRate: number;
+    auc: number;
+    deciles: { rate: number; n: number; minScore: number }[];
+    importance: { feature: string; weight: number }[];
+  } | null;
+}
+export const getPredictive = () => api<Predictive>('/predictive');
+export const trainPredictive = () => api<unknown>('/predictive/train', { method: 'POST' });

@@ -1,7 +1,6 @@
 // Carregador do bundle sob demanda de engajamento (pop-ups, barras, pesquisas).
 import type { PublishedConfig, TrackingEvent } from '@abtest/shared';
 import type { AudienceContext } from './audience';
-import { detectDevice } from './env';
 import type { EventBase, Runtime } from './runtime';
 
 /** Contexto que o snippet entrega ao engage.js (window.__ABT_ENGAGE__). */
@@ -35,13 +34,7 @@ export function engageBoot(
     send: tracker.send,
     flush: tracker.flush,
     base: rt.base,
-    ctx: () => ({
-      win,
-      url: win.location.href,
-      device: detectDevice(win.navigator.userAgent, win.innerWidth),
-      isNew: rt.visitor.isNew,
-      profile: rt.profile,
-    }),
+    ctx: rt.ctx,
     onNavigate: rt.onNavigate,
   };
 }

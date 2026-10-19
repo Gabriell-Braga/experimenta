@@ -17,6 +17,7 @@ import { InstallPage } from './pages/Install';
 import { IntegrationsPage } from './pages/Integrations';
 import { Login } from './pages/Login';
 import { PopupsPage } from './pages/Popups';
+import { PredictivePage } from './pages/Predictive';
 import { ProfilePage, ProfilesPage } from './pages/Profiles';
 import { SurveyReportPage, SurveysPage } from './pages/Surveys';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
@@ -55,6 +56,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   funnels: (user) => <FunnelsPage user={user} />,
   journeys: () => <JourneysPage />,
   cohorts: () => <CohortsPage />,
+  predictive: (user) => <PredictivePage user={user} />,
   recordings: (_, r) => <RecordingsPage params={r.params} />,
   report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
 };

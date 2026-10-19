@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./reco": "./src/reco.ts",
-    "./sdk-config": "./src/sdk-config.ts"
+    "./sdk-config": "./src/sdk-config.ts",
+    "./predict": "./src/predict.ts"
   },
   "scripts": {
     "test": "vitest run",

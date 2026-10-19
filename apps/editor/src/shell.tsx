@@ -25,6 +25,7 @@ import {
   type LucideIcon,
   Plug,
   LayoutDashboard,
+  BrainCircuit,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
@@ -63,6 +64,7 @@ export const NAV: NavGroup[] = [
       { view: 'funnels', label: 'Funis', icon: Filter },
       { view: 'journeys', label: 'Jornadas', icon: Route },
       { view: 'cohorts', label: 'Coortes', icon: Grid3x3 },
+      { view: 'predictive', label: 'Preditivo', icon: BrainCircuit },
     ],
   },
   {

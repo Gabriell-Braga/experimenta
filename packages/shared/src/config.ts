@@ -21,6 +21,8 @@ export const PublishedConfigSchema = z.object({
   recos: z.array(RecoWidgetSchema.extend({ id: z.string(), name: z.string() })).optional(),
   /** GA4 / GTM no navegador. */
   integrations: IntegrationsSchema.optional(),
+  /** Modelo de propensão (score 0..1 avaliado no navegador para a regra de audiência `score`). */
+  propensity: z.object({ goal: z.string(), w: z.array(z.number()), b: z.number() }).optional(),
   /** Mapa de calor: fração de visitantes amostrados (0 = desligado). */
   heatmap: z
     .object({

@@ -1,7 +1,8 @@
 import type { Experiment, PublishedConfig, TrackingEvent, Variation } from '@abtest/shared';
 import { hide } from './antiflicker';
 import { assign, loadAssignments, saveAssignments } from './bucket';
-import { matchAudience } from './audience';
+import { propensity } from '@abtest/shared/predict';
+import { matchAudience, type AudienceContext } from './audience';
 import { loadProfile, notePage, saveProfile, type Profile } from './data';
 import { renderOperations } from './dynamic';
 import { applyOperations, type ApplyHandle } from './engine/apply';
@@ -52,6 +53,8 @@ export interface Runtime {
   active: Map<string, Active>;
   /** Reavalia segmentação/atribuição para a URL atual e aplica/remove experimentos. */
   evaluate(): void;
+  /** Contexto das audiências agora (inclui o score preditivo, se houver modelo). */
+  ctx(): AudienceContext;
   emit(exp: Experiment, variation: Variation, payload: EventPayload): void;
   /** Campos comuns de todo evento (id, hora, conta, visitante, sessão, URL atual). */
   base(): EventBase;
@@ -184,14 +187,21 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     emit(exp, variation, { type: 'exposure' });
   };
 
-  const evaluate = () => {
-    const ctx = {
+  const audienceCtx = (): AudienceContext => {
+    const device = detectDevice(nav.userAgent, win.innerWidth);
+    const m = config.propensity;
+    return {
       win,
       url: win.location.href,
-      device: detectDevice(nav.userAgent, win.innerWidth),
+      device,
       isNew: visitor.isNew,
       profile,
+      score: m && propensity(m, profile, device, Date.now()),
     };
+  };
+
+  const evaluate = () => {
+    const ctx = audienceCtx();
     for (const exp of config.experiments) {
       // Server-side é só do SDK (o site não aplica nada).
       if (exp.status !== 'running' || exp.type === 'server') continue;
@@ -231,6 +241,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     config,
     active,
     evaluate,
+    ctx: audienceCtx,
     emit,
     base,
     onNavigate,

@@ -4,12 +4,14 @@ import {
   type Experiment,
   type Flag,
   type Integrations,
+  type PropensityConfig,
   type SdkConfig,
   type Popup,
   type RecoWidget,
   type Survey,
   type PublishedConfig,
 } from '@abtest/shared';
+import { MODEL_KIND, type TrainedModel } from './predict';
 import { canPublishJs } from './auth';
 import { writeAccountFiles, type CdnStore } from './cdn';
 import { rebuildReco } from './reco';
@@ -41,8 +43,8 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last, settings, audiences, popupList, surveyList, recoList, flags, integ] = await Promise.all(
-      [
+    const [all, last, settings, audiences, popupList, surveyList, recoList, flags, integ, predCfg, pred] =
+      await Promise.all([
         repo.loadAllExperiments(accountId),
         repo.lastPublication(accountId),
         repo.getAccountSettings(accountId),
@@ -52,8 +54,9 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
         repo.listEntities<RecoWidget>(accountId, 'reco'),
         repo.listEntities<Flag>(accountId, 'flag'),
         repo.listEntities<Integrations>(accountId, 'integrations'),
-      ],
-    );
+        repo.listEntities<PropensityConfig>(accountId, 'propensity'),
+        repo.listEntities<TrainedModel>(accountId, MODEL_KIND),
+      ]);
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');
     const popups = popupList.filter((p) => p.data.status === 'running');
@@ -88,6 +91,9 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       ...(surveys.length ? { surveys: surveys.map((s) => ({ id: s.id, name: s.name, ...s.data })) } : {}),
       ...(recos.length ? { recos: recos.map((r) => ({ id: r.id, name: r.name, ...r.data })) } : {}),
       ...(integ[0] && (integ[0].data.ga4 || integ[0].data.gtm) ? { integrations: integ[0].data } : {}),
+      ...(predCfg[0]?.data.enabled && pred[0]
+        ? { propensity: { goal: pred[0].data.goal, w: pred[0].data.w, b: pred[0].data.b } }
+        : {}),
       ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
     // SDK server-side: flags + campanhas server-side, num arquivo próprio (o site não precisa dele).
