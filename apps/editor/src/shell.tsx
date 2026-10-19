@@ -4,6 +4,7 @@ import {
   Code2,
   Flame,
   Filter,
+  Fingerprint,
   FlaskConical,
   Grid3x3,
   LogOut,
@@ -71,6 +72,7 @@ export const NAV: NavGroup[] = [
     items: [
       { view: 'events', label: 'Eventos', icon: Activity },
       { view: 'audiences', label: 'Audiências', icon: Users },
+      { view: 'profiles', label: 'Perfis', icon: Fingerprint },
     ],
   },
   { label: 'Configurar', items: [{ view: 'install', label: 'Instalação', icon: Code2 }] },

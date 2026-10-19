@@ -10,6 +10,7 @@ import { newId, verifyPassword } from './crypto';
 import { errors, ErrorSchema, json, security } from './http';
 import { behavior } from './analytics/behavior';
 import { normalizePage, NotFoundError, type Repo, type User } from './repo';
+import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
@@ -135,6 +136,7 @@ export function createApp(deps: AppDeps) {
     ...DATA_PATHS,
     ...RECORDING_PATHS,
     ...ENTITY_PATHS,
+    ...CDP_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
@@ -716,6 +718,7 @@ export function createApp(deps: AppDeps) {
   reportRoutes(app, repo, deps.publish);
   recordingRoutes(app, repo);
   entityRoutes(app, repo);
+  cdpRoutes(app, repo);
 
   app.openapi(
     createRoute({

@@ -14,6 +14,7 @@ import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
 import { PopupsPage } from './pages/Popups';
+import { ProfilePage, ProfilesPage } from './pages/Profiles';
 import { SurveyReportPage, SurveysPage } from './pages/Surveys';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { RecosPage } from './pages/Recos';
@@ -34,6 +35,8 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
   popups: (user) => <PopupsPage user={user} />,
+  profiles: () => <ProfilesPage />,
+  profile: (_, r) => <ProfilePage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   recos: (user) => <RecosPage user={user} />,
   surveys: (user) => <SurveysPage user={user} />,
   survey: (_, r) => <SurveyReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
@@ -101,9 +104,11 @@ export function App() {
             ? 'tests'
             : view === 'survey'
               ? 'surveys'
-              : view === 'tests' && route.params.get('type')
-                ? `tests:${route.params.get('type')}`
-                : view
+              : view === 'profile'
+                ? 'profiles'
+                : view === 'tests' && route.params.get('type')
+                  ? `tests:${route.params.get('type')}`
+                  : view
         }
       >
         {PAGES[view]!(user, route)}

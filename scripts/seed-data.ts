@@ -283,13 +283,39 @@ for (let i = 0; i < VISITORS; i++) {
         });
       }
     }
-    if (chance(0.08))
-      events.push({
-        ...base(`${SITE}/`),
-        type: 'identify',
-        userId: `cliente-${i}`,
-        attrs: { plano: pick(['free', 'pro']) },
-      });
+    if (chance(0.08)) {
+      const userId = `cliente-${i}`;
+      events.push({ ...base(`${SITE}/`), type: 'identify', userId, attrs: { plano: pick(['free', 'pro']) } });
+      // Cross-device: parte dos clientes volta por outro dispositivo e loga de novo.
+      if (chance(0.4)) {
+        const other = randomUUID();
+        const later = t + Math.round(DAY * rand() * 3);
+        const otherDevice = device === 'mobile' ? 'desktop' : 'mobile';
+        const b2 = {
+          accountId: 'demo',
+          visitorId: other,
+          sessionId: randomUUID(),
+          url: `${SITE}/`,
+          ts: later,
+        };
+        events.push({
+          ...b2,
+          eventId: randomUUID(),
+          type: 'pageview',
+          device: otherDevice,
+          title: 'Loja Demo',
+          vw: otherDevice === 'mobile' ? 390 : 1440,
+        });
+        events.push({
+          ...b2,
+          eventId: randomUUID(),
+          ts: later + 5000,
+          type: 'identify',
+          userId,
+          attrs: { ultimo_dispositivo: otherDevice },
+        });
+      }
+    }
     t += Math.round(DAY * (1 + rand() * 4));
   }
 }

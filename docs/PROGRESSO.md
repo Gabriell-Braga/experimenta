@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 14
-**Tarefa atual:** 14.1 (em andamento desde 2026-10-19 18:43)
-**Última atualização:** 2026-10-19 18:43
+**Tarefa atual:** 14.2 (em andamento desde 2026-10-19 18:47)
+**Última atualização:** 2026-10-19 18:47
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -447,3 +447,9 @@
 ### Resumo da Fase 13 — Segmentação, personalização e engajamento
 - Entregue: audiências com 14 tipos de regra avaliadas no navegador, conteúdo dinâmico seguro, pop-ups/barras com gatilhos, pesquisas NPS/CSAT/CES com lógica e relatório, recomendações (cross-sell, upsell, próxima melhor oferta) com vitrine e API pública.
 - Bundles: snippet 9,15 KB gzip; insights.js ~25 KB (amostrados); engage.js 6,8 KB (só com campanha publicada).
+
+### 2026-10-19 18:47 — Tarefa 14.1 concluída
+- O que foi feito: Grafo de identidade (identify), perfis unificados (GET /profiles com busca e resumo cross-device; GET /profiles/{id} com linha do tempo e gravações), telas Dados → Perfis e perfil; gerador com clientes em dois dispositivos.
+- Arquivos principais: apps/api/src/{analytics/profiles.ts,routes/cdp.ts}, apps/editor/src/pages/Profiles.tsx
+- Como testar manualmente: Dados → Perfis → Identificados → abrir um cliente.
+- Observações: ver D-060.
