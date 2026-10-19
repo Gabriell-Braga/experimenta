@@ -9,6 +9,7 @@ import { newId, verifyPassword } from './crypto';
 import { errors, ErrorSchema, json, security } from './http';
 import { NotFoundError, type Repo, type User } from './repo';
 import { DATA_PATHS, dataRoutes } from './routes/data';
+import { reportRoutes } from './routes/report';
 import { createSessionStore, type SessionStore } from './sessions';
 
 export interface AppDeps {
@@ -684,6 +685,7 @@ export function createApp(deps: AppDeps) {
   );
 
   dataRoutes(app, repo);
+  reportRoutes(app, repo);
 
   app.doc31('/openapi.json', { openapi: '3.1.0', info: { title: 'A/B Editor API', version: '0.1.0' } });
   app.get('/docs', swaggerUI({ url: '/openapi.json' }));

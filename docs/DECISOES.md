@@ -234,3 +234,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Bayesiano como padrão da interface (como o SmartStats do VWO): taxa de conversão com posterior Beta(1+conv, 1+não-conv) e receita por visitante com posterior Normal(média, s²/n). Probabilidade de vencer o controle, de ser a melhor, perda esperada e intervalos de 95% saem de 20 mil amostras Monte Carlo com PRNG de semente fixa — mesmo dado, mesmo número na tela (sem "pular" a cada recarga). Validado contra a fórmula exata de P(B>A) para Beta.
 - Frequentista ao lado (z-test de proporções e Welch para médias) para quem pede p-valor; SRM por qui-quadrado (p < 0,01 = alerta de divisão de tráfego quebrada); tamanho de amostra pela aproximação normal (α 5%, poder 80%).
 - Veredito da UI: vencedora ≥ 95% de chance de bater o controle (com mínimo de visitantes), perdedora ≤ 5%, "liderando" ≥ 75%. Sem dependências: o mesmo código roda na API e no editor (`@abtest/shared/stats`).
+
+## D-043 — Relatório do experimento (fase 9.4)
+- Visitante do relatório = quem recebeu `exposure` (contado uma vez, na primeira variação vista). Conversão = visitante único que converteu a meta DEPOIS de exposto; receita = soma dos valores (conversões repetidas somam receita, não visitantes). Eventos de QA ficam fora.
+- Meta primária = primeira meta da lista (sem coluna nova): "Tornar primária" nas Configurações move a meta para o topo. Ela decide a manchete, a série acumulada e a estimativa de duração.
+- Filtro de dispositivo: as exposições não carregam dispositivo; usa-se o dispositivo predominante das páginas vistas de cada visitante exposto (pageviews são coletados de todos, D-041).
+- Duração estimada: amostra para detectar +10% sobre a taxa atual do controle ÷ ritmo médio diário de visitantes.
+- `pnpm seed:data` gera tráfego realista para a conta demo (dev) pelo próprio `/collect` — os módulos de insights vão estender o gerador.

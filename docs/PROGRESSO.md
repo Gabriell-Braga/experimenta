@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 9
-**Tarefa atual:** 9.4 (em andamento desde 2026-10-19 14:01)
-**Última atualização:** 2026-10-19 14:01
+**Fase atual:** 10
+**Tarefa atual:** 10.1 (em andamento desde 2026-10-19 14:09)
+**Última atualização:** 2026-10-19 14:09
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -328,3 +328,9 @@
 - Arquivos principais: packages/shared/src/stats.ts, stats.test.ts
 - Como testar manualmente: pnpm --filter @abtest/shared test
 - Observações: ver D-042.
+
+### 2026-10-19 14:09 — Tarefa 9.4 concluída
+- O que foi feito: GET /experiments/{id}/report (visitantes, conversões únicas, receita, estatística bayesiana e frequentista por meta, série acumulada, SRM, duração estimada, filtro de dispositivo e período). Tela de relatório: manchete, tabela com faixa de intervalo 95%, receita, gráfico acumulado, comparar metas, CSV, imprimir; links na lista e no editor; meta primária nas configurações. pnpm seed:data.
+- Arquivos principais: apps/api/src/{analytics/report.ts,routes/report.ts}, apps/editor/src/pages/Report.tsx, scripts/seed-data.ts, e2e/tests/report.spec.ts
+- Como testar manualmente: pnpm seed:data → Experimentos → ícone de gráfico na linha 'Home: chamada Corra mais'.
+- Observações: ver D-043.

@@ -188,3 +188,46 @@ export const getOverview = (days: number) => query<Overview>('/analytics/overvie
 export const listEvents = (
   p: { type?: string; visitorId?: string; sessionId?: string; limit?: number } = {},
 ) => query<import('@abtest/shared').TrackingEvent[]>('/events', p);
+
+export type Verdict = 'winner' | 'loser' | 'leading' | 'inconclusive' | 'baseline';
+export interface ArmStats {
+  variationId: string;
+  rate: number;
+  rateLow: number;
+  rateHigh: number;
+  lift: number | null;
+  liftLow: number | null;
+  liftHigh: number | null;
+  probBeatControl: number | null;
+  probBest: number;
+  expectedLoss: number;
+  pValue: number | null;
+  verdict: Verdict;
+}
+export interface ArmRow extends ArmStats {
+  visitors: number;
+  conversions: number;
+  revenue: number;
+  rpv: number;
+}
+export interface GoalReport {
+  goalId: string;
+  goalKey: string;
+  primary: boolean;
+  hasRevenue: boolean;
+  arms: ArmRow[];
+  revenueArms: ArmStats[] | null;
+}
+export interface ExperimentReport {
+  experimentId: string;
+  from: string;
+  to: string;
+  visitors: number;
+  variations: { id: string; key: string; name: string; visitors: number }[];
+  goals: GoalReport[];
+  series: { variationId: string; points: { day: string; visitors: number; rate: number }[] }[];
+  srm: { pValue: number; mismatch: boolean };
+  estimate: { neededPerVariation: number | null; daysRemaining: number | null; mde: number };
+}
+export const getReport = (id: string, p: { days?: number; device?: string }) =>
+  query<ExperimentReport>(`/experiments/${encodeURIComponent(id)}/report`, p);

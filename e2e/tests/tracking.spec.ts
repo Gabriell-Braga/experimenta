@@ -1,4 +1,4 @@
-import type { ExperimentEvent as TrackingEvent } from '@abtest/shared';
+import type { TrackingEvent as AnyEvent, ExperimentEvent as TrackingEvent } from '@abtest/shared';
 import { expect, test, type Page } from '@playwright/test';
 import { experiment, makeConfig, serveSnippet } from '../helpers';
 
@@ -62,10 +62,11 @@ test('exposure + conversões (clique, visita a URL em outra página, custom) via
   expect(exp[1]).toMatchObject({ value: 7 });
   // Coleta de dados: uma página vista por carregamento e o evento customizado, na mesma sessão.
   await page.evaluate(() => window.abt!.flush());
+  const all = events as unknown as AnyEvent[];
   await expect
-    .poll(() => events.filter((e) => e.type === 'pageview').map((e) => new URL(e.url).pathname))
+    .poll(() => all.filter((e) => e.type === 'pageview').map((e) => new URL(e.url).pathname))
     .toEqual(['/', '/produto.html', '/obrigado.html']);
-  expect(events.find((e) => e.type === 'event')).toMatchObject({ name: 'signup', value: 7 });
+  expect(all.find((e) => e.type === 'event')).toMatchObject({ name: 'signup', value: 7 });
   expect(new Set(events.map((e) => e.sessionId)).size).toBe(1);
 });
 

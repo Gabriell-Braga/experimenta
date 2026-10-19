@@ -11,7 +11,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "e2e": "pnpm --filter @abtest/e2e e2e",
-    "deploy:cf": "tsx scripts/deploy-cloudflare.ts"
+    "deploy:cf": "tsx scripts/deploy-cloudflare.ts",
+    "seed:data": "tsx scripts/seed-data.ts"
   },
   "devDependencies": {
     "@eslint/js": "9",

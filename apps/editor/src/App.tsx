@@ -6,6 +6,7 @@ import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
+import { ReportPage } from './pages/Report';
 import { AppShell } from './shell';
 import { Button, Spinner } from './ui';
 
@@ -14,6 +15,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   tests: (user) => <ExperimentList user={user} />,
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
+  report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
 };
 
 function FullPageSpinner({ label }: { label: string }) {
@@ -58,7 +60,7 @@ export function App() {
   if (!exp) {
     const view = PAGES[route.view] ? route.view : 'tests';
     return (
-      <AppShell user={user} view={view}>
+      <AppShell user={user} view={view === 'report' ? 'tests' : view}>
         {PAGES[view]!(user, route)}
       </AppShell>
     );

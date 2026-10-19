@@ -16,7 +16,7 @@ import {
   type HeatmapFilters,
   type Me,
 } from './api';
-import { go } from './nav';
+import { go, navigate } from './nav';
 import { Button, Modal, Spinner, useToast } from './ui';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
 import { ChangesPanel } from './components/ChangesPanel';
@@ -347,6 +347,7 @@ export function EditorView({ record, user }: Props) {
         onSave={() => void save()}
         onPublish={doPublish}
         onSettings={() => setSettingsOpen(true)}
+        onReport={() => (state.dirty ? setLeaving(true) : navigate('report', { id: state.experiment.id }))}
         onUrl={(url) => {
           setConnected(false);
           setFrameSrcUrl(url);

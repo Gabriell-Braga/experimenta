@@ -201,7 +201,10 @@ export function SettingsPanel({
 
         <fieldset className="flex flex-col gap-1" data-testid="goals">
           <legend className="mb-1 text-gray-600">Metas</legend>
-          {experiment.goals.map((g) => (
+          <p className="text-xs text-gray-500">
+            A primeira meta é a <b>primária</b>: decide a vencedora no relatório.
+          </p>
+          {experiment.goals.map((g, i) => (
             <div
               key={g.id}
               className="flex items-center justify-between gap-2 rounded bg-gray-50 px-2 py-1"
@@ -209,8 +212,20 @@ export function SettingsPanel({
             >
               <span className="min-w-0">
                 <b>{g.key}</b> <span className="text-xs text-gray-500">{GOAL_TYPES[g.type]}</span>
+                {i === 0 && (
+                  <span className="ml-1.5 font-mono text-[10px] text-brand-600 uppercase">primária</span>
+                )}
                 <code className="block truncate text-xs">{goalTarget(g)}</code>
               </span>
+              {i > 0 && (
+                <button
+                  onClick={() => patch({ goals: [g, ...experiment.goals.filter((x) => x.id !== g.id)] })}
+                  className="shrink-0 rounded px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-200"
+                  data-testid="goal-primary"
+                >
+                  Tornar primária
+                </button>
+              )}
               <button
                 onClick={() => patch({ goals: experiment.goals.filter((x) => x.id !== g.id) })}
                 aria-label="Remover meta"

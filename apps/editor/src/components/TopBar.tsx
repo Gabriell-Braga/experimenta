@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  BarChart3,
   Eye,
   Flame,
   Monitor,
@@ -47,6 +48,7 @@ interface Props {
   onSave(): void;
   onPublish(): void;
   onSettings(): void;
+  onReport(): void;
   onUrl(url: string): void;
 }
 
@@ -153,6 +155,14 @@ export function TopBar(p: Props) {
             'Tudo salvo'
           )}
         </span>
+        <Button
+          variant="inverse"
+          onClick={p.onReport}
+          data-testid="open-report"
+          title="Resultados do experimento"
+        >
+          <BarChart3 size={15} aria-hidden="true" /> <span className="hidden lg:inline">Relatório</span>
+        </Button>
         <Button
           variant="inverseOutline"
           onClick={p.onSettings}

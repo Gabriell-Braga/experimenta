@@ -1,4 +1,4 @@
-import { Ellipsis, FlaskConical, Plus } from 'lucide-react';
+import { BarChart3, Ellipsis, FlaskConical, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   deleteExperiment,
@@ -11,7 +11,7 @@ import {
   type Me,
   type Project,
 } from '../api';
-import { go } from '../nav';
+import { go, navigate } from '../nav';
 import { newExperiment } from '../store';
 import {
   Button,
@@ -177,7 +177,7 @@ function RowActions({
   };
   if (!canEdit) return null;
   return (
-    <div className="relative" onClick={(ev) => ev.stopPropagation()}>
+    <div className="relative inline-block" onClick={(ev) => ev.stopPropagation()}>
       <Button
         variant="ghost"
         size="sm"
@@ -442,7 +442,20 @@ export function ExperimentList({ user }: { user: Me }) {
                 >
                   {timeAgo(e.updatedAt)}
                 </td>
-                <td className="px-2 py-3 text-right">
+                <td className="px-2 py-3 text-right whitespace-nowrap">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Relatório"
+                    title="Relatório"
+                    data-testid="row-report"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      navigate('report', { id: e.id });
+                    }}
+                  >
+                    <BarChart3 size={15} />
+                  </Button>
                   <RowActions e={e} canEdit={canEdit} onChanged={load} />
                 </td>
               </tr>
