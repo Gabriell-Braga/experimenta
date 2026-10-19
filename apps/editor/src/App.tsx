@@ -4,6 +4,7 @@ import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
 import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
+import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
 import { ReportPage } from './pages/Report';
@@ -15,6 +16,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   tests: (user) => <ExperimentList user={user} />,
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
+  heatmaps: () => <HeatmapsPage />,
   report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
 };
 
@@ -57,6 +59,8 @@ export function App() {
 
   if (user === undefined) return <FullPageSpinner label="Carregando…" />;
   if (!user) return <Login onLogin={setUser} />;
+  if (!exp && route.view === 'heatmap' && route.params.get('url'))
+    return <HeatmapViewer key={route.params.get('url')} url={route.params.get('url')!} />;
   if (!exp) {
     const view = PAGES[route.view] ? route.view : 'tests';
     return (

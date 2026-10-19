@@ -636,7 +636,8 @@ export function createApp(deps: AppDeps) {
       const user = c.get('user');
       const origin = c.req.header('origin') ?? '';
       if (!deps.editorOrigins.includes(origin)) return forbid(c, 'origin não autorizado');
-      if (!hasRole(user, 'editor')) return forbid(c);
+      // Qualquer papel: o viewer usa a sessão só para ver mapas de calor sobre o site (salvar continua exigindo editor).
+
       return c.json(await sessions.create(user.accountId, origin), 201);
     },
   );

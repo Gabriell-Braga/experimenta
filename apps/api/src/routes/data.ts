@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { overview } from '../analytics/overview';
+import { pagesReport } from '../analytics/pages';
 import { errors, json, period, PeriodQuery, Report, security, type Api } from '../http';
 import type { Repo } from '../repo';
 
@@ -25,6 +26,27 @@ export function dataRoutes(app: Api, repo: Repo) {
         types: ['pageview', 'event', 'conversion', 'exposure', 'identify'],
       });
       return c.json(overview(list, from, to), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/pages',
+      tags: ['insights'],
+      security,
+      summary:
+        'Páginas com páginas vistas, visitantes, cliques, rage/dead clicks e scroll médio (mapas de calor)',
+      request: { query: PeriodQuery.extend({ device: z.enum(['desktop', 'tablet', 'mobile']).optional() }) },
+      responses: { 200: json(Report, 'páginas, da mais vista à menos vista'), ...errors },
+    }),
+    async (c) => {
+      const q = c.req.valid('query');
+      const list = await repo.listEvents(c.get('user').accountId, {
+        ...period(q),
+        types: ['pageview', 'click', 'frustration', 'scroll'],
+      });
+      return c.json(pagesReport(list, q.device), 200);
     },
   );
 

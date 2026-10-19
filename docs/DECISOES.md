@@ -247,3 +247,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Movimento: x relativo à largura da janela + y em px do documento (layouts responsivos de largura cheia ficam alinhados); um ponto a cada 150 ms, lotes de 50.
 - Overlay com modos: calor (normalizado pela maior densidade, para não saturar), mapa de cliques (contagem e % por elemento), scrollmap (trechos pintados pela % que chegou), movimento e frustração. Todos amostrados pela taxa de insights da conta.
 - Snippet subiu para 8,3 KB gzip. Próximas capturas pesadas (formulários, gravação) vão para um bundle sob demanda.
+
+## D-045 — Mapas de calor como módulo (fase 10.2)
+- Insights → Mapas de calor lista as páginas com dados (vistas, visitantes, cliques, rage/dead, scroll médio) e abre um visualizador em tela cheia: o mesmo iframe + agent do editor, em modo "navegar", sem aplicar variação — navegar no site troca a página analisada; a largura do dispositivo filtra os dados daquele dispositivo.
+- Sessão de edição (`POST /edit-sessions`) passou a valer para qualquer papel: o viewer precisa dela para ver o mapa sobre o site real. O token só carrega o agent; salvar/publicar continuam exigindo editor.
+- A lista guarda a URL real mais recente de cada página (`href`, com a barra final que o servidor espera) além da página normalizada.

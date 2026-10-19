@@ -94,3 +94,39 @@ test('filtros de dispositivo e variação valem para movimento e frustração', 
   expect(varB.frustration).toEqual([{ selector: '#buy', rage: 1, dead: 0, points: [[0.2, 0.3]] }]);
   expect(varB.moves).toEqual([]);
 });
+
+test('páginas: vistas, visitantes, cliques, frustração e scroll médio, mais vistas primeiro', async () => {
+  await t.collect([
+    ev({ type: 'pageview', url: PAGE, device: 'desktop', title: 'Loja', visitorId: 'a' } as never),
+    ev({ type: 'pageview', url: `${PAGE}?x=1`, device: 'mobile', visitorId: 'b' } as never),
+    ev({ type: 'pageview', url: 'http://localhost:5180/', device: 'desktop', visitorId: 'a' } as never),
+    ev({ type: 'scroll', url: PAGE, device: 'desktop', variations: {}, depth: 80, vh: 1, ph: 1 } as never),
+    ev({ type: 'scroll', url: PAGE, device: 'desktop', variations: {}, depth: 40, vh: 1, ph: 1 } as never),
+  ]);
+  const pages =
+    await t.get<
+      {
+        page: string;
+        title: string;
+        pageviews: number;
+        visitors: number;
+        clicks: number;
+        rage: number;
+        dead: number;
+        avgScroll: number | null;
+      }[]
+    >('/analytics/pages?days=7');
+  expect(pages[0]).toEqual({
+    page: 'http://localhost:5180/loja',
+    href: 'http://localhost:5180/loja/',
+    title: 'Loja',
+    pageviews: 2,
+    visitors: 2,
+    clicks: 1,
+    rage: 1,
+    dead: 2,
+    avgScroll: 60,
+  });
+  const mobile = await t.get<{ page: string; pageviews: number }[]>('/analytics/pages?device=mobile');
+  expect(mobile.find((p) => p.page.endsWith('/loja'))!.pageviews).toBe(1);
+});

@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 10
-**Tarefa atual:** 10.2 (em andamento desde 2026-10-19 14:16)
-**Última atualização:** 2026-10-19 14:16
+**Tarefa atual:** 10.3 (em andamento desde 2026-10-19 14:19)
+**Última atualização:** 2026-10-19 14:19
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -340,3 +340,9 @@
 - Arquivos principais: packages/snippet/src/heatmap.ts, packages/agent/src/heatmap.ts, apps/api/src/analytics/behavior.ts, apps/editor/src/components/HeatmapPanel.tsx
 - Como testar manualmente: pnpm seed:data → abrir 'Home: chamada Corra mais' → Mapa de calor → Frustração.
 - Observações: ver D-044. Snippet 8,3 KB gzip.
+
+### 2026-10-19 14:19 — Tarefa 10.2 concluída
+- O que foi feito: GET /analytics/pages; tela Insights → Mapas de calor (lista de páginas) e visualizador em tela cheia sobre o site real (modos, filtros, largura por dispositivo); viewer pode abrir sessão de visualização.
+- Arquivos principais: apps/api/src/analytics/pages.ts, apps/editor/src/pages/Heatmaps.tsx, e2e/tests/heatmaps-module.spec.ts
+- Como testar manualmente: Insights → Mapas de calor → clicar numa página.
+- Observações: ver D-045.

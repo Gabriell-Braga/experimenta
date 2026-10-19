@@ -190,7 +190,7 @@ describe('experimentos e permissões', () => {
 describe('sessões de edição', () => {
   test('exige login de editor e origin autorizado; validação pública', async () => {
     expect((await req('/edit-sessions', { method: 'POST' })).status).toBe(401);
-    expect((await req('/edit-sessions', { method: 'POST', as: 'viewer' })).status).toBe(403);
+    expect((await req('/edit-sessions', { method: 'POST', as: 'viewer' })).status).toBe(201); // ver mapas de calor
     const evil = await app.request('/edit-sessions', {
       method: 'POST',
       headers: { origin: 'https://evil.com', authorization: `Bearer ${tokens.editor}` },
