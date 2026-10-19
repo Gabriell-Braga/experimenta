@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AudienceSchema } from './entities';
 import { ExperimentSchema } from './experiment';
 
 /** JSON publicado na CDN por conta (`/cdn/<accountId>.json`). Só experimentos em execução. */
@@ -11,6 +12,8 @@ export const PublishedConfigSchema = z.object({
   /** Base da API (o snippet valida tokens de edição em `${apiUrl}/edit-sessions/:token`). */
   apiUrl: z.string().optional(),
   experiments: z.array(ExperimentSchema),
+  /** Audiências usadas pelos experimentos publicados (avaliadas no navegador). */
+  audiences: z.array(AudienceSchema.extend({ id: z.string() })).optional(),
   /** Mapa de calor: fração de visitantes amostrados (0 = desligado). */
   heatmap: z
     .object({

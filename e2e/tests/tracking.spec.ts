@@ -118,6 +118,8 @@ test('mapa de calor: cliques com posição relativa e profundidade de scroll ao 
   }[];
   await page.setViewportSize({ width: 1000, height: 400 });
   await page.goto('/');
+  // A captura vem do insights.js (carregado de forma assíncrona só para amostrados).
+  await expect(page.locator('html[data-abt-insights=on]')).toHaveCount(1);
   const box = (await page.locator('.hero-subtitle').boundingBox())!;
   await page.locator('.hero-subtitle').click({ position: { x: box.width * 0.5, y: box.height * 0.5 } });
   await page.evaluate(() => window.scrollTo(0, 300));

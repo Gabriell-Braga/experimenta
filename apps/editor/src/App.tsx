@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me } from './api';
 import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
+import { AudiencesPage } from './pages/Audiences';
 import { CohortsPage } from './pages/Cohorts';
 import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
@@ -29,6 +30,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   ),
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
+  audiences: (user) => <AudiencesPage user={user} />,
   server: (_, r) => <ServerExperimentPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   heatmaps: () => <HeatmapsPage />,
   forms: () => <FormsPage />,

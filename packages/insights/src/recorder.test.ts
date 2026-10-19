@@ -8,6 +8,7 @@ const boot = {
   visitorId: 'v1',
   sessionId: 's1',
   device: 'desktop' as const,
+  heatmap: false,
   record: true,
   forms: false,
   send: () => {},

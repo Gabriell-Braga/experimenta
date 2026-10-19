@@ -1,7 +1,52 @@
 import { MousePointerClick, X } from 'lucide-react';
-import type { Experiment, Goal, UrlRule } from '@abtest/shared';
-import { useState, type Dispatch } from 'react';
+import type { Audience, Experiment, Goal, UrlRule } from '@abtest/shared';
+import { useEffect, useState, type Dispatch } from 'react';
+import { entities, type Entity } from '../api';
+import { describeRule } from '../pages/Audiences';
 import { uid, type Action } from '../store';
+
+/** Audiências salvas que o visitante precisa atender (todas), além das páginas e dispositivos. */
+function AudiencePicker({ experiment, onChange }: { experiment: Experiment; onChange(ids: string[]): void }) {
+  const [list, setList] = useState<Entity<Audience>[] | null>(null);
+  useEffect(() => {
+    entities.list<Audience>('audience').then(setList, () => setList([]));
+  }, []);
+  const chosen = experiment.audiences;
+  return (
+    <fieldset className="flex flex-col gap-1" data-testid="audiences-picker">
+      <legend className="mb-1 text-gray-600">Audiências (todas precisam bater)</legend>
+      {list === null ? (
+        <span className="text-xs text-gray-400">Carregando…</span>
+      ) : !list.length ? (
+        <span className="text-xs text-gray-500">Nenhuma audiência salva (Dados → Audiências).</span>
+      ) : (
+        list.map((a) => (
+          <label key={a.id} className="flex items-start gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={chosen.includes(a.id)}
+              onChange={(e) =>
+                onChange(e.target.checked ? [...chosen, a.id] : chosen.filter((x) => x !== a.id))
+              }
+            />
+            <span className="min-w-0">
+              <span className="block text-sm">{a.name}</span>
+              <span className="block truncate font-mono text-[10.5px] text-gray-500">
+                {a.data.rules.map(describeRule).join(a.data.match === 'all' ? ' e ' : ' ou ')}
+              </span>
+            </span>
+          </label>
+        ))
+      )}
+      {chosen.some((id) => list && !list.some((a) => a.id === id)) && (
+        <span className="text-xs text-signal">
+          Uma audiência escolhida foi excluída: ninguém entra até você desmarcá-la.
+        </span>
+      )}
+    </fieldset>
+  );
+}
 
 /** Meta sendo criada (fica no EditorView: sobrevive ao "Escolher no site", que fecha a janela). */
 export interface GoalDraft {
@@ -183,6 +228,7 @@ export function SettingsPanel({
         </fieldset>
       </div>
       <div className="flex flex-col gap-4">
+        <AudiencePicker experiment={experiment} onChange={(audiences) => patch({ audiences })} />
         <fieldset className="flex flex-col gap-1">
           <legend className="mb-1 text-gray-600">Páginas (segmentação por URL)</legend>
           {urls.map((r, i) => (

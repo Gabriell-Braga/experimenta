@@ -125,6 +125,29 @@ describe('publicação', () => {
     await call('/publish', 'owner', { method: 'POST' });
     expect(published().heatmap).toBeUndefined();
   });
+
+  test('audiências: só as usadas por experimentos publicados vão para a config', async () => {
+    const mk = async (name: string) => {
+      const r = await call('/entities/audience', 'editor', {
+        method: 'POST',
+        body: JSON.stringify({ name, data: { rules: [{ type: 'pageviews', op: 'gte', value: 3 }] } }),
+      });
+      return ((await r.json()) as { id: string }).id;
+    };
+    const used = await mk('Fiéis');
+    await mk('Sem uso');
+    const body = exp('exp_aud', 'running');
+    await save('owner', {
+      ...body,
+      experiment: { ...body.experiment, audiences: [used] } as typeof body.experiment,
+    });
+    await call('/publish', 'owner', { method: 'POST' });
+    const cfg = PublishedConfigSchema.parse(JSON.parse(readFileSync(join(cdnDir, 'demo.json'), 'utf8')));
+    expect(cfg.audiences).toEqual([
+      { id: used, match: 'all', rules: [{ type: 'pageviews', op: 'gte', value: 3 }] },
+    ]);
+    expect(cfg.experiments.find((e) => e.id === 'exp_aud')!.audiences).toEqual([used]);
+  });
 });
 
 describe('coleta de eventos', () => {

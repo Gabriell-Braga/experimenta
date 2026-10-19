@@ -12,6 +12,7 @@ const boot = () => ({
   visitorId: 'v1',
   sessionId: 's1',
   device: 'desktop' as const,
+  heatmap: false,
   record: false,
   forms: true,
   send: (e: TrackingEvent) => sent.push(e),

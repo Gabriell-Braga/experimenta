@@ -11,7 +11,8 @@
     "./editor": "./src/editor.ts",
     "./spa": "./src/spa.ts",
     "./segment": "./src/segment.ts",
-    "./insights": "./src/insights.ts"
+    "./insights": "./src/insights.ts",
+    "./runtime": "./src/runtime.ts"
   },
   "scripts": {
     "test": "vitest run",

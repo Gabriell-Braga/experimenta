@@ -1,30 +1,20 @@
-// Captura para mapa de calor/cliques e profundidade de scroll. Entra no bundle do site: manter enxuto.
+// Captura para mapa de calor/cliques, frustração, movimento e profundidade de scroll (insights.js).
 import { pathOf } from '@abtest/selector/resolve';
 import type { HeatmapEvent } from '@abtest/shared';
-import { murmurhash3 } from './bucket';
-import { detectDevice, randomId } from './env';
-import type { Runtime } from './runtime';
+import type { InsightsBoot } from '@abtest/snippet/insights';
 
 /** Distribui o Omit sobre a união. */
 type Payload = HeatmapEvent extends infer E
   ? E extends unknown
-    ? Omit<E, 'eventId' | 'ts' | 'accountId' | 'visitorId' | 'url' | 'device' | 'variations'>
+    ? Omit<E, 'eventId' | 'ts' | 'accountId' | 'visitorId' | 'sessionId' | 'url' | 'device' | 'variations'>
     : never
   : never;
 
-/** Visitante amostrado? Determinístico por visitante (mesma decisão em todas as páginas). */
-export const sampled = (visitorId: string, rate: number) =>
-  murmurhash3(`${visitorId}:heatmap`) % 10000 < rate * 10000;
-
 const round = (n: number, d = 3) => Math.round(n * 10 ** d) / 10 ** d;
 
-export function installHeatmap(
-  win: Window,
-  rt: Runtime,
-  tracker: { send(e: HeatmapEvent): void; flush(): void },
-  sampleRate: number,
-): boolean {
-  if (!sampled(rt.visitor.id, sampleRate)) return false;
+export function startHeatmap(win: Window, boot: InsightsBoot): void {
+  const rt = { onNavigate: boot.onNavigate };
+  const tracker = { send: (e: HeatmapEvent) => boot.send(e), flush: boot.flush };
   const doc = win.document;
   let url = win.location.href;
   let maxDepth = 0;
@@ -32,14 +22,11 @@ export function installHeatmap(
   const send = (p: Payload) =>
     tracker.send({
       ...p,
-      eventId: randomId(),
-      ts: Date.now(),
-      accountId: rt.config.accountId,
-      visitorId: rt.visitor.id,
-      sessionId: rt.visitor.sessionId,
+      ...boot.base(),
+      // URL da página medida (na SPA, o scroll da página anterior sai depois da troca de rota).
       url,
-      device: detectDevice(win.navigator.userAgent, win.innerWidth),
-      variations: Object.fromEntries([...rt.active.values()].map((a) => [a.experiment.id, a.variation.id])),
+      device: boot.device,
+      variations: boot.variations(),
     } as HeatmapEvent);
 
   // Frustração: rajada de cliques perto do mesmo ponto (rage) e clique sem reação (dead).
@@ -147,5 +134,4 @@ export function installHeatmap(
     flushScroll();
     url = next;
   });
-  return true;
 }

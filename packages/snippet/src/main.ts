@@ -4,9 +4,7 @@ import { readConfig } from './config';
 import { installData } from './data';
 import { bootEditor, editToken } from './editor';
 import { installGoals } from './goals';
-import { detectDevice } from './env';
-import { installHeatmap } from './heatmap';
-import { loadInsights } from './insights';
+import { insightsBoot, loadInsights, sampled } from './insights';
 import { readForce, showBadge } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
@@ -57,25 +55,14 @@ if (config && token) {
       goal(name, value);
       data.track(name, value, props);
     };
-    // Mapa de calor: só visitantes amostrados e nunca em modo QA (não polui os dados).
+    // Insights (mapa de calor, frustração, formulários, gravação): só amostrados e nunca em QA.
     const hm = config.heatmap;
-    if (hm?.sampleRate && !forced && installHeatmap(window, rt, tracker, hm.sampleRate) && config.apiUrl)
-      if (hm.recordings || hm.forms)
-        loadInsights(window, new URL('insights.js', script?.src || location.href).href, {
-          apiUrl: config.apiUrl,
-          accountId: config.accountId,
-          visitorId: rt.visitor.id,
-          sessionId: rt.visitor.sessionId,
-          device: detectDevice(navigator.userAgent, innerWidth),
-          record: !!hm.recordings,
-          forms: !!hm.forms,
-          send: tracker.send,
-          flush: tracker.flush,
-          base: rt.base,
-          variations: () =>
-            Object.fromEntries([...rt.active.values()].map((a) => [a.experiment.id, a.variation.id])),
-          onNavigate: rt.onNavigate,
-        });
+    if (hm?.sampleRate && !forced && sampled(rt.visitor.id, hm.sampleRate))
+      loadInsights(
+        window,
+        new URL('insights.js', script?.src || location.href).href,
+        insightsBoot(window, rt, tracker, config),
+      );
     const run = (c: Command) => {
       if (c[0] === 'track') track(c[1], c[2], c[3]);
       else if (c[0] === 'event') track(c[1], typeof c[2]?.value === 'number' ? c[2].value : undefined, c[2]);

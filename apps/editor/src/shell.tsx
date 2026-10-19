@@ -13,6 +13,7 @@ import {
   Server,
   Settings2,
   UserRoundCog,
+  Users,
   Video,
   X,
   type LucideIcon,
@@ -54,7 +55,13 @@ export const NAV: NavGroup[] = [
       { view: 'cohorts', label: 'Coortes', icon: Grid3x3 },
     ],
   },
-  { label: 'Dados', items: [{ view: 'events', label: 'Eventos', icon: Activity }] },
+  {
+    label: 'Dados',
+    items: [
+      { view: 'events', label: 'Eventos', icon: Activity },
+      { view: 'audiences', label: 'Audiências', icon: Users },
+    ],
+  },
   { label: 'Configurar', items: [{ view: 'install', label: 'Instalação', icon: Code2 }] },
 ];
 

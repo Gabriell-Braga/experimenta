@@ -1,4 +1,4 @@
-import { PublishedConfigSchema, type Experiment, type PublishedConfig } from '@abtest/shared';
+import { PublishedConfigSchema, type Audience, type Experiment, type PublishedConfig } from '@abtest/shared';
 import { canPublishJs } from './auth';
 import { writeAccountFiles, type CdnStore } from './cdn';
 import type { Repo, User } from './repo';
@@ -29,10 +29,11 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last, settings] = await Promise.all([
+    const [all, last, settings, audiences] = await Promise.all([
       repo.loadAllExperiments(accountId),
       repo.lastPublication(accountId),
       repo.getAccountSettings(accountId),
+      repo.listEntities<Audience>(accountId, 'audience'),
     ]);
     const sampleRate = settings.heatmapSampleRate ?? heatmapSampleRate;
     const running = all.filter((e) => e.status === 'running');
@@ -51,6 +52,10 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       apiUrl: publicUrl,
       trackingUrl: `${publicUrl}/collect`,
       experiments: running,
+      // Só as audiências usadas por experimentos publicados (o resto não precisa ir para o site).
+      audiences: audiences
+        .filter((a) => running.some((e) => e.audiences.includes(a.id)))
+        .map((a) => ({ id: a.id, ...a.data })),
       ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
     await Promise.all([repo.insertPublication(accountId, config, user.id), writeAccountFiles(cdn, config)]);

@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 13
-**Tarefa atual:** 13.1 (em andamento desde 2026-10-19 15:10)
-**Última atualização:** 2026-10-19 15:10
+**Tarefa atual:** 13.2 (em andamento desde 2026-10-19 15:17)
+**Última atualização:** 2026-10-19 15:17
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -413,3 +413,9 @@
 
 ### Resumo da Fase 12 — Experimentação avançada
 - Entregue: tipos de campanha (A/B, URL dividida, MVT, personalização com holdout, rollout gradual, server-side), teste multivariado com seções/combinações e efeito por seção, multi-armed bandit com rebalanceamento automático.
+
+### 2026-10-19 15:17 — Tarefa 13.1 concluída
+- O que foi feito: Schema de audiência (14 tipos de regra), avaliador no snippet com perfil local (caminhos, first-touch), gate no runtime, publicação das audiências usadas, tela Dados → Audiências com construtor de regras, seleção nas Configurações do experimento; mapa de calor movido para insights.js.
+- Arquivos principais: packages/shared/src/entities.ts, packages/snippet/src/{audience,data,runtime,insights,main}.ts, packages/insights/src/heatmap.ts, apps/api/src/publish.ts, apps/editor/src/{pages/Audiences.tsx,components/SettingsPanel.tsx}
+- Como testar manualmente: Dados → Audiências → Nova; abrir experimento → Configurações → marcar a audiência → Publicar.
+- Observações: ver D-055. Snippet 8,5 KB.

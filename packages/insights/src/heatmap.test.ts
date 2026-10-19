@@ -6,9 +6,10 @@ import {
   type TrackingEvent,
 } from '@abtest/shared';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { resetProcessed } from './engine/apply';
-import { installHeatmap, sampled } from './heatmap';
-import { start } from './runtime';
+import { resetProcessed } from '@abtest/snippet/engine';
+import { insightsBoot, sampled } from '@abtest/snippet/insights';
+import { start, type Runtime } from '@abtest/snippet/runtime';
+import { startHeatmap } from './heatmap';
 
 const config: PublishedConfig = {
   accountId: 'acc',
@@ -34,6 +35,13 @@ let flushes: number;
 let tracker: { send(e: TrackingEvent): void; flush(): void };
 const HEAT = ['click', 'scroll', 'frustration', 'move'];
 const heat = () => sent.filter((e): e is HeatmapEvent => HEAT.includes(e.type));
+
+/** Como o snippet: só amostrados carregam o insights.js com o mapa de calor. */
+function installHeatmap(win: Window, rt: Runtime, tr: typeof tracker, rate: number): boolean {
+  if (!sampled(rt.visitor.id, rate)) return false;
+  startHeatmap(win, insightsBoot(win, rt, tr, config));
+  return true;
+}
 
 beforeEach(() => {
   history.replaceState(null, '', '/home');

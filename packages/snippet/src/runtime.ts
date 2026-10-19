@@ -1,6 +1,8 @@
 import type { Experiment, PublishedConfig, TrackingEvent, Variation } from '@abtest/shared';
 import { hide } from './antiflicker';
 import { assign, loadAssignments, saveAssignments } from './bucket';
+import { matchAudience } from './audience';
+import { loadProfile, notePage, saveProfile, type Profile } from './data';
 import { applyOperations, type ApplyHandle } from './engine/apply';
 import { detectDevice, getVisitor, isBot, randomId, type Visitor } from './env';
 import { matchSegmentation } from './segment';
@@ -43,6 +45,8 @@ export interface RuntimeOptions {
 
 export interface Runtime {
   visitor: Visitor;
+  /** Perfil local (atualizado a cada página antes de avaliar as audiências). */
+  profile: Profile;
   config: PublishedConfig;
   active: Map<string, Active>;
   /** Reavalia segmentação/atribuição para a URL atual e aplica/remove experimentos. */
@@ -71,6 +75,10 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     }
   })();
   const stored = loadAssignments(storage);
+  const profile = loadProfile(storage);
+  notePage(profile, win.location.href, doc.referrer, visitor.newSession);
+  saveProfile(storage, profile);
+  const audiences = new Map((config.audiences ?? []).map((a) => [a.id, a]));
   const active = new Map<string, Active>();
 
   const forcedOf = (exp: Experiment) => {
@@ -177,15 +185,25 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
 
   const evaluate = () => {
     const ctx = {
+      win,
       url: win.location.href,
       device: detectDevice(nav.userAgent, win.innerWidth),
       isNew: visitor.isNew,
+      profile,
     };
     for (const exp of config.experiments) {
       // Server-side é só do SDK (o site não aplica nada).
       if (exp.status !== 'running' || exp.type === 'server') continue;
       const forced = forcedOf(exp);
-      if (!forced && !matchSegmentation(exp.segmentation, ctx)) {
+      if (
+        !forced &&
+        (!matchSegmentation(exp.segmentation, ctx) ||
+          // Audiência ausente na config publicada = ninguém entra (mais seguro que todo mundo).
+          !exp.audiences.every((id) => {
+            const a = audiences.get(id);
+            return !!a && matchAudience(a, ctx);
+          }))
+      ) {
         deactivate(exp.id);
         continue;
       }
@@ -201,11 +219,14 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
   evaluate();
   const onNavigate: Runtime['onNavigate'] = [];
   const unwatch = watchLocation(win, (url) => {
+    notePage(profile, url);
+    saveProfile(storage, profile);
     evaluate();
     onNavigate.forEach((f) => f(url));
   });
   return {
     visitor,
+    profile,
     config,
     active,
     evaluate,
