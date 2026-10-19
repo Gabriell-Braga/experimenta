@@ -36,6 +36,7 @@ export function installHeatmap(
       ts: Date.now(),
       accountId: rt.config.accountId,
       visitorId: rt.visitor.id,
+      sessionId: rt.visitor.sessionId,
       url,
       device: detectDevice(win.navigator.userAgent, win.innerWidth),
       variations: Object.fromEntries([...rt.active.values()].map((a) => [a.experiment.id, a.variation.id])),

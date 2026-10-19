@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me } from './api';
 import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
+import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
@@ -12,6 +13,7 @@ import { Button, Spinner } from './ui';
 const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   tests: (user) => <ExperimentList user={user} />,
   install: (user) => <InstallPage user={user} />,
+  events: () => <EventsPage />,
 };
 
 function FullPageSpinner({ label }: { label: string }) {

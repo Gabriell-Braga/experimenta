@@ -335,7 +335,9 @@ export function Stat({
   return (
     <div className="rounded-lg border border-gray-900/10 bg-white px-4 py-3">
       <p className="label-mono">{label}</p>
-      <p className={`tabular mt-1.5 font-display text-[28px] leading-none ${color}`}>{value}</p>
+      <p className={`tabular mt-1.5 text-[26px] leading-none font-semibold tracking-tight ${color}`}>
+        {value}
+      </p>
       {hint && <p className="mt-1.5 text-xs text-gray-500">{hint}</p>}
     </div>
   );
@@ -370,8 +372,8 @@ export function Segmented<T extends string>({
   label,
 }: {
   value: T;
-  options: readonly (readonly [T, ReactNode])[];
-  onChange(v: T): void;
+  options: readonly (readonly [NoInfer<T>, ReactNode])[];
+  onChange(v: NoInfer<T>): void;
   label: string;
 }) {
   return (

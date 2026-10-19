@@ -1,5 +1,5 @@
 import { ExperimentSchema, type Experiment, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
-import { and, asc, desc, eq, inArray, lt, max, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, lte, max, sql, type SQL } from 'drizzle-orm';
 import type { Db } from './db';
 import {
   accounts,
@@ -37,6 +37,23 @@ export interface AccountSettings {
   /** null = padrão do servidor. */
   heatmapSampleRate: number | null;
 }
+
+/** Filtro genérico de eventos crus (analytics em memória, ver D-041). */
+export interface EventFilter {
+  types?: string[];
+  from?: Date;
+  to?: Date;
+  experimentId?: string;
+  sessionId?: string;
+  visitorIds?: string[];
+  /** Página normalizada (`normalizePage`). */
+  page?: string;
+  /** Padrão EVENT_LIMIT. */
+  limit?: number;
+  order?: 'asc' | 'desc';
+}
+// ponytail: teto de eventos por consulta de analytics; pré-agregar por dia quando o volume passar disso.
+export const EVENT_LIMIT = 50_000;
 
 /** Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. */
 export function normalizePage(url: string): string {
@@ -392,11 +409,35 @@ export function createRepo(db: Db) {
             // Eventos de mapa de calor não pertencem a um experimento só (ver payload.variations).
             experimentId: 'experimentId' in e ? e.experimentId : null,
             variationId: 'variationId' in e ? e.variationId : null,
+            visitorId: e.visitorId,
+            sessionId: e.sessionId ?? null,
             payload: e,
             ts: new Date(e.ts),
           })),
         )
         .onConflictDoNothing(); // eventId repetido (reenvio do beacon) é ignorado
+    },
+
+    /** Eventos crus (payload) da conta, por ordem de `ts`. */
+    async listEvents(accountId: string, f: EventFilter = {}): Promise<TrackingEvent[]> {
+      const conds: SQL[] = [eq(events.accountId, accountId)];
+      if (f.types?.length) conds.push(inArray(events.type, f.types));
+      if (f.from) conds.push(gte(events.ts, f.from));
+      if (f.to) conds.push(lte(events.ts, f.to));
+      if (f.experimentId) conds.push(eq(events.experimentId, f.experimentId));
+      if (f.sessionId) conds.push(eq(events.sessionId, f.sessionId));
+      if (f.visitorIds) conds.push(inArray(events.visitorId, f.visitorIds.length ? f.visitorIds : ['']));
+      if (f.page)
+        conds.push(
+          sql`regexp_replace(split_part(split_part(${events.payload}->>'url', '#', 1), '?', 1), '/$', '') = ${f.page}`,
+        );
+      const rows = await db
+        .select({ payload: events.payload })
+        .from(events)
+        .where(and(...conds))
+        .orderBy(f.order === 'desc' ? desc(events.ts) : asc(events.ts))
+        .limit(f.limit ?? EVENT_LIMIT);
+      return rows.map((r) => r.payload as TrackingEvent);
     },
 
     /**

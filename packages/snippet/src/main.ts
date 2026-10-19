@@ -1,5 +1,7 @@
 // Entrada do bundle publicado (dist/abt.js). Precisa rodar de forma síncrona no <head>.
+import type { Props } from '@abtest/shared';
 import { readConfig } from './config';
+import { installData } from './data';
 import { bootEditor, editToken } from './editor';
 import { installGoals } from './goals';
 import { installHeatmap } from './heatmap';
@@ -7,13 +9,23 @@ import { readForce, showBadge } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
 
-/** Comandos aceitos por window.abq.push([...]). */
-type Command = ['track', string, number?] | ['adapter', Adapter];
+/** Comandos aceitos por window.abq.push([...]). Referência: docs/EVENTOS.md. */
+type Command =
+  | ['track', string, number?, Props?]
+  | ['event', string, Props?]
+  | ['identify', string | null, Props?]
+  | ['set', Props]
+  | ['adapter', Adapter];
 
 declare global {
   interface Window {
     abq?: Command[] | { push(c: Command): void };
-    abt?: { visitorId: string; assignments(): Record<string, string>; flush(): void };
+    abt?: {
+      visitorId: string;
+      sessionId: string;
+      assignments(): Record<string, string>;
+      flush(): void;
+    };
   }
 }
 
@@ -30,11 +42,26 @@ if (config && token) {
   const tracker = createTracker(window, config.trackingUrl);
   const rt = start(window, config, { forced, sink: tracker.send });
   if (rt) {
-    const track = installGoals(window, rt);
+    const goal = installGoals(window, rt);
+    const storage = (() => {
+      try {
+        return window.localStorage;
+      } catch {
+        return undefined;
+      }
+    })();
+    const data = installData(window, rt, tracker.send, storage);
+    const track = (name: string, value?: number, props?: Props) => {
+      goal(name, value);
+      data.track(name, value, props);
+    };
     // Mapa de calor: só visitantes amostrados e nunca em modo QA (não polui os dados).
     if (config.heatmap?.sampleRate && !forced) installHeatmap(window, rt, tracker, config.heatmap.sampleRate);
     const run = (c: Command) => {
-      if (c[0] === 'track') track(c[1], c[2]);
+      if (c[0] === 'track') track(c[1], c[2], c[3]);
+      else if (c[0] === 'event') track(c[1], typeof c[2]?.value === 'number' ? c[2].value : undefined, c[2]);
+      else if (c[0] === 'identify') data.identify(c[1], c[2]);
+      else if (c[0] === 'set') data.identify(null, c[1]);
       else if (c[0] === 'adapter') tracker.addAdapter(c[1]);
     };
     // Processa o que o site enfileirou antes do snippet e troca a fila por um executor imediato.
@@ -43,6 +70,7 @@ if (config && token) {
     pending.forEach(run);
     window.abt = {
       visitorId: rt.visitor.id,
+      sessionId: rt.visitor.sessionId,
       assignments: () => Object.fromEntries(rt.assigned().map((a) => [a.experiment.key, a.variation.key])),
       flush: tracker.flush,
     };

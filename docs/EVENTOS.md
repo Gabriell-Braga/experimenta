@@ -23,17 +23,33 @@ Fonte da verdade do schema: `packages/shared/src/events.ts` (`TrackingEventSchem
 
 | campo | tipo | descrição |
 |---|---|---|
-| `type` | string | `exposure`, `conversion`, `selector_failed`, `selector_healed`, `click`, `scroll` |
+| `type` | string | `pageview`, `event`, `identify`, `exposure`, `conversion`, `selector_failed`, `selector_healed`, `click`, `scroll` |
 | `eventId` | string | UUID do evento (deduplicação) |
 | `ts` | number | epoch em ms, relógio do navegador |
 | `accountId` | string | conta (tenant) |
 | `visitorId` | string | ID do visitante (cookie first-party `_abt_vid`, 1 ano; fallback localStorage) |
+| `sessionId` | string? | sessão (cookie `_abt_sid`, expira após 30 min sem página nova) |
 | `url` | string | `location.href` no momento do evento |
 | `experimentId` / `experimentKey` | string | experimento (id interno / chave legível) — **não** existe em `click`/`scroll` |
 | `variationId` / `variationKey` | string | variação atribuída (a primeira variação do experimento é o controle) — **não** existe em `click`/`scroll` |
 | `qa` | boolean? | `true` quando a variação foi forçada por `?ab_force` — **descartar nas estatísticas** |
 
 ## Tipos
+
+### `pageview`
+Página vista: no carregamento e a cada rota de SPA. Enviado para **todos** os visitantes (não é amostrado) — base
+de funis, jornadas, coortes e perfis. Campos: `device`, `title?`, `referrer?` (na SPA, a página anterior), `vw`
+(largura da janela).
+
+### `event`
+Evento customizado: `abq.push(['track', nome, valor?, props?])` ou `abq.push(['event', nome, props?])`
+(`props.value` numérico vira o valor). Campos: `name`, `value?` (receita), `props?` (escalares). Também dispara
+as metas do tipo "evento customizado" com o mesmo nome.
+
+### `identify`
+`abq.push(['identify', userId, atributos?])` liga o visitante ao usuário do site; `abq.push(['set', atributos])`
+só grava atributos. Campos: `userId?`, `attrs?`. O snippet guarda um perfil local (`localStorage._abt_p`: páginas
+vistas, sessões, contagem de eventos, usuário e atributos) para a segmentação comportamental.
 
 ### `exposure`
 O visitante viu a variação: emitido quando o experimento é **ativado** na página (primeira carga que casa com a
@@ -95,6 +111,10 @@ Um por página vista: no `pagehide` e a cada navegação de SPA (com a URL da p�
 | `device`, `variations` | | como em `click` |
 
 ### Agregação (nossa API)
+`GET /analytics/overview?days=30` — totais (visitantes, sessões, páginas, eventos, conversões, receita), série
+diária, páginas e eventos mais frequentes, dispositivos e origens externas. `GET /events?type=&visitorId=&sessionId=&limit=`
+— eventos crus mais recentes.
+
 `GET /heatmap?url=<página>&experimentId=&variationId=&device=` (autenticado) agrupa por página (origin + caminho, sem query/hash/barra final): cliques por seletor (contagem + até 200 pontos `[rx, ry]` mais recentes) e alcance de scroll (`reached`: % das páginas vistas que chegaram a 10, 20, … 100%). É o que o overlay do editor desenha; o analytics pode consumir os eventos crus.
 
 ## Integrações no navegador
@@ -102,7 +122,7 @@ Um por página vista: no `pagehide` e a cada navegação de SPA (com a URL da p�
 - `window.addEventListener('abt:event', e => e.detail)` — todo evento, um a um.
 - `window.abq.push(['adapter', (events) => { ... }])` — adaptador plugável que recebe os lotes.
 - `window.abt.assignments()` — `{ chaveExperimento: chaveVariacao }` do visitante; `window.abt.visitorId`;
-  `window.abt.flush()` força o envio.
+  `window.abt.sessionId`; `window.abt.flush()` força o envio.
 
 ## Exemplo
 

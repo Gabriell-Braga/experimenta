@@ -171,9 +171,17 @@ export const events = pgTable(
     type: text('type').notNull(),
     experimentId: text('experiment_id'),
     variationId: text('variation_id'),
+    /** Visitante e sessão (colunas para consultas de jornada, funis, perfis e gravações). */
+    visitorId: text('visitor_id'),
+    sessionId: text('session_id'),
     payload: jsonb('payload').notNull(),
     ts: timestamp('ts', { withTimezone: true }).notNull(),
     receivedAt: createdAt(),
   },
-  (t) => [index('events_account_type_idx').on(t.accountId, t.type, t.experimentId)],
+  (t) => [
+    index('events_account_type_idx').on(t.accountId, t.type, t.experimentId),
+    index('events_account_ts_idx').on(t.accountId, t.ts),
+    index('events_session_idx').on(t.accountId, t.sessionId),
+    index('events_visitor_idx').on(t.accountId, t.visitorId),
+  ],
 );

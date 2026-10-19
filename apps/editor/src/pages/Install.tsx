@@ -33,7 +33,16 @@ function CodeBlock({ code, testId }: { code: string; testId?: string }) {
 
 /** Comandos da fila `window.abq` aceitos pelo snippet (referência para o time do site). */
 export const COMMANDS: [string, string][] = [
-  ["abq.push(['track', 'compra', 199.9])", 'Evento customizado; com valor, conta como receita nas metas.'],
+  [
+    "abq.push(['track', 'compra', 199.9, { sku: 'TN-1' }])",
+    'Evento customizado (valor e propriedades opcionais). Com valor, conta como receita nas metas.',
+  ],
+  ["abq.push(['event', 'filtro_aplicado', { cor: 'azul' }])", 'Evento com propriedades, sem valor.'],
+  [
+    "abq.push(['identify', 'usuario-42', { plano: 'pro' }])",
+    'Liga o visitante ao usuário logado (perfis e cross-device) e grava atributos.',
+  ],
+  ["abq.push(['set', { segmento: 'b2b' }])", 'Só atributos do visitante (segmentação e perfis).'],
   ["abq.push(['adapter', (eventos) => { … }])", 'Recebe os lotes de eventos (envie para outro analytics).'],
 ];
 

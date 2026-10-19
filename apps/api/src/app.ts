@@ -6,7 +6,9 @@ import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth'
 import { serveCdn, type CdnStore } from './cdn';
 import { findConflicts } from './conflicts';
 import { newId, verifyPassword } from './crypto';
+import { errors, ErrorSchema, json, security } from './http';
 import { NotFoundError, type Repo, type User } from './repo';
+import { DATA_PATHS, dataRoutes } from './routes/data';
 import { createSessionStore, type SessionStore } from './sessions';
 
 export interface AppDeps {
@@ -23,7 +25,6 @@ export interface AppDeps {
   ) => Promise<{ version: number } | { error: string; status: 403 | 400 }>;
 }
 
-const ErrorSchema = z.object({ error: z.string() }).openapi('Error');
 const UserOut = z
   .object({
     id: z.string(),
@@ -47,17 +48,6 @@ const ExperimentInput = z
   .object({ projectId: z.string(), editorUrl: z.string().url(), experiment: ExperimentSchema })
   .openapi('ExperimentInput');
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
-
-const json = <T extends z.ZodTypeAny>(schema: T, description: string) => ({
-  content: { 'application/json': { schema } },
-  description,
-});
-const errors = {
-  401: json(ErrorSchema, 'não autenticado'),
-  403: json(ErrorSchema, 'sem permissão'),
-  404: json(ErrorSchema, 'não encontrado'),
-};
-const security = [{ bearer: [] }];
 
 const publicUser = (u: User) => ({
   id: u.id,
@@ -135,6 +125,7 @@ export function createApp(deps: AppDeps) {
     '/publish',
     '/heatmap',
     '/account/settings',
+    ...DATA_PATHS,
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
   const auth = requireAuth(repo, deps.jwtSecret);
@@ -691,6 +682,8 @@ export function createApp(deps: AppDeps) {
       return c.json(body, 200);
     },
   );
+
+  dataRoutes(app, repo);
 
   app.doc31('/openapi.json', { openapi: '3.1.0', info: { title: 'A/B Editor API', version: '0.1.0' } });
   app.get('/docs', swaggerUI({ url: '/openapi.json' }));

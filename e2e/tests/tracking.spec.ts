@@ -43,16 +43,30 @@ test('exposure + conversões (clique, visita a URL em outra página, custom) via
   await page.evaluate(() => (window.abq as { push(c: unknown[]): void }).push(['track', 'signup', 7]));
   await page.getByTestId('cta-comprar').click(); // navega para /produto.html: lote sai no pagehide
   await page.waitForURL('**/produto.html');
+  // Playwright não intercepta o beacon do pagehide de um goto; no navegador real ele sai normalmente.
+  await page.evaluate(() => window.abt!.flush());
   await page.goto('/obrigado.html');
   await page.evaluate(() => window.abt!.flush());
   await expect
-    .poll(() => events.map((e) => e.type + (e.type === 'conversion' ? `:${e.goalKey}` : '')))
+    .poll(() =>
+      events
+        .filter((e) => e.type === 'exposure' || e.type === 'conversion')
+        .map((e) => e.type + (e.type === 'conversion' ? `:${e.goalKey}` : '')),
+    )
     .toEqual(['exposure', 'conversion:signup', 'conversion:cta', 'conversion:obrigado']);
-  const visitor = events[0]!.visitorId;
-  expect(
-    events.every((e) => e.visitorId === visitor && e.variationKey === 'b' && e.accountId === 'demo'),
-  ).toBe(true);
-  expect(events[1]).toMatchObject({ value: 7 });
+  const exp = events.filter((e) => e.type === 'exposure' || e.type === 'conversion');
+  const visitor = exp[0]!.visitorId;
+  expect(exp.every((e) => e.visitorId === visitor && e.variationKey === 'b' && e.accountId === 'demo')).toBe(
+    true,
+  );
+  expect(exp[1]).toMatchObject({ value: 7 });
+  // Coleta de dados: uma página vista por carregamento e o evento customizado, na mesma sessão.
+  await page.evaluate(() => window.abt!.flush());
+  await expect
+    .poll(() => events.filter((e) => e.type === 'pageview').map((e) => new URL(e.url).pathname))
+    .toEqual(['/', '/produto.html', '/obrigado.html']);
+  expect(events.find((e) => e.type === 'event')).toMatchObject({ name: 'signup', value: 7 });
+  expect(new Set(events.map((e) => e.sessionId)).size).toBe(1);
 });
 
 test('fila window.abq criada antes do snippet é processada', async ({ page }) => {

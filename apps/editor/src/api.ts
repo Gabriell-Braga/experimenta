@@ -159,3 +159,32 @@ export const duplicateExperiment = (id: string) =>
   api<{ id: string }>(`/experiments/${encodeURIComponent(id)}/duplicate`, { method: 'POST' });
 export const deleteExperiment = (id: string) =>
   api<void>(`/experiments/${encodeURIComponent(id)}`, { method: 'DELETE' });
+
+/** GET autenticado com query (filtros dos relatórios); valores vazios são omitidos. */
+export function query<T>(path: string, params: Record<string, string | number | undefined> = {}) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') q.set(k, String(v));
+  const s = q.toString();
+  return api<T>(s ? `${path}?${s}` : path);
+}
+
+export interface Overview {
+  totals: {
+    visitors: number;
+    sessions: number;
+    pageviews: number;
+    events: number;
+    conversions: number;
+    revenue: number;
+  };
+  byType: Record<string, number>;
+  series: { day: string; pageviews: number; events: number; visitors: number; sessions: number }[];
+  topPages: { key: string; count: number }[];
+  topEvents: { key: string; count: number }[];
+  devices: Record<string, number>;
+  referrers: { key: string; count: number }[];
+}
+export const getOverview = (days: number) => query<Overview>('/analytics/overview', { days });
+export const listEvents = (
+  p: { type?: string; visitorId?: string; sessionId?: string; limit?: number } = {},
+) => query<import('@abtest/shared').TrackingEvent[]>('/events', p);

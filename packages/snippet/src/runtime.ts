@@ -14,11 +14,17 @@ export type EventPayload = DistributiveOmit<
   | 'ts'
   | 'accountId'
   | 'visitorId'
+  | 'sessionId'
   | 'url'
   | 'experimentId'
   | 'experimentKey'
   | 'variationId'
   | 'variationKey'
+>;
+
+export type EventBase = Pick<
+  TrackingEvent,
+  'eventId' | 'ts' | 'accountId' | 'visitorId' | 'sessionId' | 'url'
 >;
 
 export interface Active {
@@ -42,6 +48,8 @@ export interface Runtime {
   /** Reavalia segmentação/atribuição para a URL atual e aplica/remove experimentos. */
   evaluate(): void;
   emit(exp: Experiment, variation: Variation, payload: EventPayload): void;
+  /** Campos comuns de todo evento (id, hora, conta, visitante, sessão, URL atual). */
+  base(): EventBase;
   /** Experimentos em que o visitante está (persistidos ou forçados), mesmo fora da página atual. */
   assigned(): { experiment: Experiment; variation: Variation }[];
   /** Ouvintes chamados após cada navegação de SPA (já reavaliada). */
@@ -70,14 +78,20 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     return key ? exp.variations.find((v) => v.key === key) : undefined;
   };
 
+  const base = (): EventBase => ({
+    eventId: randomId(),
+    ts: Date.now(),
+    accountId: config.accountId,
+    visitorId: visitor.id,
+    sessionId: visitor.sessionId,
+    url: win.location.href,
+    // Sessão de QA (?ab_force) não entra em nenhuma estatística.
+    ...(opts.forced && Object.keys(opts.forced).length ? { qa: true } : {}),
+  });
   const emit: Runtime['emit'] = (exp, variation, payload) =>
     opts.sink?.({
       ...payload,
-      eventId: randomId(),
-      ts: Date.now(),
-      accountId: config.accountId,
-      visitorId: visitor.id,
-      url: win.location.href,
+      ...base(),
       experimentId: exp.id,
       experimentKey: exp.key,
       variationId: variation.id,
@@ -195,6 +209,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     active,
     evaluate,
     emit,
+    base,
     onNavigate,
     assigned: () =>
       config.experiments.flatMap((experiment) => {

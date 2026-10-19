@@ -128,7 +128,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 
 ### Fase 9 — Plataforma CRO: nova cara + fundação de dados (pedido: "Conversion Rate Optimization.pdf")
 - [x] 9.1 Identidade visual própria (tokens, tipografia, componentes) e shell com navegação lateral por módulo (Painel, Testes, Insights, Engajamento, Dados, Configurações); roteamento por `?view=`
-- [ ] 9.2 Coleta de dados: sessão, pageview, eventos customizados com propriedades, identify/atributos, perfil local do visitante; visitor_id/session_id nos eventos; tela "Eventos" (fluxo recente + contagens)
+- [x] 9.2 Coleta de dados: sessão, pageview, eventos customizados com propriedades, identify/atributos, perfil local do visitante; visitor_id/session_id nos eventos; tela "Eventos" (fluxo recente + contagens)
 - [ ] 9.3 Motor estatístico (shared/stats): bayesiano beta-binomial (prob. de vencer, perda esperada, intervalo), z-test/p-valor, receita por visitante, SRM, amostra necessária/duração estimada
 - [ ] 9.4 Relatório do experimento: visitantes/conversões/receita por variação e meta, série diária, filtros (data, dispositivo, novo/recorrente), meta primária, comparar metas, CSV/imprimir
 

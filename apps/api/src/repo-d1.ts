@@ -9,6 +9,7 @@ import {
 } from '@abtest/shared';
 import { hashPassword, newId } from './crypto';
 import {
+  EVENT_LIMIT,
   NotFoundError,
   normalizePage,
   scrollReached,
@@ -397,12 +398,14 @@ export function createD1Repo(d1: D1Like): Repo {
       await d1.batch(
         list.map((e) =>
           q(
-            'INSERT OR IGNORE INTO events (id, account_id, type, experiment_id, variation_id, page, payload, ts, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO events (id, account_id, type, experiment_id, variation_id, visitor_id, session_id, page, payload, ts, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             e.eventId,
             accountId,
             e.type,
             'experimentId' in e ? e.experimentId : null,
             'variationId' in e ? e.variationId : null,
+            e.visitorId,
+            e.sessionId ?? null,
             normalizePage(e.url),
             JSON.stringify(e),
             e.ts,
@@ -410,6 +413,41 @@ export function createD1Repo(d1: D1Like): Repo {
           ),
         ),
       );
+    },
+
+    async listEvents(accountId, f = {}): Promise<TrackingEvent[]> {
+      // D1 aceita no máximo 100 parâmetros por consulta: lista grande de visitantes vai em lotes.
+      if (f.visitorIds && f.visitorIds.length > 80) {
+        const parts: TrackingEvent[] = [];
+        for (let i = 0; i < f.visitorIds.length; i += 80)
+          parts.push(
+            ...(await this.listEvents(accountId, { ...f, visitorIds: f.visitorIds.slice(i, i + 80) })),
+          );
+        const sign = f.order === 'desc' ? -1 : 1;
+        return parts.sort((x, y) => sign * (x.ts - y.ts)).slice(0, f.limit ?? EVENT_LIMIT);
+      }
+      const conds = ['account_id = ?'];
+      const args: unknown[] = [accountId];
+      const add = (sql: string, ...v: unknown[]) => {
+        conds.push(sql);
+        args.push(...v);
+      };
+      if (f.types?.length) add(`type IN (${f.types.map(() => '?').join(', ')})`, ...f.types);
+      if (f.from) add('ts >= ?', f.from.getTime());
+      if (f.to) add('ts <= ?', f.to.getTime());
+      if (f.experimentId) add('experiment_id = ?', f.experimentId);
+      if (f.sessionId) add('session_id = ?', f.sessionId);
+      if (f.visitorIds) {
+        const ids = f.visitorIds.length ? f.visitorIds : [''];
+        add(`visitor_id IN (${ids.map(() => '?').join(', ')})`, ...ids);
+      }
+      if (f.page) add('page = ?', f.page);
+      const rows = await all<{ payload: string }>(
+        `SELECT payload FROM events WHERE ${conds.join(' AND ')} ORDER BY ts ${f.order === 'desc' ? 'DESC' : 'ASC'} LIMIT ?`,
+        ...args,
+        f.limit ?? EVENT_LIMIT,
+      );
+      return rows.map((r) => json<TrackingEvent>(r.payload));
     },
 
     async experimentHealth(accountId, experimentId) {

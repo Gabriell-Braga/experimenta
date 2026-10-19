@@ -2,12 +2,13 @@
 import { SegmentationSchema } from '@abtest/shared';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { readConfig } from './config';
-import { detectDevice, getVisitor, isBot, readCookie, VISITOR_KEY } from './env';
+import { detectDevice, getVisitor, isBot, readCookie, SID_KEY, VISITOR_KEY } from './env';
 import { matchSegmentation, matchUrl } from './segment';
 
 describe('visitante', () => {
   beforeEach(() => {
     document.cookie = `${VISITOR_KEY}=; Max-Age=0; Path=/`;
+    document.cookie = `${SID_KEY}=; Max-Age=0; Path=/`;
     localStorage.clear();
     sessionStorage.clear();
   });
@@ -17,13 +18,24 @@ describe('visitante', () => {
     expect(v.isNew).toBe(true);
     expect(readCookie(document, VISITOR_KEY)).toBe(v.id);
     expect(localStorage.getItem(VISITOR_KEY)).toBe(v.id);
-    expect(getVisitor()).toEqual(v); // mesma sessão continua "novo"
+    expect(v.newSession).toBe(true);
+    // Mesma sessão: continua "novo", mesmo sessionId, sessão não é nova.
+    expect(getVisitor()).toEqual({ ...v, newSession: false });
+  });
+
+  test('sessão expira sem atividade: novo sessionId', () => {
+    const v = getVisitor();
+    document.cookie = `${SID_KEY}=; Max-Age=0; Path=/`; // 30 min sem atividade
+    const w = getVisitor();
+    expect(w.id).toBe(v.id);
+    expect(w.sessionId).not.toBe(v.sessionId);
+    expect(w.newSession).toBe(true);
   });
 
   test('recorrente em nova sessão', () => {
     const v = getVisitor();
     sessionStorage.clear();
-    expect(getVisitor()).toEqual({ id: v.id, isNew: false });
+    expect(getVisitor()).toMatchObject({ id: v.id, isNew: false, sessionId: v.sessionId });
   });
 
   test('fallback em localStorage quando o cookie some', () => {

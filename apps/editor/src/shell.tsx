@@ -1,4 +1,4 @@
-import { Code2, FlaskConical, LogOut, Menu, Settings2, X, type LucideIcon } from 'lucide-react';
+import { Activity, Code2, FlaskConical, LogOut, Menu, Settings2, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
 import { navigate } from './nav';
@@ -17,6 +17,7 @@ export interface NavGroup {
 /** Menu lateral por módulo. Cada tela nova entra aqui quando fica pronta. */
 export const NAV: NavGroup[] = [
   { label: 'Testes', items: [{ view: 'tests', label: 'Experimentos', icon: FlaskConical }] },
+  { label: 'Dados', items: [{ view: 'events', label: 'Eventos', icon: Activity }] },
   { label: 'Configurar', items: [{ view: 'install', label: 'Instalação', icon: Code2 }] },
 ];
 

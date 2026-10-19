@@ -3,12 +3,18 @@ import type { Device } from '@abtest/shared';
 
 export const VISITOR_KEY = '_abt_vid';
 const SESSION_KEY = '_abt_s';
+/** Sessão de analytics: cookie que expira após 30 min sem atividade (renovado a cada página). */
+export const SID_KEY = '_abt_sid';
 const ONE_YEAR = 60 * 60 * 24 * 365;
+const SESSION_TTL = 30 * 60;
 
 export interface Visitor {
   id: string;
   /** true durante toda a primeira sessão do visitante. */
   isNew: boolean;
+  sessionId: string;
+  /** Sessão começou neste carregamento de página. */
+  newSession: boolean;
 }
 
 function safe<T>(fn: () => T): T | undefined {
@@ -24,10 +30,13 @@ export function readCookie(doc: Document, name: string): string | undefined {
   return m ? decodeURIComponent(m[1]!) : undefined;
 }
 
-function writeCookie(doc: Document, name: string, value: string): void {
+function writeCookie(doc: Document, name: string, value: string, maxAge = ONE_YEAR): void {
   const secure = doc.location?.protocol === 'https:' ? '; Secure' : '';
-  doc.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${ONE_YEAR}; Path=/; SameSite=Lax${secure}`;
+  doc.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax${secure}`;
 }
+
+/** Renova a sessão (30 min a partir de agora). */
+export const touchSession = (doc: Document, sid: string) => writeCookie(doc, SID_KEY, sid, SESSION_TTL);
 
 export function randomId(): string {
   const c = globalThis.crypto;
@@ -47,7 +56,10 @@ export function getVisitor(win: Window = window): Visitor {
   writeCookie(doc, VISITOR_KEY, id);
   safe(() => win.localStorage.setItem(VISITOR_KEY, id!));
   safe(() => win.sessionStorage.setItem(SESSION_KEY, session!));
-  return { id, isNew: session === 'n' };
+  const prev = readCookie(doc, SID_KEY);
+  const sessionId = prev || randomId();
+  touchSession(doc, sessionId);
+  return { id, isNew: session === 'n', sessionId, newSession: !prev };
 }
 
 export function detectDevice(ua: string, width: number): Device {

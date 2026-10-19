@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 9
-**Tarefa atual:** 9.2 (em andamento desde 2026-10-19 13:49)
-**Última atualização:** 2026-10-19 13:49
+**Tarefa atual:** 9.3 (em andamento desde 2026-10-19 14:00)
+**Última atualização:** 2026-10-19 14:00
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -316,3 +316,9 @@
 - Arquivos principais: apps/editor/src/{index.css,ui.tsx,shell.tsx,nav.ts,App.tsx,pages/*,components/TopBar.tsx}
 - Como testar manualmente: pnpm dev → http://localhost:5173 (login, lista, Instalação no menu, abrir um experimento).
 - Observações: ver D-040.
+
+### 2026-10-19 14:00 — Tarefa 9.2 concluída
+- O que foi feito: Snippet: sessão (cookie 30 min), pageview em toda página/rota, comandos track/event/identify/set, perfil local; QA marca toda a sessão. API: colunas visitor_id/session_id, listEvents genérico (Postgres e D1), GET /analytics/overview e /events; rotas em src/routes. Editor: gráficos SVG próprios (charts.tsx, paleta validada) e tela Dados → Eventos (KPIs, série, rankings, fluxo ao vivo).
+- Arquivos principais: packages/snippet/src/{data,env,runtime,main}.ts, apps/api/src/{routes/data.ts,analytics/overview.ts,http.ts,test-app.ts,repo.ts,repo-d1.ts}, apps/editor/src/{charts.tsx,pages/Events.tsx}
+- Como testar manualmente: abrir o demo, rodar abq.push(['track','compra',10]) no console, ver em Dados → Eventos.
+- Observações: ver D-041. Snippet 7,95 KB gzip.
