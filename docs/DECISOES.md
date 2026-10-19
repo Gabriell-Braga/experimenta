@@ -275,3 +275,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 
 ## D-050 — Jornadas (fase 11.3)
 - Calculadas por sessão sobre os pageviews (todos os visitantes, D-041): entradas, saídas, taxa de saída na 1ª página, caminhos mais comuns (primeiras 4 páginas, recargas da mesma página não contam como passo) e um explorador "de onde vêm / para onde vão" por página — mais legível que um Sankey completo e navegável por clique.
+
+## D-051 — Coortes (fase 11.4)
+- Coorte = semana (segunda a domingo, UTC) ou dia da primeira página vista no período carregado (8 semanas / 14 dias). Métricas: retenção (alguma página vista no período N) ou conversão acumulada até N (evento customizado escolhido ou qualquer conversão de meta). Períodos ainda não decorridos ficam vazios, não 0%.
+- Escala sequencial de um tom (verde da marca) com texto que troca de cor pela luminância da célula.
+- Achado no caminho: o gerador de dados gerava `ts` fracionário nas sessões de retorno e o `/collect` (corretamente) descartava; corrigido no gerador, que agora usa o PRNG do motor estatístico e informa quantos visitantes recorrentes criou.

@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 11
-**Tarefa atual:** 11.4 (em andamento desde 2026-10-19 14:42)
-**Última atualização:** 2026-10-19 14:42
+**Fase atual:** 12
+**Tarefa atual:** 12.1 (em andamento desde 2026-10-19 14:47)
+**Última atualização:** 2026-10-19 14:47
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -383,3 +383,12 @@
 - Arquivos principais: apps/api/src/analytics/journeys.ts, apps/editor/src/pages/Journeys.tsx
 - Como testar manualmente: Insights → Jornadas; clicar numa página para explorar.
 - Observações: ver D-050.
+
+### 2026-10-19 14:47 — Tarefa 11.4 concluída
+- O que foi feito: GET /analytics/cohorts (semana/dia, retenção ou conversão acumulada); tela Insights → Coortes (matriz com escala sequencial); gerador de dados corrigido (ts inteiro, PRNG melhor, visitantes recorrentes).
+- Arquivos principais: apps/api/src/analytics/cohorts.ts, apps/editor/src/pages/Cohorts.tsx, scripts/seed-data.ts
+- Como testar manualmente: Insights → Coortes (após pnpm seed:data).
+- Observações: ver D-051.
+
+### Resumo da Fase 11 — Form e Journey Analytics
+- Entregue: form analytics por campo (capturado no insights.js), entidades genéricas de configuração, funis com análise de abandono, jornadas com explorador de página e coortes de retenção/conversão.

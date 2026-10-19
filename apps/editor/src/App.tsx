@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me } from './api';
 import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
+import { CohortsPage } from './pages/Cohorts';
 import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
 import { FormsPage } from './pages/Forms';
@@ -24,6 +25,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   forms: () => <FormsPage />,
   funnels: (user) => <FunnelsPage user={user} />,
   journeys: () => <JourneysPage />,
+  cohorts: () => <CohortsPage />,
   recordings: (_, r) => <RecordingsPage params={r.params} />,
   report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
 };

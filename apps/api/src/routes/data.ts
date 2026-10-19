@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { Funnel } from '@abtest/shared';
+import { cohortsReport } from '../analytics/cohorts';
 import { formsReport } from '../analytics/forms';
 import { funnelReport } from '../analytics/funnel';
 import { journeysReport } from '../analytics/journeys';
@@ -126,6 +127,34 @@ export function dataRoutes(app: Api, repo: Repo) {
       const q = c.req.valid('query');
       const list = await repo.listEvents(c.get('user').accountId, { ...period(q), types: ['pageview'] });
       return c.json(journeysReport(list, { focus: q.page, depth: q.depth, device: q.device }), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/cohorts',
+      tags: ['insights'],
+      security,
+      summary:
+        'Coortes por data da 1ª visita: retenção (voltou ao site) ou conversão acumulada (evento ou qualquer meta) por período',
+      request: {
+        query: PeriodQuery.extend({
+          days: z.coerce.number().int().min(1).max(365).default(56),
+          unit: z.enum(['day', 'week']).default('week'),
+          metric: z.enum(['retention', 'event']).default('retention'),
+          event: z.string().optional(),
+        }),
+      },
+      responses: { 200: json(Report, 'coortes'), ...errors },
+    }),
+    async (c) => {
+      const q = c.req.valid('query');
+      const list = await repo.listEvents(c.get('user').accountId, {
+        ...period(q),
+        types: ['pageview', 'event', 'conversion'],
+      });
+      return c.json(cohortsReport(list, { unit: q.unit, metric: q.metric, event: q.event }), 200);
     },
   );
 

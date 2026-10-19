@@ -2,15 +2,17 @@
 // eventos, um experimento com resultado e as capturas dos módulos de insights. Envia pelo POST /collect, como o
 // snippet faria. Uso: pnpm seed:data  (API em http://localhost:4000; API_URL e VISITORS sobrescrevem)
 import { randomUUID } from 'node:crypto';
+import { rng } from '../packages/shared/src/stats';
 
 const API = process.env.API_URL ?? 'http://localhost:4000';
+const DRY = !!process.env.DRY;
 const SITE = process.env.SITE_URL ?? 'http://localhost:5180';
 const VISITORS = Number(process.env.VISITORS ?? 1500);
 const DAY = 86_400_000;
 
 // PRNG com semente: os mesmos dados a cada execução (exceto ids).
-let seed = 1234;
-const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+
+const rand = rng(1234);
 const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rand() * xs.length)]!;
 const chance = (p: number) => rand() < p;
 
@@ -247,13 +249,22 @@ for (let i = 0; i < VISITORS; i++) {
         userId: `cliente-${i}`,
         attrs: { plano: pick(['free', 'pro']) },
       });
-    t += DAY * (1 + rand() * 4);
+    t += Math.round(DAY * (1 + rand() * 4));
   }
 }
 
 events.sort((a, b) => (a.ts as number) - (b.ts as number));
-for (let i = 0; i < events.length; i += 60)
+const sessionsByVisitor = new Map<unknown, Set<unknown>>();
+for (const e of events) {
+  if (e.type !== 'pageview') continue;
+  const s = sessionsByVisitor.get(e.visitorId) ?? new Set();
+  s.add(e.sessionId);
+  sessionsByVisitor.set(e.visitorId, s);
+}
+if (process.env.DUMP) (await import('node:fs')).writeFileSync(process.env.DUMP, JSON.stringify(events));
+const returning = [...sessionsByVisitor.values()].filter((s) => s.size > 1).length;
+for (let i = 0; i < (DRY ? 0 : events.length); i += 60)
   await call('/collect', { method: 'POST', body: JSON.stringify({ events: events.slice(i, i + 60) }) });
 console.log(
-  `[seed:data] ${VISITORS} visitantes, ${events.length} eventos enviados para ${API} (experimento ${KEY}).`,
+  `[seed:data] ${VISITORS} visitantes (${returning} recorrentes), ${events.length} eventos enviados para ${API} (experimento ${KEY}).`,
 );

@@ -142,7 +142,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 11.1 Form analytics: captura por campo (tempo, hesitação, re-preenchimento, ignorado, abandono) e relatório (chegaram → interagiram → enviaram)
 - [x] 11.2 Funis: passos por URL/evento/meta, ordem por visitante, drop-off por passo, filtros
 - [x] 11.3 Jornada: caminhos mais comuns, entradas/saídas, próximos passos a partir de uma página
-- [ ] 11.4 Coortes: por semana de primeira visita, retenção e conversão
+- [x] 11.4 Coortes: por semana de primeira visita, retenção e conversão
 
 ### Fase 12 — Experimentação avançada
 - [ ] 12.1 Tipos de campanha: A/B, Split URL, Personalização (com holdout), Rollout, Server-side — fluxo de criação por tipo
