@@ -1,5 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
+import type { Funnel } from '@abtest/shared';
 import { formsReport } from '../analytics/forms';
+import { funnelReport } from '../analytics/funnel';
+import { deviceByVisitor } from '../analytics/report';
 import { overview } from '../analytics/overview';
 import { pagesReport } from '../analytics/pages';
 import { errors, json, period, PeriodQuery, Report, security, type Api } from '../http';
@@ -66,6 +69,38 @@ export function dataRoutes(app: Api, repo: Repo) {
       const q = c.req.valid('query');
       const list = await repo.listEvents(c.get('user').accountId, { ...period(q), types: ['form'] });
       return c.json(formsReport(list, { device: q.device }), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/funnel/{id}',
+      tags: ['insights'],
+      security,
+      summary:
+        'Relatório de um funil salvo: visitantes por passo, conversão, tempo entre passos e para onde vão os que desistem',
+      request: {
+        params: z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) }),
+        query: PeriodQuery.extend({ device: z.enum(['desktop', 'tablet', 'mobile']).optional() }),
+      },
+      responses: { 200: json(Report, 'funil'), ...errors },
+    }),
+    async (c) => {
+      const accountId = c.get('user').accountId;
+      const f = await repo.getEntity<Funnel>(accountId, 'funnel', c.req.valid('param').id);
+      if (!f) return c.json({ error: 'funil não encontrado' }, 404);
+      const q = c.req.valid('query');
+      const list = await repo.listEvents(accountId, { ...period(q), types: ['pageview', 'event'] });
+      const devices = q.device ? deviceByVisitor(list) : null;
+      return c.json(
+        {
+          id: f.id,
+          name: f.name,
+          ...funnelReport(f.data, list, devices ? (v) => devices.get(v) === q.device : undefined),
+        },
+        200,
+      );
     },
   );
 

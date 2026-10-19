@@ -8,6 +8,7 @@ import {
   experimentVersions,
   goals,
   projects,
+  entities,
   publications,
   recordingChunks,
   recordings,
@@ -86,6 +87,17 @@ export interface RecordingFilter {
   limit?: number;
 }
 
+/** Entidade de configuração de um módulo (funil, audiência, campanha…). `data` validado pelo schema do tipo. */
+export interface Entity<T = unknown> {
+  id: string;
+  kind: string;
+  name: string;
+  data: T;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Primeira/última marca de tempo e páginas (eventos Meta do rrweb, tipo 4) de um bloco. */
 export function chunkSummary(list: RecordingChunkInput['events']) {
   let first = Infinity;
@@ -132,6 +144,16 @@ export function scrollReached(depths: number[]) {
  * Acesso a dados. Toda função de tenant recebe `accountId` e o usa em TODAS as cláusulas —
  * não existe consulta de experimento/variação/meta sem filtro de conta.
  */
+const toEntity = <T>(r: typeof entities.$inferSelect): Entity<T> => ({
+  id: r.id,
+  kind: r.kind,
+  name: r.name,
+  data: r.data as T,
+  createdBy: r.createdBy,
+  createdAt: r.createdAt.toISOString(),
+  updatedAt: r.updatedAt.toISOString(),
+});
+
 export function createRepo(db: Db) {
   async function loadExperiment(accountId: string, id: string): Promise<ExperimentRecord | null> {
     const [row] = await db
@@ -570,6 +592,60 @@ export function createRepo(db: Db) {
         clicks: { total: elements.reduce((t, e) => t + e.count, 0), elements },
         scroll: scrollReached(depths.map((d) => d.depth)),
       };
+    },
+
+    async listEntities<T = unknown>(accountId: string, kind: string): Promise<Entity<T>[]> {
+      const rows = await db
+        .select()
+        .from(entities)
+        .where(and(eq(entities.accountId, accountId), eq(entities.kind, kind)))
+        .orderBy(desc(entities.updatedAt));
+      return rows.map(toEntity<T>);
+    },
+
+    async getEntity<T = unknown>(accountId: string, kind: string, id: string): Promise<Entity<T> | null> {
+      const [r] = await db
+        .select()
+        .from(entities)
+        .where(and(eq(entities.accountId, accountId), eq(entities.kind, kind), eq(entities.id, id)));
+      return r ? toEntity<T>(r) : null;
+    },
+
+    /** Cria (sem id) ou substitui (com id da mesma conta e tipo). Devolve o id. */
+    async saveEntity(
+      accountId: string,
+      e: { id?: string; kind: string; name: string; data: unknown; userId?: string },
+    ): Promise<string> {
+      const now = new Date();
+      if (e.id) {
+        const r = await db
+          .update(entities)
+          .set({ name: e.name, data: e.data, updatedAt: now })
+          .where(and(eq(entities.accountId, accountId), eq(entities.kind, e.kind), eq(entities.id, e.id)))
+          .returning({ id: entities.id });
+        if (!r.length) throw new NotFoundError('não encontrado');
+        return e.id;
+      }
+      const id = newId(e.kind.slice(0, 4));
+      await db.insert(entities).values({
+        id,
+        accountId,
+        kind: e.kind,
+        name: e.name,
+        data: e.data,
+        createdBy: e.userId ?? null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return id;
+    },
+
+    async deleteEntity(accountId: string, kind: string, id: string): Promise<boolean> {
+      const r = await db
+        .delete(entities)
+        .where(and(eq(entities.accountId, accountId), eq(entities.kind, kind), eq(entities.id, id)))
+        .returning({ id: entities.id });
+      return r.length > 0;
     },
 
     async saveRecordingChunk(accountId: string, c: RecordingChunkInput): Promise<void> {

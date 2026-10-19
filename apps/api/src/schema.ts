@@ -222,3 +222,23 @@ export const recordingChunks = pgTable(
   },
   (t) => [index('recording_chunks_session_idx').on(t.accountId, t.sessionId, t.firstTs)],
 );
+
+/**
+ * Entidades de configuração dos módulos (funis, audiências, campanhas, pesquisas, flags, webhooks…), validadas
+ * pelos schemas zod de `@abtest/shared/entities` conforme o `kind`. Uma tabela genérica em vez de uma por módulo:
+ * todas são documentos pequenos lidos por conta + tipo (ver D-049).
+ */
+export const entities = pgTable(
+  'entities',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    kind: text('kind').notNull(),
+    name: text('name').notNull(),
+    data: jsonb('data').notNull(),
+    createdBy: text('created_by'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('entities_account_kind_idx').on(t.accountId, t.kind)],
+);

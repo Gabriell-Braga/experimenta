@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 11
-**Tarefa atual:** 11.2 (em andamento desde 2026-10-19 14:34)
-**Última atualização:** 2026-10-19 14:34
+**Tarefa atual:** 11.3 (em andamento desde 2026-10-19 14:40)
+**Última atualização:** 2026-10-19 14:40
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -371,3 +371,9 @@
 - Arquivos principais: packages/insights/src/forms.ts, apps/api/src/analytics/forms.ts, apps/editor/src/pages/Forms.tsx, apps/demo/produto.html
 - Como testar manualmente: Insights → Formulários (após pnpm seed:data).
 - Observações: ver D-048.
+
+### 2026-10-19 14:40 — Tarefa 11.2 concluída
+- O que foi feito: Tabela/CRUD genérico de entidades (Postgres e D1, /entities/{kind} com schema por tipo). Funis: schema (passos URL/evento, janela), GET /analytics/funnel/{id} (ordem, janela, conversão, tempo mediano, abandono com próxima página, filtro de dispositivo); tela Insights → Funis com construtor de passos e relatório.
+- Arquivos principais: packages/shared/src/entities.ts, apps/api/src/{routes/entities.ts,analytics/funnel.ts}, apps/editor/src/pages/Funnels.tsx
+- Como testar manualmente: Insights → Funis → Novo funil (Home exata + /produto contém).
+- Observações: ver D-049.

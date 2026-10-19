@@ -10,6 +10,7 @@ import { errors, ErrorSchema, json, security } from './http';
 import { behavior } from './analytics/behavior';
 import { normalizePage, NotFoundError, type Repo, type User } from './repo';
 import { DATA_PATHS, dataRoutes } from './routes/data';
+import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
 import { reportRoutes } from './routes/report';
 import { createSessionStore, type SessionStore } from './sessions';
@@ -130,6 +131,7 @@ export function createApp(deps: AppDeps) {
     '/account/settings',
     ...DATA_PATHS,
     ...RECORDING_PATHS,
+    ...ENTITY_PATHS,
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
   const auth = requireAuth(repo, deps.jwtSecret);
@@ -708,6 +710,7 @@ export function createApp(deps: AppDeps) {
   dataRoutes(app, repo);
   reportRoutes(app, repo);
   recordingRoutes(app, repo);
+  entityRoutes(app, repo);
 
   app.doc31('/openapi.json', { openapi: '3.1.0', info: { title: 'A/B Editor API', version: '0.1.0' } });
   app.get('/docs', swaggerUI({ url: '/openapi.json' }));

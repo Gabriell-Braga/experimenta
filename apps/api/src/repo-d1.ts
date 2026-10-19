@@ -15,6 +15,7 @@ import {
   NotFoundError,
   normalizePage,
   scrollReached,
+  type Entity,
   type ExperimentRecord,
   type Repo,
   type Role,
@@ -54,6 +55,16 @@ const toProject = (r: Row) => ({
   name: r.name as string,
   siteUrl: r.site_url as string,
   createdAt: date(r.created_at),
+});
+
+const toEntity = <T>(r: Row): Entity<T> => ({
+  id: r.id as string,
+  kind: r.kind as string,
+  name: r.name as string,
+  data: json<T>(r.data),
+  createdBy: (r.created_by as string | null) ?? null,
+  createdAt: date(r.created_at).toISOString(),
+  updatedAt: date(r.updated_at).toISOString(),
 });
 
 export function createD1Repo(d1: D1Like): Repo {
@@ -545,6 +556,65 @@ export function createD1Repo(d1: D1Like): Repo {
         clicks: { total: clicks.length, elements },
         scroll: scrollReached(depths.map((x) => Number(x.d))),
       };
+    },
+
+    async listEntities<T = unknown>(accountId: string, kind: string) {
+      const rows = await all(
+        'SELECT * FROM entities WHERE account_id = ? AND kind = ? ORDER BY updated_at DESC',
+        accountId,
+        kind,
+      );
+      return rows.map((r) => toEntity<T>(r));
+    },
+
+    async getEntity<T = unknown>(accountId: string, kind: string, id: string) {
+      const r = await first(
+        'SELECT * FROM entities WHERE account_id = ? AND kind = ? AND id = ?',
+        accountId,
+        kind,
+        id,
+      );
+      return r ? toEntity<T>(r) : null;
+    },
+
+    async saveEntity(accountId, e) {
+      const now = Date.now();
+      if (e.id) {
+        const r = await first<{ id: string }>(
+          'UPDATE entities SET name = ?, data = ?, updated_at = ? WHERE account_id = ? AND kind = ? AND id = ? RETURNING id',
+          e.name,
+          JSON.stringify(e.data),
+          now,
+          accountId,
+          e.kind,
+          e.id,
+        );
+        if (!r) throw new NotFoundError('não encontrado');
+        return e.id;
+      }
+      const id = newId(e.kind.slice(0, 4));
+      await q(
+        'INSERT INTO entities (id, account_id, kind, name, data, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        id,
+        accountId,
+        e.kind,
+        e.name,
+        JSON.stringify(e.data),
+        e.userId ?? null,
+        now,
+        now,
+      ).run();
+      return id;
+    },
+
+    async deleteEntity(accountId, kind, id) {
+      const r = await first<{ id: string }>(
+        'DELETE FROM entities WHERE account_id = ? AND kind = ? AND id = ? RETURNING id',
+        accountId,
+        kind,
+        id,
+      );
+      return !!r;
     },
 
     async saveRecordingChunk(accountId, c) {

@@ -257,3 +257,30 @@ export const getRecording = (sessionId: string) =>
     events: { timestamp: number; type: number }[];
     timeline: import('@abtest/shared').TrackingEvent[];
   }>(`/recordings/${encodeURIComponent(sessionId)}`);
+
+export interface Entity<T> {
+  id: string;
+  kind: string;
+  name: string;
+  data: T;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+/** CRUD genérico das entidades de configuração (funis, audiências, campanhas…). */
+export const entities = {
+  list: <T>(kind: string) => api<Entity<T>[]>(`/entities/${kind}`),
+  get: <T>(kind: string, id: string) => api<Entity<T>>(`/entities/${kind}/${encodeURIComponent(id)}`),
+  save: (kind: string, e: { id?: string; name: string; data: unknown }) =>
+    e.id
+      ? api<{ id: string }>(`/entities/${kind}/${encodeURIComponent(e.id)}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: e.name, data: e.data }),
+        })
+      : api<{ id: string }>(`/entities/${kind}`, {
+          method: 'POST',
+          body: JSON.stringify({ name: e.name, data: e.data }),
+        }),
+  remove: (kind: string, id: string) =>
+    api<void>(`/entities/${kind}/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
