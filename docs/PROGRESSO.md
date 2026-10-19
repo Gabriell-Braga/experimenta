@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
-**Fase atual:** 12
-**Tarefa atual:** 12.3 (em andamento desde 2026-10-19 15:07)
-**Última atualização:** 2026-10-19 15:07
+**Fase atual:** 13
+**Tarefa atual:** 13.1 (em andamento desde 2026-10-19 15:10)
+**Última atualização:** 2026-10-19 15:10
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -404,3 +404,12 @@
 - Arquivos principais: apps/editor/src/{store.ts,components/TopBar.tsx,pages/Report.tsx}, apps/api/src/analytics/report.ts, e2e/tests/mvt.spec.ts
 - Como testar manualmente: Nova campanha → Multivariado → editar opção → + Seção.
 - Observações: ver D-053.
+
+### 2026-10-19 15:10 — Tarefa 12.3 concluída
+- O que foi feito: banditWeights (Thompson + piso de 5%), rebalance/rebalanceAll com usuário de sistema sem permissão de JS, job de hora em hora (Node e cron do Worker), POST /experiments/{id}/rebalance, alternância nas Configurações e botão no relatório.
+- Arquivos principais: packages/shared/src/stats.ts, apps/api/src/{bandit.ts,routes/report.ts,server.ts,worker.ts}, apps/api/wrangler.jsonc, apps/editor/src/{components/SettingsPanel.tsx,pages/Report.tsx}
+- Como testar manualmente: Configurações → Alocação automática; Relatório → Rebalancear agora.
+- Observações: ver D-054.
+
+### Resumo da Fase 12 — Experimentação avançada
+- Entregue: tipos de campanha (A/B, URL dividida, MVT, personalização com holdout, rollout gradual, server-side), teste multivariado com seções/combinações e efeito por seção, multi-armed bandit com rebalanceamento automático.

@@ -112,8 +112,29 @@ export function SettingsPanel({
           />
         </label>
 
-        <fieldset className="flex flex-col gap-1">
-          <legend className="mb-1 text-gray-600">Divisão entre variações (pesos)</legend>
+        {experiment.variations.length > 1 && experiment.type !== 'rollout' && (
+          <label className="flex items-start gap-2 rounded-md border border-gray-900/10 p-2">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={experiment.allocation === 'bandit'}
+              onChange={(e) => patch({ allocation: e.target.checked ? 'bandit' : 'manual' })}
+              data-testid="allocation-bandit"
+            />
+            <span>
+              <span className="font-medium text-ink">Alocação automática (multi-armed bandit)</span>
+              <span className="block text-xs text-gray-500">
+                A cada hora, mais tráfego vai para a variação com mais chance de vencer na meta primária
+                (Thompson sampling, mínimo de 5% para cada uma). Bom para promoções curtas; para aprender,
+                prefira pesos fixos.
+              </span>
+            </span>
+          </label>
+        )}
+        <fieldset className="flex flex-col gap-1" disabled={experiment.allocation === 'bandit'}>
+          <legend className="mb-1 text-gray-600">
+            Divisão entre variações (pesos){experiment.allocation === 'bandit' && ' — controlada pelo bandit'}
+          </legend>
           {experiment.variations.map((v, i) => (
             <div key={v.id}>
               <label className="flex items-center justify-between gap-2">

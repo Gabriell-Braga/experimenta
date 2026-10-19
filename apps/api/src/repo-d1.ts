@@ -566,6 +566,13 @@ export function createD1Repo(d1: D1Like): Repo {
       };
     },
 
+    async listBanditExperiments() {
+      const rows = await all<{ account_id: string; id: string }>(
+        "SELECT account_id, id FROM experiments WHERE status = 'running' AND json_extract(options, '$.allocation') = 'bandit'",
+      );
+      return rows.map((r) => ({ accountId: r.account_id, id: r.id }));
+    },
+
     async listEntities<T = unknown>(accountId: string, kind: string) {
       const rows = await all(
         'SELECT * FROM entities WHERE account_id = ? AND kind = ? ORDER BY updated_at DESC',

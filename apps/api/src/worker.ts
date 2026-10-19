@@ -2,6 +2,7 @@
 // O servidor Node (src/server.ts) continua sendo o caminho de dev/self-host com Postgres.
 import type { D1Database, ExecutionContext, KVNamespace } from '@cloudflare/workers-types';
 import { createApp } from './app';
+import { rebalanceAll } from './bandit';
 import { writeAccountFiles, type CdnStore } from './cdn';
 import { createPublisher } from './publish';
 import { retentionCutoff } from './repo';
@@ -37,10 +38,22 @@ function kvStore(kv: KVNamespace): CdnStore {
 let app: ReturnType<typeof createApp> | undefined;
 let booting: Promise<ReturnType<typeof createApp>> | undefined;
 
+/** Repositório, CDN e publicador (usados pelo app e pelos jobs agendados). */
+function core(env: Env) {
+  const repo = createD1Repo(env.DB as unknown as D1Like);
+  const cdn = kvStore(env.CDN);
+  const publish = createPublisher({
+    repo,
+    cdn,
+    publicUrl: env.PUBLIC_URL,
+    heatmapSampleRate: Number(env.HEATMAP_SAMPLE_RATE ?? 1),
+  });
+  return { repo, cdn, publish };
+}
+
 async function build(env: Env) {
   const d1 = env.DB as unknown as D1Like;
-  const repo = createD1Repo(d1);
-  const cdn = kvStore(env.CDN);
+  const { repo, cdn, publish } = core(env);
   await seedDev(repo, env.DEMO_SITE_URL, env.SEED_PASSWORD);
   // Config vazia da conta demo até a primeira publicação (o site demo já carrega o script).
   if (!(await cdn.get('demo.json')))
@@ -58,12 +71,7 @@ async function build(env: Env) {
     editorOrigins: env.EDITOR_ORIGINS.split(','),
     jwtSecret: env.JWT_SECRET,
     sessions: createD1SessionStore(d1),
-    publish: createPublisher({
-      repo,
-      cdn,
-      publicUrl: env.PUBLIC_URL,
-      heatmapSampleRate: Number(env.HEATMAP_SAMPLE_RATE ?? 1),
-    }),
+    publish,
   });
 }
 
@@ -72,9 +80,12 @@ export default {
     app ??= await (booting ??= build(env));
     return app.fetch(req, env, ctx);
   },
-  /** Cron diário (wrangler.jsonc → triggers): retenção dos eventos crus. */
-  async scheduled(_event: unknown, env: Env) {
+  /** Crons (wrangler.jsonc → triggers): de hora em hora rebalanceia os bandits; às 04:00 UTC, retenção. */
+  async scheduled(event: { cron: string }, env: Env) {
+    const { repo, publish } = core(env);
+    await rebalanceAll(repo, publish);
+    if (event.cron !== '0 4 * * *') return;
     const cutoff = retentionCutoff(Number(env.EVENTS_RETENTION_DAYS ?? 90));
-    if (cutoff) await createD1Repo(env.DB as unknown as D1Like).purgeEventsBefore(cutoff);
+    if (cutoff) await repo.purgeEventsBefore(cutoff);
   },
 };

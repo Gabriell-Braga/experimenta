@@ -709,7 +709,7 @@ export function createApp(deps: AppDeps) {
   );
 
   dataRoutes(app, repo);
-  reportRoutes(app, repo);
+  reportRoutes(app, repo, deps.publish);
   recordingRoutes(app, repo);
   entityRoutes(app, repo);
 

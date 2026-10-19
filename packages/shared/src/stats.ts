@@ -321,3 +321,18 @@ export function verdict(r: ArmResult, minVisitors: number, visitors: number): Ve
   if (r.probBeatControl <= 0.05) return 'loser';
   return r.probBeatControl >= 0.75 ? 'leading' : 'inconclusive';
 }
+
+/**
+ * Pesos do multi-armed bandit (Thompson sampling): cada braço recebe tráfego proporcional à probabilidade de
+ * ser o melhor, com piso de exploração (`minShare` do total para cada um). Devolve inteiros somando ~1000.
+ * Sem dados suficientes (`minVisitors` no total), divide igualmente.
+ */
+export function banditWeights(arms: ArmInput[], minShare = 0.05, minVisitors = 100): number[] {
+  const k = arms.length;
+  if (!k) return [];
+  const total = arms.reduce((s, a) => s + a.visitors, 0);
+  if (k === 1 || total < minVisitors) return arms.map(() => Math.round(1000 / k));
+  const floor = Math.min(minShare, 1 / k);
+  const best = compareRates(arms).map((r) => r.probBest);
+  return best.map((p) => Math.max(1, Math.round((floor + (1 - floor * k) * p) * 1000)));
+}

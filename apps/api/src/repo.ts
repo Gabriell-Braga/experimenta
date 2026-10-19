@@ -608,6 +608,17 @@ export function createRepo(db: Db) {
       };
     },
 
+    /**
+     * Experimentos em execução com alocação automática (bandit), de TODAS as contas — manutenção do sistema
+     * (job de rebalanceamento), como o expurgo; não é exposta em rota.
+     */
+    async listBanditExperiments(): Promise<{ accountId: string; id: string }[]> {
+      return db
+        .select({ accountId: experiments.accountId, id: experiments.id })
+        .from(experiments)
+        .where(and(eq(experiments.status, 'running'), sql`${experiments.options}->>'allocation' = 'bandit'`));
+    },
+
     async listEntities<T = unknown>(accountId: string, kind: string): Promise<Entity<T>[]> {
       const rows = await db
         .select()

@@ -292,3 +292,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - No editor, as abas de variação viram seções × opções; a edição vai para a OPÇÃO ativa (uma "variação" virtual memoizada por objeto de opção) e as combinações são refeitas a cada mudança (desfazer/refazer incluídos). JS custom por opção não é suportado (só operações e CSS).
 - Relatório: além da tabela por combinação, "efeito por seção" soma visitantes/conversões de todas as combinações que contêm cada opção e compara com o original da seção (efeito principal, como no VWO).
 - ponytail: fatorial completo cresce rápido (3 seções × 3 opções = 27 combinações, tráfego dividido por 27). Fatorial fracionado/Taguchi fica para quando alguém precisar.
+
+## D-054 — Multi-armed bandit (fase 12.3)
+- `allocation: 'bandit'`: de hora em hora (Node: `setInterval`; Worker: cron `0 * * * *`) os pesos das variações em execução são recalculados pela meta primária nos últimos 30 dias: Thompson sampling (probabilidade de cada braço ser o melhor, mesmo Monte Carlo do motor estatístico) com piso de exploração de 5% por braço; sem 100 visitantes no total, divisão igual. Muda só a divisão de visitantes NOVOS (a atribuição de quem já entrou é persistida) — como nos bandits web do VWO.
+- Mudou → nova versão do experimento + republicação da conta com um usuário de sistema SEM permissão de JS: se houver customJS novo que ainda não foi publicado por quem pode, a publicação automática é recusada e os pesos ficam só salvos (não contorna a regra de permissão).
+- "Rebalancear agora" no relatório chama `POST /experiments/{id}/rebalance`.

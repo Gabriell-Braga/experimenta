@@ -38,7 +38,12 @@ export type Action =
   /** Configurações do experimento (nome, status, tráfego, segmentação, metas). */
   | {
       type: 'patchExperiment';
-      patch: Partial<Pick<Experiment, 'name' | 'status' | 'traffic' | 'segmentation' | 'goals'>>;
+      patch: Partial<
+        Pick<
+          Experiment,
+          'name' | 'status' | 'traffic' | 'segmentation' | 'goals' | 'allocation' | 'audiences'
+        >
+      >;
     }
   | { type: 'setWeight'; id: string; weight: number }
   /** MVT: seções e opções (as combinações são regeneradas a cada mudança). */

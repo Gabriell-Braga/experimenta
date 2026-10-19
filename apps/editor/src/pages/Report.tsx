@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   getExperiment,
   getReport,
+  rebalance,
   type ArmRow,
   type ArmStats,
   type ExperimentRecord,
@@ -410,7 +411,29 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
         }
         actions={
           <span className="no-print flex gap-2">
-            <Button onClick={() => go(exp.id)}>
+            {exp.allocation === 'bandit' && exp.status === 'running' && (
+              <Button
+                data-testid="rebalance"
+                onClick={async () => {
+                  try {
+                    const r = await rebalance(exp.id);
+                    toast(
+                      r.publishError ? 'error' : 'success',
+                      r.publishError
+                        ? `Pesos atualizados, mas não publicados: ${r.publishError}`
+                        : r.changed
+                          ? `Novos pesos: ${r.weights.map((w) => fmt.pct(w / r.weights.reduce((s, x) => s + x, 0), 0)).join(' / ')} (publicado).`
+                          : 'Pesos já estavam atualizados.',
+                    );
+                  } catch (e) {
+                    toast('error', (e as Error).message);
+                  }
+                }}
+              >
+                Rebalancear agora
+              </Button>
+            )}
+            <Button onClick={() => (exp.type === 'server' ? navigate('server', { id: exp.id }) : go(exp.id))}>
               <Pencil size={14} aria-hidden="true" /> Editar
             </Button>
             <Button

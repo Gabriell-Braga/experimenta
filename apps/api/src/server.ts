@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
+import { rebalanceAll } from './bandit';
 import { writeAccountFiles } from './cdn';
 import { fsCdnStore, syncBundles } from './cdn-fs';
 import { createDb } from './db';
@@ -58,6 +59,11 @@ const purge = () => {
 };
 purge();
 setInterval(purge, 86_400_000).unref();
+// Bandits: pesos recalculados de hora em hora (D-054).
+setInterval(
+  () => void rebalanceAll(repo, publish).catch((e) => console.error('[api] bandit', e)),
+  3_600_000,
+).unref();
 
 serve({ fetch: createApp({ repo, cdn, editorOrigins, jwtSecret, publish }).fetch, port }, () =>
   console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),

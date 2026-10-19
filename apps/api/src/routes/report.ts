@@ -1,10 +1,13 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import { deviceByVisitor, experimentReport } from '../analytics/report';
+import { forbid, hasRole } from '../auth';
+import { rebalance } from '../bandit';
+import type { AppDeps } from '../app';
 import { errors, json, period, PeriodQuery, Report, security, type Api } from '../http';
 import type { Repo } from '../repo';
 
 /** Relatório de experimento (tarefa 9.4). Caminho já coberto por `/experiments/*` (privado). */
-export function reportRoutes(app: Api, repo: Repo) {
+export function reportRoutes(app: Api, repo: Repo, publish?: AppDeps['publish']) {
   app.openapi(
     createRoute({
       method: 'get',
@@ -42,6 +45,29 @@ export function reportRoutes(app: Api, repo: Repo) {
         filter = (v) => devices.get(v) === q.device;
       }
       return c.json(experimentReport(rec.experiment, events, range, filter), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/experiments/{id}/rebalance',
+      tags: ['experiments'],
+      security,
+      summary: 'Bandit: recalcula os pesos agora (Thompson sampling na meta primária) e republica se mudaram',
+      request: { params: z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) }) },
+      responses: { 200: json(Report, '{ changed, weights }'), ...errors },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const r = await rebalance(repo, user.accountId, c.req.valid('param').id);
+      if (!r) return c.json({ error: 'experimento não está em execução com alocação automática' }, 404);
+      if (r.changed && publish) {
+        const p = await publish(user.accountId, user);
+        if ('error' in p) return c.json({ ...r, publishError: p.error }, 200);
+      }
+      return c.json(r, 200);
     },
   );
 }

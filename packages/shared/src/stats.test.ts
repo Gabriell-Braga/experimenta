@@ -130,3 +130,23 @@ test('veredito', () => {
   expect(verdict(b!, 100, 10000)).toBe('winner');
   expect(verdict(b!, 100_000, 10000)).toBe('inconclusive');
 });
+
+test('bandit: mais tráfego para quem tem mais chance de ser o melhor, com piso de exploração', async () => {
+  const { banditWeights } = await import('./stats');
+  expect(
+    banditWeights([
+      { visitors: 10, conversions: 1 },
+      { visitors: 10, conversions: 5 },
+    ]),
+  ).toEqual([500, 500]); // poucos dados
+  const w = banditWeights([
+    { visitors: 2000, conversions: 200 },
+    { visitors: 2000, conversions: 300 },
+    { visitors: 2000, conversions: 190 },
+  ]);
+  expect(w[1]!).toBeGreaterThan(850);
+  expect(w[0]!).toBeGreaterThanOrEqual(50); // piso de 5%
+  expect(w[2]!).toBeGreaterThanOrEqual(50);
+  expect(w.reduce((s, x) => s + x, 0)).toBeGreaterThan(990);
+  expect(w.reduce((s, x) => s + x, 0)).toBeLessThan(1010);
+});

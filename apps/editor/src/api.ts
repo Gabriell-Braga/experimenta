@@ -240,6 +240,13 @@ export interface ExperimentReport {
   srm: { pValue: number; mismatch: boolean };
   estimate: { neededPerVariation: number | null; daysRemaining: number | null; mde: number };
 }
+export const rebalance = (id: string) =>
+  api<{ changed: boolean; weights: number[]; publishError?: string }>(
+    `/experiments/${encodeURIComponent(id)}/rebalance`,
+    {
+      method: 'POST',
+    },
+  );
 export const getReport = (id: string, p: { days?: number; device?: string }) =>
   query<ExperimentReport>(`/experiments/${encodeURIComponent(id)}/report`, p);
 
