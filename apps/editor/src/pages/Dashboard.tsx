@@ -1,6 +1,15 @@
-import { Activity, ArrowDownRight, ArrowUpRight, FlaskConical } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  FlaskConical,
+  Lightbulb,
+  OctagonAlert,
+  Trophy,
+} from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { getDashboard, type Dashboard } from '../api';
+import { getDashboard, type Dashboard, type Insight } from '../api';
 import { LineChart, SERIES } from '../charts';
 import { navigate } from '../nav';
 import { Card, EmptyState, fmt, PageHeader, Segmented, Stat, useToast } from '../ui';
@@ -18,6 +27,59 @@ function Delta({ d }: { d: number | null }) {
       {up ? '+' : ''}
       {fmt.pct(d)} <span className="text-gray-500">vs anterior</span>
     </span>
+  );
+}
+
+const SEVERITY: Record<Insight['severity'], { icon: typeof Trophy; label: string; cls: string }> = {
+  critical: { icon: OctagonAlert, label: 'Crítico', cls: 'text-signal bg-signal/10' },
+  warning: { icon: AlertTriangle, label: 'Atenção', cls: 'text-[#8a6a00] bg-[#b08600]/12' },
+  good: { icon: Trophy, label: 'Resultado', cls: 'text-brand-700 bg-lime/60' },
+  info: { icon: Lightbulb, label: 'Ideia', cls: 'text-gray-600 bg-gray-100' },
+};
+
+/** Achados automáticos: ícone + rótulo de gravidade (nunca só cor), título e o que fazer. */
+function Insights({ list }: { list: Insight[] }) {
+  const [all, setAll] = useState(false);
+  if (!list.length)
+    return (
+      <p className="text-sm text-gray-500">
+        Nada fora do normal no período. Os achados aparecem aqui assim que houver dados suficientes.
+      </p>
+    );
+  const shown = all ? list : list.slice(0, 5);
+  return (
+    <>
+      <ul className="divide-y divide-gray-900/[0.06]" data-testid="insights">
+        {shown.map((x) => {
+          const s = SEVERITY[x.severity];
+          return (
+            <li key={x.id}>
+              <button
+                onClick={() => navigate(x.link.view, x.link.params)}
+                className="flex w-full gap-3 py-3 text-left hover:bg-paper/60"
+                data-testid="insight"
+              >
+                <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md ${s.cls}`}>
+                  <s.icon size={15} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <span className="label-mono shrink-0">{s.label}</span>
+                    <span className="truncate text-sm font-medium text-ink">{x.title}</span>
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-gray-600">{x.detail}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {list.length > 5 && (
+        <button className="mt-2 text-xs text-brand-700 hover:underline" onClick={() => setAll(!all)}>
+          {all ? 'Mostrar menos' : `Ver todos os ${list.length} achados`}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -62,6 +124,9 @@ export function DashboardPage() {
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
       <div className={`mt-6 space-y-5 transition-opacity ${d ? '' : 'opacity-50'}`} data-testid="dashboard">
+        <Card title={`Insights automáticos${d?.insights.length ? ` (${d.insights.length})` : ''}`}>
+          {d && <Insights list={d.insights} />}
+        </Card>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Stat
             label="Visitantes"

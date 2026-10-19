@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 15
-**Tarefa atual:** 15.2 (em andamento desde 2026-10-19 19:17)
-**Última atualização:** 2026-10-19 19:17
+**Tarefa atual:** 15.3 (em andamento desde 2026-10-19 19:21)
+**Última atualização:** 2026-10-19 19:21
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -477,3 +477,9 @@
 - Arquivos principais: apps/api/src/analytics/dashboard.ts, apps/api/src/routes/data.ts, apps/editor/src/pages/Dashboard.tsx
 - Como testar manualmente: pnpm seed:data e abrir ?view=home; trocar período 7/30/90 dias; clicar num teste abre o relatório
 - Observações: Uma leitura de eventos (até 50 mil) cobre os dois períodos.
+
+### 2026-10-19 19:21 — Tarefa 15.2 concluída
+- O que foi feito: Insights automáticos no painel: vencedor, SRM, frustração, campo de formulário com abandono, passo de funil, página pouco lida e variação que diverge por dispositivo
+- Arquivos principais: apps/api/src/analytics/insights.ts, apps/editor/src/pages/Dashboard.tsx
+- Como testar manualmente: Abrir ?view=home com dados do seed; clicar num achado abre a tela que o prova
+- Observações: Limiares em LIMITS.

@@ -343,3 +343,7 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-064 — Painel geral (fase 15.1)
 - `GET /analytics/dashboard?days=` junta, numa leitura de eventos (período atual + anterior de mesma duração, sem `click`/`move`), os KPIs de todos os módulos reaproveitando os mesmos agregadores das telas (overview, pages, forms, engage, perfis, relatório de experimento). Assim os números do painel batem com os de cada módulo.
 - Experimentos em execução aparecem com o líder na meta primária (maior P(melhor) entre os desafiantes), veredito, SRM e dias restantes. A tela é a primeira do menu ("Visão geral → Painel"); a lista de testes continua sendo a página inicial (`/`), para não mudar links existentes.
+
+## D-065 — Insights automáticos (fase 15.2)
+- Regras determinísticas sobre os mesmos agregadores das telas, não um modelo: cada achado tem número e link para a tela que o prova (relatório, mapa de calor, formulários, funil). Limiares em `LIMITS` (`apps/api/src/analytics/insights.ts`) para não gerar ruído: frustração ≥ 5% das visitas (mín. 50 visitas), scroll médio < 35%, campo responsável por ≥ 30% dos abandonos (mín. 10), passo de funil que perde ≥ 50% (mín. 30 visitantes), segmento divergente com P(> controle) ≥ 90% num dispositivo e ≤ 10% noutro (mín. 100 visitantes por variação em cada um).
+- Ordem: crítico (SRM) → resultado (vencedora) → atenção → ideia. Gravidade sempre com ícone e rótulo, nunca só cor. Calculados a cada abertura do painel (sem tabela de "insights"): o achado some sozinho quando o problema some.

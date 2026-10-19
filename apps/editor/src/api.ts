@@ -186,7 +186,16 @@ export interface Overview {
   referrers: { key: string; count: number }[];
 }
 /** Painel geral (GET /analytics/dashboard). */
+export interface Insight {
+  id: string;
+  kind: string;
+  severity: 'critical' | 'warning' | 'good' | 'info';
+  title: string;
+  detail: string;
+  link: { view: string; params?: Record<string, string> };
+}
 export interface Dashboard {
+  insights: Insight[];
   traffic: Overview['totals'] & {
     deltas: Record<'visitors' | 'sessions' | 'pageviews' | 'conversions' | 'revenue', number | null>;
     series: { day: string; visitors: number }[];

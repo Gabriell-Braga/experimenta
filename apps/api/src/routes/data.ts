@@ -24,7 +24,7 @@ export function dataRoutes(app: Api, repo: Repo) {
       tags: ['relatórios'],
       security,
       summary:
-        'Painel geral: tráfego (com variação vs período anterior), experimentos em execução, comportamento, formulários, engajamento e perfis',
+        'Painel geral: insights automáticos, tráfego (com variação vs período anterior), experimentos em execução, comportamento, formulários, engajamento e perfis',
       request: { query: PeriodQuery },
       responses: { 200: json(Report, 'painel'), ...errors },
     }),
@@ -32,9 +32,10 @@ export function dataRoutes(app: Api, repo: Repo) {
       const accountId = c.get('user').accountId;
       const range = period(c.req.valid('query'));
       const prevFrom = new Date(2 * range.from.getTime() - range.to.getTime());
-      const [all, list] = await Promise.all([
+      const [all, list, funnels] = await Promise.all([
         repo.listEvents(accountId, { from: prevFrom, to: range.to, types: [...DASHBOARD_TYPES] }),
         repo.listExperiments(accountId),
+        repo.listEntities<Funnel>(accountId, 'funnel'),
       ]);
       const running = (
         await Promise.all(
@@ -48,6 +49,7 @@ export function dataRoutes(app: Api, repo: Repo) {
           all.filter((e) => e.ts < from),
           range,
           running,
+          funnels,
         ),
         200,
       );

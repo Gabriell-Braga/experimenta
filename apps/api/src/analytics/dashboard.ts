@@ -1,6 +1,7 @@
-import type { Experiment, TrackingEvent } from '@abtest/shared';
+import type { Experiment, Funnel, TrackingEvent } from '@abtest/shared';
 import { engageReport } from './engage';
 import { formsReport } from './forms';
+import { findInsights } from './insights';
 import { overview } from './overview';
 import { pagesReport } from './pages';
 import { buildProfiles, crossDevice } from './profiles';
@@ -57,6 +58,7 @@ export function dashboard(
   prev: TrackingEvent[],
   range: { from: Date; to: Date },
   running: Experiment[],
+  funnels: { id: string; name: string; data: Funnel }[] = [],
 ) {
   const o = overview(cur, range.from, range.to);
   const p = overview(prev, range.from, range.from).totals;
@@ -77,6 +79,7 @@ export function dashboard(
   return {
     from: range.from.toISOString(),
     to: range.to.toISOString(),
+    insights: findInsights({ cur, range, running, funnels, pages, forms }),
     traffic: {
       ...t,
       deltas: {
