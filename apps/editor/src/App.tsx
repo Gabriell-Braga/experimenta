@@ -1,3 +1,4 @@
+import type { CampaignType } from '@abtest/shared';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me } from './api';
 import { EditorView } from './EditorView';
@@ -13,14 +14,22 @@ import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { ReportPage } from './pages/Report';
+import { ServerExperimentPage } from './pages/ServerExperiment';
 import { AppShell } from './shell';
 import { Button, Spinner } from './ui';
 
 /** Telas dentro da moldura (menu lateral). Chave = `?view=`. */
 const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
-  tests: (user) => <ExperimentList user={user} />,
+  tests: (user, r) => (
+    <ExperimentList
+      key={r.params.get('type')}
+      user={user}
+      type={(r.params.get('type') as CampaignType) || undefined}
+    />
+  ),
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
+  server: (_, r) => <ServerExperimentPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   heatmaps: () => <HeatmapsPage />,
   forms: () => <FormsPage />,
   funnels: (user) => <FunnelsPage user={user} />,
@@ -76,7 +85,16 @@ export function App() {
   if (!exp) {
     const view = PAGES[route.view] ? route.view : 'tests';
     return (
-      <AppShell user={user} view={view === 'report' ? 'tests' : view}>
+      <AppShell
+        user={user}
+        view={
+          view === 'report' || view === 'server'
+            ? 'tests'
+            : view === 'tests' && route.params.get('type')
+              ? `tests:${route.params.get('type')}`
+              : view
+        }
+      >
         {PAGES[view]!(user, route)}
       </AppShell>
     );

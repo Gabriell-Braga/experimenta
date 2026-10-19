@@ -1,7 +1,10 @@
 // Repositório para Cloudflare D1 (SQLite). Mesmo contrato de `createRepo` (Postgres/Drizzle), com SQL próprio:
 // toda consulta de tenant filtra por account_id. Schema em migrations-d1/.
 import {
+  EXPERIMENT_OPTION_KEYS,
   ExperimentSchema,
+  pickKeys,
+  VARIATION_EXTRA_KEYS,
   type Experiment,
   type Goal,
   type PublishedConfig,
@@ -91,7 +94,9 @@ export function createD1Repo(d1: D1Like): Repo {
       traffic: row.traffic,
       segmentation: json(row.segmentation),
       antiFlicker: json(row.anti_flicker),
+      ...json<Record<string, unknown>>(row.options ?? '{}'),
       variations: vars.map((v) => ({
+        ...json<Record<string, unknown>>(v.extra ?? '{}'),
         id: v.id,
         key: v.key,
         name: v.name,
@@ -215,7 +220,7 @@ export function createD1Repo(d1: D1Like): Repo {
 
     async listExperiments(accountId) {
       const rows = await all(
-        `SELECT e.id, e.key, e.name, e.status, e.project_id, e.editor_url, e.updated_at, e.traffic,
+        `SELECT e.id, e.key, e.name, e.status, e.project_id, e.editor_url, e.updated_at, e.traffic, e.options,
            (SELECT count(*) FROM variations v WHERE v.experiment_id = e.id AND v.account_id = e.account_id) AS variations
          FROM experiments e WHERE e.account_id = ? ORDER BY e.updated_at DESC`,
         accountId,
@@ -230,6 +235,7 @@ export function createD1Repo(d1: D1Like): Repo {
         updatedAt: date(r.updated_at),
         traffic: Number(r.traffic),
         variations: Number(r.variations),
+        type: json<{ type?: string }>(r.options ?? '{}').type ?? 'ab',
       }));
     },
 
@@ -260,11 +266,11 @@ export function createD1Repo(d1: D1Like): Repo {
       const now = Date.now();
       const stmts: D1Stmt[] = [
         q(
-          `INSERT INTO experiments (id, account_id, project_id, key, name, status, traffic, segmentation, anti_flicker, editor_url, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO experiments (id, account_id, project_id, key, name, status, traffic, segmentation, anti_flicker, options, editor_url, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, key = excluded.key, name = excluded.name,
              status = excluded.status, traffic = excluded.traffic, segmentation = excluded.segmentation,
-             anti_flicker = excluded.anti_flicker, editor_url = excluded.editor_url, updated_at = excluded.updated_at
+             anti_flicker = excluded.anti_flicker, options = excluded.options, editor_url = excluded.editor_url, updated_at = excluded.updated_at
            WHERE experiments.account_id = excluded.account_id`,
           exp.id,
           accountId,
@@ -275,6 +281,7 @@ export function createD1Repo(d1: D1Like): Repo {
           exp.traffic,
           JSON.stringify(exp.segmentation),
           JSON.stringify(exp.antiFlicker),
+          JSON.stringify(pickKeys(exp, EXPERIMENT_OPTION_KEYS)),
           input.editorUrl,
           (existing?.created_at as number | undefined) ?? now,
           now,
@@ -283,7 +290,7 @@ export function createD1Repo(d1: D1Like): Repo {
         q('DELETE FROM goals WHERE account_id = ? AND experiment_id = ?', accountId, exp.id),
         ...exp.variations.map((v, i) =>
           q(
-            'INSERT INTO variations (id, account_id, experiment_id, key, name, position, weight, operations, custom_css, custom_js, redirect) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO variations (id, account_id, experiment_id, key, name, position, weight, operations, custom_css, custom_js, redirect, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             v.id,
             accountId,
             exp.id,
@@ -295,6 +302,7 @@ export function createD1Repo(d1: D1Like): Repo {
             v.customCSS,
             v.customJS,
             v.redirect ? JSON.stringify(v.redirect) : null,
+            JSON.stringify(pickKeys(v, VARIATION_EXTRA_KEYS)),
           ),
         ),
         ...exp.goals.map((g, i) =>

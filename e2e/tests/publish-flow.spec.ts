@@ -74,13 +74,13 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   // Conversão: clique no CTA envia o evento para /collect da API (sendBeacon).
   await vp.getByTestId('cta-comprar').click();
   await expect
-    .poll(() => sent.find((e) => e.type === 'conversion'))
+    .poll(() => sent.find((e) => e.type === 'conversion' && e.experimentId === expId))
     .toMatchObject({
       experimentId: expId,
       variationKey: 'variacao-1',
       goalKey: 'clique-em-comprar',
     });
-  expect(sent.find((e) => e.type === 'exposure')).toMatchObject({ experimentId: expId });
+  expect(sent.find((e) => e.type === 'exposure' && e.experimentId === expId)).toBeDefined();
   await visitor.close();
 
   // Controle intacto para quem não está no experimento: pausar, republicar e conferir com visitante novo.

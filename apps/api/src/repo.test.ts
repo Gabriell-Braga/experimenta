@@ -73,6 +73,55 @@ describe('repositório', () => {
     expect((await repo.getVersion(a.id, 'exp_a1', 1))!.experiment.name).toBe('Hero');
   });
 
+  test('tipo de campanha, MVT, alocação, audiências e extras da variação sobrevivem ao salvar', async () => {
+    const e = ExperimentSchema.parse({
+      ...exp('e_opts', 'opts'),
+      type: 'mvt',
+      allocation: 'bandit',
+      audiences: ['aud_1'],
+      sections: [
+        {
+          id: 's1',
+          name: 'Título',
+          options: [
+            { id: 'o0', name: 'Original' },
+            {
+              id: 'o1',
+              name: 'Curto',
+              operations: [{ id: 'op', order: 0, type: 'setText', target: { selector: 'h1' }, value: 'X' }],
+            },
+          ],
+        },
+      ],
+      variations: [
+        { id: 'e_opts_v0', key: 'c', name: 'C', weight: 1, combination: { s1: 'o0' } },
+        {
+          id: 'e_opts_v1',
+          key: 'b',
+          name: 'B',
+          weight: 1,
+          combination: { s1: 'o1' },
+          variables: { cor: 'verde', n: 3 },
+        },
+      ],
+    });
+    const c = await repo.createAccount('Loja C');
+    const projC = await repo.createProject(c.id, { name: 'Site C', siteUrl: 'https://c.com' });
+    await repo.saveExperiment(c.id, { projectId: projC.id, editorUrl: 'https://c.com/', experiment: e });
+    expect((await repo.getExperiment(c.id, 'e_opts'))!.experiment).toEqual(e);
+    // Experimento sem opções recebe os padrões.
+    await repo.saveExperiment(c.id, {
+      projectId: projC.id,
+      editorUrl: 'https://c.com/',
+      experiment: exp('e_plain', 'plain'),
+    });
+    expect((await repo.getExperiment(c.id, 'e_plain'))?.experiment).toMatchObject({
+      type: 'ab',
+      allocation: 'manual',
+      audiences: [],
+    });
+  });
+
   test('isolamento por conta: outra conta não lê, não lista, não sobrescreve nem apaga', async () => {
     await repo.saveExperiment(a.id, {
       projectId: projA.id,

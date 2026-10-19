@@ -76,6 +76,8 @@ export const experiments = pgTable(
     antiFlicker: jsonb('anti_flicker').$type<AntiFlicker>().notNull(),
     /** Página aberta no editor para este experimento. */
     editorUrl: text('editor_url').notNull(),
+    /** Tipo de campanha, MVT, alocação, audiências (EXPERIMENT_OPTION_KEYS). */
+    options: jsonb('options').$type<Record<string, unknown>>().notNull().default({}),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -102,6 +104,8 @@ export const variations = pgTable(
     customCss: text('custom_css').notNull().default(''),
     customJs: text('custom_js').notNull().default(''),
     redirect: jsonb('redirect').$type<Variation['redirect']>(),
+    /** Variáveis (server-side) e combinação (MVT) — VARIATION_EXTRA_KEYS. */
+    extra: jsonb('extra').$type<Record<string, unknown>>().notNull().default({}),
   },
   (t) => [
     uniqueIndex('variations_exp_key_uq').on(t.experimentId, t.key),

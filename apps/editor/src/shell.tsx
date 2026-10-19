@@ -8,8 +8,11 @@ import {
   Grid3x3,
   LogOut,
   Menu,
+  Rocket,
   Route,
+  Server,
   Settings2,
+  UserRoundCog,
   Video,
   X,
   type LucideIcon,
@@ -29,9 +32,17 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Menu lateral por módulo. Cada tela nova entra aqui quando fica pronta. */
+/** Menu lateral por módulo. `tela:tipo` filtra a lista de campanhas por tipo. Cada tela entra quando fica pronta. */
 export const NAV: NavGroup[] = [
-  { label: 'Testes', items: [{ view: 'tests', label: 'Experimentos', icon: FlaskConical }] },
+  {
+    label: 'Testes',
+    items: [
+      { view: 'tests', label: 'Experimentos', icon: FlaskConical },
+      { view: 'tests:personalization', label: 'Personalização', icon: UserRoundCog },
+      { view: 'tests:rollout', label: 'Rollouts', icon: Rocket },
+      { view: 'tests:server', label: 'Server-side', icon: Server },
+    ],
+  },
   {
     label: 'Insights',
     items: [
@@ -206,7 +217,10 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
                 return (
                   <li key={v}>
                     <button
-                      onClick={() => navigate(v)}
+                      onClick={() => {
+                        const [screen, type] = v.split(':');
+                        navigate(screen!, type ? { type } : {});
+                      }}
                       aria-current={active ? 'page' : undefined}
                       data-testid={`nav-${v}`}
                       className={`group relative flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13.5px] ${active ? 'bg-white/[0.08] text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}

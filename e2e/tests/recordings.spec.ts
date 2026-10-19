@@ -20,6 +20,7 @@ test('gravação: visitante amostrado é gravado (campos mascarados) e a sessão
     }),
   );
   await site.goto('/');
+  await expect(site.locator('html[data-abt-insights=on]')).toHaveCount(1);
   await site.locator('#newsletter-form input').first().fill('segredo@exemplo.com');
   await site.getByTestId('cta-comprar').click();
   await site.waitForURL('**/produto.html');

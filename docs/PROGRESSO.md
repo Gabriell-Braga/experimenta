@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 12
-**Tarefa atual:** 12.1 (em andamento desde 2026-10-19 14:47)
-**Última atualização:** 2026-10-19 14:47
+**Tarefa atual:** 12.2 (em andamento desde 2026-10-19 15:03)
+**Última atualização:** 2026-10-19 15:03
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -392,3 +392,9 @@
 
 ### Resumo da Fase 11 — Form e Journey Analytics
 - Entregue: form analytics por campo (capturado no insights.js), entidades genéricas de configuração, funis com análise de abandono, jornadas com explorador de página e coortes de retenção/conversão.
+
+### 2026-10-19 15:03 — Tarefa 12.1 concluída
+- O que foi feito: Tipo de campanha no experimento (colunas JSON options/extra nos dois bancos), criação por tipo (A/B, URL dividida, MVT, personalização com holdout, rollout gradual, server-side), redirect editável, menu por tipo, página de campanha server-side com variáveis, gerador de combinações MVT (shared/mvt.ts), snippet ignora server-side, relatório de rollout.
+- Arquivos principais: packages/shared/src/{experiment,mvt}.ts, apps/api/src/{schema,repo,repo-d1}.ts, apps/editor/src/{campaigns.ts,store.ts,pages/Experiments.tsx,pages/ServerExperiment.tsx,components/*}
+- Como testar manualmente: Experimentos → Nova campanha → escolher o tipo.
+- Observações: ver D-052. E2E completo em ambiente limpo: 46/46.

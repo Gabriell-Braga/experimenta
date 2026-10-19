@@ -245,6 +245,14 @@ function Headline({
         Adicione uma meta nas Configurações do experimento para medir conversões.
       </p>
     );
+  // Rollout: uma variação só, sem controle para comparar.
+  if (goal.arms.length === 1)
+    return (
+      <p data-testid="headline">
+        {fmt.int(visitors)} visitantes receberam a mudança; {fmt.pct(goal.arms[0]!.rate, 2)} converteram em{' '}
+        <i>{goal.goalKey}</i>.
+      </p>
+    );
   const best = goal.arms
     .map((a, i) => ({ a, i }))
     .slice(1)

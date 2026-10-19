@@ -225,6 +225,7 @@ export function createApp(deps: AppDeps) {
               updatedAt: z.string(),
               traffic: z.number(),
               variations: z.number(),
+              type: z.string(),
             }),
           ),
           'experimentos da conta',

@@ -182,7 +182,8 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
       isNew: visitor.isNew,
     };
     for (const exp of config.experiments) {
-      if (exp.status !== 'running') continue;
+      // Server-side é só do SDK (o site não aplica nada).
+      if (exp.status !== 'running' || exp.type === 'server') continue;
       const forced = forcedOf(exp);
       if (!forced && !matchSegmentation(exp.segmentation, ctx)) {
         deactivate(exp.id);

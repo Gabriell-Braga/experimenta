@@ -1,5 +1,8 @@
 import {
   ExperimentSchema,
+  MvtSectionSchema,
+  mvtVariations,
+  type CampaignType,
   type Experiment,
   type Operation,
   type OperationDraft,
@@ -37,6 +40,8 @@ export type Action =
       patch: Partial<Pick<Experiment, 'name' | 'status' | 'traffic' | 'segmentation' | 'goals'>>;
     }
   | { type: 'setWeight'; id: string; weight: number }
+  /** Redirecionamento (URL dividida) e outros campos de uma variação. */
+  | { type: 'patchVariation'; id: string; patch: Partial<Pick<Variation, 'redirect' | 'name'>> }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'saved' };
@@ -57,16 +62,68 @@ export const keyFrom = (name: string) =>
       .slice(0, 40) || 'experimento'
   }-${Math.random().toString(36).slice(2, 7)}`;
 
-export function newExperiment(url: string, name = 'Experimento 1'): Experiment {
-  return ExperimentSchema.parse({
+/**
+ * Experimento novo por tipo de campanha. `splitUrl` = página da variação no teste de URL dividida.
+ * MVT começa com uma seção (original + 1 opção); as variações são geradas pelas combinações.
+ */
+export function newExperiment(
+  url: string,
+  name = 'Experimento 1',
+  type: CampaignType = 'ab',
+  opts: { splitUrl?: string } = {},
+): Experiment {
+  const base = {
     id: uid('exp'),
     key: keyFrom(name),
     name,
+    type,
     segmentation: { urls: [{ match: 'exact', value: url }] },
-    variations: [
-      { id: uid('var'), key: 'controle', name: 'Controle', weight: 50 },
-      { id: uid('var'), key: 'variacao-1', name: 'Variação 1', weight: 50 },
-    ],
+  };
+  const v = (key: string, vname: string, weight: number, extra: object = {}) => ({
+    id: uid('var'),
+    key,
+    name: vname,
+    weight,
+    ...extra,
+  });
+  if (type === 'mvt') {
+    const sections = [
+      {
+        id: uid('sec'),
+        name: 'Seção 1',
+        options: [
+          { id: uid('opt'), name: 'Original' },
+          { id: uid('opt'), name: 'Opção 1' },
+        ],
+      },
+    ];
+    const parsed = MvtSectionSchema.array().parse(sections);
+    return ExperimentSchema.parse({ ...base, sections: parsed, variations: mvtVariations(parsed, []) });
+  }
+  const variations =
+    type === 'personalization'
+      ? [v('holdout', 'Grupo de controle', 10), v('experiencia', 'Experiência', 90)]
+      : type === 'rollout'
+        ? [v('rollout', 'Rollout', 100)]
+        : type === 'split'
+          ? [
+              v('controle', 'Controle', 50),
+              v('variacao-1', 'Variação 1', 50, {
+                redirect: { url: opts.splitUrl || url, preserveQuery: true },
+              }),
+            ]
+          : type === 'server'
+            ? [
+                v('controle', 'Controle', 50, { variables: {} }),
+                v('variacao-1', 'Variação 1', 50, { variables: {} }),
+              ]
+            : [v('controle', 'Controle', 50), v('variacao-1', 'Variação 1', 50)];
+  return ExperimentSchema.parse({
+    ...base,
+    // Rollout começa gradual: 10% do tráfego.
+    ...(type === 'rollout' ? { traffic: 10 } : {}),
+    ...(type === 'server' ? { segmentation: {} } : {}),
+    variations,
   });
 }
 
@@ -221,6 +278,11 @@ export function reducer(s: EditorState, a: Action): EditorState {
         variations: s.experiment.variations.map((v) =>
           v.id === a.id ? { ...v, weight: Math.max(0, Math.round(a.weight)) } : v,
         ),
+      });
+    case 'patchVariation':
+      return commit(s, {
+        ...s.experiment,
+        variations: s.experiment.variations.map((v) => (v.id === a.id ? { ...v, ...a.patch } : v)),
       });
     case 'setUrl':
       return { ...s, url: a.url };

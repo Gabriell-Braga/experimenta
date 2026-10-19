@@ -280,3 +280,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Coorte = semana (segunda a domingo, UTC) ou dia da primeira página vista no período carregado (8 semanas / 14 dias). Métricas: retenção (alguma página vista no período N) ou conversão acumulada até N (evento customizado escolhido ou qualquer conversão de meta). Períodos ainda não decorridos ficam vazios, não 0%.
 - Escala sequencial de um tom (verde da marca) com texto que troca de cor pela luminância da célula.
 - Achado no caminho: o gerador de dados gerava `ts` fracionário nas sessões de retorno e o `/collect` (corretamente) descartava; corrigido no gerador, que agora usa o PRNG do motor estatístico e informa quantos visitantes recorrentes criou.
+
+## D-052 — Tipos de campanha (fase 12.1)
+- `experiment.type`: `ab`, `split`, `mvt`, `personalization`, `rollout`, `server` — todos usam o MESMO motor (atribuição, anti-flicker, eventos, relatório); o tipo muda a criação, a interface e o que o snippet faz: `server` não é aplicado no site (só o SDK, fase 14.3); personalização = experiência + grupo de controle (holdout 10%) para medir o efeito; rollout = uma variação só com tráfego gradual (começa em 10%); URL dividida = variação com `redirect` (editável em Configurações).
+- Campos novos do experimento (tipo, seções do MVT, alocação, audiências) vão juntos numa coluna JSON `options`, e os da variação (variáveis server-side, combinação do MVT) em `extra` — sem coluna nova por recurso nos dois bancos (`EXPERIMENT_OPTION_KEYS`/`VARIATION_EXTRA_KEYS`).
+- Menu "Testes" filtra por tipo (Personalização, Rollouts, Server-side); campanhas server-side abrem uma página própria (pesos, variáveis JSON, metas por evento, exemplo de uso do SDK).
+- E2E: testes novos não deixam experimentos "em execução" na conta compartilhada (a publicação de um teste não pode depender da ordem dos outros); `insights.js` marca `html[data-abt-insights=on]` quando a captura começa.

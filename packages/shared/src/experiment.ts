@@ -45,7 +45,36 @@ export const VariationSchema = z.object({
   customJS: z.string().default(''),
   /** Teste de URL dividida: redireciona o visitante desta variação. */
   redirect: z.object({ url: z.string().url(), preserveQuery: z.boolean().default(true) }).optional(),
+  /** Server-side / feature flag: valores entregues pelo SDK para esta variação. */
+  variables: z.record(z.unknown()).optional(),
+  /** MVT: opção escolhida em cada seção (sectionId → optionId) que gerou esta combinação. */
+  combination: z.record(z.string()).optional(),
 });
+
+/** MVT: seção da página com opções alternativas; a opção 0 é o original (sem alterações). */
+export const MvtSectionSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  options: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1),
+        operations: z.array(OperationSchema).default([]),
+        customCSS: z.string().default(''),
+      }),
+    )
+    .min(2),
+});
+export type MvtSection = z.infer<typeof MvtSectionSchema>;
+
+/**
+ * Tipo de campanha. `ab` e `split` (redirect) são testes; `mvt` gera variações por combinação de seções;
+ * `personalization` aplica uma experiência a uma audiência com grupo de controle (holdout); `rollout`
+ * libera uma mudança para uma fração do tráfego sem medir contra controle; `server` só existe para o SDK.
+ */
+export const CampaignTypeSchema = z.enum(['ab', 'split', 'mvt', 'personalization', 'rollout', 'server']);
+export type CampaignType = z.infer<typeof CampaignTypeSchema>;
 export type Variation = z.infer<typeof VariationSchema>;
 
 export const AntiFlickerSchema = z.object({
@@ -69,6 +98,13 @@ export const ExperimentSchema = z
     variations: z.array(VariationSchema).min(1),
     goals: z.array(GoalSchema).default([]),
     antiFlicker: AntiFlickerSchema.default({}),
+    type: CampaignTypeSchema.default('ab'),
+    /** MVT: seções e opções; as variações são as combinações (ver `mvtVariations`). */
+    sections: z.array(MvtSectionSchema).optional(),
+    /** `bandit`: os pesos são recalculados periodicamente pela API (Thompson sampling). */
+    allocation: z.enum(['manual', 'bandit']).default('manual'),
+    /** Audiências salvas que o visitante precisa satisfazer (todas), além da segmentação. */
+    audiences: z.array(z.string()).default([]),
   })
   .superRefine((exp, ctx) => {
     const keys = exp.variations.map((v) => v.key);
@@ -78,3 +114,15 @@ export const ExperimentSchema = z
       ctx.addIssue({ code: 'custom', path: ['variations'], message: 'soma dos pesos precisa ser > 0' });
   });
 export type Experiment = z.infer<typeof ExperimentSchema>;
+
+/**
+ * Campos do experimento guardados juntos na coluna JSON `options` (tipo, MVT, alocação, audiências) e da
+ * variação na coluna `extra` — evita uma coluna nova por recurso nos dois bancos.
+ */
+export const EXPERIMENT_OPTION_KEYS = ['type', 'sections', 'allocation', 'audiences'] as const;
+export const VARIATION_EXTRA_KEYS = ['variables', 'combination'] as const;
+export function pickKeys<T extends object, K extends keyof T>(o: T, keys: readonly K[]): Partial<Pick<T, K>> {
+  const out: Partial<Pick<T, K>> = {};
+  for (const k of keys) if (o[k] !== undefined) out[k] = o[k];
+  return out;
+}

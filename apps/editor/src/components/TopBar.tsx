@@ -13,7 +13,8 @@ import {
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
-import type { Variation } from '@abtest/shared';
+import type { CampaignType, Variation } from '@abtest/shared';
+import { CAMPAIGNS } from '../campaigns';
 import { useState } from 'react';
 import { Button, Spinner, StatusBadge, timeAgo } from '../ui';
 
@@ -25,6 +26,7 @@ export const DEVICE_WIDTH: Record<Device, string> = { desktop: '100%', tablet: '
 interface Props {
   name: string;
   status: string;
+  type: CampaignType;
   variations: Variation[];
   activeId: string;
   mode: Mode;
@@ -112,6 +114,9 @@ export function TopBar(p: Props) {
           </button>
         )}
         <StatusBadge status={p.status} />
+        <span className="hidden font-mono text-[11px] text-white/50 sm:inline">
+          {CAMPAIGNS[p.type].label}
+        </span>
 
         <div className="flex-1" />
 
@@ -219,14 +224,16 @@ export function TopBar(p: Props) {
               )}
             </button>
           ))}
-          <button
-            onClick={p.onAddVariation}
-            className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            title="Nova variação"
-            data-testid="add-variation"
-          >
-            + Variação
-          </button>
+          {p.type !== 'rollout' && p.type !== 'mvt' && (
+            <button
+              onClick={p.onAddVariation}
+              className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              title="Nova variação"
+              data-testid="add-variation"
+            >
+              + Variação
+            </button>
+          )}
         </nav>
 
         <span className="h-5 w-px bg-gray-900/10" />

@@ -329,6 +329,7 @@ export function EditorView({ record, user }: Props) {
       <TopBar
         name={state.experiment.name}
         status={state.experiment.status}
+        type={state.experiment.type}
         saving={saving}
         publishing={publishing}
         savedAt={savedAt}
@@ -473,6 +474,13 @@ export function EditorView({ record, user }: Props) {
           >
             Cancelar
           </Button>
+        </div>
+      )}
+      {variation.redirect && (
+        <div className="bg-brand-50 px-4 py-1.5 text-sm text-brand-900" data-testid="redirect-banner">
+          <b>{variation.name}</b> redireciona os visitantes para{' '}
+          <code className="font-mono text-xs">{variation.redirect.url}</code>. Alterações visuais aqui não
+          valem para ela — mude o destino em Configurações.
         </div>
       )}
       {mode === 'preview' && (

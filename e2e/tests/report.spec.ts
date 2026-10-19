@@ -17,7 +17,8 @@ test('relatório: tabela por variação, vencedora, CSV e comparação de metas'
     id,
     key: id.replace(/_/g, '-'),
     name: 'Relatório E2E',
-    status: 'running',
+    // Pausado: o relatório não depende do status e não entra na publicação dos outros testes.
+    status: 'paused',
     variations: [
       { id: `${id}_c`, key: 'controle', name: 'Controle', weight: 50 },
       { id: `${id}_b`, key: 'b', name: 'Botão verde', weight: 50 },

@@ -11,6 +11,8 @@ import {
   type Me,
   type Project,
 } from '../api';
+import type { CampaignType } from '@abtest/shared';
+import { CAMPAIGN_ORDER, CAMPAIGNS } from '../campaigns';
 import { go, navigate } from '../nav';
 import { newExperiment } from '../store';
 import {
@@ -33,13 +35,24 @@ const FILTERS = [
   ['archived', 'Arquivados'],
 ] as const;
 
-function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
+function CreateModal({
+  open,
+  onClose,
+  initialType = 'ab',
+}: {
+  open: boolean;
+  onClose(): void;
+  initialType?: CampaignType;
+}) {
   const toast = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState('');
+  const [splitUrl, setSplitUrl] = useState('');
+  const [type, setType] = useState<CampaignType>(initialType);
   useEffect(() => {
     if (!open) return;
+    setType(initialType);
     listProjects().then(
       (p) => {
         setProjects(p);
@@ -47,7 +60,7 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
       },
       () => {},
     );
-  }, [open]);
+  }, [open, initialType]);
   const base = projects[0]?.siteUrl.replace(/\/$/, '') ?? '';
   const suggestions = base
     ? [
@@ -56,11 +69,12 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
         ['SPA React', `${base}/spa/`],
       ]
     : [];
+  const visual = type !== 'server';
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Novo experimento"
+      title="Nova campanha"
       testId="create-modal"
       footer={
         <>
@@ -74,7 +88,7 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
             loading={busy || !projects.length}
             data-testid="create-submit"
           >
-            Criar e abrir editor
+            {visual ? 'Criar e abrir editor' : 'Criar'}
           </Button>
         </>
       }
@@ -89,10 +103,13 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
           if (!project) return toast('error', 'Nenhum projeto encontrado nesta conta.');
           setBusy(true);
           try {
-            const pageUrl = new URL(String(f.get('url'))).href;
-            const experiment = newExperiment(pageUrl, String(f.get('name')).trim() || 'Novo experimento');
+            const pageUrl = new URL(visual ? String(f.get('url')) : project.siteUrl).href;
+            const experiment = newExperiment(pageUrl, String(f.get('name')).trim() || 'Nova campanha', type, {
+              splitUrl: type === 'split' ? new URL(splitUrl).href : undefined,
+            });
             await saveExperiment({ experiment, projectId: project.id, editorUrl: pageUrl }, true);
-            go(experiment.id);
+            if (visual) go(experiment.id);
+            else navigate('server', { id: experiment.id });
           } catch (err) {
             toast(
               'error',
@@ -104,6 +121,31 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
           }
         }}
       >
+        <div
+          className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+          role="radiogroup"
+          aria-label="Tipo de campanha"
+        >
+          {CAMPAIGN_ORDER.map((t) => {
+            const c = CAMPAIGNS[t];
+            const Icon = c.icon;
+            return (
+              <button
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={type === t}
+                onClick={() => setType(t)}
+                data-testid={`type-${t}`}
+                className={`rounded-md border p-2.5 text-left ${type === t ? 'border-ink bg-lime-soft/60' : 'border-gray-900/10 hover:bg-gray-50'}`}
+              >
+                <Icon size={16} className={type === t ? 'text-ink' : 'text-gray-500'} aria-hidden="true" />
+                <span className="mt-1.5 block text-[13px] font-medium text-ink">{c.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-gray-600">{CAMPAIGNS[type].help}</p>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-gray-700">Nome</span>
           <input
@@ -115,19 +157,23 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
             data-testid="create-name"
           />
         </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-gray-700">Página a editar</span>
-          <input
-            name="url"
-            type="url"
-            required
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className={inputCls}
-            data-testid="create-url"
-          />
-        </label>
-        {suggestions.length > 0 && (
+        {visual && (
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700">
+              {type === 'split' ? 'Página original (controle)' : 'Página a editar'}
+            </span>
+            <input
+              name="url"
+              type="url"
+              required
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className={inputCls}
+              data-testid="create-url"
+            />
+          </label>
+        )}
+        {visual && suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 text-xs">
             {suggestions.map(([label, u]) => (
               <button
@@ -141,8 +187,28 @@ function CreateModal({ open, onClose }: { open: boolean; onClose(): void }) {
             ))}
           </div>
         )}
+        {type === 'split' && (
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-gray-700">Página da variação</span>
+            <input
+              type="url"
+              required
+              value={splitUrl}
+              onChange={(e) => setSplitUrl(e.target.value)}
+              placeholder={`${base}/nova-home/`}
+              className={inputCls}
+              data-testid="create-split-url"
+            />
+          </label>
+        )}
         <p className="text-xs text-gray-500">
-          O experimento começa como rascunho com Controle e Variação 1 (50/50).
+          {type === 'personalization'
+            ? 'Começa com 90% vendo a experiência e 10% no grupo de controle (holdout), para medir o efeito.'
+            : type === 'rollout'
+              ? 'Começa liberado para 10% do tráfego; aumente em Configurações quando estiver seguro.'
+              : type === 'mvt'
+                ? 'Começa com uma seção (original + 1 opção). Adicione seções e opções no editor.'
+                : 'Começa como rascunho com Controle e Variação 1 (50/50).'}
         </p>
       </form>
     </Modal>
@@ -303,7 +369,20 @@ export function VariationChips({ count }: { count: number }) {
   );
 }
 
-export function ExperimentList({ user }: { user: Me }) {
+/** Abre a campanha: editor visual, ou página própria no server-side. */
+const open = (e: ExperimentSummary) => (e.type === 'server' ? navigate('server', { id: e.id }) : go(e.id));
+
+export function TypeTag({ type }: { type: CampaignType }) {
+  const c = CAMPAIGNS[type] ?? CAMPAIGNS.ab;
+  const Icon = c.icon;
+  return (
+    <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-gray-600" title={c.label}>
+      <Icon size={13} aria-hidden="true" /> {c.short}
+    </span>
+  );
+}
+
+export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }) {
   const toast = useToast();
   const [items, setItems] = useState<ExperimentSummary[] | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number][0]>('all');
@@ -326,14 +405,15 @@ export function ExperimentList({ user }: { user: Me }) {
   const shown = (items ?? []).filter(
     (e) =>
       (filter === 'all' ? e.status !== 'archived' : e.status === filter) &&
+      (!type || e.type === type) &&
       (!q || `${e.name} ${e.key} ${e.editorUrl}`.toLowerCase().includes(q.toLowerCase())),
   );
 
   return (
     <>
       <PageHeader
-        eyebrow="Testes"
-        title="Experimentos"
+        eyebrow={type ? 'Campanhas' : 'Testes'}
+        title={type ? CAMPAIGNS[type].label : 'Experimentos'}
         description={
           <span className="tabular font-mono text-xs text-gray-500">
             {counts.running ?? 0} em execução / {counts.all} no total
@@ -382,6 +462,7 @@ export function ExperimentList({ user }: { user: Me }) {
             <tr className="label-mono">
               <th className="px-4 py-2.5 font-medium">Experimento</th>
               <th className="px-4 py-2.5 font-medium">Status</th>
+              <th className="hidden px-4 py-2.5 font-medium xl:table-cell">Tipo</th>
               <th className="hidden px-4 py-2.5 font-medium md:table-cell">Página</th>
               <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Variações</th>
               <th className="hidden px-4 py-2.5 font-medium lg:table-cell">Tráfego</th>
@@ -404,14 +485,14 @@ export function ExperimentList({ user }: { user: Me }) {
             {shown.map((e) => (
               <tr
                 key={e.id}
-                onClick={() => go(e.id)}
+                onClick={() => open(e)}
                 className="group cursor-pointer hover:bg-lime-soft/40"
                 data-testid="experiment-row"
               >
                 <td className="px-4 py-3">
                   <button
                     className="text-left font-medium text-ink decoration-lime decoration-2 underline-offset-4 group-hover:underline"
-                    onClick={() => go(e.id)}
+                    onClick={() => open(e)}
                   >
                     {e.name}
                   </button>
@@ -419,6 +500,9 @@ export function ExperimentList({ user }: { user: Me }) {
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={e.status} />
+                </td>
+                <td className="hidden px-4 py-3 xl:table-cell">
+                  <TypeTag type={e.type as CampaignType} />
                 </td>
                 <td className="hidden max-w-xs px-4 py-3 md:table-cell">
                   <span className="block truncate font-mono text-xs text-gray-600" title={e.editorUrl}>
@@ -481,7 +565,7 @@ export function ExperimentList({ user }: { user: Me }) {
           </EmptyState>
         )}
       </div>
-      <CreateModal open={creating} onClose={() => setCreating(false)} />
+      <CreateModal open={creating} onClose={() => setCreating(false)} initialType={type} />
     </>
   );
 }

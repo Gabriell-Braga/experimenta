@@ -26,6 +26,7 @@ export interface ExperimentSummary {
   updatedAt: string;
   traffic: number;
   variations: number;
+  type: string;
 }
 export interface ExperimentRecord {
   experiment: Experiment;

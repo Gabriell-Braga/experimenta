@@ -114,27 +114,50 @@ export function SettingsPanel({
 
         <fieldset className="flex flex-col gap-1">
           <legend className="mb-1 text-gray-600">Divisão entre variações (pesos)</legend>
-          {experiment.variations.map((v) => (
-            <label key={v.id} className="flex items-center justify-between gap-2">
-              <span>{v.name}</span>
-              <span className="flex items-center gap-2">
-                <span className="w-12 text-right text-xs text-gray-500">
-                  {Math.round((v.weight / totalWeight) * 100)}%
+          {experiment.variations.map((v, i) => (
+            <div key={v.id}>
+              <label className="flex items-center justify-between gap-2">
+                <span>{v.name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="w-12 text-right text-xs text-gray-500">
+                    {Math.round((v.weight / totalWeight) * 100)}%
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    key={v.weight}
+                    defaultValue={v.weight}
+                    className={`${input} w-20`}
+                    data-testid={`weight-${v.key}`}
+                    onBlur={(e) =>
+                      Number(e.target.value) !== v.weight &&
+                      dispatch({ type: 'setWeight', id: v.id, weight: Number(e.target.value) })
+                    }
+                  />
                 </span>
+              </label>
+              {experiment.type === 'split' && i > 0 && (
                 <input
-                  type="number"
-                  min={0}
-                  key={v.weight}
-                  defaultValue={v.weight}
-                  className={`${input} w-20`}
-                  data-testid={`weight-${v.key}`}
-                  onBlur={(e) =>
-                    Number(e.target.value) !== v.weight &&
-                    dispatch({ type: 'setWeight', id: v.id, weight: Number(e.target.value) })
-                  }
+                  type="url"
+                  key={v.redirect?.url}
+                  defaultValue={v.redirect?.url ?? ''}
+                  placeholder="https://… (página desta variação)"
+                  className={`${input} mt-1 w-full font-mono text-xs`}
+                  data-testid={`redirect-${v.key}`}
+                  onBlur={(e) => {
+                    const url = e.target.value.trim();
+                    if (url === (v.redirect?.url ?? '')) return;
+                    dispatch({
+                      type: 'patchVariation',
+                      id: v.id,
+                      patch: {
+                        redirect: url ? { url, preserveQuery: v.redirect?.preserveQuery ?? true } : undefined,
+                      },
+                    });
+                  }}
                 />
-              </span>
-            </label>
+              )}
+            </div>
           ))}
         </fieldset>
       </div>

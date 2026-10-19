@@ -1,4 +1,12 @@
-import { ExperimentSchema, type Experiment, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
+import {
+  EXPERIMENT_OPTION_KEYS,
+  ExperimentSchema,
+  pickKeys,
+  VARIATION_EXTRA_KEYS,
+  type Experiment,
+  type PublishedConfig,
+  type TrackingEvent,
+} from '@abtest/shared';
 import { and, asc, desc, eq, gte, inArray, lt, lte, max, sql, type SQL } from 'drizzle-orm';
 import type { Db } from './db';
 import {
@@ -183,7 +191,9 @@ export function createRepo(db: Db) {
         traffic: row.traffic,
         segmentation: row.segmentation,
         antiFlicker: row.antiFlicker,
+        ...row.options,
         variations: vars.map((v) => ({
+          ...v.extra,
           id: v.id,
           key: v.key,
           name: v.name,
@@ -269,8 +279,9 @@ export function createRepo(db: Db) {
     getExperiment: loadExperiment,
 
     async listExperiments(accountId: string) {
-      return db
+      const rows = await db
         .select({
+          options: experiments.options,
           id: experiments.id,
           key: experiments.key,
           name: experiments.name,
@@ -285,6 +296,7 @@ export function createRepo(db: Db) {
         .from(experiments)
         .where(eq(experiments.accountId, accountId))
         .orderBy(desc(experiments.updatedAt));
+      return rows.map(({ options, ...r }) => ({ ...r, type: (options.type as string | undefined) ?? 'ab' }));
     },
 
     /**
@@ -311,6 +323,7 @@ export function createRepo(db: Db) {
           traffic: exp.traffic,
           segmentation: exp.segmentation,
           antiFlicker: exp.antiFlicker,
+          options: pickKeys(exp, EXPERIMENT_OPTION_KEYS),
           editorUrl: input.editorUrl,
           updatedAt: new Date(),
         };
@@ -343,6 +356,7 @@ export function createRepo(db: Db) {
             customCss: v.customCSS,
             customJs: v.customJS,
             redirect: v.redirect ?? null,
+            extra: pickKeys(v, VARIATION_EXTRA_KEYS),
           })),
         );
         await tx.delete(goals).where(and(eq(goals.accountId, accountId), eq(goals.experimentId, exp.id)));

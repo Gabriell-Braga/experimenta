@@ -7,3 +7,4 @@ export * from './rpc';
 export * from './rpc-peer';
 export * from './stats';
 export * from './entities';
+export * from './mvt';
