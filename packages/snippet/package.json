@@ -10,7 +10,8 @@
     "./engine": "./src/engine/index.ts",
     "./editor": "./src/editor.ts",
     "./spa": "./src/spa.ts",
-    "./segment": "./src/segment.ts"
+    "./segment": "./src/segment.ts",
+    "./insights": "./src/insights.ts"
   },
   "scripts": {
     "test": "vitest run",

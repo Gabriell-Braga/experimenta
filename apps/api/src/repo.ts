@@ -9,6 +9,8 @@ import {
   goals,
   projects,
   publications,
+  recordingChunks,
+  recordings,
   users,
   variations,
 } from './schema';
@@ -54,6 +56,56 @@ export interface EventFilter {
 }
 // ponytail: teto de eventos por consulta de analytics; pré-agregar por dia quando o volume passar disso.
 export const EVENT_LIMIT = 50_000;
+
+/** Bloco de gravação recebido do snippet (POST /rec). Eventos no formato do rrweb. */
+export interface RecordingChunkInput {
+  sessionId: string;
+  visitorId: string;
+  device: string;
+  vw: number;
+  vh: number;
+  events: { timestamp: number; type: number; data?: unknown }[];
+}
+export interface RecordingMeta {
+  sessionId: string;
+  visitorId: string;
+  startedAt: string;
+  endedAt: string;
+  durationMs: number;
+  pages: string[];
+  device: string;
+  vw: number;
+  vh: number;
+  events: number;
+}
+export interface RecordingFilter {
+  from?: Date;
+  to?: Date;
+  device?: string;
+  visitorIds?: string[];
+  limit?: number;
+}
+
+/** Primeira/última marca de tempo e páginas (eventos Meta do rrweb, tipo 4) de um bloco. */
+export function chunkSummary(list: RecordingChunkInput['events']) {
+  let first = Infinity;
+  let last = -Infinity;
+  const pages: string[] = [];
+  for (const e of list) {
+    first = Math.min(first, e.timestamp);
+    last = Math.max(last, e.timestamp);
+    const href = e.type === 4 ? (e.data as { href?: unknown } | undefined)?.href : undefined;
+    if (typeof href === 'string' && pages.at(-1) !== href) pages.push(href);
+  }
+  return { first, last, pages };
+}
+
+/** Junta páginas sem repetir a última (navegação em sequência). */
+export const mergePages = (a: string[], b: string[]) => {
+  const out = [...a];
+  for (const p of b) if (out.at(-1) !== p) out.push(p);
+  return out.slice(0, 200);
+};
 
 /** Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. */
 export function normalizePage(url: string): string {
@@ -395,6 +447,8 @@ export function createRepo(db: Db) {
      */
     async purgeEventsBefore(cutoff: Date): Promise<void> {
       await db.delete(events).where(lt(events.receivedAt, cutoff));
+      await db.delete(recordingChunks).where(lt(recordingChunks.receivedAt, cutoff));
+      await db.delete(recordings).where(lt(recordings.endedAt, cutoff));
     },
 
     async insertEvents(accountId: string, list: TrackingEvent[]): Promise<void> {
@@ -516,6 +570,86 @@ export function createRepo(db: Db) {
         clicks: { total: elements.reduce((t, e) => t + e.count, 0), elements },
         scroll: scrollReached(depths.map((d) => d.depth)),
       };
+    },
+
+    async saveRecordingChunk(accountId: string, c: RecordingChunkInput): Promise<void> {
+      const { first, last, pages } = chunkSummary(c.events);
+      if (!Number.isFinite(first)) return;
+      const [cur] = await db
+        .select()
+        .from(recordings)
+        .where(and(eq(recordings.accountId, accountId), eq(recordings.sessionId, c.sessionId)));
+      if (cur)
+        await db
+          .update(recordings)
+          .set({
+            startedAt: new Date(Math.min(cur.startedAt.getTime(), first)),
+            endedAt: new Date(Math.max(cur.endedAt.getTime(), last)),
+            pages: mergePages(cur.pages, pages),
+            events: cur.events + c.events.length,
+          })
+          .where(and(eq(recordings.accountId, accountId), eq(recordings.id, cur.id)));
+      else
+        await db
+          .insert(recordings)
+          .values({
+            id: newId('rec'),
+            accountId,
+            sessionId: c.sessionId,
+            visitorId: c.visitorId,
+            startedAt: new Date(first),
+            endedAt: new Date(last),
+            pages,
+            device: c.device,
+            vw: c.vw,
+            vh: c.vh,
+            events: c.events.length,
+          })
+          .onConflictDoNothing();
+      await db.insert(recordingChunks).values({
+        id: newId('rch'),
+        accountId,
+        sessionId: c.sessionId,
+        firstTs: new Date(first),
+        data: c.events,
+      });
+    },
+
+    async listRecordings(accountId: string, f: RecordingFilter = {}): Promise<RecordingMeta[]> {
+      const conds: SQL[] = [eq(recordings.accountId, accountId)];
+      if (f.from) conds.push(gte(recordings.startedAt, f.from));
+      if (f.to) conds.push(lte(recordings.startedAt, f.to));
+      if (f.device) conds.push(eq(recordings.device, f.device));
+      if (f.visitorIds) conds.push(inArray(recordings.visitorId, f.visitorIds.length ? f.visitorIds : ['']));
+      const rows = await db
+        .select()
+        .from(recordings)
+        .where(and(...conds))
+        .orderBy(desc(recordings.startedAt))
+        .limit(f.limit ?? 200);
+      return rows.map((r) => ({
+        sessionId: r.sessionId,
+        visitorId: r.visitorId,
+        startedAt: r.startedAt.toISOString(),
+        endedAt: r.endedAt.toISOString(),
+        durationMs: r.endedAt.getTime() - r.startedAt.getTime(),
+        pages: r.pages,
+        device: r.device,
+        vw: r.vw,
+        vh: r.vh,
+        events: r.events,
+      }));
+    },
+
+    /** Eventos rrweb da sessão em ordem (todos os blocos). null = sessão sem gravação. */
+    async getRecordingEvents(accountId: string, sessionId: string): Promise<unknown[] | null> {
+      const rows = await db
+        .select({ data: recordingChunks.data })
+        .from(recordingChunks)
+        .where(and(eq(recordingChunks.accountId, accountId), eq(recordingChunks.sessionId, sessionId)))
+        .orderBy(asc(recordingChunks.firstTs));
+      if (!rows.length) return null;
+      return rows.flatMap((r) => r.data as { timestamp: number }[]).sort((a, b) => a.timestamp - b.timestamp);
     },
 
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {

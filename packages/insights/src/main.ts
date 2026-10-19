@@ -1,0 +1,5 @@
+// Entrada do insights.js. O snippet carrega este arquivo só para visitantes amostrados (window.__ABT_INSIGHTS__).
+import { startRecorder } from './recorder';
+
+const boot = window.__ABT_INSIGHTS__;
+if (boot?.record) startRecorder(window, boot);

@@ -17,6 +17,7 @@
     "@fontsource-variable/inter-tight": "5",
     "@fontsource-variable/jetbrains-mono": "5",
     "@monaco-editor/react": "4.7",
+    "@rrweb/replay": "2.1.7",
     "lucide-react": "0.468",
     "monaco-editor": "0.52",
     "react": "18",

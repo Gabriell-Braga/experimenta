@@ -185,3 +185,40 @@ export const events = pgTable(
     index('events_visitor_idx').on(t.accountId, t.visitorId),
   ],
 );
+
+/** Gravação de sessão (tarefa 10.3): metadados por sessão; os eventos rrweb ficam em `recording_chunks`. */
+export const recordings = pgTable(
+  'recordings',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    sessionId: text('session_id').notNull(),
+    visitorId: text('visitor_id').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    endedAt: timestamp('ended_at', { withTimezone: true }).notNull(),
+    /** URLs visitadas na ordem (eventos Meta do rrweb). */
+    pages: jsonb('pages').$type<string[]>().notNull(),
+    device: text('device').notNull(),
+    vw: integer('vw').notNull(),
+    vh: integer('vh').notNull(),
+    events: integer('events').notNull(),
+    receivedAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('recordings_session_uq').on(t.accountId, t.sessionId),
+    index('recordings_started_idx').on(t.accountId, t.startedAt),
+  ],
+);
+
+export const recordingChunks = pgTable(
+  'recording_chunks',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    sessionId: text('session_id').notNull(),
+    firstTs: timestamp('first_ts', { withTimezone: true }).notNull(),
+    data: jsonb('data').$type<unknown[]>().notNull(),
+    receivedAt: createdAt(),
+  },
+  (t) => [index('recording_chunks_session_idx').on(t.accountId, t.sessionId, t.firstTs)],
+);

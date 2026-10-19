@@ -12,6 +12,13 @@ export const PublishedConfigSchema = z.object({
   apiUrl: z.string().optional(),
   experiments: z.array(ExperimentSchema),
   /** Mapa de calor: fração de visitantes amostrados (0 = desligado). */
-  heatmap: z.object({ sampleRate: z.number().min(0).max(1) }).optional(),
+  heatmap: z
+    .object({
+      sampleRate: z.number().min(0).max(1),
+      /** Visitantes amostrados também têm a sessão gravada e os formulários medidos (insights.js). */
+      recordings: z.boolean().optional(),
+      forms: z.boolean().optional(),
+    })
+    .optional(),
 });
 export type PublishedConfig = z.infer<typeof PublishedConfigSchema>;

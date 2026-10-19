@@ -135,7 +135,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 ### Fase 10 — Behavior e Interaction Analytics
 - [x] 10.1 Rage click, dead click e movimento do mouse no snippet; agregação; modos no overlay (calor, cliques, scroll, movimento, frustração) + lista de elementos
 - [x] 10.2 Módulo Mapas de calor independente de experimento (lista de páginas mais vistas, visualizador sobre o site real com filtros)
-- [ ] 10.3 Gravação de sessão: bundle sob demanda `insights.js` (rrweb), amostragem, envio em blocos, armazenamento
+- [x] 10.3 Gravação de sessão: bundle sob demanda `insights.js` (rrweb), amostragem, envio em blocos, armazenamento
 - [ ] 10.4 Player de sessões: lista com filtros (dispositivo, página, duração, frustração), player com linha do tempo de eventos, pular inatividade, velocidade (inclui mobile)
 
 ### Fase 11 — Form e Journey Analytics

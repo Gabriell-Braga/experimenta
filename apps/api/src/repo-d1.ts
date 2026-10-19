@@ -9,7 +9,9 @@ import {
 } from '@abtest/shared';
 import { hashPassword, newId } from './crypto';
 import {
+  chunkSummary,
   EVENT_LIMIT,
+  mergePages,
   NotFoundError,
   normalizePage,
   scrollReached,
@@ -389,7 +391,11 @@ export function createD1Repo(d1: D1Like): Repo {
     },
 
     async purgeEventsBefore(cutoff) {
-      await q('DELETE FROM events WHERE received_at < ?', cutoff.getTime()).run();
+      await d1.batch([
+        q('DELETE FROM events WHERE received_at < ?', cutoff.getTime()),
+        q('DELETE FROM recording_chunks WHERE received_at < ?', cutoff.getTime()),
+        q('DELETE FROM recordings WHERE ended_at < ?', cutoff.getTime()),
+      ]);
     },
 
     async insertEvents(accountId, list: TrackingEvent[]) {
@@ -539,6 +545,105 @@ export function createD1Repo(d1: D1Like): Repo {
         clicks: { total: clicks.length, elements },
         scroll: scrollReached(depths.map((x) => Number(x.d))),
       };
+    },
+
+    async saveRecordingChunk(accountId, c) {
+      const { first: t0, last: t1, pages } = chunkSummary(c.events);
+      if (!Number.isFinite(t0)) return;
+      const cur = await first<{
+        id: string;
+        started_at: number;
+        ended_at: number;
+        pages: string;
+        events: number;
+      }>(
+        'SELECT id, started_at, ended_at, pages, events FROM recordings WHERE account_id = ? AND session_id = ?',
+        accountId,
+        c.sessionId,
+      );
+      const now = Date.now();
+      await d1.batch([
+        cur
+          ? q(
+              'UPDATE recordings SET started_at = ?, ended_at = ?, pages = ?, events = ? WHERE account_id = ? AND id = ?',
+              Math.min(Number(cur.started_at), t0),
+              Math.max(Number(cur.ended_at), t1),
+              JSON.stringify(mergePages(json<string[]>(cur.pages), pages)),
+              Number(cur.events) + c.events.length,
+              accountId,
+              cur.id,
+            )
+          : q(
+              'INSERT OR IGNORE INTO recordings (id, account_id, session_id, visitor_id, started_at, ended_at, pages, device, vw, vh, events, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+              newId('rec'),
+              accountId,
+              c.sessionId,
+              c.visitorId,
+              t0,
+              t1,
+              JSON.stringify(pages),
+              c.device,
+              c.vw,
+              c.vh,
+              c.events.length,
+              now,
+            ),
+        q(
+          'INSERT INTO recording_chunks (id, account_id, session_id, first_ts, data, received_at) VALUES (?, ?, ?, ?, ?, ?)',
+          newId('rch'),
+          accountId,
+          c.sessionId,
+          t0,
+          JSON.stringify(c.events),
+          now,
+        ),
+      ]);
+    },
+
+    async listRecordings(accountId, f = {}) {
+      const conds = ['account_id = ?'];
+      const args: unknown[] = [accountId];
+      const add = (sql: string, ...v: unknown[]) => {
+        conds.push(sql);
+        args.push(...v);
+      };
+      if (f.from) add('started_at >= ?', f.from.getTime());
+      if (f.to) add('started_at <= ?', f.to.getTime());
+      if (f.device) add('device = ?', f.device);
+      if (f.visitorIds) {
+        // ponytail: D1 limita parâmetros; filtro por visitante cobre até 80 visitantes (perfil/identidade).
+        const ids = (f.visitorIds.length ? f.visitorIds : ['']).slice(0, 80);
+        add(`visitor_id IN (${ids.map(() => '?').join(', ')})`, ...ids);
+      }
+      const rows = await all(
+        `SELECT * FROM recordings WHERE ${conds.join(' AND ')} ORDER BY started_at DESC LIMIT ?`,
+        ...args,
+        f.limit ?? 200,
+      );
+      return rows.map((r) => ({
+        sessionId: r.session_id as string,
+        visitorId: r.visitor_id as string,
+        startedAt: date(r.started_at).toISOString(),
+        endedAt: date(r.ended_at).toISOString(),
+        durationMs: Number(r.ended_at) - Number(r.started_at),
+        pages: json<string[]>(r.pages),
+        device: r.device as string,
+        vw: Number(r.vw),
+        vh: Number(r.vh),
+        events: Number(r.events),
+      }));
+    },
+
+    async getRecordingEvents(accountId, sessionId) {
+      const rows = await all<{ data: string }>(
+        'SELECT data FROM recording_chunks WHERE account_id = ? AND session_id = ? ORDER BY first_ts',
+        accountId,
+        sessionId,
+      );
+      if (!rows.length) return null;
+      return rows
+        .flatMap((r) => json<{ timestamp: number }[]>(r.data))
+        .sort((a, b) => a.timestamp - b.timestamp);
     },
 
     async insertPublication(accountId, config, userId) {

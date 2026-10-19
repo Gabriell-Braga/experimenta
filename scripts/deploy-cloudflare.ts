@@ -25,8 +25,10 @@ const wrangler = (args: string) => run(`pnpm exec wrangler ${args}`, join(root, 
 // 1) Bundles do site (snippet + agent) na KV da CDN; recompila as configs já publicadas com o runtime novo.
 run('pnpm --filter @abtest/snippet build');
 run('pnpm --filter @abtest/agent build');
+run('pnpm --filter @abtest/insights build');
 wrangler('kv key put abt.js --binding CDN --remote --path ../../packages/snippet/dist/abt.js');
 wrangler('kv key put agent.js --binding CDN --remote --path ../../packages/agent/dist/agent.js');
+wrangler('kv key put insights.js --binding CDN --remote --path ../../packages/insights/dist/insights.js');
 const runtime = readFileSync(join(root, 'packages/snippet/dist/abt.js'), 'utf8');
 const keys = JSON.parse(wrangler('kv key list --binding CDN --remote')) as { name: string }[];
 for (const { name } of keys.filter((k) => k.name.endsWith('.json'))) {

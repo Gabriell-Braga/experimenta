@@ -51,7 +51,7 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
       apiUrl: publicUrl,
       trackingUrl: `${publicUrl}/collect`,
       experiments: running,
-      ...(sampleRate > 0 ? { heatmap: { sampleRate } } : {}),
+      ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
     await Promise.all([repo.insertPublication(accountId, config, user.id), writeAccountFiles(cdn, config)]);
     return { version: config.version };

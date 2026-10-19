@@ -161,3 +161,12 @@ diária, páginas e eventos mais frequentes, dispositivos e origens externas. `G
   ]
 }
 ```
+
+## Gravação de sessão (`POST /rec`)
+Fora do `/collect`: o `insights.js` (carregado sob demanda pelo snippet só para visitantes amostrados, nunca em
+QA/edição) grava com rrweb e envia blocos `text/plain` a cada 5 s, ao acumular ~200 KB, no snapshot completo e
+ao sair da página (`keepalive` quando cabe). Corpo: `{ accountId, sessionId, visitorId, device, vw, vh, events }`
+(`events` = eventos do rrweb, até 5000 por bloco; corpo até 1 MB). Campos de formulário sempre mascarados;
+`.abt-block` some da gravação e `.abt-mask` tem o texto mascarado. `GET /recordings` lista as sessões (com
+cliques/frustração/conversões cruzados pelos eventos da mesma sessão) e `GET /recordings/{sessionId}` devolve os
+eventos rrweb + linha do tempo.

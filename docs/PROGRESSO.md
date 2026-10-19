@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 10
-**Tarefa atual:** 10.3 (em andamento desde 2026-10-19 14:19)
-**Última atualização:** 2026-10-19 14:19
+**Tarefa atual:** 10.4 (em andamento desde 2026-10-19 14:26)
+**Última atualização:** 2026-10-19 14:26
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -346,3 +346,9 @@
 - Arquivos principais: apps/api/src/analytics/pages.ts, apps/editor/src/pages/Heatmaps.tsx, e2e/tests/heatmaps-module.spec.ts
 - Como testar manualmente: Insights → Mapas de calor → clicar numa página.
 - Observações: ver D-045.
+
+### 2026-10-19 14:26 — Tarefa 10.3 concluída
+- O que foi feito: packages/insights (insights.js com rrweb, mascaramento, envio em blocos com divisão e keepalive); snippet carrega sob demanda para amostrados (heatmap.recordings/forms na config). API: POST /rec, tabelas recordings/recording_chunks (Postgres e D1), GET /recordings (filtros) e /recordings/{sessionId}; retenção.
+- Arquivos principais: packages/insights/*, packages/snippet/src/insights.ts, apps/api/src/routes/recordings.ts, apps/api/src/{schema,repo,repo-d1}.ts, migrations
+- Como testar manualmente: Navegar no demo e GET /recordings?days=1 com token.
+- Observações: ver D-046.

@@ -252,3 +252,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Insights → Mapas de calor lista as páginas com dados (vistas, visitantes, cliques, rage/dead, scroll médio) e abre um visualizador em tela cheia: o mesmo iframe + agent do editor, em modo "navegar", sem aplicar variação — navegar no site troca a página analisada; a largura do dispositivo filtra os dados daquele dispositivo.
 - Sessão de edição (`POST /edit-sessions`) passou a valer para qualquer papel: o viewer precisa dela para ver o mapa sobre o site real. O token só carrega o agent; salvar/publicar continuam exigindo editor.
 - A lista guarda a URL real mais recente de cada página (`href`, com a barra final que o servidor espera) além da página normalizada.
+
+## D-046 — Gravação de sessão (fase 10.3)
+- rrweb (`@rrweb/record` 2.1.7, MIT) em vez de gravador próprio: serializar DOM + mutações + estilos com fidelidade é o problema inteiro e o rrweb é o padrão de mercado (PostHog, Highlight). Fica num bundle à parte, `insights.js` (~24 KB gzip), carregado de forma assíncrona só para visitantes amostrados — o runtime principal segue < 10 KB (8,5 KB).
+- Transporte próprio (`POST /rec`) em vez do `/collect`: blocos são grandes (snapshot completo) e não cabem no limite de 64 KB do beacon nem no schema de eventos. Blocos > 900 KB são divididos ao meio no navegador; ao sair da página usa `keepalive` quando o corpo cabe (< 60 KB), senão o resto daquela página se perde (aceito).
+- Armazenamento: `recordings` (metadados por sessão: início/fim, páginas em ordem pelos eventos Meta, dispositivo, viewport, nº de eventos) + `recording_chunks` (JSON dos eventos). As duas implementações (Postgres e D1) seguem o mesmo contrato. Retenção junto com os eventos crus.
+- Privacidade por padrão: `maskAllInputs`, classes `abt-block`/`abt-mask` para o time do site esconder trechos.
+- ponytail: metadados atualizados por leitura+escrita (sem lock): dois blocos simultâneos da mesma sessão podem perder uma página da lista; os eventos não se perdem.
