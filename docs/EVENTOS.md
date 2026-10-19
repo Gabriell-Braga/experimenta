@@ -182,3 +182,8 @@ enviado.** `GET /analytics/forms?days=&device=` agrega por página + formulário
 Enviado pelo `engage.js` (carregado sob demanda quando há campanha publicada; nunca em QA/edição).
 `campaignId`, `kind` (`popup` | `survey`), `action` (`view`, `click` no CTA, `close`, `submit`).
 `GET /analytics/engage?days=` agrega por campanha (exibições, visitantes, cliques/CTR, fechamentos, respostas).
+
+### `survey` (respostas de pesquisa)
+`surveyId`, `answers[]` (`questionId`, `value`: número, texto ou lista de opções) e `completed` (false = fechou no
+meio; vale a última resposta de cada visitante). `GET /analytics/survey/{id}` calcula NPS, CSAT, CES, médias,
+distribuições, escolhas e palavras frequentes nas respostas abertas.

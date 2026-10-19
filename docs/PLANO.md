@@ -153,7 +153,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 13.1 Audiências salvas com regras ricas (referrer, UTM, atributos, comportamento, cookie, variável JS, horário, idioma) usadas na segmentação
 - [x] 13.2 Conteúdo dinâmico (`{{attr.nome|padrão}}`) nas operações de texto/HTML
 - [x] 13.3 Pop-ups e banners com gatilhos (carregamento, atraso, scroll, intenção de saída, inatividade, clique) em `engage.js`; relatório
-- [ ] 13.4 Pesquisas (NPS, CSAT, CES, escolha, texto) com gatilhos e lógica; relatório
+- [x] 13.4 Pesquisas (NPS, CSAT, CES, escolha, texto) com gatilhos e lógica; relatório
 - [ ] 13.5 Recomendações (cross-sell, upsell, próxima melhor oferta, mais vendidos): catálogo via snippet, API pública, widget
 
 ### Fase 14 — CDP, feature flags e integrações

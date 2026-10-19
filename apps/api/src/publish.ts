@@ -3,6 +3,7 @@ import {
   type Audience,
   type Experiment,
   type Popup,
+  type Survey,
   type PublishedConfig,
 } from '@abtest/shared';
 import { canPublishJs } from './auth';
@@ -35,13 +36,15 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last, settings, audiences, popupList] = await Promise.all([
+    const [all, last, settings, audiences, popupList, surveyList] = await Promise.all([
       repo.loadAllExperiments(accountId),
       repo.lastPublication(accountId),
       repo.getAccountSettings(accountId),
       repo.listEntities<Audience>(accountId, 'audience'),
       repo.listEntities<Popup>(accountId, 'popup'),
+      repo.listEntities<Survey>(accountId, 'survey'),
     ]);
+    const surveys = surveyList.filter((s) => s.data.status === 'running');
     const popups = popupList.filter((p) => p.data.status === 'running');
     const sampleRate = settings.heatmapSampleRate ?? heatmapSampleRate;
     const running = all.filter((e) => e.status === 'running');
@@ -65,10 +68,12 @@ export function createPublisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }:
         .filter(
           (a) =>
             running.some((e) => e.audiences.includes(a.id)) ||
-            popups.some((p) => p.data.targeting.audiences.includes(a.id)),
+            popups.some((p) => p.data.targeting.audiences.includes(a.id)) ||
+            surveys.some((s) => s.data.targeting.audiences.includes(a.id)),
         )
         .map((a) => ({ id: a.id, ...a.data })),
       ...(popups.length ? { popups: popups.map((p) => ({ id: p.id, name: p.name, ...p.data })) } : {}),
+      ...(surveys.length ? { surveys: surveys.map((s) => ({ id: s.id, name: s.name, ...s.data })) } : {}),
       ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
     await Promise.all([repo.insertPublication(accountId, config, user.id), writeAccountFiles(cdn, config)]);

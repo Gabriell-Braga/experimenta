@@ -123,9 +123,43 @@ export const PopupSchema = z.object({
 });
 export type Popup = z.infer<typeof PopupSchema>;
 
+/** Pergunta de pesquisa. `logic`: depois de responder, pula para outra pergunta (ou encerra) conforme a resposta. */
+export const QuestionSchema = z.object({
+  id: z.string(),
+  type: z.enum(['nps', 'csat', 'ces', 'rating', 'choice', 'multi', 'text']),
+  text: z.string().min(1).max(300),
+  options: z.array(z.string().min(1).max(120)).max(12).default([]),
+  required: z.boolean().default(true),
+  logic: z
+    .array(
+      z.object({
+        /** Nota (nps/csat/ces/rating) ou opção escolhida (choice). */
+        op: z.enum(['eq', 'lte', 'gte']),
+        value: z.union([z.number(), z.string()]),
+        goto: z.string(),
+      }),
+    )
+    .default([]),
+});
+export type Question = z.infer<typeof QuestionSchema>;
+
+/** Pesquisa no site (Feedback: NPS, CSAT, CES, múltipla escolha, texto livre). */
+export const SurveySchema = z.object({
+  ...engageBase,
+  format: z.enum(['slide-in', 'modal']).default('slide-in'),
+  questions: z.array(QuestionSchema).min(1).max(15),
+  thankYou: z.string().max(200).default('Obrigado pela resposta!'),
+  accent: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .default('#16181d'),
+});
+export type Survey = z.infer<typeof SurveySchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
   popup: PopupSchema,
+  survey: SurveySchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;

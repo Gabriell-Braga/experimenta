@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 13
-**Tarefa atual:** 13.4 (em andamento desde 2026-10-19 18:25)
-**Última atualização:** 2026-10-19 18:25
+**Tarefa atual:** 13.5 (em andamento desde 2026-10-19 18:32)
+**Última atualização:** 2026-10-19 18:32
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -431,3 +431,9 @@
 - Arquivos principais: packages/engage/*, packages/snippet/src/engage.ts, apps/api/src/{publish.ts,analytics/engage.ts}, apps/editor/src/{pages/Popups.tsx,components/EngageFields.tsx}
 - Como testar manualmente: Engajamento → Novo pop-up → gatilho 'Ao carregar' → Salvar e publicar → abrir o demo.
 - Observações: ver D-057.
+
+### 2026-10-19 18:32 — Tarefa 13.4 concluída
+- O que foi feito: Schema survey (7 tipos, lógica), widget passo a passo no engage.js, evento survey, publicação, GET /analytics/survey/{id} (NPS, CSAT, CES, distribuições, escolhas, palavras), telas Engajamento → Pesquisas (editor com pré-visualização interativa) e relatório.
+- Arquivos principais: packages/engage/src/survey.ts, apps/api/src/analytics/surveys.ts, apps/editor/src/pages/Surveys.tsx
+- Como testar manualmente: Engajamento → Pesquisas → Nova → 'Ao carregar' → publicar → responder no demo → abrir a pesquisa.
+- Observações: ver D-058.

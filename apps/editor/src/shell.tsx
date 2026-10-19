@@ -9,6 +9,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  MessageSquareText,
   Rocket,
   Route,
   Server,
@@ -56,7 +57,13 @@ export const NAV: NavGroup[] = [
       { view: 'cohorts', label: 'Coortes', icon: Grid3x3 },
     ],
   },
-  { label: 'Engajamento', items: [{ view: 'popups', label: 'Pop-ups e barras', icon: Megaphone }] },
+  {
+    label: 'Engajamento',
+    items: [
+      { view: 'popups', label: 'Pop-ups e barras', icon: Megaphone },
+      { view: 'surveys', label: 'Pesquisas', icon: MessageSquareText },
+    ],
+  },
   {
     label: 'Dados',
     items: [

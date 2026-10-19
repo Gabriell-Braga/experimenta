@@ -125,6 +125,21 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
     kind: z.enum(['popup', 'survey']),
     action: z.enum(['view', 'click', 'close', 'submit']),
   }),
+  /** Respostas de uma pesquisa (ao concluir, ou parciais ao fechar). */
+  z.object({
+    ...base,
+    type: z.literal('survey'),
+    surveyId: z.string(),
+    answers: z
+      .array(
+        z.object({
+          questionId: z.string(),
+          value: z.union([z.number(), z.string().max(2000), z.array(z.string().max(120))]),
+        }),
+      )
+      .max(15),
+    completed: z.boolean(),
+  }),
   /** Profundidade máxima de scroll da página (0..100 % da altura), enviada ao sair/navegar. */
   z.object({
     ...heatmapBase,
@@ -162,5 +177,8 @@ export type HeatmapEvent = Extract<
   TrackingEvent,
   { type: 'click' | 'scroll' | 'frustration' | 'move' | 'form' }
 >;
-export type DataEvent = Extract<TrackingEvent, { type: 'pageview' | 'event' | 'identify' | 'engage' }>;
+export type DataEvent = Extract<
+  TrackingEvent,
+  { type: 'pageview' | 'event' | 'identify' | 'engage' | 'survey' }
+>;
 export type ExperimentEvent = Exclude<TrackingEvent, HeatmapEvent | DataEvent>;

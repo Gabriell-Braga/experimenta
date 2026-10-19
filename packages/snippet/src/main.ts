@@ -68,7 +68,7 @@ if (config && token) {
         insightsBoot(window, rt, tracker, config),
       );
     // Engajamento: só quando há pop-up/pesquisa publicado.
-    if (config.popups?.length && !forced)
+    if ((config.popups?.length || config.surveys?.length) && !forced)
       loadBundle(window, sibling('engage.js'), '__ABT_ENGAGE__', engageBoot(window, rt, tracker));
     const run = (c: Command) => {
       if (c[0] === 'track') track(c[1], c[2], c[3]);

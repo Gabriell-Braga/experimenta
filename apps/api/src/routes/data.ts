@@ -1,7 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import type { Funnel } from '@abtest/shared';
+import type { Funnel, Survey } from '@abtest/shared';
 import { cohortsReport } from '../analytics/cohorts';
 import { engageReport } from '../analytics/engage';
+import { surveyReport } from '../analytics/surveys';
 import { formsReport } from '../analytics/forms';
 import { funnelReport } from '../analytics/funnel';
 import { journeysReport } from '../analytics/journeys';
@@ -176,6 +177,32 @@ export function dataRoutes(app: Api, repo: Repo) {
         types: ['engage'],
       });
       return c.json(engageReport(list), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/survey/{id}',
+      tags: ['engajamento'],
+      security,
+      summary:
+        'Respostas de uma pesquisa: NPS, CSAT, CES, notas, escolhas, textos (com palavras frequentes) e taxa de resposta',
+      request: {
+        params: z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) }),
+        query: PeriodQuery,
+      },
+      responses: { 200: json(Report, 'relatório'), ...errors },
+    }),
+    async (c) => {
+      const accountId = c.get('user').accountId;
+      const s = await repo.getEntity<Survey>(accountId, 'survey', c.req.valid('param').id);
+      if (!s) return c.json({ error: 'pesquisa não encontrada' }, 404);
+      const list = await repo.listEvents(accountId, {
+        ...period(c.req.valid('query')),
+        types: ['engage', 'survey'],
+      });
+      return c.json({ id: s.id, name: s.name, ...surveyReport(s.data, s.id, list) }, 200);
     },
   );
 

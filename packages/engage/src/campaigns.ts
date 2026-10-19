@@ -1,11 +1,13 @@
-import type { Popup, TrackingEvent } from '@abtest/shared';
+import type { Popup, Survey, TrackingEvent } from '@abtest/shared';
 import { matchAudience } from '@abtest/snippet/audience';
 import type { EngageBoot } from '@abtest/snippet/engage';
 import { matchUrl } from '@abtest/snippet/segment';
 import { arm } from './triggers';
+import { renderSurvey } from './survey';
 import { renderPopup } from './widget';
 
-type Campaign = Popup & { id: string; name: string };
+type Campaign = (Popup | Survey) & { id: string; name: string };
+type SurveyC = Survey & { id: string; name: string };
 const SEEN = '_abt_seen';
 
 function store(s: Storage | undefined) {
@@ -61,27 +63,53 @@ export function startEngage(win: Window, boot: EngageBoot) {
   const session = store(safe(() => win.sessionStorage));
   let disarm: (() => void)[] = [];
   let showing: { remove(): void } | null = null;
-  const send = (c: Campaign, action: 'view' | 'click' | 'close') =>
-    boot.send({ ...boot.base(), type: 'engage', campaignId: c.id, kind: 'popup', action } as TrackingEvent);
+  const send = (c: Campaign, kind: 'popup' | 'survey', action: 'view' | 'click' | 'close' | 'submit') =>
+    boot.send({ ...boot.base(), type: 'engage', campaignId: c.id, kind, action } as TrackingEvent);
 
-  const show = (c: Campaign) => {
-    if (showing) return; // um de cada vez
+  const mount = (
+    c: Campaign,
+    w: { host: HTMLElement; remove(): void; focus?(): void },
+    kind: 'popup' | 'survey',
+  ) => {
     local.add(c.id);
     session.add(c.id);
+    showing = w;
+    (win.document.body ?? win.document.documentElement).append(w.host);
+    w.focus?.();
+    send(c, kind, 'view');
+  };
+
+  const showSurvey = (c: SurveyC) => {
+    if (showing) return;
+    const w = renderSurvey(win.document, c, {
+      onDone: (answers, completed) => {
+        if (completed) showing = null;
+        if (answers.length)
+          boot.send({ ...boot.base(), type: 'survey', surveyId: c.id, answers, completed } as TrackingEvent);
+        if (completed) send(c, 'survey', 'submit');
+        boot.flush();
+      },
+      onClose: () => {
+        showing = null;
+        send(c, 'survey', 'close');
+      },
+    });
+    mount(c, w, 'survey');
+  };
+
+  const show = (c: Popup & { id: string; name: string }) => {
+    if (showing) return; // um de cada vez
     const w = renderPopup(win.document, c, {
       onCta: () => {
-        send(c, 'click');
+        send(c, 'popup', 'click');
         boot.flush(); // o CTA costuma navegar
       },
       onClose: () => {
         showing = null;
-        send(c, 'close');
+        send(c, 'popup', 'close');
       },
     });
-    showing = w;
-    (win.document.body ?? win.document.documentElement).append(w.host);
-    w.focus();
-    send(c, 'view');
+    mount(c, w, 'popup');
   };
 
   const evaluate = () => {
@@ -90,6 +118,9 @@ export function startEngage(win: Window, boot: EngageBoot) {
     for (const c of boot.config.popups ?? [])
       if (eligible(c, boot, { local: local.count(c.id), session: session.count(c.id) }))
         disarm.push(arm(win, c.trigger, () => show(c)));
+    for (const c of boot.config.surveys ?? [])
+      if (eligible(c, boot, { local: local.count(c.id), session: session.count(c.id) }))
+        disarm.push(arm(win, c.trigger, () => showSurvey(c)));
   };
   evaluate();
   boot.onNavigate.push(evaluate);

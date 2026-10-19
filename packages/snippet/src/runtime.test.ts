@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ExperimentSchema, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { OK_ATTR } from './antiflicker';
 import { resetProcessed } from './engine/apply';
 import { start } from './runtime';
@@ -153,8 +153,8 @@ test('SPA: pushState/popstate reavaliam a segmentação, ativam e revertem', asy
   expect(document.querySelector('.preco')!.textContent).toBe('R$ 10'); // revertido
 
   history.back();
-  await tick(20);
-  expect(rt.active.size).toBe(1);
+  // popstate é assíncrono no jsdom: espera em vez de um atraso fixo (instável com a máquina carregada).
+  await vi.waitFor(() => expect(rt.active.size).toBe(1));
   expect(urls.map((u) => new URL(u).pathname)).toEqual(['/planos', '/sobre', '/planos']);
   expect(events.filter((e) => e.type === 'exposure')).toHaveLength(2);
   rt.stop();
