@@ -31,7 +31,7 @@ export function VersionsPanel({ experimentId, dirty, onRestored }: Props) {
         {items.map((v, i) => (
           <li key={v.version} className="flex items-center justify-between px-3 py-2" data-testid="version">
             <span>
-              <b>v{v.version}</b> {i === 0 && <span className="text-xs text-green-700">(atual)</span>}
+              <b>v{v.version}</b> {i === 0 && <span className="text-xs text-brand-700">(atual)</span>}
               <span className="block text-xs text-gray-500">
                 {new Date(v.createdAt).toLocaleString('pt-BR')}
               </span>

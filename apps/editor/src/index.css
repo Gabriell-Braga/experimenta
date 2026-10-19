@@ -1,13 +1,45 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/inter-tight';
+@import '@fontsource-variable/jetbrains-mono';
 
-/* Identidade: um acento (laranja) + neutros; tipografia do sistema (zero download de fonte). */
+/*
+ * Identidade "caderno de laboratório": papel quente, tinta escura, verde de laboratório como cor da marca
+ * e lima como marca-texto (estado ativo, vencedor). Neutros do Tailwind redefinidos para tons quentes:
+ * todas as telas herdam a paleta sem trocar classes. Títulos em serifa (Fraunces), UI em Inter Tight,
+ * números/chaves/seletores em JetBrains Mono.
+ */
 @theme {
-  --color-brand-50: #fff7ed;
-  --color-brand-100: #ffedd5;
-  --color-brand-500: #f97316;
-  --color-brand-600: #ea580c;
-  --color-brand-700: #c2410c;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --color-gray-50: #f8f6f1;
+  --color-gray-100: #f0ede5;
+  --color-gray-200: #e3ded3;
+  --color-gray-300: #cfc8ba;
+  --color-gray-400: #a49d8f;
+  --color-gray-500: #7a746a;
+  --color-gray-600: #5c5850;
+  --color-gray-700: #423f39;
+  --color-gray-800: #2b2925;
+  --color-gray-900: #1c1b18;
+  --color-gray-950: #131210;
+
+  --color-brand-50: #ebf6f0;
+  --color-brand-100: #d3ecdf;
+  --color-brand-200: #a7d9c0;
+  --color-brand-300: #6fbf98;
+  --color-brand-500: #12825f;
+  --color-brand-600: #0e6c4f;
+  --color-brand-700: #0b5640;
+  --color-brand-900: #073526;
+
+  --color-ink: #16181d;
+  --color-paper: #f4f1ea;
+  --color-lime: #d4f15b;
+  --color-lime-soft: #eef9c4;
+  --color-signal: #e8552d;
+
+  --font-sans: 'Inter Tight Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', monospace;
 }
 
 html,
@@ -16,7 +48,34 @@ body,
   height: 100%;
 }
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-paper text-gray-900 antialiased;
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+/* Títulos de página: serifa com eixo óptico (personalidade sem perder leitura). */
+.font-display {
+  font-variation-settings:
+    'opsz' 96,
+    'SOFT' 50;
+  letter-spacing: -0.02em;
+}
+/* Rótulos de seção: mono pequeno em caixa alta, como etiqueta de amostra. */
+.label-mono {
+  @apply font-mono text-[10.5px] font-medium tracking-[0.08em] text-gray-500 uppercase;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+/* Fundo quadriculado discreto (estados vazios, áreas de canvas). */
+.grid-paper {
+  background-image:
+    linear-gradient(to right, rgb(22 24 29 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(22 24 29 / 0.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+/* Marca-texto lima atrás de uma palavra. */
+.highlight {
+  background: linear-gradient(transparent 58%, var(--color-lime) 58%, var(--color-lime) 92%, transparent 92%);
 }
 
 /* Foco visível e consistente (teclado). */
@@ -40,9 +99,9 @@ body {
   }
 }
 .skeleton {
-  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%) 0 0 / 200% 100%;
+  background: linear-gradient(90deg, #f0ede5 25%, #e3ded3 37%, #f0ede5 63%) 0 0 / 200% 100%;
   animation: shimmer 1.2s linear infinite;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 /* Tailwind 4 tirou o cursor pointer dos botões: devolve nos clicáveis habilitados. */
@@ -55,5 +114,14 @@ body {
   input[type='checkbox']:not(:disabled),
   input[type='radio']:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
   }
 }

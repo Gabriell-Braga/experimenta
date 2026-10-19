@@ -126,6 +126,48 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 8.5 Amostragem do mapa de calor por conta (configurável pelo owner) em vez da env global
 - [x] 8.6 Retenção dos eventos crus (expurgo diário) + detecção de rota de SPA mais robusta (hashchange)
 
+### Fase 9 — Plataforma CRO: nova cara + fundação de dados (pedido: "Conversion Rate Optimization.pdf")
+- [x] 9.1 Identidade visual própria (tokens, tipografia, componentes) e shell com navegação lateral por módulo (Painel, Testes, Insights, Engajamento, Dados, Configurações); roteamento por `?view=`
+- [ ] 9.2 Coleta de dados: sessão, pageview, eventos customizados com propriedades, identify/atributos, perfil local do visitante; visitor_id/session_id nos eventos; tela "Eventos" (fluxo recente + contagens)
+- [ ] 9.3 Motor estatístico (shared/stats): bayesiano beta-binomial (prob. de vencer, perda esperada, intervalo), z-test/p-valor, receita por visitante, SRM, amostra necessária/duração estimada
+- [ ] 9.4 Relatório do experimento: visitantes/conversões/receita por variação e meta, série diária, filtros (data, dispositivo, novo/recorrente), meta primária, comparar metas, CSV/imprimir
+
+### Fase 10 — Behavior e Interaction Analytics
+- [ ] 10.1 Rage click, dead click e movimento do mouse no snippet; agregação; modos no overlay (calor, cliques, scroll, movimento, frustração) + lista de elementos
+- [ ] 10.2 Módulo Mapas de calor independente de experimento (lista de páginas mais vistas, visualizador sobre o site real com filtros)
+- [ ] 10.3 Gravação de sessão: bundle sob demanda `insights.js` (rrweb), amostragem, envio em blocos, armazenamento
+- [ ] 10.4 Player de sessões: lista com filtros (dispositivo, página, duração, frustração), player com linha do tempo de eventos, pular inatividade, velocidade (inclui mobile)
+
+### Fase 11 — Form e Journey Analytics
+- [ ] 11.1 Form analytics: captura por campo (tempo, hesitação, re-preenchimento, ignorado, abandono) e relatório (chegaram → interagiram → enviaram)
+- [ ] 11.2 Funis: passos por URL/evento/meta, ordem por visitante, drop-off por passo, filtros
+- [ ] 11.3 Jornada: caminhos mais comuns, entradas/saídas, próximos passos a partir de uma página
+- [ ] 11.4 Coortes: por semana de primeira visita, retenção e conversão
+
+### Fase 12 — Experimentação avançada
+- [ ] 12.1 Tipos de campanha: A/B, Split URL, Personalização (com holdout), Rollout, Server-side — fluxo de criação por tipo
+- [ ] 12.2 Teste multivariado (seções × variações, combinações fatoriais, relatório por combinação e por seção)
+- [ ] 12.3 Multi-armed bandit (Thompson sampling) com republicação automática
+
+### Fase 13 — Segmentação, personalização e engajamento
+- [ ] 13.1 Audiências salvas com regras ricas (referrer, UTM, atributos, comportamento, cookie, variável JS, horário, idioma) usadas na segmentação
+- [ ] 13.2 Conteúdo dinâmico (`{{attr.nome|padrão}}`) nas operações de texto/HTML
+- [ ] 13.3 Pop-ups e banners com gatilhos (carregamento, atraso, scroll, intenção de saída, inatividade, clique) em `engage.js`; relatório
+- [ ] 13.4 Pesquisas (NPS, CSAT, CES, escolha, texto) com gatilhos e lógica; relatório
+- [ ] 13.5 Recomendações (cross-sell, upsell, próxima melhor oferta, mais vendidos): catálogo via snippet, API pública, widget
+
+### Fase 14 — CDP, feature flags e integrações
+- [ ] 14.1 Perfis + resolução de identidade (identify liga visitantes a um usuário), linha do tempo, análise cross-device
+- [ ] 14.2 Audiências do CDP (regras sobre perfis), exportação e API de decisão (personalização cross-channel)
+- [ ] 14.3 Feature flags e experimentação server-side com SDK (packages/sdk)
+- [ ] 14.4 Integrações: webhooks assinados, chaves de API, GA4 e GTM
+
+### Fase 15 — Reporting e IA
+- [ ] 15.1 Painel geral com KPIs de todos os módulos
+- [ ] 15.2 Insights automáticos (vencedor, SRM, frustração, campo com abandono, passo de funil, scroll baixo, segmento divergente)
+- [ ] 15.3 Analytics preditivo (propensão a converter; modelo publicado e avaliado no snippet; audiência por score)
+- [ ] 15.4 Otimização por IA: ideias de teste com Claude (quando houver chave) + piloto automático
+
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.
 - Se encontrar um caminho tecnicamente melhor que o descrito, registre a justificativa em docs/DECISOES.md e siga com ele. Se mudar a arquitetura de forma significativa, registre também em "Bloqueios / perguntas" para os humanos revisarem depois.

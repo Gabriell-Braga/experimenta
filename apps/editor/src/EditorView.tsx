@@ -320,7 +320,7 @@ export function EditorView({ record, user }: Props) {
   }, [save]);
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50 text-gray-900">
+    <div className="flex h-screen flex-col bg-paper text-gray-900">
       <TopBar
         name={state.experiment.name}
         status={state.experiment.status}
@@ -478,7 +478,7 @@ export function EditorView({ record, user }: Props) {
         </div>
       )}
       <div className="flex min-h-0 flex-1">
-        <main className="relative flex min-w-0 flex-1 justify-center overflow-auto bg-gray-100 p-3">
+        <main className="grid-paper relative flex min-w-0 flex-1 justify-center overflow-auto bg-gray-100 p-3">
           {!connected && ext !== 'missing' && !error && (
             <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-gray-100/70 backdrop-blur-[1px]">
               <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm text-gray-600 shadow-lg">
@@ -500,7 +500,7 @@ export function EditorView({ record, user }: Props) {
               data-testid="site-frame"
               src={frameUrl(frameSrcUrl, token)}
               style={{ width: DEVICE_WIDTH[device] }}
-              className="h-full max-w-full rounded-lg border-0 bg-white shadow-md ring-1 ring-gray-200 transition-[width]"
+              className="h-full max-w-full rounded-md border-0 bg-white shadow-[0_10px_30px_-12px_rgb(22_24_29/0.35)] ring-1 ring-gray-900/10 transition-[width]"
             />
           )}
         </main>
@@ -522,7 +522,7 @@ export function EditorView({ record, user }: Props) {
             data-testid="sidebar"
           >
             <nav
-              className="grid grid-cols-3 gap-1 border-b border-gray-200 bg-gray-50 p-1.5 text-xs"
+              className="flex flex-wrap border-b border-gray-900/10 bg-white px-2 text-[12.5px]"
               role="tablist"
             >
               {(
@@ -540,7 +540,7 @@ export function EditorView({ record, user }: Props) {
                   aria-selected={tab === id}
                   data-testid={`side-${id}`}
                   onClick={() => setTab(id)}
-                  className={`rounded-md px-2 py-1.5 whitespace-nowrap ${tab === id ? 'bg-white font-medium text-gray-900 shadow-sm ring-1 ring-gray-200' : 'text-gray-500 hover:bg-white/60 hover:text-gray-800'}`}
+                  className={`-mb-px border-b-2 px-2 py-2.5 whitespace-nowrap ${tab === id ? 'border-ink font-medium text-ink' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
                 >
                   {label}
                   {id === 'changes' && applyResult && applyResult.failed.length > 0 && (
@@ -564,7 +564,7 @@ export function EditorView({ record, user }: Props) {
                 />
               ) : (
                 <div className="p-6 text-center text-sm text-gray-500">
-                  <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-brand-50 text-brand-600">
+                  <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-md bg-ink text-lime">
                     <MousePointer2 size={18} aria-hidden="true" />
                   </div>
                   <p className="font-medium text-gray-700">Selecione um elemento</p>
@@ -638,7 +638,7 @@ export function EditorView({ record, user }: Props) {
       <PromptDialog req={prompt} onClose={() => setPrompt(null)} />
       {settingsOpen && (
         <div
-          className="fixed inset-0 z-40 grid place-items-center bg-gray-900/40 p-4"
+          className="fixed inset-0 z-40 grid place-items-center bg-ink/50 p-4"
           onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}
           onKeyDown={(e) => e.key === 'Escape' && setSettingsOpen(false)}
         >
@@ -646,11 +646,11 @@ export function EditorView({ record, user }: Props) {
             role="dialog"
             aria-label="Configurações do experimento"
             data-testid="settings-modal"
-            className="flex max-h-[90vh] w-[min(56rem,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className="flex max-h-[90vh] w-[min(56rem,100%)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
           >
             <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
               <div>
-                <h2 className="text-base font-semibold">Configurações do experimento</h2>
+                <h2 className="font-display text-lg">Configurações do experimento</h2>
                 <p className="text-xs text-gray-500">
                   Quem entra, em quais páginas e o que conta como conversão. Salve para gravar.
                 </p>

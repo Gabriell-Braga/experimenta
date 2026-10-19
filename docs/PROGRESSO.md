@@ -1,9 +1,9 @@
 # Progresso
-**Status:** concluído
-**Fase atual:** concluído
-**Tarefa atual:** — (fase 8 concluída)
-**Última atualização:** 2026-10-14 22:55
-**Próximo passo:** Plano concluído. Próximos passos sugeridos (fora do plano): integrar o /collect ao módulo de analytics da outra equipe (docs/EVENTOS.md), configurações por conta (amostragem do heatmap, origins), refresh token/SSO, reescrita de SameSite na extensão (ver Bloqueios), materialização/retenção dos eventos, deploy (Postgres real + CDN com purge).
+**Status:** em andamento
+**Fase atual:** 9
+**Tarefa atual:** 9.2 (em andamento desde 2026-10-19 13:49)
+**Última atualização:** 2026-10-19 13:49
+**Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
 - (vazio) — perguntas anteriores respondidas em docs/DECISOES.md D-033.
@@ -311,3 +311,8 @@
 - Entregue: correção da duplicação de HTML inserido e do arrastar que não fixava (engine), Editar HTML, CSS/JS em janela grande, configurações separadas da edição com meta escolhida no site, amostragem do mapa de calor por conta, retenção dos eventos e SPA mais robusta.
 - Testes: unitários (engine persist, agent, API settings/expurgo, SPA) + 41 E2E.
 
+### 2026-10-19 13:49 — Tarefa 9.1 concluída
+- O que foi feito: Nova identidade visual (paleta quente, tinta + verde + lima, Fraunces/Inter Tight/JetBrains Mono, favicon/logo), moldura com menu lateral por módulo, roteamento ?view=, páginas Login/Experimentos/Instalação separadas, barra do editor em tinta.
+- Arquivos principais: apps/editor/src/{index.css,ui.tsx,shell.tsx,nav.ts,App.tsx,pages/*,components/TopBar.tsx}
+- Como testar manualmente: pnpm dev → http://localhost:5173 (login, lista, Instalação no menu, abrir um experimento).
+- Observações: ver D-040.

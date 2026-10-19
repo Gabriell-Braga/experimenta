@@ -63,18 +63,18 @@ const DEVICES: [Device, string, LucideIcon][] = [
 ];
 
 const seg = (active: boolean) =>
-  `flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm whitespace-nowrap transition-colors ${
-    active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+  `flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-sm whitespace-nowrap transition-colors ${
+    active ? 'bg-ink text-white' : 'text-gray-600 hover:text-gray-900'
   }`;
 
 export function TopBar(p: Props) {
   const [editingName, setEditingName] = useState(false);
   return (
-    <header className="border-b border-gray-200 bg-white">
-      {/* Linha 1: navegação, nome, estado e ações principais */}
-      <div className="flex h-14 items-center gap-3 px-3">
+    <header className="border-b border-gray-900/10 bg-white">
+      {/* Linha 1 (tinta): navegação, nome, estado e ações principais */}
+      <div className="flex h-14 items-center gap-3 bg-ink px-3 text-white">
         <Button
-          variant="ghost"
+          variant="inverse"
           size="sm"
           onClick={p.onBack}
           title="Voltar aos experimentos"
@@ -82,13 +82,13 @@ export function TopBar(p: Props) {
         >
           <ArrowLeft size={15} aria-hidden="true" /> <span className="hidden sm:inline">Experimentos</span>
         </Button>
-        <span className="h-6 w-px bg-gray-200" />
+        <span className="h-6 w-px bg-white/15" />
         {editingName ? (
           <input
             autoFocus
             defaultValue={p.name}
             aria-label="Nome do experimento"
-            className="min-w-0 rounded-md border border-gray-300 px-2 py-1 text-base font-semibold"
+            className="min-w-0 rounded-md border border-white/30 bg-white/10 px-2 py-1 font-display text-lg text-white"
             onBlur={(e) => {
               const v = e.target.value.trim();
               if (v && v !== p.name) p.onRename(v);
@@ -102,7 +102,7 @@ export function TopBar(p: Props) {
         ) : (
           <button
             onClick={() => setEditingName(true)}
-            className="min-w-0 truncate rounded-md px-1 text-base font-semibold hover:bg-gray-100"
+            className="min-w-0 truncate rounded-md px-1 font-display text-lg hover:bg-white/10"
             title="Renomear"
             data-testid="experiment-name"
           >
@@ -115,7 +115,7 @@ export function TopBar(p: Props) {
 
         <div className="flex items-center gap-0.5">
           <Button
-            variant="ghost"
+            variant="inverse"
             size="sm"
             onClick={p.onUndo}
             disabled={!p.canUndo}
@@ -125,7 +125,7 @@ export function TopBar(p: Props) {
             <Undo2 size={15} aria-hidden="true" /> <span className="hidden xl:inline">Desfazer</span>
           </Button>
           <Button
-            variant="ghost"
+            variant="inverse"
             size="sm"
             onClick={p.onRedo}
             disabled={!p.canRedo}
@@ -137,15 +137,15 @@ export function TopBar(p: Props) {
         </div>
 
         <span
-          className="hidden text-xs whitespace-nowrap text-gray-500 md:inline"
+          className="hidden font-mono text-[11px] whitespace-nowrap text-white/50 md:inline"
           aria-live="polite"
           data-testid="save-state"
         >
           {p.saving ? (
             'Salvando…'
           ) : p.dirty ? (
-            <span className="flex items-center gap-1.5 text-amber-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Alterações não salvas
+            <span className="flex items-center gap-1.5 text-amber-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" /> Alterações não salvas
             </span>
           ) : p.savedAt ? (
             `Salvo ${timeAgo(p.savedAt)}`
@@ -153,10 +153,16 @@ export function TopBar(p: Props) {
             'Tudo salvo'
           )}
         </span>
-        <Button onClick={p.onSettings} data-testid="open-settings" title="Status, tráfego, páginas e metas">
+        <Button
+          variant="inverseOutline"
+          onClick={p.onSettings}
+          data-testid="open-settings"
+          title="Status, tráfego, páginas e metas"
+        >
           <Settings size={15} aria-hidden="true" /> <span className="hidden lg:inline">Configurações</span>
         </Button>
         <Button
+          variant="inverseOutline"
           onClick={p.onSave}
           disabled={!p.dirty}
           loading={p.saving}
@@ -166,7 +172,7 @@ export function TopBar(p: Props) {
           {p.saving ? 'Salvando…' : p.dirty ? 'Salvar' : 'Salvo'}
         </Button>
         <Button
-          variant="primary"
+          variant="accent"
           onClick={p.onPublish}
           loading={p.publishing}
           data-testid="publish"
@@ -177,7 +183,7 @@ export function TopBar(p: Props) {
       </div>
 
       {/* Linha 2: variação, modo, dispositivo, página */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50/70 px-3 py-1.5">
+      <div className="flex flex-wrap items-center gap-2 bg-white px-3 py-1.5">
         <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Variações">
           {p.variations.map((v, i) => (
             <button
@@ -188,22 +194,24 @@ export function TopBar(p: Props) {
               onClick={() => p.onSelectVariation(v.id)}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm whitespace-nowrap ${
                 v.id === p.activeId
-                  ? 'bg-white font-medium text-gray-900 shadow-sm ring-1 ring-gray-200'
-                  : 'text-gray-600 hover:bg-white/70'
+                  ? 'bg-lime-soft font-medium text-ink ring-1 ring-brand-200'
+                  : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <span className={`h-2 w-2 rounded-full ${i === 0 ? 'bg-gray-400' : 'bg-brand-500'}`} />
+              <span
+                className={`grid h-4 min-w-4 place-items-center rounded-sm px-0.5 font-mono text-[9px] font-semibold ${i === 0 ? 'bg-gray-200 text-gray-700' : 'bg-ink text-lime'}`}
+              >
+                {i === 0 ? 'C' : `V${i}`}
+              </span>
               {v.name}
               {v.operations.length > 0 && (
-                <span className="rounded bg-gray-100 px-1 text-xs text-gray-500">
-                  ({v.operations.length})
-                </span>
+                <span className="tabular font-mono text-[11px] text-gray-500">({v.operations.length})</span>
               )}
             </button>
           ))}
           <button
             onClick={p.onAddVariation}
-            className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-white hover:text-gray-900"
+            className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
             title="Nova variação"
             data-testid="add-variation"
           >
@@ -211,8 +219,12 @@ export function TopBar(p: Props) {
           </button>
         </nav>
 
-        <span className="h-5 w-px bg-gray-200" />
-        <div className="flex rounded-lg bg-gray-200/60 p-0.5" role="group" aria-label="Modo">
+        <span className="h-5 w-px bg-gray-900/10" />
+        <div
+          className="flex rounded-md border border-gray-900/10 bg-gray-100 p-0.5"
+          role="group"
+          aria-label="Modo"
+        >
           {MODES.map(([m, label, Icon]) => (
             <button
               key={m}
@@ -227,7 +239,11 @@ export function TopBar(p: Props) {
             </button>
           ))}
         </div>
-        <div className="flex rounded-lg bg-gray-200/60 p-0.5" role="group" aria-label="Dispositivo">
+        <div
+          className="flex rounded-md border border-gray-900/10 bg-gray-100 p-0.5"
+          role="group"
+          aria-label="Dispositivo"
+        >
           {DEVICES.map(([d, label, Icon]) => (
             <button
               key={d}
@@ -253,7 +269,7 @@ export function TopBar(p: Props) {
         >
           <span className="relative flex-1">
             <span
-              className={`absolute top-1/2 left-2.5 h-2 w-2 -translate-y-1/2 rounded-full ${p.connected ? 'bg-green-500' : 'animate-pulse bg-amber-400'}`}
+              className={`absolute top-1/2 left-2.5 h-2 w-2 -translate-y-1/2 rounded-full ${p.connected ? 'bg-brand-500' : 'animate-pulse bg-amber-400'}`}
               title={p.connected ? 'Conectado ao site' : 'Conectando…'}
             />
             <input

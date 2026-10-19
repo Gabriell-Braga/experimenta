@@ -37,7 +37,7 @@ export function HealthPanel({ experimentId, variation, onAdopt, onHighlight }: P
       <div className="flex items-center justify-between border-b border-gray-100 p-3">
         <span>
           <b>{exposures}</b> exposições de {variation.name} ·{' '}
-          <span className={problems.length ? 'text-red-700' : 'text-green-700'} data-testid="health-summary">
+          <span className={problems.length ? 'text-red-700' : 'text-brand-700'} data-testid="health-summary">
             {problems.length ? `${problems.length} alteração(ões) com problema` : 'todas as alterações OK'}
           </span>
         </span>
@@ -60,7 +60,7 @@ export function HealthPanel({ experimentId, variation, onAdopt, onHighlight }: P
               <span className="block truncate">{describeOperation(op)}</span>
               <code className="block truncate text-xs text-gray-500">{op.target.selector}</code>
               {!h && (
-                <span className="text-xs text-green-700">
+                <span className="text-xs text-brand-700">
                   <CircleCheck size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" /> sem falhas
                   registradas
                 </span>

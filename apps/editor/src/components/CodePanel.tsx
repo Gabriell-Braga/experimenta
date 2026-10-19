@@ -53,7 +53,7 @@ function BigEditor({
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-gray-900/40 p-4" data-testid="code-big">
-      <div className="flex h-[85vh] w-[min(72rem,100%)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="flex h-[85vh] w-[min(72rem,100%)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
         <header className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
           <h2 className="font-semibold">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Fechar">

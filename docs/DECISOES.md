@@ -217,3 +217,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - ponytail: DELETE sem índice em `received_at` (varredura diária); criar índice quando a tabela crescer. Pré-agregação do heatmap por dia/página continua adiada.
 - SPA: além de patch em pushState/replaceState e `popstate`, ouve `hashchange` e `navigation.currententrychange` (Chromium) — cobre routers que guardaram o `pushState` original antes do snippet (snippet via tag manager). Lembrete: no editor, modo "Editar" bloqueia cliques do site; para trocar de rota use "Navegar".
 
+
+## D-040 — Identidade visual própria e moldura por módulos (fase 9)
+- Pedido: "menos cara de vibecode e mais personalidade". Direção "caderno de laboratório": papel quente (`paper`), tinta (`ink`) no menu lateral e na barra do editor, verde de laboratório como cor da marca e lima como marca-texto (estado ativo, vencedor, botão Publicar). Títulos em serifa (Fraunces), UI em Inter Tight, números/chaves/seletores em JetBrains Mono (`@fontsource-variable`, empacotadas — sem chamada a Google Fonts). Cantos menores (4–8 px), bordas finas de tinta translúcida em vez de sombras, etiquetas mono em caixa alta, fundo quadriculado em estados vazios e no canvas do editor. Logo: frasco dividido ao meio (controle | variação).
+- Os neutros `gray-*` do Tailwind foram redefinidos para tons quentes no `@theme`: telas antigas herdam a paleta sem trocar classes.
+- Navegação inspirada no VWO (menu lateral por módulo: Testes, Insights, Engajamento, Dados, Configurar), mas cada item só entra quando a tela existe. Roteamento por query string (`?view=`; `?exp=` continua abrindo o editor): sem fallback de rota no Worker de arquivos estáticos.
