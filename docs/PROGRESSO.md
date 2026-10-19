@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 9
-**Tarefa atual:** 9.3 (em andamento desde 2026-10-19 14:00)
-**Última atualização:** 2026-10-19 14:00
+**Tarefa atual:** 9.4 (em andamento desde 2026-10-19 14:01)
+**Última atualização:** 2026-10-19 14:01
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -322,3 +322,9 @@
 - Arquivos principais: packages/snippet/src/{data,env,runtime,main}.ts, apps/api/src/{routes/data.ts,analytics/overview.ts,http.ts,test-app.ts,repo.ts,repo-d1.ts}, apps/editor/src/{charts.tsx,pages/Events.tsx}
 - Como testar manualmente: abrir o demo, rodar abq.push(['track','compra',10]) no console, ver em Dados → Eventos.
 - Observações: ver D-041. Snippet 7,95 KB gzip.
+
+### 2026-10-19 14:01 — Tarefa 9.3 concluída
+- O que foi feito: packages/shared/src/stats.ts: posteriores Beta/Normal com Monte Carlo determinístico (prob. de vencer, de ser a melhor, perda esperada, intervalos, lift), z-test, Welch, SRM (qui-quadrado), tamanho de amostra, veredito.
+- Arquivos principais: packages/shared/src/stats.ts, stats.test.ts
+- Como testar manualmente: pnpm --filter @abtest/shared test
+- Observações: ver D-042.

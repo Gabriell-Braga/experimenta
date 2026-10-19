@@ -5,3 +5,4 @@ export * from './config';
 export * from './events';
 export * from './rpc';
 export * from './rpc-peer';
+export * from './stats';
