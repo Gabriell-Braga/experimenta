@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 14
-**Tarefa atual:** 14.2 (em andamento desde 2026-10-19 18:47)
-**Última atualização:** 2026-10-19 18:47
+**Tarefa atual:** 14.3 (em andamento desde 2026-10-19 18:51)
+**Última atualização:** 2026-10-19 18:51
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -453,3 +453,9 @@
 - Arquivos principais: apps/api/src/{analytics/profiles.ts,routes/cdp.ts}, apps/editor/src/pages/Profiles.tsx
 - Como testar manualmente: Dados → Perfis → Identificados → abrir um cliente.
 - Observações: ver D-060.
+
+### 2026-10-19 18:51 — Tarefa 14.2 concluída
+- O que foi feito: Entidade segment (regras sobre o perfil), GET /profiles/segments/{id} (membros, CSV), GET /decide (segmentos, campanhas server-side, próxima melhor oferta), tela Dados → Segmentos com construtor, membros, exportação e documentação da API.
+- Arquivos principais: packages/shared/src/entities.ts, apps/api/src/{analytics/profiles.ts,routes/cdp.ts}, apps/editor/src/pages/Segments.tsx
+- Como testar manualmente: Dados → Segmentos → Novo (ex.: Atributo plano = pro) → CSV.
+- Observações: ver D-061.

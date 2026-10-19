@@ -305,3 +305,13 @@ export const entities = {
 
 export const rebuildRecos = () =>
   api<{ products: number; builtAt: string }>('/recommendations/rebuild', { method: 'POST' });
+
+/** Baixa um arquivo autenticado (CSV de exportação). */
+export async function downloadFile(path: string, filename: string) {
+  const res = await fetch(`${API_URL}${path}`, { headers: { authorization: `Bearer ${getToken() ?? ''}` } });
+  if (!res.ok) throw new ApiError(res.status, `erro ${res.status}`);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await res.blob());
+  a.download = filename;
+  a.click();
+}

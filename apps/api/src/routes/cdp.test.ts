@@ -84,3 +84,31 @@ test('perfil: linha do tempo de todos os visitantes ligados; isolamento', async 
   expect(r.timeline).toHaveLength(6);
   expect((await t.req(`/profiles/${encodeURIComponent('u:ana')}`, { as: 'other' })).status).toBe(404);
 });
+
+test('segmento do CDP: membros por regras do perfil, CSV e decisão cross-channel', async () => {
+  const r = await t.req('/entities/segment', {
+    as: 'editor',
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Clientes multi-dispositivo',
+      data: {
+        rules: [
+          { field: 'devices', op: 'gte', value: 2 },
+          { field: 'event', name: 'compra', op: 'gte', value: 1 },
+        ],
+      },
+    }),
+  });
+  const id = ((await r.json()) as { id: string }).id;
+  const m = await t.get<{ count: number; profiles: { id: string }[] }>(`/profiles/segments/${id}?days=1`);
+  expect(m.count).toBe(1);
+  expect(m.profiles[0]!.id).toBe('u:ana');
+  const csv = await (await t.req(`/profiles/segments/${id}?days=1&format=csv`, { as: 'owner' })).text();
+  expect(csv.split('\n')).toHaveLength(2);
+  expect(csv).toContain('"u:ana"');
+  // Decisão pelo visitante do celular (já ligado a Ana) cai no perfil dela.
+  const d = await t.get<{ profile: { userId: string }; segments: { id: string }[] }>('/decide?visitor=v1');
+  expect(d.profile.userId).toBe('ana');
+  expect(d.segments.map((s) => s.id)).toEqual([id]);
+  expect((await t.req('/decide', { as: 'owner' })).status).toBe(400);
+});

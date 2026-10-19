@@ -1,5 +1,6 @@
 import {
   Activity,
+  Boxes,
   ClipboardList,
   Code2,
   Flame,
@@ -73,6 +74,7 @@ export const NAV: NavGroup[] = [
       { view: 'events', label: 'Eventos', icon: Activity },
       { view: 'audiences', label: 'Audiências', icon: Users },
       { view: 'profiles', label: 'Perfis', icon: Fingerprint },
+      { view: 'segments', label: 'Segmentos', icon: Boxes },
     ],
   },
   { label: 'Configurar', items: [{ view: 'install', label: 'Instalação', icon: Code2 }] },

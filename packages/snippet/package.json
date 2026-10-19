@@ -14,7 +14,8 @@
     "./insights": "./src/insights.ts",
     "./runtime": "./src/runtime.ts",
     "./engage": "./src/engage.ts",
-    "./audience": "./src/audience.ts"
+    "./audience": "./src/audience.ts",
+    "./bucket": "./src/bucket.ts"
   },
   "scripts": {
     "test": "vitest run",

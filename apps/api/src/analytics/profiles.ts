@@ -1,4 +1,4 @@
-import type { Props, TrackingEvent } from '@abtest/shared';
+import type { Props, Segment, SegmentRule, TrackingEvent } from '@abtest/shared';
 
 /**
  * Resolução de identidade: cada `identify` com `userId` liga aquele visitante (cookie/dispositivo) ao usuário.
@@ -29,6 +29,8 @@ export interface ProfileSummary {
   attributes: Props;
   /** experimentKey → variationKey (última exposição). */
   experiments: Record<string, string>;
+  /** Contagem de eventos customizados por nome. */
+  eventCounts: Record<string, number>;
 }
 
 export function buildProfiles(events: TrackingEvent[]): Map<string, ProfileSummary> {
@@ -57,6 +59,7 @@ export function buildProfiles(events: TrackingEvent[]): Map<string, ProfileSumma
           revenue: 0,
           attributes: {},
           experiments: {},
+          eventCounts: {},
           _s: new Set(),
           _d: new Set(),
           _v: new Set(),
@@ -70,6 +73,7 @@ export function buildProfiles(events: TrackingEvent[]): Map<string, ProfileSumma
     if (e.type === 'pageview') p.pageviews++;
     else if (e.type === 'event') {
       p.events++;
+      p.eventCounts[e.name] = (p.eventCounts[e.name] ?? 0) + 1;
       if (e.value) p.revenue += e.value;
     } else if (e.type === 'conversion') p.conversions++;
     else if (e.type === 'identify' && e.attrs) Object.assign(p.attributes, e.attrs);
@@ -112,3 +116,40 @@ export function crossDevice(profiles: Iterable<ProfileSummary>) {
     combos: [...combos.entries()].sort((a, b) => b[1] - a[1]).map(([devices, count]) => ({ devices, count })),
   };
 }
+
+const DAY = 86_400_000;
+const num = (op: 'gte' | 'lte' | 'eq', a: number, b: number) =>
+  op === 'gte' ? a >= b : op === 'lte' ? a <= b : a === b;
+
+/** Perfil atende à regra do segmento? `now` para "dias desde". */
+export function matchSegmentRule(p: ProfileSummary, r: SegmentRule, now = Date.now()): boolean {
+  switch (r.field) {
+    case 'event':
+      return num(r.op, p.eventCounts[r.name] ?? 0, r.value);
+    case 'attribute': {
+      const v = p.attributes[r.key];
+      if (r.op === 'exists') return v !== undefined && v !== '';
+      const s = v === undefined ? '' : String(v);
+      return r.op === 'eq' ? s === r.value : r.op === 'neq' ? s !== r.value : s.includes(r.value);
+    }
+    case 'identified':
+      return (p.kind === 'user') === r.value;
+    case 'device':
+      return p.devices.includes(r.value);
+    case 'experiment':
+      return r.key in p.experiments && (!r.variation || p.experiments[r.key] === r.variation);
+    case 'devices':
+      return num(r.op, p.devices.length, r.value);
+    case 'lastSeenDays':
+      return num(r.op, Math.floor((now - p.lastSeen) / DAY), r.value);
+    case 'firstSeenDays':
+      return num(r.op, Math.floor((now - p.firstSeen) / DAY), r.value);
+    default:
+      return num(r.op, p[r.field], r.value);
+  }
+}
+
+export const matchSegment = (p: ProfileSummary, s: Segment, now = Date.now()) =>
+  s.match === 'any'
+    ? s.rules.some((r) => matchSegmentRule(p, r, now))
+    : s.rules.every((r) => matchSegmentRule(p, r, now));

@@ -173,11 +173,54 @@ export const RecoWidgetSchema = z.object({
 });
 export type RecoWidget = z.infer<typeof RecoWidgetSchema>;
 
+/**
+ * Segmento do CDP: regras sobre o PERFIL unificado (todos os dispositivos), avaliadas no servidor. Serve para
+ * análise, exportação (CSV/API) e decisões cross-channel — diferente da audiência, avaliada no navegador.
+ */
+export const SegmentRuleSchema = z.discriminatedUnion('field', [
+  z.object({
+    field: z.enum([
+      'sessions',
+      'pageviews',
+      'events',
+      'conversions',
+      'revenue',
+      'devices',
+      'lastSeenDays',
+      'firstSeenDays',
+    ]),
+    op: z.enum(['gte', 'lte', 'eq']),
+    value: z.number(),
+  }),
+  z.object({
+    field: z.literal('event'),
+    name: z.string().min(1),
+    op: z.enum(['gte', 'lte', 'eq']),
+    value: z.number(),
+  }),
+  z.object({
+    field: z.literal('attribute'),
+    key: z.string().min(1),
+    op: z.enum(['eq', 'neq', 'contains', 'exists']),
+    value: z.string().default(''),
+  }),
+  z.object({ field: z.literal('identified'), value: z.boolean() }),
+  z.object({ field: z.literal('device'), value: z.enum(['desktop', 'tablet', 'mobile']) }),
+  z.object({ field: z.literal('experiment'), key: z.string().min(1), variation: z.string().default('') }),
+]);
+export type SegmentRule = z.infer<typeof SegmentRuleSchema>;
+export const SegmentSchema = z.object({
+  match: z.enum(['all', 'any']).default('all'),
+  rules: z.array(SegmentRuleSchema).min(1).max(30),
+});
+export type Segment = z.infer<typeof SegmentSchema>;
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
   popup: PopupSchema,
   survey: SurveySchema,
   reco: RecoWidgetSchema,
+  segment: SegmentSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;

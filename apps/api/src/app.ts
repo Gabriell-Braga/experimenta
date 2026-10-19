@@ -718,7 +718,7 @@ export function createApp(deps: AppDeps) {
   reportRoutes(app, repo, deps.publish);
   recordingRoutes(app, repo);
   entityRoutes(app, repo);
-  cdpRoutes(app, repo);
+  cdpRoutes(app, repo, deps.cdn);
 
   app.openapi(
     createRoute({
