@@ -170,3 +170,10 @@ ao sair da página (`keepalive` quando cabe). Corpo: `{ accountId, sessionId, vi
 `.abt-block` some da gravação e `.abt-mask` tem o texto mascarado. `GET /recordings` lista as sessões (com
 cliques/frustração/conversões cruzados pelos eventos da mesma sessão) e `GET /recordings/{sessionId}` devolve os
 eventos rrweb + linha do tempo.
+
+### `form` (form analytics)
+Enviado pelo `insights.js` (amostrado) uma vez por formulário por página vista: no `submit` ou ao sair/navegar.
+`form` (seletor: `#id`, `form[name=…]` ou caminho), `interacted`, `submitted`, `lastField?` (último campo com
+foco de quem saiu sem enviar) e `fields[]` com `name`, `kind`, `time` (ms com foco), `hesitation?` (foco → primeira
+digitação), `focus`, `refills` (editou de novo depois de sair preenchido) e `filled`. **Nenhum valor digitado é
+enviado.** `GET /analytics/forms?days=&device=` agrega por página + formulário.

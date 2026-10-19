@@ -1,4 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
+import { formsReport } from '../analytics/forms';
 import { overview } from '../analytics/overview';
 import { pagesReport } from '../analytics/pages';
 import { errors, json, period, PeriodQuery, Report, security, type Api } from '../http';
@@ -47,6 +48,24 @@ export function dataRoutes(app: Api, repo: Repo) {
         types: ['pageview', 'click', 'frustration', 'scroll'],
       });
       return c.json(pagesReport(list, q.device), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/forms',
+      tags: ['insights'],
+      security,
+      summary:
+        'Form analytics: chegaram → interagiram → enviaram por formulário e, por campo, tempo, hesitação, re-preenchimento, ignorados e abandono',
+      request: { query: PeriodQuery.extend({ device: z.enum(['desktop', 'tablet', 'mobile']).optional() }) },
+      responses: { 200: json(Report, 'formulários, do mais visto ao menos visto'), ...errors },
+    }),
+    async (c) => {
+      const q = c.req.valid('query');
+      const list = await repo.listEvents(c.get('user').accountId, { ...period(q), types: ['form'] });
+      return c.json(formsReport(list, { device: q.device }), 200);
     },
   );
 

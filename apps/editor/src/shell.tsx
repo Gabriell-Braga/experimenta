@@ -1,5 +1,6 @@
 import {
   Activity,
+  ClipboardList,
   Code2,
   Flame,
   FlaskConical,
@@ -33,6 +34,7 @@ export const NAV: NavGroup[] = [
     items: [
       { view: 'heatmaps', label: 'Mapas de calor', icon: Flame },
       { view: 'recordings', label: 'Gravações', icon: Video },
+      { view: 'forms', label: 'Formulários', icon: ClipboardList },
     ],
   },
   { label: 'Dados', items: [{ view: 'events', label: 'Eventos', icon: Activity }] },

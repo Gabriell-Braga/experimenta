@@ -198,7 +198,35 @@ for (let i = 0; i < VISITORS; i++) {
     if (chance(arm ? 0.42 : 0.34)) {
       exp('seed_g_cta', 'clique-comprar');
       pv('/produto.html', 'Tênis — Loja Demo', `${SITE}/`);
-      if (chance(device === 'mobile' ? 0.22 : 0.33)) {
+      const buys = chance(device === 'mobile' ? 0.22 : 0.33);
+      // Checkout: quem compra envia; quem desiste para no CEP ou no cartão (mais no celular).
+      const interacted = buys || chance(0.55);
+      const stopAt = buys ? 99 : chance(0.15) ? 1 : chance(0.45) ? 3 : 4;
+      const names = ['nome', 'email', 'cep', 'cartao', 'presente'];
+      events.push({
+        ...base(`${SITE}/produto.html`),
+        type: 'form',
+        device,
+        variations: {},
+        form: '#checkout',
+        interacted,
+        submitted: buys,
+        ...(interacted && !buys ? { lastField: names[stopAt - 1] } : {}),
+        fields: names.map((name, k) => {
+          const reached = interacted && k < stopAt && name !== 'presente';
+          const slow = name === 'cep' ? 2.4 : name === 'cartao' ? 3.1 : 1;
+          return {
+            name,
+            kind: name === 'email' ? 'email' : name === 'presente' ? 'checkbox' : 'text',
+            time: reached ? Math.round((1500 + rand() * 4000) * slow * (device === 'mobile' ? 1.4 : 1)) : 0,
+            ...(reached ? { hesitation: Math.round(200 + rand() * 900 * slow) } : {}),
+            focus: reached ? 1 + (chance(0.2) ? 1 : 0) : 0,
+            refills: reached && name === 'cep' && chance(0.35) ? 1 : 0,
+            filled: reached && (k < stopAt - 1 || buys),
+          };
+        }),
+      });
+      if (buys) {
         const value = pick([199, 299, 349, 449]);
         events.push({
           ...base(`${SITE}/produto.html`),
@@ -224,8 +252,8 @@ for (let i = 0; i < VISITORS; i++) {
 }
 
 events.sort((a, b) => (a.ts as number) - (b.ts as number));
-for (let i = 0; i < events.length; i += 150)
-  await call('/collect', { method: 'POST', body: JSON.stringify({ events: events.slice(i, i + 150) }) });
+for (let i = 0; i < events.length; i += 60)
+  await call('/collect', { method: 'POST', body: JSON.stringify({ events: events.slice(i, i + 60) }) });
 console.log(
   `[seed:data] ${VISITORS} visitantes, ${events.length} eventos enviados para ${API} (experimento ${KEY}).`,
 );

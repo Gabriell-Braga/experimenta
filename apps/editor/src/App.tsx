@@ -4,6 +4,7 @@ import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
 import { EventsPage } from './pages/Events';
 import { ExperimentList } from './pages/Experiments';
+import { FormsPage } from './pages/Forms';
 import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
 import { Login } from './pages/Login';
@@ -18,6 +19,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   install: (user) => <InstallPage user={user} />,
   events: () => <EventsPage />,
   heatmaps: () => <HeatmapsPage />,
+  forms: () => <FormsPage />,
   recordings: (_, r) => <RecordingsPage params={r.params} />,
   report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
 };

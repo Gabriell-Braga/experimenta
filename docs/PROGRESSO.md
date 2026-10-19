@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 11
-**Tarefa atual:** 11.1 (em andamento desde 2026-10-19 14:29)
-**Última atualização:** 2026-10-19 14:29
+**Tarefa atual:** 11.2 (em andamento desde 2026-10-19 14:34)
+**Última atualização:** 2026-10-19 14:34
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -358,3 +358,16 @@
 - Arquivos principais: apps/editor/src/pages/Recordings.tsx, e2e/tests/recordings.spec.ts
 - Como testar manualmente: Navegar no demo; Insights → Gravações → abrir a sessão.
 - Observações: ver D-047.
+
+### Resumo da Fase 9 — Plataforma CRO: nova cara + fundação de dados
+- Entregue: identidade visual própria (paleta tinta/verde/lima, Fraunces + Inter Tight + JetBrains Mono, menu lateral por módulo), coleta de pageviews/eventos/identify com sessão e perfil local, motor estatístico (bayesiano + frequentista + SRM + amostra), relatório de experimento com receita, comparação de metas e CSV, gerador de dados `pnpm seed:data`.
+
+### Resumo da Fase 10 — Behavior e Interaction Analytics
+- Entregue: rage/dead clicks e movimento do mouse; overlay com 5 modos; módulo Mapas de calor independente de experimento; gravação de sessão com rrweb em bundle sob demanda (`insights.js`) e player com linha do tempo.
+- Snippet: 8,5 KB gzip; insights.js: ~24 KB gzip (só amostrados).
+
+### 2026-10-19 14:34 — Tarefa 11.1 concluída
+- O que foi feito: insights.js mede formulários (tempo, hesitação, focos, re-preenchimento, preenchido, abandono) sem enviar valores; evento form; GET /analytics/forms; tela Insights → Formulários (funil chegaram/interagiram/enviaram + estatística por campo em 5 métricas); checkout no demo; gerador de dados com formulários.
+- Arquivos principais: packages/insights/src/forms.ts, apps/api/src/analytics/forms.ts, apps/editor/src/pages/Forms.tsx, apps/demo/produto.html
+- Como testar manualmente: Insights → Formulários (após pnpm seed:data).
+- Observações: ver D-048.

@@ -139,7 +139,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 10.4 Player de sessões: lista com filtros (dispositivo, página, duração, frustração), player com linha do tempo de eventos, pular inatividade, velocidade (inclui mobile)
 
 ### Fase 11 — Form e Journey Analytics
-- [ ] 11.1 Form analytics: captura por campo (tempo, hesitação, re-preenchimento, ignorado, abandono) e relatório (chegaram → interagiram → enviaram)
+- [x] 11.1 Form analytics: captura por campo (tempo, hesitação, re-preenchimento, ignorado, abandono) e relatório (chegaram → interagiram → enviaram)
 - [ ] 11.2 Funis: passos por URL/evento/meta, ordem por visitante, drop-off por passo, filtros
 - [ ] 11.3 Jornada: caminhos mais comuns, entradas/saídas, próximos passos a partir de uma página
 - [ ] 11.4 Coortes: por semana de primeira visita, retenção e conversão

@@ -12,6 +12,8 @@ export interface InsightsBoot {
   record: boolean;
   forms: boolean;
   send(e: TrackingEvent): void;
+  /** Envia a fila agora (ao sair da página, depois de enfileirar). */
+  flush(): void;
   base(): EventBase;
   /** Variações ativas na página (experimentId → variationId). */
   variations(): Record<string, string>;

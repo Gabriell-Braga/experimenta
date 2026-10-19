@@ -70,6 +70,7 @@ if (config && token) {
           record: !!hm.recordings,
           forms: !!hm.forms,
           send: tracker.send,
+          flush: tracker.flush,
           base: rt.base,
           variations: () =>
             Object.fromEntries([...rt.active.values()].map((a) => [a.experiment.id, a.variation.id])),

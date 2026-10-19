@@ -263,3 +263,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 ## D-047 — Player de sessões (fase 10.4)
 - `@rrweb/replay` (Replayer) com controles próprios no visual do produto: linha do tempo com marcadores dos NOSSOS eventos da mesma sessão (páginas, cliques, frustração, conversões, eventos customizados; clicar pula para o momento), velocidade 1–8×, pular inatividade, escala automática do viewport gravado (desktop e celular) e trilha do mouse em lima. Carregado sob demanda (import dinâmico) para não pesar no app.
 - Lista com filtros de período, dispositivo, página visitada, duração mínima e "só com frustração"; aceita `?visitor=` (usado pelos perfis do CDP).
+
+## D-048 — Form analytics (fase 11.1)
+- Captura automática de TODO formulário da página (sem configurar um a um como no VWO): o `insights.js` usa delegação de eventos (focusin/input/change/focusout/submit) e envia um evento `form` por formulário por página vista. Só metadados de interação; o valor só é lido para saber se o campo está vazio.
+- Métricas no padrão do VWO Forms: chegaram → interagiram → enviaram; por campo tempo, hesitação, re-preenchimento, ignorados e abandono (último campo focado por quem desistiu). Envio "com sucesso" = evento `submit` (validação no servidor não é detectada; aceitável).
+- Demo ganhou um checkout real em `/produto.html` para os dados de exemplo e os testes.

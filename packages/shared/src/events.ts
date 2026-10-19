@@ -90,6 +90,33 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
     points: z.array(z.tuple([z.number().min(0).max(1), z.number()])).max(100),
     vw: z.number(),
   }),
+  /**
+   * Interação com um formulário numa página vista (enviado no submit ou ao sair). `fields` traz todos os campos
+   * visíveis do formulário: tempo total com foco, hesitação (foco → primeira digitação), focos, re-preenchimentos
+   * (editou de novo depois de sair do campo já preenchido) e se terminou preenchido. Valores nunca são enviados.
+   */
+  z.object({
+    ...heatmapBase,
+    type: z.literal('form'),
+    form: z.string().max(300),
+    fields: z
+      .array(
+        z.object({
+          name: z.string().max(200),
+          kind: z.string().max(30),
+          time: z.number().nonnegative(),
+          hesitation: z.number().nonnegative().optional(),
+          focus: z.number().int().nonnegative(),
+          refills: z.number().int().nonnegative(),
+          filled: z.boolean(),
+        }),
+      )
+      .max(60),
+    interacted: z.boolean(),
+    submitted: z.boolean(),
+    /** Último campo com foco (onde o visitante parou, se não enviou). */
+    lastField: z.string().max(200).optional(),
+  }),
   /** Profundidade máxima de scroll da página (0..100 % da altura), enviada ao sair/navegar. */
   z.object({
     ...heatmapBase,
@@ -123,6 +150,9 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
 ]);
 export type TrackingEvent = z.infer<typeof TrackingEventSchema>;
 export type TrackingEventType = TrackingEvent['type'];
-export type HeatmapEvent = Extract<TrackingEvent, { type: 'click' | 'scroll' | 'frustration' | 'move' }>;
+export type HeatmapEvent = Extract<
+  TrackingEvent,
+  { type: 'click' | 'scroll' | 'frustration' | 'move' | 'form' }
+>;
 export type DataEvent = Extract<TrackingEvent, { type: 'pageview' | 'event' | 'identify' }>;
 export type ExperimentEvent = Exclude<TrackingEvent, HeatmapEvent | DataEvent>;

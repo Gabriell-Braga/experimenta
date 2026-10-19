@@ -11,6 +11,7 @@ const boot = {
   record: true,
   forms: false,
   send: () => {},
+  flush: () => {},
   base: () => ({ eventId: 'e', ts: 0, accountId: 'acc', visitorId: 'v1', url: '' }),
   variations: () => ({}),
   onNavigate: [],
