@@ -103,19 +103,18 @@ test('páginas: vistas, visitantes, cliques, frustração e scroll médio, mais 
     ev({ type: 'scroll', url: PAGE, device: 'desktop', variations: {}, depth: 80, vh: 1, ph: 1 } as never),
     ev({ type: 'scroll', url: PAGE, device: 'desktop', variations: {}, depth: 40, vh: 1, ph: 1 } as never),
   ]);
-  const pages =
-    await t.get<
-      {
-        page: string;
-        title: string;
-        pageviews: number;
-        visitors: number;
-        clicks: number;
-        rage: number;
-        dead: number;
-        avgScroll: number | null;
-      }[]
-    >('/analytics/pages?days=7');
+  const pages = await t.get<
+    {
+      page: string;
+      title: string;
+      pageviews: number;
+      visitors: number;
+      clicks: number;
+      rage: number;
+      dead: number;
+      avgScroll: number | null;
+    }[]
+  >('/analytics/pages?days=7');
   expect(pages[0]).toEqual({
     page: 'http://localhost:5180/loja',
     href: 'http://localhost:5180/loja/',
