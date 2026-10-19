@@ -1,8 +1,8 @@
 # Progresso
 **Status:** em andamento
 **Fase atual:** 12
-**Tarefa atual:** 12.2 (em andamento desde 2026-10-19 15:03)
-**Última atualização:** 2026-10-19 15:03
+**Tarefa atual:** 12.3 (em andamento desde 2026-10-19 15:07)
+**Última atualização:** 2026-10-19 15:07
 **Próximo passo:** executar fases 9–15 (plataforma CRO completa, ver PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
@@ -398,3 +398,9 @@
 - Arquivos principais: packages/shared/src/{experiment,mvt}.ts, apps/api/src/{schema,repo,repo-d1}.ts, apps/editor/src/{campaigns.ts,store.ts,pages/Experiments.tsx,pages/ServerExperiment.tsx,components/*}
 - Como testar manualmente: Experimentos → Nova campanha → escolher o tipo.
 - Observações: ver D-052. E2E completo em ambiente limpo: 46/46.
+
+### 2026-10-19 15:07 — Tarefa 12.2 concluída
+- O que foi feito: MVT: abas de seções × opções no editor (adicionar/renomear/remover), edição por opção com combinações regeneradas, relatório com efeito por seção.
+- Arquivos principais: apps/editor/src/{store.ts,components/TopBar.tsx,pages/Report.tsx}, apps/api/src/analytics/report.ts, e2e/tests/mvt.spec.ts
+- Como testar manualmente: Nova campanha → Multivariado → editar opção → + Seção.
+- Observações: ver D-053.

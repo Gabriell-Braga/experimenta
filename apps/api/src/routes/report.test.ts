@@ -116,3 +116,74 @@ test('isolamento e 404', async () => {
   expect((await t.req('/experiments/nao-existe/report', { as: 'owner' })).status).toBe(404);
   expect((await t.req('/experiments/exp_rep/report', { as: 'viewer' })).status).toBe(200);
 });
+
+test('MVT: efeito de cada opção somando as combinações (seção por seção)', async () => {
+  const mvt = ExperimentSchema.parse({
+    id: 'exp_mvt',
+    key: 'mvt',
+    name: 'MVT',
+    status: 'paused',
+    type: 'mvt',
+    sections: [
+      {
+        id: 's',
+        name: 'Título',
+        options: [
+          { id: 'o0', name: 'Original' },
+          { id: 'o1', name: 'Curto' },
+        ],
+      },
+      {
+        id: 'b',
+        name: 'Botão',
+        options: [
+          { id: 'b0', name: 'Original' },
+          { id: 'b1', name: 'Verde' },
+        ],
+      },
+    ],
+    variations: [
+      { id: 'm00', key: 'controle', name: 'C', weight: 1, combination: { s: 'o0', b: 'b0' } },
+      { id: 'm01', key: 'c1', name: 'x', weight: 1, combination: { s: 'o0', b: 'b1' } },
+      { id: 'm10', key: 'c2', name: 'x', weight: 1, combination: { s: 'o1', b: 'b0' } },
+      { id: 'm11', key: 'c3', name: 'x', weight: 1, combination: { s: 'o1', b: 'b1' } },
+    ],
+    goals: [{ id: 'g', key: 'compra', type: 'custom', event: 'compra' }],
+  });
+  const projectId = (await t.repo.listProjects(DEMO.accountId))[0]!.id;
+  await t.repo.saveExperiment(DEMO.accountId, {
+    projectId,
+    editorUrl: 'http://localhost:5180/',
+    experiment: mvt,
+  });
+  const now = Date.now() - 1000;
+  const list: TrackingEvent[] = [];
+  // 100 por combinação; "Curto" converte 30%, "Original" 10%; o botão não muda nada.
+  ['m00', 'm01', 'm10', 'm11'].forEach((vid, k) => {
+    for (let i = 0; i < 100; i++) {
+      const v = `${vid}-${i}`;
+      const base = {
+        visitorId: v,
+        experimentId: 'exp_mvt',
+        experimentKey: 'mvt',
+        variationId: vid,
+        variationKey: 'x',
+        ts: now + i,
+      };
+      list.push(ev({ type: 'exposure', ...base } as never));
+      if (i < (k >= 2 ? 30 : 10))
+        list.push(
+          ev({ type: 'conversion', ...base, ts: now + i + 1, goalId: 'g', goalKey: 'compra' } as never),
+        );
+    }
+  });
+  for (let i = 0; i < list.length; i += 150) await t.collect(list.slice(i, i + 150));
+  const r = await t.get<ExperimentReport>('/experiments/exp_mvt/report?days=1');
+  const [titulo, botao] = r.goals[0]!.sections!;
+  expect(titulo!.options.map((o) => [o.name, o.visitors, o.conversions])).toEqual([
+    ['Original', 200, 20],
+    ['Curto', 200, 60],
+  ]);
+  expect(titulo!.options[1]!.probBeatControl!).toBeGreaterThan(0.99);
+  expect(botao!.options.map((o) => o.conversions)).toEqual([40, 40]);
+});

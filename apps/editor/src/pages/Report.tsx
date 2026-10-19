@@ -190,6 +190,40 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
   );
 }
 
+/** MVT: efeito de cada opção, seção por seção (somando as combinações que a contêm). */
+function SectionsCard({ goal }: { goal: GoalReport }) {
+  return (
+    <Card title="Efeito por seção (multivariado)">
+      <div className="space-y-5" data-testid="mvt-sections">
+        {goal.sections!.map((sec) => (
+          <div key={sec.sectionId}>
+            <p className="label-mono mb-2">{sec.name}</p>
+            <table className="w-full text-left text-sm">
+              <tbody className="divide-y divide-gray-900/[0.06]">
+                {sec.options.map((o, i) => (
+                  <tr key={o.optionId}>
+                    <td className="py-2 pr-3">
+                      <VariationTag index={i} name={o.name} />
+                    </td>
+                    <td className="tabular px-3 py-2 text-right font-mono text-xs">{fmt.int(o.visitors)}</td>
+                    <td className="tabular px-3 py-2 text-right font-mono text-xs font-semibold text-ink">
+                      {fmt.pct(o.rate, 2)}
+                    </td>
+                    <td className="tabular px-3 py-2 text-right font-mono text-xs">{signedPct(o.lift)}</td>
+                    <td className="w-44 px-3 py-2">
+                      <Probability p={o.probBeatControl} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function RevenueTable({ goal, names }: { goal: GoalReport; names: string[] }) {
   const stats = goal.revenueArms ?? [];
   return (
@@ -569,6 +603,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
                     <Card title={`Conversão · ${goal.goalKey}`}>
                       <GoalTable goal={goal} names={names} />
                     </Card>
+                    {goal.sections && <SectionsCard goal={goal} />}
                     {goal.hasRevenue && (
                       <Card title="Receita">
                         <RevenueTable goal={goal} names={names} />

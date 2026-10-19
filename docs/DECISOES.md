@@ -286,3 +286,9 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Campos novos do experimento (tipo, seções do MVT, alocação, audiências) vão juntos numa coluna JSON `options`, e os da variação (variáveis server-side, combinação do MVT) em `extra` — sem coluna nova por recurso nos dois bancos (`EXPERIMENT_OPTION_KEYS`/`VARIATION_EXTRA_KEYS`).
 - Menu "Testes" filtra por tipo (Personalização, Rollouts, Server-side); campanhas server-side abrem uma página própria (pesos, variáveis JSON, metas por evento, exemplo de uso do SDK).
 - E2E: testes novos não deixam experimentos "em execução" na conta compartilhada (a publicação de um teste não pode depender da ordem dos outros); `insights.js` marca `html[data-abt-insights=on]` quando a captura começa.
+
+## D-053 — Teste multivariado (fase 12.2)
+- MVT fatorial completo: `sections[]` (cada uma com opções; a 1ª é o original) e as variações são as combinações geradas por `mvtVariations` (produto cartesiano; combinação só com originais = controle). Combinações existentes mantêm id/chave/peso ao regenerar (atribuição persistida dos visitantes não muda). No site, nada muda no snippet: cada combinação é uma variação comum com as operações/CSS das opções juntados.
+- No editor, as abas de variação viram seções × opções; a edição vai para a OPÇÃO ativa (uma "variação" virtual memoizada por objeto de opção) e as combinações são refeitas a cada mudança (desfazer/refazer incluídos). JS custom por opção não é suportado (só operações e CSS).
+- Relatório: além da tabela por combinação, "efeito por seção" soma visitantes/conversões de todas as combinações que contêm cada opção e compara com o original da seção (efeito principal, como no VWO).
+- ponytail: fatorial completo cresce rápido (3 seções × 3 opções = 27 combinações, tráfego dividido por 27). Fatorial fracionado/Taguchi fica para quando alguém precisar.

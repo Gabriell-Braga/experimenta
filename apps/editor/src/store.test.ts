@@ -149,3 +149,28 @@ test('configurações: status, tráfego, metas e pesos entram no histórico', ()
   expect(s.experiment.variations[0]!.weight).toBe(0);
   expect(reducer(s, { type: 'undo' }).experiment.variations[0]!.weight).toBe(50);
 });
+
+test('MVT: edição vai para a opção ativa e as combinações são regeneradas', () => {
+  let s = initialState(newExperiment(URL_, 'MVT', 'mvt'), URL_);
+  expect(s.experiment.variations).toHaveLength(2); // 1 seção × 2 opções
+  s = run(s, { type: 'addOperation', draft: draft('Título novo') });
+  const opt = activeVariation(s);
+  expect(opt.operations.map((o) => ('value' in o ? o.value : null))).toEqual(['Título novo']);
+  const combo = s.experiment.variations.find(
+    (v) => v.combination![s.experiment.sections![0]!.id] === opt.id,
+  )!;
+  expect(combo.operations.map((o) => ('value' in o ? o.value : null))).toEqual(['Título novo']);
+  s = run(s, { type: 'addSection' }); // 2 × 2 = 4
+  expect(s.experiment.variations).toHaveLength(4);
+  const sec2 = s.experiment.sections![1]!.id;
+  s = run(s, { type: 'addOption', sectionId: sec2 }); // 2 × 3 = 6
+  expect(s.experiment.variations).toHaveLength(6);
+  expect(new Set(s.experiment.variations.map((v) => v.id)).size).toBe(6);
+  s = run(s, { type: 'renameMvt', id: sec2, name: 'Botão' });
+  expect(s.experiment.sections![1]!.name).toBe('Botão');
+  s = run(s, { type: 'removeMvt', id: sec2 });
+  expect(s.experiment.variations).toHaveLength(2);
+  // Desfazer volta as 6 combinações.
+  s = run(s, { type: 'undo' });
+  expect(s.experiment.variations).toHaveLength(6);
+});

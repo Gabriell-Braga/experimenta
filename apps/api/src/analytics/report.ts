@@ -27,7 +27,16 @@ export interface ArmRow extends ArmResult {
   verdict: Verdict;
 }
 
+export interface SectionReport {
+  sectionId: string;
+  name: string;
+  /** Opções da seção somando todas as combinações que as contêm (a 1ª é o original = base). */
+  options: (ArmResult & { optionId: string; name: string; visitors: number; conversions: number })[];
+}
+
 export interface GoalReport {
+  /** MVT: efeito de cada opção, seção por seção. */
+  sections?: SectionReport[];
   goalId: string;
   goalKey: string;
   primary: boolean;
@@ -94,7 +103,23 @@ export function experimentReport(
     const hasRevenue = perArm.some((a) => a.revenue !== 0);
     const rates = compareRates(perArm.map((a) => ({ visitors: a.visitors, conversions: a.conversions })));
     const revenueStats = hasRevenue ? compareMeans(perArm.map((a) => meanVar(a.values))) : null;
+    const sections = exp.sections?.map((sec) => {
+      const agg = sec.options.map((o) => {
+        const idx = exp.variations
+          .map((v, i) => (v.combination?.[sec.id] === o.id ? i : -1))
+          .filter((i) => i >= 0);
+        return {
+          optionId: o.id,
+          name: o.name,
+          visitors: idx.reduce((s, i) => s + perArm[i]!.visitors, 0),
+          conversions: idx.reduce((s, i) => s + perArm[i]!.conversions, 0),
+        };
+      });
+      const stats = compareRates(agg);
+      return { sectionId: sec.id, name: sec.name, options: agg.map((a, i) => ({ ...stats[i]!, ...a })) };
+    });
     return {
+      ...(sections ? { sections } : {}),
       goalId: g.id,
       goalKey: g.key,
       primary: gi === 0,

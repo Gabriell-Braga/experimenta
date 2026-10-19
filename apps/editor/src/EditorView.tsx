@@ -330,6 +330,8 @@ export function EditorView({ record, user }: Props) {
         name={state.experiment.name}
         status={state.experiment.status}
         type={state.experiment.type}
+        sections={state.experiment.type === 'mvt' ? state.experiment.sections : undefined}
+        onMvt={dispatch}
         saving={saving}
         publishing={publishing}
         savedAt={savedAt}

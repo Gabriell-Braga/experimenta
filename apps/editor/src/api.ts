@@ -212,6 +212,16 @@ export interface ArmRow extends ArmStats {
   rpv: number;
 }
 export interface GoalReport {
+  sections?: {
+    sectionId: string;
+    name: string;
+    options: (Omit<ArmStats, 'variationId' | 'verdict'> & {
+      optionId: string;
+      name: string;
+      visitors: number;
+      conversions: number;
+    })[];
+  }[];
   goalId: string;
   goalKey: string;
   primary: boolean;

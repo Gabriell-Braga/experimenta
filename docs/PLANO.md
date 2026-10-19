@@ -146,7 +146,7 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 
 ### Fase 12 — Experimentação avançada
 - [x] 12.1 Tipos de campanha: A/B, Split URL, Personalização (com holdout), Rollout, Server-side — fluxo de criação por tipo
-- [ ] 12.2 Teste multivariado (seções × variações, combinações fatoriais, relatório por combinação e por seção)
+- [x] 12.2 Teste multivariado (seções × variações, combinações fatoriais, relatório por combinação e por seção)
 - [ ] 12.3 Multi-armed bandit (Thompson sampling) com republicação automática
 
 ### Fase 13 — Segmentação, personalização e engajamento

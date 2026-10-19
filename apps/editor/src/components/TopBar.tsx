@@ -13,7 +13,8 @@ import {
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
-import type { CampaignType, Variation } from '@abtest/shared';
+import type { CampaignType, MvtSection, Variation } from '@abtest/shared';
+import type { Action } from '../store';
 import { CAMPAIGNS } from '../campaigns';
 import { useState } from 'react';
 import { Button, Spinner, StatusBadge, timeAgo } from '../ui';
@@ -24,6 +25,9 @@ export type Device = 'desktop' | 'tablet' | 'mobile';
 export const DEVICE_WIDTH: Record<Device, string> = { desktop: '100%', tablet: '768px', mobile: '390px' };
 
 interface Props {
+  /** MVT: seções e opções no lugar das abas de variação. */
+  sections?: MvtSection[];
+  onMvt?(a: Action): void;
   name: string;
   status: string;
   type: CampaignType;
@@ -70,6 +74,100 @@ const seg = (active: boolean) =>
   `flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-sm whitespace-nowrap transition-colors ${
     active ? 'bg-ink text-white' : 'text-gray-600 hover:text-gray-900'
   }`;
+
+/** Abas do MVT: cada seção com suas opções (a 1ª é o original); duplo clique renomeia. */
+function MvtTabs({
+  sections,
+  activeId,
+  onSelect,
+  onMvt,
+}: {
+  sections: MvtSection[];
+  activeId: string;
+  onSelect(id: string): void;
+  onMvt(a: Action): void;
+}) {
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const name = (id: string, value: string, cls: string) =>
+    renaming === id ? (
+      <input
+        autoFocus
+        defaultValue={value}
+        aria-label="Novo nome"
+        className="w-28 rounded border border-gray-300 px-1 py-0.5 text-sm"
+        onBlur={(e) => {
+          const v = e.target.value.trim();
+          if (v && v !== value) onMvt({ type: 'renameMvt', id, name: v });
+          setRenaming(null);
+        }}
+        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      />
+    ) : (
+      <span className={cls} onDoubleClick={() => setRenaming(id)} title="Duplo clique para renomear">
+        {value}
+      </span>
+    );
+  return (
+    <nav
+      className="flex items-center gap-3 overflow-x-auto"
+      aria-label="Seções do multivariado"
+      data-testid="mvt-tabs"
+    >
+      {sections.map((sec) => (
+        <span
+          key={sec.id}
+          className="flex items-center gap-1 rounded-md border border-gray-900/10 py-0.5 pr-0.5 pl-2"
+          data-testid="mvt-section"
+        >
+          {name(sec.id, sec.name, 'label-mono mr-1 cursor-text')}
+          {sec.options.map((o, i) => (
+            <button
+              key={o.id}
+              role="tab"
+              aria-selected={o.id === activeId}
+              onClick={() => onSelect(o.id)}
+              data-testid="mvt-option"
+              className={`flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[13px] whitespace-nowrap ${o.id === activeId ? 'bg-lime-soft font-medium text-ink ring-1 ring-brand-200' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              {name(o.id, o.name, '')}
+              {o.operations.length > 0 && (
+                <span className="tabular font-mono text-[11px] text-gray-500">({o.operations.length})</span>
+              )}
+              {i > 0 && sec.options.length > 2 && o.id === activeId && (
+                <span
+                  role="button"
+                  aria-label="Remover opção"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMvt({ type: 'removeMvt', id: o.id });
+                  }}
+                  className="text-gray-400 hover:text-signal"
+                >
+                  ×
+                </span>
+              )}
+            </button>
+          ))}
+          <button
+            onClick={() => onMvt({ type: 'addOption', sectionId: sec.id })}
+            className="rounded px-1.5 text-sm text-gray-500 hover:bg-gray-100"
+            title="Nova opção nesta seção"
+            data-testid="mvt-add-option"
+          >
+            +
+          </button>
+        </span>
+      ))}
+      <button
+        onClick={() => onMvt({ type: 'addSection' })}
+        className="rounded-md px-2 py-1 text-sm whitespace-nowrap text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+        data-testid="mvt-add-section"
+      >
+        + Seção
+      </button>
+    </nav>
+  );
+}
 
 export function TopBar(p: Props) {
   const [editingName, setEditingName] = useState(false);
@@ -199,42 +297,51 @@ export function TopBar(p: Props) {
 
       {/* Linha 2: variação, modo, dispositivo, página */}
       <div className="flex flex-wrap items-center gap-2 bg-white px-3 py-1.5">
-        <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Variações">
-          {p.variations.map((v, i) => (
-            <button
-              key={v.id}
-              role="tab"
-              aria-selected={v.id === p.activeId}
-              data-testid={`tab-${v.key}`}
-              onClick={() => p.onSelectVariation(v.id)}
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm whitespace-nowrap ${
-                v.id === p.activeId
-                  ? 'bg-lime-soft font-medium text-ink ring-1 ring-brand-200'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span
-                className={`grid h-4 min-w-4 place-items-center rounded-sm px-0.5 font-mono text-[9px] font-semibold ${i === 0 ? 'bg-gray-200 text-gray-700' : 'bg-ink text-lime'}`}
+        {p.sections ? (
+          <MvtTabs
+            sections={p.sections}
+            activeId={p.activeId}
+            onSelect={p.onSelectVariation}
+            onMvt={p.onMvt!}
+          />
+        ) : (
+          <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Variações">
+            {p.variations.map((v, i) => (
+              <button
+                key={v.id}
+                role="tab"
+                aria-selected={v.id === p.activeId}
+                data-testid={`tab-${v.key}`}
+                onClick={() => p.onSelectVariation(v.id)}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm whitespace-nowrap ${
+                  v.id === p.activeId
+                    ? 'bg-lime-soft font-medium text-ink ring-1 ring-brand-200'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
               >
-                {i === 0 ? 'C' : `V${i}`}
-              </span>
-              {v.name}
-              {v.operations.length > 0 && (
-                <span className="tabular font-mono text-[11px] text-gray-500">({v.operations.length})</span>
-              )}
-            </button>
-          ))}
-          {p.type !== 'rollout' && p.type !== 'mvt' && (
-            <button
-              onClick={p.onAddVariation}
-              className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-              title="Nova variação"
-              data-testid="add-variation"
-            >
-              + Variação
-            </button>
-          )}
-        </nav>
+                <span
+                  className={`grid h-4 min-w-4 place-items-center rounded-sm px-0.5 font-mono text-[9px] font-semibold ${i === 0 ? 'bg-gray-200 text-gray-700' : 'bg-ink text-lime'}`}
+                >
+                  {i === 0 ? 'C' : `V${i}`}
+                </span>
+                {v.name}
+                {v.operations.length > 0 && (
+                  <span className="tabular font-mono text-[11px] text-gray-500">({v.operations.length})</span>
+                )}
+              </button>
+            ))}
+            {p.type !== 'rollout' && p.type !== 'mvt' && (
+              <button
+                onClick={p.onAddVariation}
+                className="rounded-md px-2 py-1 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                title="Nova variação"
+                data-testid="add-variation"
+              >
+                + Variação
+              </button>
+            )}
+          </nav>
+        )}
 
         <span className="h-5 w-px bg-gray-900/10" />
         <div
