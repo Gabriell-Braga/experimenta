@@ -142,7 +142,7 @@ export function ideaContext(d: Dashboard) {
     period: { from: d.from, to: d.to },
     traffic: { ...d.traffic, series: undefined },
     // Sem ids: o modelo cita o experimento pelo nome.
-    experiments: d.experiments.map(({ id: _id, ...e }) => e),
+    experiments: (d.experiments ?? []).map(({ id: _id, ...e }) => e),
     behavior: d.behavior,
     forms: d.forms,
     engage: d.engage,
