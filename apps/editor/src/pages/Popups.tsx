@@ -318,13 +318,13 @@ export function PopupsPage({ user }: { user: Me }) {
             Comece por um cupom na intenção de saída: costuma recuperar parte de quem ia embora.
           </EmptyState>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-gray-900/10 bg-white">
             <table className="w-full text-left text-sm" data-testid="popups">
               <thead className="border-b border-gray-900/10 bg-gray-50">
                 <tr className="label-mono">
                   <th className="px-4 py-2.5 font-medium">Pop-up</th>
                   <th className="px-4 py-2.5 font-medium">Status</th>
-                  <th className="hidden px-4 py-2.5 font-medium md:table-cell">Gatilho</th>
+                  <th className="px-4 py-2.5 font-medium">Gatilho</th>
                   <th className="px-4 py-2.5 text-right font-medium">Exibições</th>
                   <th className="px-4 py-2.5 text-right font-medium">CTR</th>
                   <th className="w-28" />
@@ -344,7 +344,7 @@ export function PopupsPage({ user }: { user: Me }) {
                       <td className="px-4 py-3">
                         <StatusBadge status={e.data.status} />
                       </td>
-                      <td className="hidden px-4 py-3 text-xs text-gray-600 md:table-cell">
+                      <td className="px-4 py-3 text-xs text-gray-600">
                         {TRIGGER_LABEL[e.data.trigger.type]}
                       </td>
                       <td className="tabular px-4 py-3 text-right font-mono text-xs">

@@ -495,17 +495,17 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
         />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-900/10 bg-white">
         <table className="w-full text-left text-sm" data-testid="experiment-list">
           <thead className="border-b border-gray-900/10 bg-gray-50">
             <tr className="label-mono">
-              <th className="px-4 py-2.5 font-medium">Experimento</th>
+              <th className="min-w-56 px-4 py-2.5 font-medium">Experimento</th>
               <th className="px-4 py-2.5 font-medium">Status</th>
-              <th className="hidden px-4 py-2.5 font-medium xl:table-cell">Tipo</th>
-              <th className="hidden px-4 py-2.5 font-medium md:table-cell">Página</th>
-              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Variações</th>
-              <th className="hidden px-4 py-2.5 font-medium lg:table-cell">Tráfego</th>
-              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Atualizado</th>
+              <th className="px-4 py-2.5 font-medium">Tipo</th>
+              <th className="px-4 py-2.5 font-medium">Página</th>
+              <th className="px-4 py-2.5 font-medium">Variações</th>
+              <th className="px-4 py-2.5 font-medium">Tráfego</th>
+              <th className="px-4 py-2.5 font-medium">Atualizado</th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
@@ -535,54 +535,65 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                   >
                     {e.name}
                   </button>
-                  <div className="font-mono text-[11px] text-gray-400">{e.key}</div>
-                  {groupOf.get(e.id) && (
-                    <button
-                      className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 hover:bg-gray-200"
-                      title={`Grupo exclusivo: quem entra neste teste não entra nos outros do grupo "${groupOf.get(e.id)!.name}". Fatia de ${groupOf.get(e.id)!.percent}% do tráfego.`}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        navigate('groups');
-                      }}
-                      data-testid="row-group"
-                    >
-                      <Layers size={11} aria-hidden="true" /> {groupOf.get(e.id)!.name} ·{' '}
-                      {groupOf.get(e.id)!.percent}%
-                    </button>
-                  )}
-                  {scheduled.get(e.id) && (
-                    <button
-                      className="mt-0.5 ml-1 inline-flex items-center gap-1 rounded-sm bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800 hover:bg-amber-100"
-                      title={[
-                        ...scheduled.get(e.id)!.map(scheduleLabel),
-                        'Executa até 1 h depois do horário (verificação de hora em hora).',
-                      ].join('\n')}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        setScheduling(e);
-                      }}
-                      data-testid="row-schedule"
-                    >
-                      <CalendarClock size={11} aria-hidden="true" /> {scheduleLabel(scheduled.get(e.id)![0]!)}
-                      {scheduled.get(e.id)!.length > 1 && ` +${scheduled.get(e.id)!.length - 1}`}
-                    </button>
+                  <div className="max-w-56 truncate font-mono text-[11px] text-gray-400" title={e.key}>
+                    {e.key}
+                  </div>
+                  {(groupOf.get(e.id) || scheduled.get(e.id)) && (
+                    <div className="mt-1 flex gap-1 whitespace-nowrap">
+                      {groupOf.get(e.id) && (
+                        <button
+                          className="inline-flex items-center gap-1 rounded-sm bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 hover:bg-gray-200"
+                          title={`Grupo exclusivo "${groupOf.get(e.id)!.name}": quem entra neste teste não entra nos outros do grupo. Fatia de ${groupOf.get(e.id)!.percent}% do tráfego.`}
+                          aria-label={`Grupo ${groupOf.get(e.id)!.name} · ${groupOf.get(e.id)!.percent}%`}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            navigate('groups');
+                          }}
+                          data-testid="row-group"
+                        >
+                          <Layers size={11} aria-hidden="true" /> {groupOf.get(e.id)!.percent}%
+                        </button>
+                      )}
+                      {scheduled.get(e.id) && (
+                        <button
+                          className="inline-flex items-center gap-1 rounded-sm bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800 hover:bg-amber-100"
+                          title={[
+                            ...scheduled.get(e.id)!.map(scheduleLabel),
+                            'Executa até 1 h depois do horário (verificação de hora em hora).',
+                          ].join('\n')}
+                          aria-label={scheduled.get(e.id)!.map(scheduleLabel).join('; ')}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setScheduling(e);
+                          }}
+                          data-testid="row-schedule"
+                        >
+                          <CalendarClock size={11} aria-hidden="true" />
+                          {new Date(scheduled.get(e.id)![0]!.at).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                          })}
+                          {scheduled.get(e.id)!.length > 1 && ` +${scheduled.get(e.id)!.length - 1}`}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={e.status} />
                 </td>
-                <td className="hidden px-4 py-3 xl:table-cell">
+                <td className="px-4 py-3">
                   <TypeTag type={e.type as CampaignType} />
                 </td>
-                <td className="hidden max-w-xs px-4 py-3 md:table-cell">
+                <td className="max-w-xs px-4 py-3">
                   <span className="block truncate font-mono text-xs text-gray-600" title={e.editorUrl}>
                     {e.editorUrl.replace(/^https?:\/\//, '')}
                   </span>
                 </td>
-                <td className="hidden px-4 py-3 sm:table-cell">
+                <td className="px-4 py-3">
                   <VariationChips count={e.variations} />
                 </td>
-                <td className="hidden px-4 py-3 lg:table-cell">
+                <td className="px-4 py-3">
                   <span className="flex items-center gap-2 text-gray-600">
                     <span className="h-1 w-16 overflow-hidden rounded-full bg-gray-100">
                       <span className="block h-full bg-brand-500" style={{ width: `${e.traffic}%` }} />
@@ -591,7 +602,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                   </span>
                 </td>
                 <td
-                  className="hidden px-4 py-3 whitespace-nowrap text-gray-500 sm:table-cell"
+                  className="px-4 py-3 whitespace-nowrap text-gray-500"
                   title={new Date(e.updatedAt).toLocaleString('pt-BR')}
                 >
                   {timeAgo(e.updatedAt)}

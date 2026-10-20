@@ -140,61 +140,65 @@ export function ProfilesPage() {
               title="Nenhum perfil encontrado"
             />
           ) : (
-            <table className="w-full text-left text-sm" data-testid="profiles">
-              <thead className="border-b border-gray-900/10 bg-gray-50">
-                <tr className="label-mono">
-                  <th className="px-4 py-2.5 font-medium">Perfil</th>
-                  <th className="hidden px-4 py-2.5 font-medium md:table-cell">Dispositivos</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Sessões</th>
-                  <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Conversões</th>
-                  <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Receita</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Última visita</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-900/[0.06]">
-                {data.profiles.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="cursor-pointer hover:bg-lime-soft/40"
-                    onClick={() => navigate('profile', { id: p.id })}
-                    data-testid="profile-row"
-                  >
-                    <td className="px-4 py-3">
-                      <span className="flex items-center gap-2.5">
-                        <span
-                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${p.kind === 'user' ? 'bg-ink text-lime' : 'bg-gray-100 text-gray-400'}`}
-                        >
-                          <UserRound size={15} aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium text-ink">{nameOf(p)}</span>
-                          <span className="block truncate font-mono text-[11px] text-gray-400">
-                            {Object.entries(p.attributes)
-                              .slice(0, 3)
-                              .map(([k, v]) => `${k}=${v}`)
-                              .join(' · ') ||
-                              `${p.visitors.length} visitante${p.visitors.length > 1 ? 's' : ''}`}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm" data-testid="profiles">
+                <thead className="border-b border-gray-900/10 bg-gray-50">
+                  <tr className="label-mono">
+                    <th className="px-4 py-2.5 font-medium">Perfil</th>
+                    <th className="px-4 py-2.5 font-medium">Dispositivos</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Sessões</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Conversões</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Receita</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Última visita</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-900/[0.06]">
+                  {data.profiles.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="cursor-pointer hover:bg-lime-soft/40"
+                      onClick={() => navigate('profile', { id: p.id })}
+                      data-testid="profile-row"
+                    >
+                      <td className="px-4 py-3">
+                        <span className="flex items-center gap-2.5">
+                          <span
+                            className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${p.kind === 'user' ? 'bg-ink text-lime' : 'bg-gray-100 text-gray-400'}`}
+                          >
+                            <UserRound size={15} aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-ink">{nameOf(p)}</span>
+                            <span className="block truncate font-mono text-[11px] text-gray-400">
+                              {Object.entries(p.attributes)
+                                .slice(0, 3)
+                                .map(([k, v]) => `${k}=${v}`)
+                                .join(' · ') ||
+                                `${p.visitors.length} visitante${p.visitors.length > 1 ? 's' : ''}`}
+                            </span>
                           </span>
                         </span>
-                      </span>
-                    </td>
-                    <td className="hidden px-4 py-3 md:table-cell">
-                      <Devices list={p.devices} />
-                    </td>
-                    <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(p.sessions)}</td>
-                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                      {fmt.int(p.conversions)}
-                    </td>
-                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                      {p.revenue ? fmt.money(p.revenue) : 'n/d'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs whitespace-nowrap text-gray-500">
-                      {timeAgo(new Date(p.lastSeen).toISOString())}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Devices list={p.devices} />
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        {fmt.int(p.sessions)}
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        {fmt.int(p.conversions)}
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        {p.revenue ? fmt.money(p.revenue) : 'n/d'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs whitespace-nowrap text-gray-500">
+                        {timeAgo(new Date(p.lastSeen).toISOString())}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

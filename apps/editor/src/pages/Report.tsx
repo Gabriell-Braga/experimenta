@@ -234,25 +234,29 @@ function SectionsCard({ goal }: { goal: GoalReport }) {
         {goal.sections!.map((sec) => (
           <div key={sec.sectionId}>
             <p className="label-mono mb-2">{sec.name}</p>
-            <table className="w-full text-left text-sm">
-              <tbody className="divide-y divide-gray-900/[0.06]">
-                {sec.options.map((o, i) => (
-                  <tr key={o.optionId}>
-                    <td className="py-2 pr-3">
-                      <VariationTag index={i} name={o.name} />
-                    </td>
-                    <td className="tabular px-3 py-2 text-right font-mono text-xs">{fmt.int(o.visitors)}</td>
-                    <td className="tabular px-3 py-2 text-right font-mono text-xs font-semibold text-ink">
-                      {fmt.pct(o.rate, 2)}
-                    </td>
-                    <td className="tabular px-3 py-2 text-right font-mono text-xs">{signedPct(o.lift)}</td>
-                    <td className="w-44 px-3 py-2">
-                      <Probability p={o.probBeatControl} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <tbody className="divide-y divide-gray-900/[0.06]">
+                  {sec.options.map((o, i) => (
+                    <tr key={o.optionId}>
+                      <td className="py-2 pr-3">
+                        <VariationTag index={i} name={o.name} />
+                      </td>
+                      <td className="tabular px-3 py-2 text-right font-mono text-xs">
+                        {fmt.int(o.visitors)}
+                      </td>
+                      <td className="tabular px-3 py-2 text-right font-mono text-xs font-semibold text-ink">
+                        {fmt.pct(o.rate, 2)}
+                      </td>
+                      <td className="tabular px-3 py-2 text-right font-mono text-xs">{signedPct(o.lift)}</td>
+                      <td className="w-44 px-3 py-2">
+                        <Probability p={o.probBeatControl} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ))}
       </div>
@@ -263,39 +267,41 @@ function SectionsCard({ goal }: { goal: GoalReport }) {
 function RevenueTable({ goal, names }: { goal: GoalReport; names: string[] }) {
   const stats = goal.revenueArms ?? [];
   return (
-    <table className="w-full text-left text-sm" data-testid="revenue-table">
-      <thead>
-        <tr className="label-mono border-b border-gray-900/10">
-          <th className="py-2 pr-3 font-medium">Variação</th>
-          <th className="px-3 py-2 text-right font-medium">Receita</th>
-          <th className="px-3 py-2 text-right font-medium">Por visitante</th>
-          <th className="px-3 py-2 text-right font-medium">Melhoria</th>
-          <th className="px-3 py-2 font-medium">Chance de vencer</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-900/[0.06]">
-        {goal.arms.map((a, i) => {
-          const s: ArmStats | undefined = stats[i];
-          return (
-            <tr key={a.variationId}>
-              <td className="py-2.5 pr-3">
-                <VariationTag index={i} name={names[i] ?? a.variationId} />
-              </td>
-              <td className="tabular px-3 py-2.5 text-right font-mono text-xs">{fmt.money(a.revenue)}</td>
-              <td className="tabular px-3 py-2.5 text-right font-mono text-xs font-semibold text-ink">
-                {fmt.money(a.rpv)}
-              </td>
-              <td className="tabular px-3 py-2.5 text-right font-mono text-xs">
-                {signedPct(s?.lift ?? null)}
-              </td>
-              <td className="px-3 py-2.5">
-                <Probability p={s?.probBeatControl ?? null} />
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm" data-testid="revenue-table">
+        <thead>
+          <tr className="label-mono border-b border-gray-900/10">
+            <th className="py-2 pr-3 font-medium">Variação</th>
+            <th className="px-3 py-2 text-right font-medium">Receita</th>
+            <th className="px-3 py-2 text-right font-medium">Por visitante</th>
+            <th className="px-3 py-2 text-right font-medium">Melhoria</th>
+            <th className="px-3 py-2 font-medium">Chance de vencer</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-900/[0.06]">
+          {goal.arms.map((a, i) => {
+            const s: ArmStats | undefined = stats[i];
+            return (
+              <tr key={a.variationId}>
+                <td className="py-2.5 pr-3">
+                  <VariationTag index={i} name={names[i] ?? a.variationId} />
+                </td>
+                <td className="tabular px-3 py-2.5 text-right font-mono text-xs">{fmt.money(a.revenue)}</td>
+                <td className="tabular px-3 py-2.5 text-right font-mono text-xs font-semibold text-ink">
+                  {fmt.money(a.rpv)}
+                </td>
+                <td className="tabular px-3 py-2.5 text-right font-mono text-xs">
+                  {signedPct(s?.lift ?? null)}
+                </td>
+                <td className="px-3 py-2.5">
+                  <Probability p={s?.probBeatControl ?? null} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

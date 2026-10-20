@@ -282,7 +282,7 @@ export function RecosPage({ user }: { user: Me }) {
               Ex.: “Quem viu também viu” abaixo da grade de produtos, ou “Comprados juntos” no carrinho.
             </EmptyState>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+            <div className="overflow-x-auto rounded-lg border border-gray-900/10 bg-white">
               <table className="w-full text-left text-sm" data-testid="recos">
                 <thead className="border-b border-gray-900/10 bg-gray-50">
                   <tr className="label-mono">

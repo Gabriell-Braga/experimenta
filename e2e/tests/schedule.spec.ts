@@ -55,7 +55,10 @@ test('agenda pela lista, mostra na lista e no editor, guarda em UTC e cancela', 
   expect(saved.map((s) => s.at)).toEqual([`${day}T13:00:00.000Z`]);
   await page.keyboard.press('Escape');
 
-  await expect(row.getByTestId('row-schedule')).toContainText(`Inicia ${d}/${m}/${y}, 10:00`);
+  await expect(row.getByTestId('row-schedule')).toHaveAccessibleName(
+    new RegExp(`Inicia ${d}/${m}/${y}, 10:00`),
+  );
+  await expect(row.getByTestId('row-schedule')).toHaveText(`${d}/${m}`);
 
   // No editor do teste: botão com o próximo agendamento; editar e cancelar.
   await row.getByRole('button', { name: `Agendado ${tag}` }).click();

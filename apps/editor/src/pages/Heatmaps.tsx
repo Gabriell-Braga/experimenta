@@ -58,58 +58,60 @@ export function HeatmapsPage() {
               navegue pelo site.
             </EmptyState>
           ) : (
-            <table className="w-full text-left text-sm" data-testid="pages-table">
-              <thead className="border-b border-gray-900/10 bg-gray-50">
-                <tr className="label-mono">
-                  <th className="px-4 py-2.5 font-medium">Página</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Vistas</th>
-                  <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">Visitantes</th>
-                  <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Cliques</th>
-                  <th className="hidden px-4 py-2.5 text-right font-medium lg:table-cell">Rage / dead</th>
-                  <th className="hidden px-4 py-2.5 text-right font-medium lg:table-cell">Scroll médio</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-900/[0.06]">
-                {rows.map((r) => (
-                  <tr
-                    key={r.page}
-                    className="group cursor-pointer hover:bg-lime-soft/40"
-                    onClick={() => navigate('heatmap', { url: r.href })}
-                    data-testid="page-row"
-                  >
-                    <td className="max-w-md px-4 py-3">
-                      <span className="block truncate font-medium text-ink group-hover:underline decoration-lime decoration-2 underline-offset-4">
-                        {r.title || r.page.replace(/^https?:\/\/[^/]+/, '') || '/'}
-                      </span>
-                      <span className="block truncate font-mono text-[11px] text-gray-400">
-                        {r.page.replace(/^https?:\/\//, '')}
-                      </span>
-                      <span className="mt-1.5 block h-1 rounded-full bg-gray-100">
-                        <span
-                          className="block h-full rounded-full bg-brand-500"
-                          style={{ width: `${(r.pageviews / max) * 100}%` }}
-                        />
-                      </span>
-                    </td>
-                    <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(r.pageviews)}</td>
-                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs md:table-cell">
-                      {fmt.int(r.visitors)}
-                    </td>
-                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                      {fmt.int(r.clicks)}
-                    </td>
-                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
-                      <span className={r.rage + r.dead ? 'text-signal' : 'text-gray-400'}>
-                        {r.rage} / {r.dead}
-                      </span>
-                    </td>
-                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
-                      {r.avgScroll === null ? 'n/d' : `${r.avgScroll}%`}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm" data-testid="pages-table">
+                <thead className="border-b border-gray-900/10 bg-gray-50">
+                  <tr className="label-mono">
+                    <th className="px-4 py-2.5 font-medium">Página</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Vistas</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Visitantes</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Cliques</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Rage / dead</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Scroll médio</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-900/[0.06]">
+                  {rows.map((r) => (
+                    <tr
+                      key={r.page}
+                      className="group cursor-pointer hover:bg-lime-soft/40"
+                      onClick={() => navigate('heatmap', { url: r.href })}
+                      data-testid="page-row"
+                    >
+                      <td className="max-w-md px-4 py-3">
+                        <span className="block truncate font-medium text-ink group-hover:underline decoration-lime decoration-2 underline-offset-4">
+                          {r.title || r.page.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                        </span>
+                        <span className="block truncate font-mono text-[11px] text-gray-400">
+                          {r.page.replace(/^https?:\/\//, '')}
+                        </span>
+                        <span className="mt-1.5 block h-1 rounded-full bg-gray-100">
+                          <span
+                            className="block h-full rounded-full bg-brand-500"
+                            style={{ width: `${(r.pageviews / max) * 100}%` }}
+                          />
+                        </span>
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        {fmt.int(r.pageviews)}
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        {fmt.int(r.visitors)}
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(r.clicks)}</td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        <span className={r.rage + r.dead ? 'text-signal' : 'text-gray-400'}>
+                          {r.rage} / {r.dead}
+                        </span>
+                      </td>
+                      <td className="tabular px-4 py-3 text-right font-mono text-xs">
+                        {r.avgScroll === null ? 'n/d' : `${r.avgScroll}%`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

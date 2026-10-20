@@ -70,7 +70,7 @@ test('tela de grupos: cria com dois testes, divide igualmente, aviso na lista e 
       .getByTestId('experiment-row')
       .filter({ hasText: `Grupo A ${tag}` })
       .getByTestId('row-group'),
-  ).toHaveText(`Checkout ${tag} · 50%`);
+  ).toHaveAccessibleName(`Grupo Checkout ${tag} · 50%`);
 
   await page
     .getByTestId('experiment-row')
