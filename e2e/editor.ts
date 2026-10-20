@@ -28,8 +28,10 @@ export async function createExperiment(page: Page, name = `Teste ${Math.random()
 
 /** Clica num item do menu lateral, abrindo o grupo dele antes se estiver recolhido. */
 export async function nav(page: Page, view: string) {
-  const item = page.getByTestId(`nav-${view}`);
-  if (!(await item.isVisible()))
-    await page.locator(`[data-nav-group]:has([data-testid="nav-${view}"]) > button`).click();
-  await item.click();
+  const header = page.locator(`[data-nav-group]:has([data-testid="nav-${view}"]) > button[aria-expanded]`);
+  // Espera o menu existir antes de decidir; grupo de um item só não tem cabeçalho.
+  await page.getByTestId(`nav-${view}`).waitFor({ state: 'attached' });
+  if ((await header.count()) && (await header.getAttribute('aria-expanded')) === 'false')
+    await header.click();
+  await page.getByTestId(`nav-${view}`).click();
 }

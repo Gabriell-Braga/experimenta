@@ -119,7 +119,6 @@ const open = (page: Page, view: string) => {
   return page.goto(`${EDITOR}?view=${screen}${type ? `&type=${type}` : ''}`);
 };
 
-test.describe.configure({ mode: 'serial' });
 
 test('login: campos vazios, e-mail inválido, senha errada e clique duplo', async ({ page }) => {
   const p = watch(page);
@@ -162,31 +161,61 @@ test('novo experimento: clique duplo em Criar cria um só', async ({ page }) => 
   expect(p.list).toEqual([]);
 });
 
-test('todas as telas do menu aguentam entradas erradas e cliques duplos', async ({ page }) => {
-  test.setTimeout(15 * 60_000);
-  const p = watch(page);
+// Mesma lista do menu (apps/editor/src/shell.tsx#NAV); o primeiro teste confere que nenhuma ficou de fora.
+const VIEWS = [
+  'home',
+  'tests',
+  'tests:personalization',
+  'tests:rollout',
+  'tests:server',
+  'flags',
+  'optimize',
+  'heatmaps',
+  'recordings',
+  'forms',
+  'funnels',
+  'journeys',
+  'cohorts',
+  'predictive',
+  'popups',
+  'surveys',
+  'recos',
+  'events',
+  'audiences',
+  'profiles',
+  'segments',
+  'install',
+  'integrations',
+];
+
+test('a lista de telas cobre o menu inteiro', async ({ page }) => {
   await login(page);
   await expect(page.getByTestId('user-menu')).toBeVisible();
-  const all = await views(page);
-  expect(all.length).toBeGreaterThan(20);
-  for (const view of all) {
-    const before = p.list.length;
+  expect((await views(page)).sort()).toEqual([...VIEWS].sort());
+});
+
+for (const view of VIEWS)
+  test(`tela ${view}: entradas erradas e cliques duplos`, async ({ page }) => {
+    test.setTimeout(4 * 60_000);
+    const p = watch(page);
+    await login(page);
+    await expect(page.getByTestId('user-menu')).toBeVisible();
+    const settle = () => page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
     await open(page, view);
     const main = page.locator('main');
     await expect(main).toBeVisible();
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await settle();
     await fuzzFields(main, 0);
-    const buttons = main.locator('button:visible:enabled');
-    const n = Math.min(await buttons.count(), 25);
+    const n = Math.min(await main.locator('button:visible:enabled').count(), 25);
     for (let i = 0; i < n; i++) {
       // A tela pode ter mudado (navegou, abriu outra coisa): volta e segue do mesmo índice.
       if (!page.url().includes(`view=${view.split(':')[0]}`) || page.url().includes('exp=')) {
         await open(page, view);
-        await page.waitForLoadState('networkidle').catch(() => {});
+        await settle();
       }
       const b = main.locator('button:visible:enabled').nth(i);
       if (!(await b.count())) break;
-      const name = await label(b);
+      const name = await label(b).catch(() => '');
       if (SKIP.test(name)) continue;
       await doubleClick(page, p, b, `${view} › ${name}`);
       if (await page.locator('dialog[open]').count()) await fuzzDialog(page, p, `${view} › ${name}`);
@@ -194,11 +223,9 @@ test('todas as telas do menu aguentam entradas erradas e cliques duplos', async 
     }
     // A tela continua de pé depois de tudo (sem tela branca).
     await expect(page.locator('main, [data-testid=site-frame]').first()).toBeVisible();
-    if (p.list.length > before) p.list.splice(before, 0, `--- ${view}`);
-  }
-  expect(await page.evaluate(() => (window as { __xss?: number }).__xss)).toBeUndefined();
-  expect(p.list).toEqual([]);
-});
+    expect(await page.evaluate(() => (window as { __xss?: number }).__xss)).toBeUndefined();
+    expect(p.list).toEqual([]);
+  });
 
 test('editor visual e relatório aguentam entradas erradas e cliques duplos', async ({ page }) => {
   test.setTimeout(5 * 60_000);
@@ -217,14 +244,14 @@ test('editor visual e relatório aguentam entradas erradas e cliques duplos', as
     ['relatório', `${EDITOR}?view=report&id=${encodeURIComponent(id)}`, 'main'],
   ] as const) {
     await page.goto(url);
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
     const root = page.locator(scope);
     await fuzzFields(root, 0);
     const n = Math.min(await root.locator('button:visible:enabled').count(), 40);
     for (let i = 0; i < n; i++) {
       if (page.url() !== url) {
         await page.goto(url);
-        await page.waitForLoadState('networkidle').catch(() => {});
+        await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
       }
       const b = root.locator('button:visible:enabled').nth(i);
       if (!(await b.count())) break;

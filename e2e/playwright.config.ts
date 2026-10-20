@@ -15,7 +15,13 @@ export default defineConfig({
   // Robustez grava lixo na conta demo: roda só depois de todos os outros.
   projects: [
     { name: 'funcional', testIgnore: /robustness.spec.ts/ },
-    { name: 'robustez', testMatch: /robustness.spec.ts/, dependencies: ['funcional'] },
+    {
+      name: 'robustez',
+      testMatch: /robustness.spec.ts/,
+      dependencies: ['funcional'],
+      // Botão que some num re-render não pode prender o teste até o limite.
+      use: { actionTimeout: 5000 },
+    },
   ],
   webServer: [
     {
