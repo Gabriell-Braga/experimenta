@@ -24,7 +24,8 @@
     "EVENTS_RETENTION_DAYS": "90",
     // Ideias de teste com Gemini (camada grátis); chave no secret AI_API_KEY.
     "AI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai",
-    "AI_MODEL": "gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite"
+    "AI_MODEL": "gemini-3.5-flash,gemini-3.1-flash-lite",
+    "AI_REASONING": "none"
   },
   // Expurgo diário dos eventos crus (retenção).
   // Um cron só: o plano grátis tem 5 por conta inteira. O expurgo diário roda na execução das 4h (UTC).

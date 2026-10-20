@@ -159,7 +159,8 @@ export function OptimizePage({ user }: { user: Me }) {
       : data.status === 'error'
         ? `A última geração falhou: ${data.error ?? ''}`
         : data.source
-          ? `Última geração ${SOURCE[data.source]?.(data.model) ?? ''}${data.finishedAt ? ` · ${timeAgo(data.finishedAt)}` : ''}`
+          ? (data.notice ?? `Última geração ${SOURCE[data.source]?.(data.model) ?? ''}`) +
+            (data.finishedAt ? ` · ${timeAgo(data.finishedAt)}` : '')
           : '';
   return (
     <>

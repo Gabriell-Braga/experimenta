@@ -13,9 +13,9 @@ export const AI_PATHS = ['/ai/*'];
 /** Ideias guardadas na conta (uma entidade por conta) até serem executadas ou descartadas. */
 const KIND = 'ai-ideas';
 /** Geração "rodando" há mais que isto morreu (Worker reciclado, deploy): libera gerar de novo. */
-const STALE_MS = 90_000;
-/** Orçamento da geração em segundo plano: o Worker segura ~30 s depois de responder. */
-const BUDGET_MS = 27_000;
+const STALE_MS = 45_000;
+/** Orçamento da geração em segundo plano, contado do início (o Worker segura ~30 s depois de responder). */
+const BUDGET_MS = 24_000;
 
 type Source = 'claude' | 'modelo' | 'regras';
 interface SavedIdea extends Idea {
@@ -33,6 +33,7 @@ interface IdeasState {
   source?: Source;
   model?: string;
   error?: string;
+  notice?: string;
   ideas: SavedIdea[];
 }
 
@@ -59,6 +60,7 @@ const StateOut = z
     source: z.enum(['claude', 'modelo', 'regras']).optional(),
     model: z.string().optional(),
     error: z.string().optional(),
+    notice: z.string().optional(),
     ideas: z.array(IdeaOut),
   })
   .openapi('IdeasState');
@@ -88,6 +90,9 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
     let ideas: Idea[] = [];
     let source: Source = 'regras';
     let model: string | undefined;
+    /** Por que caiu nas regras (mostrado na tela). */
+    let notice: string | undefined;
+    const t0 = Date.now();
     try {
       const d = await loadDashboard(repo, accountId, days);
       if (client)
@@ -97,20 +102,23 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
           model = AI_MODEL;
         } catch (e) {
           console.error('[api] ideias com Claude falharam; usando regras', e);
+          notice = `Claude indisponível (${(e as Error).message.slice(0, 120)}); ideias por regras.`;
         }
       else if (compat)
         try {
-          ({ ideas, model } = await compatIdeas(compat, d, fetch, BUDGET_MS));
+          ({ ideas, model } = await compatIdeas(compat, d, fetch, BUDGET_MS - (Date.now() - t0)));
           source = 'modelo';
         } catch (e) {
           console.error(`[api] ideias com ${compat.model} falharam; usando regras`, e);
+          notice = `Modelo de IA indisponível agora (${(e as Error).message.slice(0, 120)}); ideias por regras.`;
         }
       if (source === 'regras') ideas = ruleIdeas(d.insights);
       const { state } = await read(accountId);
       const open = new Set(state.ideas.filter((i) => !i.doneAt).map((i) => norm(i.title)));
       const now = new Date().toISOString();
       const fresh = ideas
-        .filter((i) => !open.has(norm(i.title)))
+        // Sem repetir: nem as abertas, nem duas iguais no mesmo lote.
+        .filter((i) => !open.has(norm(i.title)) && open.add(norm(i.title)))
         .map((i) => ({
           ...i,
           id: `idea_${randomToken(6)}`,
@@ -125,6 +133,7 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
         source,
         model,
         error: undefined,
+        notice,
         ideas: [...fresh, ...state.ideas],
       });
     } catch (e) {

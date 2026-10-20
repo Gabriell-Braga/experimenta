@@ -177,11 +177,18 @@ export interface CompatAi {
   baseUrl: string;
   model: string;
   apiKey?: string;
+  /** `reasoning_effort` do provedor (AI_REASONING; "none" no Gemini responde em segundos, não dezenas). */
+  reasoning?: string;
 }
 
 export function compatFromEnv(env: Record<string, string | undefined>): CompatAi | undefined {
   if (!env.AI_BASE_URL || !env.AI_MODEL) return undefined;
-  return { baseUrl: env.AI_BASE_URL.replace(/\/+$/, ''), model: env.AI_MODEL, apiKey: env.AI_API_KEY };
+  return {
+    baseUrl: env.AI_BASE_URL.replace(/\/+$/, ''),
+    model: env.AI_MODEL,
+    apiKey: env.AI_API_KEY,
+    ...(env.AI_REASONING ? { reasoning: env.AI_REASONING } : {}),
+  };
 }
 
 export async function compatIdeas(
@@ -200,7 +207,7 @@ export async function compatIdeas(
     try {
       const left = deadline - Date.now();
       if (left < 3_000) throw new Error('sem tempo para tentar outro modelo');
-      return { model, ideas: await askModel(cfg, model, d, f, Math.min(25_000, left)) };
+      return { model, ideas: await askModel(cfg, model, d, f, Math.min(12_000, left)) };
     } catch (e) {
       const busy = e instanceof Busy || (e as Error).name === 'TimeoutError';
       if (!busy || i === models.length - 1 || deadline - Date.now() < 3_000) throw e;
@@ -229,6 +236,7 @@ async function askModel(
     body: JSON.stringify({
       model,
       temperature: 0.4,
+      ...(cfg.reasoning ? { reasoning_effort: cfg.reasoning } : {}),
       // json_object é o modo JSON que todos esses provedores aceitam; o formato vai no prompt e o zod valida.
       response_format: { type: 'json_object' },
       messages: [

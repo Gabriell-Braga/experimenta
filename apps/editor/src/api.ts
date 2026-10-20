@@ -410,6 +410,8 @@ export interface Ideas {
   source?: 'claude' | 'modelo' | 'regras';
   model?: string;
   error?: string;
+  /** Por que a última geração usou as regras em vez da IA. */
+  notice?: string;
   ideas: SavedIdea[];
 }
 export const ideas = {

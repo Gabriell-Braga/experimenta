@@ -29,6 +29,7 @@ export interface Env {
   AI_BASE_URL?: string;
   AI_MODEL?: string;
   AI_API_KEY?: string;
+  AI_REASONING?: string;
 }
 
 /** KV como CDN. O runtime (abt.js) só muda a cada deploy: fica em memória no isolate. */
