@@ -528,3 +528,14 @@
 - Arquivos principais: apps/editor/src/ui.tsx, apps/editor/src/shell.tsx, apps/api/src/routes/ai.ts, apps/editor/src/pages/Optimize.tsx, e2e/tests/funnels.spec.ts, e2e/tests/optimize.spec.ts
 - Como testar manualmente: Funis com dois funis, trocar rápido; Otimização por IA → Gerar ideias, sair e voltar.
 - Observações: no Worker grátis a geração tem orçamento de 27 s (limite do waitUntil); estourou, cai nas regras.
+
+### 2026-10-20 — Comparação com a VWO e próximas fases
+- "Conversion Rate Optimization.pdf" (pedido original das fases 9–15) está coberto. Parciais: Mobile (só web no celular, sem app nativo → 19.3) e Revenue Attribution (receita por variação, sem atribuição por canal → 17.6).
+- O que a VWO tem e o app não (fontes de 2026, de terceiros; conferir em vwo.com): Copilot (variação por texto, resumos de gravação/heatmap/pesquisa), testes em app nativo, gestão de hipóteses, auditoria/aprovação/SSO/2FA/multi-conta, grupos mutuamente exclusivos, teste multipágina, integrações prontas (Shopify, WordPress, Segment, Mixpanel, Amplitude, CRMs), consentimento LGPD. Viraram as fases 16–19 do PLANO.md.
+
+### Contexto para retomar (estado em 2026-10-20)
+- Produção (Cloudflare, plano grátis): editor https://abtest-editor.hub-villa-deli.workers.dev, API https://abtest-api.hub-villa-deli.workers.dev, demo https://abtest-demo.hub-villa-deli.workers.dev. Deploy: `pnpm deploy:cf` (precisa `wrangler login`). Conta demo com dados de demonstração (`pnpm seed:data`, ver entrada de 01:30) e config publicada v32 (3 testes, pop-ups, NPS e gravação no ar no site demo).
+- IA: Gemini grátis (vars AI_BASE_URL/AI_MODEL/AI_REASONING no apps/api/wrangler.jsonc, chave no secret AI_API_KEY). A chave atual foi colada no chat: trocar por uma nova no AI Studio.
+- Limites do plano grátis que já apareceram: D1 100 mil linhas escritas/dia (cada evento = 7 linhas); KV 1.000 escritas/dia (cada deploy/publicação escreve várias); 5 cron triggers por conta (a API usa 1); waitUntil do Worker ~30 s.
+- Pendências: repositório sem remote git (push não feito); E2E não pode rodar com `pnpm dev` ligado (portas 4000/5173/5180 e o E2E não reaproveita a API).
+- Testes: `pnpm test` (API com fuzz de todas as rotas, contra Postgres e D1), `pnpm e2e` (funcional + robustez de todas as telas; 82 testes).

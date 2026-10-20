@@ -168,6 +168,37 @@ Regras de aplicação: as operações são idempotentes (elementos processados f
 - [x] 15.3 Analytics preditivo (propensão a converter; modelo publicado e avaliado no snippet; audiência por score)
 - [x] 15.4 Otimização por IA: ideias de teste com Claude (quando houver chave) + piloto automático
 
+### Fase 16 — Paridade com a VWO: confiança, governança e privacidade
+Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (comparação em docs/PROGRESSO.md, "Comparação com a VWO"). Fases 16–19 são esse pedido, na ordem de prioridade.
+- [ ] 16.1 Consentimento LGPD/GDPR no snippet: modo "esperar consentimento" por conta (nada de gravação, mapa de calor, formulários nem cookies até `abq.push(['consent', true])`), integração pronta com banners comuns (OneTrust, Cookiebot, CMP do Google Consent Mode v2), opt-out do visitante, tela de configuração; snippet continua < 10 KB gzip
+- [ ] 16.2 Multi-conta/workspaces: um usuário em várias contas (troca no menu do usuário), convite de membros por e-mail com papel, criação de conta nova (base do SaaS); toda consulta segue filtrando por account_id
+- [ ] 16.3 Histórico de atividades (auditoria): quem criou/editou/publicou/pausou/excluiu o quê e quando, por conta, com filtro por pessoa e tipo; tela em Configurar → Atividades e linha do tempo dentro do experimento
+- [ ] 16.4 Fluxo de aprovação opcional: editor pede publicação, owner (ou quem tem permissão) aprova/recusa com comentário; notificação na tela e por webhook
+- [ ] 16.5 Segurança de acesso: login em duas etapas (TOTP) opcional por usuário e obrigatório por conta; sessões ativas com "sair de todos"; base para SSO (SAML/OIDC) por conta
+- [ ] 16.6 Comentários e menções: comentários em experimentos, campanhas e ideias, com @menção de membro da conta
+
+### Fase 17 — Experimentação avançada que falta
+- [ ] 17.1 Grupos mutuamente exclusivos: experimentos num grupo dividem o tráfego e o visitante entra em no máximo um; tela de grupos e aviso na lista
+- [ ] 17.2 Teste multipágina (funil): uma variação com alterações em várias páginas/URLs do mesmo fluxo, visitante fica na mesma variação em todas
+- [ ] 17.3 Link de pré-visualização/QA compartilhável por variação (sem publicar), com expiração; QA mode já existe no snippet (packages/snippet/src/qa.ts), falta gerar o link no editor
+- [ ] 17.4 Agendamento: iniciar/pausar experimento e campanha em data/hora (job de hora em hora já existe)
+- [ ] 17.5 Estatística: teste sequencial (pode olhar a qualquer momento sem inflar falso positivo) e redução de variância (CUPED) opcionais no relatório; métricas de guarda (guardrail) que alertam se uma variação piora outra meta
+- [ ] 17.6 Receita por canal: atribuição de receita/conversões por origem, UTM e campanha (first e last touch) no painel e no relatório do experimento
+
+### Fase 18 — IA no estilo Copilot
+- [ ] 18.1 Criar variação por texto: "deixe o botão verde e troque o título por X" vira operações no editor visual (sobre o DOM da página no iframe), com pré-visualização antes de aplicar; usa o mesmo provedor das ideias (Claude ou modelo grátis)
+- [ ] 18.2 Ideia → teste em um clique: "Criar teste" da ideia abre o editor já com nome, página, hipótese, meta e alterações sugeridas
+- [ ] 18.3 Backlog de hipóteses (gestão do programa): ideias da IA e manuais num quadro (ideia → priorizada → em teste → concluída), priorização por impacto/confiança/esforço, ligação com o experimento e o resultado
+- [ ] 18.4 Resumo por IA de gravações (o que o visitante tentou fazer e onde travou), de mapa de calor de uma página e de respostas abertas de pesquisa (temas e sentimento)
+- [ ] 18.5 Assistente de relatório: explica o resultado do teste em linguagem simples e sugere o próximo passo
+- [ ] 18.6 Geração de ideias mais confiável no Worker grátis: dividir em invocações separadas (painel numa, modelo noutra) para não depender do limite de 30 s do waitUntil (ver PROGRESSO 2026-10-20 02:30)
+
+### Fase 19 — Ecossistema e mobile
+- [ ] 19.1 Integrações prontas: Shopify (instalar snippet + eventos de compra), WordPress (plugin), Segment, Mixpanel, Amplitude (enviar exposição/conversão), HubSpot/Salesforce (atributos do CDP); cada uma com tela de configuração
+- [ ] 19.2 SDKs server-side em mais linguagens (hoje só JS/TS em packages/sdk): Python, PHP, Go, Java/Kotlin, com o mesmo hash de bucket e testes de compatibilidade
+- [ ] 19.3 App nativo: SDK React Native (flags, experimentos, eventos) e base para iOS/Android; mapas de calor e gravação de tela em app ficam para depois do SDK
+- [ ] 19.4 Retry e fila de webhooks (pendência conhecida) e exportação agendada de dados (CSV/S3/BigQuery)
+
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.
 - Se encontrar um caminho tecnicamente melhor que o descrito, registre a justificativa em docs/DECISOES.md e siga com ele. Se mudar a arquitetura de forma significativa, registre também em "Bloqueios / perguntas" para os humanos revisarem depois.
