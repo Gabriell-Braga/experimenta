@@ -522,3 +522,9 @@
 - Arquivos principais: scripts/seed-data.ts
 - Como testar manualmente: abrir o Painel em produção; local: `pnpm seed:data`. Produção: `API_URL=... SITE_URL=... EDITOR_ORIGIN=... SEED_PASSWORD=... pnpm seed:data`.
 - Observações: cada evento grava 7 linhas no D1 (tabela + índices); 1500 visitantes ≈ 12,9 mil eventos ≈ 90 mil linhas, perto do limite grátis de 100 mil por dia. Rodar de novo soma tráfego (não duplica campanhas).
+
+### 2026-10-20 02:30 — Carregamento sem dado velho, ideias guardadas, gravações
+- O que foi feito: `useLoad` + esqueletos (`Skeleton`, `LoadingBlock`) em todas as telas: trocar seleção/filtro nunca mostra o dado anterior e respostas atrasadas são descartadas. Contagens da lista de campanhas por tipo. Menu lateral volta a rolar (barra fina, grupos recolhíveis lembrados, item ativo à vista). Ideias da IA geradas em segundo plano na API e guardadas na conta até serem executadas ou descartadas (GET/POST/PUT/DELETE /ai/ideas). Checkout do demo não põe dados na URL. Duas gravações reais no demo de produção.
+- Arquivos principais: apps/editor/src/ui.tsx, apps/editor/src/shell.tsx, apps/api/src/routes/ai.ts, apps/editor/src/pages/Optimize.tsx, e2e/tests/funnels.spec.ts, e2e/tests/optimize.spec.ts
+- Como testar manualmente: Funis com dois funis, trocar rápido; Otimização por IA → Gerar ideias, sair e voltar.
+- Observações: no Worker grátis a geração tem orçamento de 27 s (limite do waitUntil); estourou, cai nas regras.

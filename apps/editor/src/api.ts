@@ -394,9 +394,29 @@ export interface Idea {
   effort: string;
   basedOn: string;
 }
-export interface Ideas {
+export interface SavedIdea extends Idea {
+  id: string;
+  createdAt: string;
   source: 'claude' | 'modelo' | 'regras';
   model?: string;
-  ideas: Idea[];
+  /** Marcada como executada pelo usuário. */
+  doneAt?: string;
 }
-export const getIdeas = (days: number) => api<Ideas>(`/ai/ideas?days=${days}`, { method: 'POST' });
+/** Ideias guardadas na conta + estado da última geração (que roda em segundo plano na API). */
+export interface Ideas {
+  status: 'idle' | 'running' | 'done' | 'error';
+  startedAt?: string;
+  finishedAt?: string;
+  source?: 'claude' | 'modelo' | 'regras';
+  model?: string;
+  error?: string;
+  ideas: SavedIdea[];
+}
+export const ideas = {
+  get: () => api<Ideas>('/ai/ideas'),
+  generate: (days: number) => api<Ideas>(`/ai/ideas?days=${days}`, { method: 'POST' }),
+  done: (id: string, done: boolean) =>
+    api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ done }) }),
+  remove: (id: string) => api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  clear: () => api<Ideas>('/ai/ideas', { method: 'DELETE' }),
+};

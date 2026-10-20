@@ -188,17 +188,22 @@ export async function compatIdeas(
   cfg: CompatAi,
   d: Dashboard,
   f: typeof fetch = fetch,
+  /** Tempo total para tentar a lista toda (o Worker só segura ~30 s de trabalho em segundo plano). */
+  budgetMs = 75_000,
 ): Promise<{ model: string; ideas: Idea[] }> {
+  const deadline = Date.now() + budgetMs;
   const models = cfg.model
     .split(',')
     .map((m) => m.trim())
     .filter(Boolean);
   for (const [i, model] of models.entries()) {
     try {
-      return { model, ideas: await askModel(cfg, model, d, f) };
+      const left = deadline - Date.now();
+      if (left < 3_000) throw new Error('sem tempo para tentar outro modelo');
+      return { model, ideas: await askModel(cfg, model, d, f, Math.min(25_000, left)) };
     } catch (e) {
       const busy = e instanceof Busy || (e as Error).name === 'TimeoutError';
-      if (!busy || i === models.length - 1) throw e;
+      if (!busy || i === models.length - 1 || deadline - Date.now() < 3_000) throw e;
     }
   }
   throw new Error('nenhum modelo configurado');
@@ -206,7 +211,13 @@ export async function compatIdeas(
 
 class Busy extends Error {}
 
-async function askModel(cfg: CompatAi, model: string, d: Dashboard, f: typeof fetch): Promise<Idea[]> {
+async function askModel(
+  cfg: CompatAi,
+  model: string,
+  d: Dashboard,
+  f: typeof fetch,
+  timeoutMs: number,
+): Promise<Idea[]> {
   const res = await f(`${cfg.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -214,7 +225,7 @@ async function askModel(cfg: CompatAi, model: string, d: Dashboard, f: typeof fe
       ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
     },
     // Modelo grátis sob carga às vezes não responde: passa para o próximo da lista (ou as regras).
-    signal: AbortSignal.timeout(25_000),
+    signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       model,
       temperature: 0.4,

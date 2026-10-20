@@ -64,26 +64,59 @@ test('Claude: modelo, fallback e saída estruturada; resposta validada', async (
   ).rejects.toThrow('formato');
 });
 
-test('rota: sem chave usa regras; com Claude falhando também cai nas regras; viewer não pede', async () => {
+/** Pede uma geração e espera terminar (em Node o segundo plano roda na hora). */
+async function generateIdeas(t: Awaited<ReturnType<typeof setupApp>>) {
+  const r = await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  expect(r.status).toBe(202);
+  expect(((await r.json()) as { status: string }).status).toBe('running');
+  for (let i = 0; i < 50; i++) {
+    const s = (await (await t.req('/ai/ideas', { as: 'editor' })).json()) as {
+      status: string;
+      source?: string;
+      model?: string;
+      ideas: { id: string; title: string; doneAt?: string }[];
+    };
+    if (s.status !== 'running') return s;
+    await new Promise((ok) => setTimeout(ok, 20));
+  }
+  throw new Error('geração não terminou');
+}
+
+test('rota: gera em segundo plano, guarda, não repete, marca executada, descarta e limpa', async () => {
   const t = await setupApp();
-  const post = (as: string) => t.req('/ai/ideas', { method: 'POST', as });
-  expect((await post('viewer')).status).toBe(403);
-  expect(await (await post('editor')).json()).toMatchObject({ source: 'regras' });
+  expect((await t.req('/ai/ideas', { method: 'POST', as: 'viewer' })).status).toBe(403);
+  expect(await (await t.req('/ai/ideas', { as: 'viewer' })).json()).toEqual({ status: 'idle', ideas: [] });
+  const err = vi.spyOn(console, 'error').mockImplementation(() => {});
   const broken = {
     beta: { messages: { parse: vi.fn().mockRejectedValue(new Error('rede')) } },
   } as unknown as Anthropic;
-  const err = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const t2 = await setupApp({ ai: broken });
-  expect(await (await t2.req('/ai/ideas', { method: 'POST', as: 'editor' })).json()).toMatchObject({
+  // Claude falhando cai nas regras (sem achados = sem ideias, mas a geração termina).
+  expect(await generateIdeas(await setupApp({ ai: broken }))).toMatchObject({
+    status: 'done',
     source: 'regras',
   });
   err.mockRestore();
+
   const good = fake({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
   const t3 = await setupApp({ ai: good.client });
-  expect(await (await t3.req('/ai/ideas', { method: 'POST', as: 'editor' })).json()).toEqual({
-    source: 'claude',
-    model: 'claude-opus-5-5',
-    ideas: [idea],
+  const s1 = await generateIdeas(t3);
+  expect(s1).toMatchObject({ status: 'done', source: 'claude', model: 'claude-opus-5-5' });
+  expect(s1.ideas.map((i) => i.title)).toEqual([idea.title]);
+  // Gerar de novo não duplica a ideia ainda aberta.
+  expect((await generateIdeas(t3)).ideas).toHaveLength(1);
+  const id = s1.ideas[0]!.id;
+  const put = await t3.req(`/ai/ideas/${id}`, {
+    method: 'PUT',
+    as: 'editor',
+    body: JSON.stringify({ done: true }),
+  });
+  expect(((await put.json()) as { ideas: { doneAt?: string }[] }).ideas[0]!.doneAt).toBeTruthy();
+  // Executada não bloqueia a mesma ideia de voltar numa geração nova.
+  expect((await generateIdeas(t3)).ideas).toHaveLength(2);
+  expect((await t3.req(`/ai/ideas/${id}`, { method: 'DELETE', as: 'editor' })).status).toBe(200);
+  expect((await t3.req(`/ai/ideas/${id}`, { method: 'DELETE', as: 'editor' })).status).toBe(404);
+  expect(await (await t3.req('/ai/ideas', { method: 'DELETE', as: 'editor' })).json()).toMatchObject({
+    ideas: [],
   });
 }, 30_000); // três apps com banco cada
 
