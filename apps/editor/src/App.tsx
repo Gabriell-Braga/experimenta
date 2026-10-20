@@ -78,7 +78,9 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
     <SurveyReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} user={user} />
   ),
   audiences: (user) => <AudiencesPage user={user} />,
-  server: (_, r) => <ServerExperimentPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
+  server: (user, r) => (
+    <ServerExperimentPage key={r.params.get('id')} id={r.params.get('id') ?? ''} accountId={user.accountId} />
+  ),
   heatmaps: () => <HeatmapsPage />,
   forms: () => <FormsPage />,
   funnels: (user) => <FunnelsPage user={user} />,

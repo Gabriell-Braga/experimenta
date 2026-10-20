@@ -195,7 +195,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 
 ### Fase 19 — Ecossistema e mobile
 - [x] 19.1 Integrações prontas: Shopify (instalar snippet + eventos de compra), WordPress (plugin), Segment, Mixpanel, Amplitude (enviar exposição/conversão), HubSpot/Salesforce (atributos do CDP); cada uma com tela de configuração
-- [ ] 19.2 SDKs server-side em mais linguagens (hoje só JS/TS em packages/sdk): Python, PHP, Go, Java/Kotlin, com o mesmo hash de bucket e testes de compatibilidade
+- [x] 19.2 SDKs server-side em mais linguagens (hoje só JS/TS em packages/sdk): Python, PHP, Go, Java/Kotlin, com o mesmo hash de bucket e testes de compatibilidade
 - [ ] 19.3 App nativo: SDK React Native (flags, experimentos, eventos) e base para iOS/Android; mapas de calor e gravação de tela em app ficam para depois do SDK
 - [ ] 19.4 Retry e fila de webhooks (pendência conhecida) e exportação agendada de dados (CSV/S3/BigQuery)
 

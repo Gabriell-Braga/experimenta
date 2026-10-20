@@ -17,6 +17,13 @@ test('feature flag: cria com rollout, publica e o sdk.json da conta traz a flag'
     flags: { key: string; enabled: boolean }[];
   };
   expect(sdk.flags.find((f) => f.key === key)).toMatchObject({ enabled: true });
+  // Exemplo do SDK por linguagem, com a conta do usuário.
+  const snippets = page.getByTestId('sdk-snippets');
+  await expect(snippets.getByTestId('sdk-code')).toContainText("createClient({ accountId: 'demo'");
+  await snippets.getByRole('tab', { name: 'Python' }).click();
+  await expect(snippets.getByTestId('sdk-code')).toContainText('abt = Client("demo"');
+  await snippets.getByRole('tab', { name: 'Go' }).click();
+  await expect(snippets.getByTestId('sdk-code')).toContainText('experimenta.New(');
   // Desligar pela lista republica.
   await page.getByTestId('flag-row').filter({ hasText: key }).getByRole('switch').click();
   await expect

@@ -1,6 +1,7 @@
 import { FlagSchema, type Flag } from '@abtest/shared';
 import { Flag as FlagIcon, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { SdkSnippets } from '../components/SdkSnippets';
 import { API_URL, entities, type Entity, type Me, PENDING_TEXT, publish, publishedText } from '../api';
 import {
   Button,
@@ -237,18 +238,6 @@ export function FlagsPage({ user }: { user: Me }) {
       toast('error', (err as Error).message);
     }
   };
-  const sdk = `import { createClient } from '@abtest/sdk';
-
-const abt = await createClient({
-  accountId: '${user.accountId}',
-  cdnUrl: '${API_URL}/cdn',
-});
-
-if (abt.isEnabled('novo-checkout', usuario.id, { plano: usuario.plano })) {
-  const { passos } = abt.getVariables('novo-checkout', usuario.id);
-}
-const v = abt.getVariation('checkout-rapido', usuario.id); // server-side
-abt.track('compra', usuario.id, { value: 199.9 });`;
   return (
     <>
       <PageHeader
@@ -325,13 +314,20 @@ abt.track('compra', usuario.id, { value: 199.9 });`;
             </ul>
           )}
         </div>
-        <Card title="SDK (Node, Deno, Workers, navegador)">
-          <pre className="overflow-x-auto rounded-md bg-ink p-3 font-mono text-[11.5px] leading-relaxed text-[#e8e4da]">
-            {sdk}
-          </pre>
+        <Card title="SDK server-side">
+          <SdkSnippets
+            input={{
+              accountId: user.accountId,
+              cdnUrl: `${API_URL}/cdn`,
+              flag: list?.[0]?.data.key ?? 'novo-checkout',
+              experiment: 'checkout-rapido',
+              event: 'compra',
+              value: 199.9,
+            }}
+          />
           <p className="mt-2 text-xs text-gray-500">
-            A config fica em cache no processo e é recarregada a cada minuto; a decisão é local (rollout
-            determinístico por usuário).
+            Node/TS, Python, PHP, Go e Java/Kotlin decidem igual (mesmo hash por usuário). A config fica em
+            cache e é recarregada a cada minuto; a decisão é local, sem ida à rede.
           </p>
         </Card>
       </div>

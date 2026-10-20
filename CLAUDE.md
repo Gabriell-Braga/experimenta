@@ -44,6 +44,9 @@ Hono + `@hono/zod-openapi` (`src/app.ts`): OpenAPI em `/openapi.json`, Swagger e
 ## Extensão (apps/extension)
 MV3, fallback para sites que bloqueiam iframe ou não têm snippet. `pnpm --filter @abtest/extension build` → `apps/extension/dist` (carregar sem compactação; `EDITOR_ORIGINS` define onde a ponte é injetada). Regras DNR só na aba do editor + sub_frame + origin do site (`src/session.ts`). O editor tenta a extensão após 5 s sem `hello`. Demo `/bloqueado/*` envia XFO DENY + CSP frame-ancestors. E2E carrega a extensão com `chromium.launchPersistentContext` (`e2e/tests/extension.spec.ts`).
 
+## SDKs server-side (sdks/)
+`packages/sdk` (TS) é a referência; `sdks/python`, `sdks/php`, `sdks/go`, `sdks/java` (Kotlin usa o Java) replicam API e decisão, só stdlib. `sdks/test-vectors.json` é gerado pelo SDK TS (`packages/sdk/src/vectors.test.ts`; falha se desatualizado, `pnpm --filter @abtest/sdk vectors` regrava) e cada SDK confere decisão por decisão. Mudou bucketing, regras de flag ou formato de evento: regrave os vetores e ajuste os quatro. Só Python roda local (`cd sdks/python && python -m unittest discover -s tests`); PHP/Go/Java no CI (`.github/workflows/sdks.yml`). Ver D-090.
+
 ## Deploy (Cloudflare)
 Ver docs/DEPLOY.md. `pnpm deploy:cf` publica API (Worker `src/worker.ts` + D1 + KV), editor e demo (Workers com assets). Repositório tem duas implementações do mesmo contrato: `src/repo.ts` (Postgres/Drizzle, Node) e `src/repo-d1.ts` (SQLite/D1, schema em `migrations-d1/`) — mudou um, mude o outro; `pnpm --filter @abtest/api test` roda a suíte contra os dois. Código da API que roda no Worker não pode importar `node:*` (Web Crypto em `src/crypto.ts`; fs só em `src/cdn-fs.ts`/`src/server.ts`).
 

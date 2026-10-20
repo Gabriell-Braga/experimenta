@@ -10,6 +10,7 @@ import {
   type ExperimentRecord,
 } from '../api';
 import { ScheduleButton } from '../components/Schedules';
+import { SdkSnippets } from '../components/SdkSnippets';
 import { navigate } from '../nav';
 import { uid } from '../store';
 import { Button, Card, inputCls, LoadingBlock, PageHeader, selectCls, StatusBadge, useToast } from '../ui';
@@ -18,7 +19,7 @@ import { Button, Card, inputCls, LoadingBlock, PageHeader, selectCls, StatusBadg
  * Campanha server-side: nada é aplicado na página — o SDK decide a variação no backend/app e entrega as
  * variáveis de cada uma. Aqui: tráfego, pesos, variáveis (JSON) e metas por evento.
  */
-export function ServerExperimentPage({ id }: { id: string }) {
+export function ServerExperimentPage({ id, accountId }: { id: string; accountId: string }) {
   const toast = useToast();
   const [rec, setRec] = useState<ExperimentRecord | null>(null);
   const [exp, setExp] = useState<Experiment | null>(null);
@@ -82,12 +83,6 @@ export function ServerExperimentPage({ id }: { id: string }) {
       setBusy(false);
     }
   };
-  const sdk = `import { createClient } from '@abtest/sdk';
-
-const abt = await createClient({ accountId: '<conta>', cdnUrl: '${API_URL}/cdn' });
-const v = abt.getVariation('${exp.key}', usuario.id);
-// v.key → '${exp.variations[1]?.key ?? exp.variations[0]!.key}', v.variables → { ... }
-abt.track('${exp.goals.find((g): g is Extract<Goal, { type: 'custom' }> => g.type === 'custom')?.event ?? 'compra'}', usuario.id, { value: 99.9 });`;
   return (
     <>
       <button
@@ -211,9 +206,19 @@ abt.track('${exp.goals.find((g): g is Extract<Goal, { type: 'custom' }> => g.typ
             </Button>
           </Card>
           <Card title="Como usar no seu backend">
-            <pre className="overflow-x-auto rounded-md bg-ink p-4 font-mono text-[12px] leading-relaxed text-[#e8e4da]">
-              {sdk}
-            </pre>
+            <SdkSnippets
+              size="md"
+              input={{
+                accountId,
+                cdnUrl: `${API_URL}/cdn`,
+                experiment: exp.key,
+                variation: exp.variations[1]?.key ?? exp.variations[0]?.key,
+                event:
+                  exp.goals.find((g): g is Extract<Goal, { type: 'custom' }> => g.type === 'custom')?.event ??
+                  'compra',
+                value: 99.9,
+              }}
+            />
           </Card>
         </div>
         <div className="space-y-5">

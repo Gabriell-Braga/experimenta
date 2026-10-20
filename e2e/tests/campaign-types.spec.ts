@@ -38,4 +38,10 @@ test('tipos de campanha: URL dividida, rollout no menu e server-side com variáv
   await expect(page.getByTestId('notice').last()).toContainText('Salvo');
   await page.reload();
   await expect(page.getByTestId('server-variables').nth(1)).toHaveValue(/"cor": "verde"/);
+  // Exemplo de uso por linguagem, com a conta e a chave da campanha.
+  const snippets = page.getByTestId('sdk-snippets');
+  await snippets.getByRole('tab', { name: 'PHP' }).click();
+  await expect(snippets.getByTestId('sdk-code')).toContainText("new Experimenta\\Client('demo'");
+  await snippets.getByRole('tab', { name: 'Java' }).click();
+  await expect(snippets.getByTestId('sdk-code')).toContainText('abt.getVariation("');
 });

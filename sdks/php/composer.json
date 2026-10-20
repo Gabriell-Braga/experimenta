@@ -1,0 +1,21 @@
+{
+  "name": "experimenta/sdk",
+  "description": "SDK server-side do Experimenta: feature flags e campanhas server-side avaliadas localmente.",
+  "type": "library",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.1",
+    "ext-json": "*"
+  },
+  "suggest": {
+    "ext-curl": "HTTP com timeout e redirecionamento; sem ele o SDK usa streams (allow_url_fopen)"
+  },
+  "autoload": {
+    "psr-4": {
+      "Experimenta\\": "src/"
+    }
+  },
+  "scripts": {
+    "test": "php tests/vectors_test.php"
+  }
+}

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "experimenta"
+version = "0.1.0"
+description = "SDK server-side do Experimenta: feature flags e campanhas server-side avaliadas localmente."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+experimenta = ["py.typed"]

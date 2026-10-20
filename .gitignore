@@ -10,3 +10,7 @@ playwright-report
 cdn
 apps/api/.tmp-account.js
 .wrangler
+__pycache__
+*.egg-info
+sdks/java/target
+sdks/php/vendor
