@@ -48,12 +48,26 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   await page.getByTestId('add-url-rule').click();
   await expect(page.getByPlaceholder('parte da URL, ex.: /produto/').last()).toBeFocused();
   await page.getByRole('button', { name: 'Remover regra' }).last().click();
+  // Estatística do relatório (17.5): fica salva no teste, mas não vai para o site.
+  await page.getByTestId('stats-sequential').check();
   await page.getByTestId('settings-done').click();
 
   // Publicar.
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('Publicado (versão');
   const expId = new URL(page.url()).searchParams.get('exp')!;
+  const token = await apiToken(request);
+  const saved = await (
+    await request.get(`http://localhost:4000/experiments/${expId}`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+  ).json();
+  expect(saved.experiment.stats).toEqual({ sequential: true });
+  const live = (await (await request.get('http://localhost:4000/cdn/demo.json')).json()).experiments.find(
+    (e: { id: string }) => e.id === expId,
+  );
+  expect(live).toBeTruthy();
+  expect(live).not.toHaveProperty('stats');
 
   // Visitante novo, outro contexto: snippet e config vêm da CDN real da API (nada interceptado).
   const visitor = await browser.newContext();

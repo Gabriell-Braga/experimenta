@@ -3,13 +3,19 @@ import {
   chiSquareSf,
   compareMeans,
   compareRates,
+  cuped,
   meanVar,
+  msprt,
+  rateInput,
+  rng,
   normCdf,
   normInv,
   sampleSize,
   srm,
   verdict,
+  welch,
   zTest,
+  type MeanInput,
 } from './stats';
 
 /** P(B > A) exato para posteriores Beta (Evan Miller), para conferir o Monte Carlo. */
@@ -149,4 +155,87 @@ test('bandit: mais tráfego para quem tem mais chance de ser o melhor, com piso 
   expect(w[2]!).toBeGreaterThanOrEqual(50);
   expect(w.reduce((s, x) => s + x, 0)).toBeGreaterThan(990);
   expect(w.reduce((s, x) => s + x, 0)).toBeLessThan(1010);
+});
+
+/** Simula `reps` testes com `looks` olhadas de `step` visitantes por braço; fração que deu p < 0,05 em ALGUMA. */
+function peeking(pA: number, pB: number, test: (a: MeanInput, b: MeanInput) => number, reps = 400) {
+  const r = rng(2026);
+  const looks = 20;
+  const step = 500;
+  let rejected = 0;
+  for (let k = 0; k < reps; k++) {
+    let ca = 0;
+    let cb = 0;
+    for (let l = 1; l <= looks; l++) {
+      for (let i = 0; i < step; i++) {
+        if (r() < pA) ca++;
+        if (r() < pB) cb++;
+      }
+      const n = l * step;
+      if (
+        test(rateInput({ visitors: n, conversions: ca }), rateInput({ visitors: n, conversions: cb })) < 0.05
+      ) {
+        rejected++;
+        break;
+      }
+    }
+  }
+  return rejected / reps;
+}
+
+test('teste sequencial: olhar 20 vezes num A/A não infla o falso positivo (z-test ingênuo infla)', () => {
+  const seq = peeking(0.1, 0.1, (a, b) => msprt(a, b).pValue);
+  const naive = peeking(0.1, 0.1, (a, b) => welch(a, b));
+  expect(seq).toBeLessThanOrEqual(0.05);
+  expect(naive).toBeGreaterThan(0.12); // espiar com p-valor fixo dá ~2–4× α
+  // Com efeito real (+20%) ainda detecta na maioria das vezes.
+  expect(peeking(0.1, 0.12, (a, b) => msprt(a, b).pValue, 200)).toBeGreaterThan(0.8);
+});
+
+test('teste sequencial: fórmula, intervalo contém o efeito e casos sem dados', () => {
+  const a = { n: 10_000, mean: 0.1, variance: 0.09 };
+  const b = { n: 10_000, mean: 0.12, variance: 0.1056 };
+  const t = msprt(a, b);
+  const v = 0.09 / 10_000 + 0.1056 / 10_000;
+  const tau2 = 0.01 ** 2;
+  const lambda = Math.sqrt(v / (v + tau2)) * Math.exp((tau2 * 0.02 ** 2) / (2 * v * (v + tau2)));
+  expect(t.pValue).toBeCloseTo(1 / lambda, 10);
+  expect(t.low!).toBeGreaterThan(0);
+  expect(t.low! < 0.02 && 0.02 < t.high!).toBe(true);
+  // Intervalo sempre válido é mais largo que o de 95% fixo.
+  expect(t.high! - t.low!).toBeGreaterThan(2 * 1.96 * Math.sqrt(v));
+  expect(msprt({ n: 1, mean: 0, variance: 0 }, { n: 1, mean: 0, variance: 0 })).toMatchObject({
+    pValue: 1,
+    low: null,
+  });
+  expect(msprt({ n: 10, mean: 0, variance: 0 }, { n: 10, mean: 0, variance: 0 }).pValue).toBe(1);
+});
+
+test('veredito sequencial: vencedora/perdedora só com p sempre válido < α', () => {
+  const r = { probBeatControl: 0.99 } as Parameters<typeof verdict>[0];
+  expect(verdict(r, 100, 500)).toBe('winner');
+  expect(verdict(r, 100, 500, { pValue: 0.2, diff: 0.01 })).toBe('leading');
+  expect(verdict(r, 100, 500, { pValue: 0.01, diff: 0.01 })).toBe('winner');
+  expect(verdict({ ...r, probBeatControl: 0.01 }, 100, 500, { pValue: 0.01, diff: -0.01 })).toBe('loser');
+  expect(verdict(r, 100, 50, { pValue: 0.001, diff: 0.01 })).toBe('inconclusive');
+});
+
+test('CUPED: tira a variância explicada pela covariável e não muda a média', () => {
+  const r = rng(5);
+  const x = Array.from({ length: 2000 }, () => Math.floor(r() * 10));
+  const y = x.map((v) => 2 * v + (r() - 0.5));
+  const c = cuped(y, x);
+  expect(c.theta).toBeCloseTo(2, 1);
+  expect(c.reduction).toBeGreaterThan(0.95);
+  const before = meanVar(y);
+  const after = meanVar(c.adjusted);
+  expect(after.mean).toBeCloseTo(before.mean, 8);
+  expect(after.variance / before.variance).toBeCloseTo(1 - c.reduction, 6);
+  // Sem histórico (todos 0): nada muda.
+  expect(
+    cuped(
+      y,
+      x.map(() => 0),
+    ),
+  ).toMatchObject({ adjusted: y, theta: 0, reduction: 0 });
 });

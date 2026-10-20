@@ -211,6 +211,9 @@ export function SettingsPanel({
 }) {
   const patch = (p: Extract<Action, { type: 'patchExperiment' }>['patch']) =>
     dispatch({ type: 'patchExperiment', patch: p });
+  // Estatística do relatório (17.5): opções independentes; metas de guarda por id.
+  const patchStats = (p: NonNullable<Experiment['stats']>) => patch({ stats: { ...experiment.stats, ...p } });
+  const guards = experiment.stats?.guardrails ?? [];
   const totalWeight = experiment.variations.reduce((t, v) => t + v.weight, 0) || 1;
   const setGoal = onGoal;
   const [goalError, setGoalError] = useState('');
@@ -431,6 +434,24 @@ export function SettingsPanel({
                 )}
                 <code className="block truncate text-xs">{goalTarget(g)}</code>
               </span>
+              {i > 0 && experiment.variations.length > 1 && (
+                <label
+                  className="flex shrink-0 items-center gap-1 text-xs text-gray-600"
+                  title="Meta de guarda: alerta se uma variação piorar esta meta e impede que ela seja declarada vencedora"
+                >
+                  <input
+                    type="checkbox"
+                    checked={guards.includes(g.id)}
+                    onChange={(e) =>
+                      patchStats({
+                        guardrails: e.target.checked ? [...guards, g.id] : guards.filter((id) => id !== g.id),
+                      })
+                    }
+                    data-testid="goal-guardrail"
+                  />
+                  guarda
+                </label>
+              )}
               {i > 0 && (
                 <button
                   onClick={() => patch({ goals: [g, ...experiment.goals.filter((x) => x.id !== g.id)] })}
@@ -536,6 +557,47 @@ export function SettingsPanel({
             </button>
           </form>
         </fieldset>
+
+        {experiment.variations.length > 1 && experiment.type !== 'rollout' && (
+          <fieldset
+            className="flex flex-col gap-1.5 rounded-md border border-gray-900/10 p-2"
+            data-testid="stats-settings"
+          >
+            <legend className="px-1 text-gray-600">Estatística do relatório</legend>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={!!experiment.stats?.sequential}
+                onChange={(e) => patchStats({ sequential: e.target.checked || undefined })}
+                data-testid="stats-sequential"
+              />
+              <span>
+                <span className="font-medium text-ink">Teste sequencial</span>
+                <span className="block text-xs text-gray-500">
+                  Pode olhar o resultado a qualquer momento sem aumentar o falso positivo (mSPRT). Exige um
+                  pouco mais de visitantes para declarar vencedora.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={!!experiment.stats?.cuped}
+                onChange={(e) => patchStats({ cuped: e.target.checked || undefined })}
+                data-testid="stats-cuped"
+              />
+              <span>
+                <span className="font-medium text-ink">Redução de variância (CUPED)</span>
+                <span className="block text-xs text-gray-500">
+                  Desconta o quanto cada visitante já navegava antes do teste (páginas vistas nos 30 dias
+                  anteriores). Resultados mais firmes com menos tráfego; o relatório mostra a redução obtida.
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,10 @@
 import {
   compareMeans,
   compareRates,
+  cuped,
   meanVar,
+  msprt,
+  rateInput,
   sampleSize,
   srm,
   verdict,
@@ -16,6 +19,15 @@ import { dayOf, daysBetween } from './overview';
 export const MIN_VISITORS = 100;
 /** Melhoria relativa usada na estimativa de duração. */
 export const DEFAULT_MDE = 0.1;
+/** Nível do teste sequencial (bicaudal). */
+export const SEQ_ALPHA = 0.05;
+
+/** Teste sequencial de uma variação vs controle: p sempre válido e intervalo da melhoria relativa. */
+export interface SequentialResult {
+  pValue: number;
+  liftLow: number | null;
+  liftHigh: number | null;
+}
 
 export interface ArmRow extends ArmResult {
   variationId: string;
@@ -25,6 +37,10 @@ export interface ArmRow extends ArmResult {
   /** Receita por visitante (só metas com receita). */
   rpv: number;
   verdict: Verdict;
+  /** Só com teste sequencial ligado (null no controle). */
+  sequential?: SequentialResult | null;
+  /** Meta primária: a variação piora alguma meta de guarda (não é declarada vencedora). */
+  guardrailViolated?: boolean;
 }
 
 export interface SectionReport {
@@ -43,7 +59,67 @@ export interface GoalReport {
   hasRevenue: boolean;
   arms: ArmRow[];
   /** Estatística de receita por visitante (se houver receita). */
-  revenueArms: (ArmResult & { variationId: string; verdict: Verdict })[] | null;
+  revenueArms:
+    (ArmResult & { variationId: string; verdict: Verdict; sequential?: SequentialResult | null })[] | null;
+  /** Meta de guarda (`stats.guardrails`). */
+  guardrail?: boolean;
+  /** CUPED aplicado: redução de variância obtida (0..1) na taxa e na receita por visitante. */
+  cuped?: { reduction: number; revenueReduction: number | null };
+}
+
+/** Variação que piora uma meta de guarda com confiança (veredito "perdendo" na taxa ou na receita). */
+export interface GuardrailViolation {
+  goalId: string;
+  goalKey: string;
+  variationId: string;
+  metric: 'rate' | 'revenue';
+  lift: number | null;
+}
+
+/**
+ * Estatística de uma métrica por visitante (`values[variação][visitante]`, a 1ª variação é o controle).
+ * Sem CUPED: taxas com posterior Beta e receita com Normal (como sempre). Com CUPED (`x` = covariável na
+ * mesma ordem): Y' ajustado e posterior Normal. Teste sequencial opcional; veredito de cada variação.
+ */
+function armStats(kind: 'rate' | 'mean', values: number[][], opts: { x?: number[][]; sequential: boolean }) {
+  const raw = values.map(meanVar);
+  let means = raw;
+  let stats: ArmResult[];
+  let reduction: number | null = null;
+  if (opts.x) {
+    const c = cuped(values.flat(), opts.x.flat());
+    let k = 0;
+    means = values.map((vs) => meanVar(c.adjusted.slice(k, (k += vs.length))));
+    reduction = c.reduction;
+    // Taxa/média exibida continua a observada; intervalo, melhoria e chances vêm do estimador ajustado.
+    stats = compareMeans(means).map((r, i) => ({ ...r, rate: raw[i]!.mean }));
+  } else if (kind === 'rate') {
+    const arms = values.map((vs) => ({ visitors: vs.length, conversions: vs.filter((v) => v > 0).length }));
+    means = arms.map(rateInput);
+    stats = compareRates(arms);
+  } else stats = compareMeans(raw);
+  return {
+    reduction,
+    arms: stats.map((r, i) => {
+      const t = opts.sequential && i > 0 ? msprt(means[0]!, means[i]!, SEQ_ALPHA, DEFAULT_MDE) : undefined;
+      const base = Math.abs(means[0]!.mean);
+      return {
+        ...r,
+        verdict: verdict(r, MIN_VISITORS, Math.min(raw[0]!.n, raw[i]!.n), t, SEQ_ALPHA),
+        ...(opts.sequential
+          ? {
+              sequential: t
+                ? {
+                    pValue: t.pValue,
+                    liftLow: base && t.low !== null ? t.low / base : null,
+                    liftHigh: base && t.high !== null ? t.high / base : null,
+                  }
+                : null,
+            }
+          : {}),
+      };
+    }),
+  };
 }
 
 /**
@@ -57,7 +133,11 @@ export function experimentReport(
   events: TrackingEvent[],
   range: { from: Date; to: Date },
   visitorFilter?: (visitorId: string) => boolean,
+  /** CUPED (`stats.cuped`): covariável pré-exposição por visitante (ausente = 0). Ver `preExposureActivity`. */
+  covariate?: Map<string, number>,
 ) {
+  const sequential = !!exp.stats?.sequential;
+  const useCuped = !!exp.stats?.cuped && !!covariate;
   const vids = exp.variations.map((v) => v.id);
   const armOf = new Map<string, string>(); // visitante → variação
   const exposedAt = new Map<string, number>();
@@ -92,17 +172,28 @@ export function experimentReport(
     const perArm = vids.map((id) => {
       const vs = visitorsBy.get(id)!;
       const converted = vs.filter((v) => m.has(v));
-      const revenue = converted.reduce((s, v) => s + m.get(v)!, 0);
       return {
         visitors: vs.length,
         conversions: converted.length,
-        revenue,
+        revenue: converted.reduce((s, v) => s + m.get(v)!, 0),
         values: vs.map((v) => m.get(v) ?? 0),
+        hits: vs.map((v) => (m.has(v) ? 1 : 0)),
       };
     });
     const hasRevenue = perArm.some((a) => a.revenue !== 0);
-    const rates = compareRates(perArm.map((a) => ({ visitors: a.visitors, conversions: a.conversions })));
-    const revenueStats = hasRevenue ? compareMeans(perArm.map((a) => meanVar(a.values))) : null;
+    const x = useCuped ? vids.map((id) => visitorsBy.get(id)!.map((v) => covariate!.get(v) ?? 0)) : undefined;
+    const rates = armStats(
+      'rate',
+      perArm.map((a) => a.hits),
+      { x, sequential },
+    );
+    const revenueStats = hasRevenue
+      ? armStats(
+          'mean',
+          perArm.map((a) => a.values),
+          { x, sequential },
+        )
+      : null;
     const sections = exp.sections?.map((sec) => {
       const agg = sec.options.map((o) => {
         const idx = exp.variations
@@ -124,23 +215,47 @@ export function experimentReport(
       goalKey: g.key,
       primary: gi === 0,
       hasRevenue,
-      arms: rates.map((r, i) => ({
+      arms: rates.arms.map((r, i) => ({
         ...r,
         variationId: vids[i]!,
         visitors: perArm[i]!.visitors,
         conversions: perArm[i]!.conversions,
         revenue: perArm[i]!.revenue,
         rpv: perArm[i]!.visitors ? perArm[i]!.revenue / perArm[i]!.visitors : 0,
-        verdict: verdict(r, MIN_VISITORS, Math.min(perArm[0]!.visitors, perArm[i]!.visitors)),
       })),
-      revenueArms:
-        revenueStats?.map((r, i) => ({
-          ...r,
-          variationId: vids[i]!,
-          verdict: verdict(r, MIN_VISITORS, Math.min(perArm[0]!.visitors, perArm[i]!.visitors)),
-        })) ?? null,
+      revenueArms: revenueStats?.arms.map((r, i) => ({ ...r, variationId: vids[i]! })) ?? null,
+      ...(useCuped
+        ? { cuped: { reduction: rates.reduction ?? 0, revenueReduction: revenueStats?.reduction ?? null } }
+        : {}),
     };
   });
+
+  // Metas de guarda: variação "perdendo" (taxa ou receita) numa delas não pode ser declarada vencedora.
+  const guardIds = new Set(exp.stats?.guardrails ?? []);
+  const guardrails: GuardrailViolation[] = [];
+  for (const g of goals) {
+    if (g.primary || !guardIds.has(g.goalId)) continue;
+    g.guardrail = true;
+    g.arms.forEach((a, i) => {
+      const rev = g.revenueArms?.[i];
+      const hit: GuardrailViolation['metric'] | null =
+        a.verdict === 'loser' ? 'rate' : rev?.verdict === 'loser' ? 'revenue' : null;
+      if (hit)
+        guardrails.push({
+          goalId: g.goalId,
+          goalKey: g.goalKey,
+          variationId: a.variationId,
+          metric: hit,
+          lift: hit === 'rate' ? a.lift : rev!.lift,
+        });
+    });
+  }
+  const violated = new Set(guardrails.map((v) => v.variationId));
+  for (const a of goals[0]?.arms ?? [])
+    if (violated.has(a.variationId)) {
+      a.guardrailViolated = true;
+      if (a.verdict === 'winner') a.verdict = 'leading';
+    }
 
   // Série diária acumulada (visitantes e taxa da meta primária) por variação.
   const primary = exp.goals[0] ? conv.get(exp.goals[0].id) : undefined;
@@ -190,6 +305,8 @@ export function experimentReport(
     })),
     goals,
     series,
+    stats: { sequential, cuped: useCuped, alpha: SEQ_ALPHA },
+    guardrails,
     srm: srm(
       visitors,
       exp.variations.map((v) => v.weight),
@@ -213,4 +330,32 @@ export function deviceByVisitor(pageviews: TrackingEvent[]): Map<string, string>
     counts.set(e.visitorId, m);
   }
   return new Map([...counts].map(([v, m]) => [v, [...m.entries()].sort((a, b) => b[1] - a[1])[0]![0]]));
+}
+
+/** CUPED: janela da atividade anterior à exposição usada como covariável. */
+export const CUPED_LOOKBACK_DAYS = 30;
+/** Folga antes da exposição: a página vista da própria exposição (mesmo carregamento) não entra. */
+export const CUPED_GAP_MS = 5_000;
+
+/**
+ * Covariável do CUPED: páginas vistas pelo visitante nos `CUPED_LOOKBACK_DAYS` dias antes da PRIMEIRA
+ * exposição a este experimento (procurada também antes do período do relatório), até `CUPED_GAP_MS` antes
+ * dela. Atividade anterior ao teste não é afetada pela variação, então o ajuste não cria viés. Visitante sem
+ * histórico (novo) = 0, valor legítimo, não dado faltando. `events` = páginas vistas e exposições dos
+ * visitantes do relatório.
+ */
+export function preExposureActivity(experimentId: string, events: TrackingEvent[]): Map<string, number> {
+  const first = new Map<string, number>();
+  for (const e of events)
+    if (e.type === 'exposure' && e.experimentId === experimentId && !e.qa)
+      first.set(e.visitorId, Math.min(first.get(e.visitorId) ?? Infinity, e.ts));
+  const out = new Map<string, number>();
+  const lookback = CUPED_LOOKBACK_DAYS * 86_400_000;
+  for (const e of events) {
+    if (e.type !== 'pageview') continue;
+    const at = first.get(e.visitorId);
+    if (at !== undefined && e.ts < at - CUPED_GAP_MS && e.ts >= at - lookback)
+      out.set(e.visitorId, (out.get(e.visitorId) ?? 0) + 1);
+  }
+  return out;
 }

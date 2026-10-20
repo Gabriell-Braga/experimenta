@@ -1,5 +1,10 @@
 import { createRoute, z } from '@hono/zod-openapi';
-import { deviceByVisitor, experimentReport } from '../analytics/report';
+import {
+  CUPED_LOOKBACK_DAYS,
+  deviceByVisitor,
+  experimentReport,
+  preExposureActivity,
+} from '../analytics/report';
 import { forbid, hasRole } from '../auth';
 import { rebalance } from '../bandit';
 import type { AppDeps } from '../app';
@@ -15,7 +20,7 @@ export function reportRoutes(app: Api, repo: Repo, publish?: AppDeps['publish'])
       tags: ['relatórios'],
       security,
       summary:
-        'Visitantes, conversões e receita por variação e meta, com estatística bayesiana e frequentista, série diária acumulada, SRM e duração estimada',
+        'Visitantes, conversões e receita por variação e meta, com estatística bayesiana e frequentista (teste sequencial, CUPED e metas de guarda opcionais), série diária acumulada, SRM e duração estimada',
       request: {
         params: z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) }),
         query: PeriodQuery.extend({
@@ -37,14 +42,26 @@ export function reportRoutes(app: Api, repo: Repo, publish?: AppDeps['publish'])
         ...range,
       });
       let filter: ((v: string) => boolean) | undefined;
-      if (q.device) {
+      let covariate: Map<string, number> | undefined;
+      const cuped = !!rec.experiment.stats?.cuped;
+      if (q.device || cuped) {
         const ids = [...new Set(events.filter((e) => e.type === 'exposure').map((e) => e.visitorId))];
-        const devices = deviceByVisitor(
-          await repo.listEvents(accountId, { types: ['pageview'], visitorIds: ids, ...range }),
-        );
-        filter = (v) => devices.get(v) === q.device;
+        // Uma consulta só para os dois: CUPED olha até 30 dias antes da 1ª exposição (que pode ser anterior
+        // ao período), então busca também as exposições e começa mais cedo.
+        const visitorEvents = await repo.listEvents(accountId, {
+          types: cuped ? ['pageview', 'exposure'] : ['pageview'],
+          visitorIds: ids,
+          from: cuped ? new Date(range.from.getTime() - CUPED_LOOKBACK_DAYS * 86_400_000) : range.from,
+          to: range.to,
+        });
+        if (cuped) covariate = preExposureActivity(rec.experiment.id, visitorEvents);
+        if (q.device) {
+          const from = range.from.getTime();
+          const devices = deviceByVisitor(visitorEvents.filter((e) => e.type === 'pageview' && e.ts >= from));
+          filter = (v) => devices.get(v) === q.device;
+        }
       }
-      return c.json(experimentReport(rec.experiment, events, range, filter), 200);
+      return c.json(experimentReport(rec.experiment, events, range, filter, covariate), 200);
     },
   );
 

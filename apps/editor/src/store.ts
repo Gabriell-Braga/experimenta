@@ -44,7 +44,7 @@ export type Action =
       patch: Partial<
         Pick<
           Experiment,
-          'name' | 'status' | 'traffic' | 'segmentation' | 'goals' | 'allocation' | 'audiences'
+          'name' | 'status' | 'traffic' | 'segmentation' | 'goals' | 'allocation' | 'audiences' | 'stats'
         >
       >;
     }

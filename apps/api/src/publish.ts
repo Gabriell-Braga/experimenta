@@ -149,7 +149,8 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
     // Multipágina (17.2): URLs das páginas e página explícita em cada operação (o snippet só compara ids).
     const running = all
       .filter((e) => e.status === 'running')
-      .map((e) => ({ ...compileFunnel(e), group: slotsOf.get(e.id) }));
+      // Opções de estatística (17.5) só valem no relatório: não vão para o site.
+      .map(({ stats: _stats, ...e }) => ({ ...compileFunnel(e), group: slotsOf.get(e.id) }));
 
     if (!canPublishJs(user)) {
       const published = jsOf(last?.config.experiments ?? []);

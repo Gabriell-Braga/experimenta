@@ -8,7 +8,8 @@ export type Severity = 'critical' | 'warning' | 'good' | 'info';
 export interface Insight {
   /** Chave estável (mesmo achado = mesmo id entre leituras). */
   id: string;
-  kind: 'winner' | 'srm' | 'frustration' | 'form-field' | 'funnel-step' | 'low-scroll' | 'segment';
+  kind:
+    'winner' | 'srm' | 'guardrail' | 'frustration' | 'form-field' | 'funnel-step' | 'low-scroll' | 'segment';
   severity: Severity;
   title: string;
   detail: string;
@@ -61,6 +62,15 @@ function experimentInsights(
   const goal = r.goals.find((g) => g.primary) ?? r.goals[0];
   if (!goal) return out;
   const name = (id: string) => exp.variations.find((v) => v.id === id)?.name ?? id;
+  for (const g of r.guardrails)
+    out.push({
+      id: `guardrail:${exp.id}:${g.variationId}:${g.goalId}`,
+      kind: 'guardrail',
+      severity: 'critical',
+      title: `${exp.name}: ${name(g.variationId)} piora a meta de guarda ${g.goalKey}`,
+      detail: `${g.metric === 'revenue' ? 'Receita por visitante' : 'Conversão'} em ${g.goalKey}: ${g.lift !== null && g.lift >= 0 ? '+' : ''}${pct(g.lift ?? 0)} vs controle, com confiança. Ela não é declarada vencedora enquanto isso; avalie pausar a variação.`,
+      link: { view: 'report', params: { id: exp.id, goal: g.goalId } },
+    });
   const win = goal.arms.find((a) => a.verdict === 'winner');
   if (win)
     out.push({

@@ -187,3 +187,94 @@ test('MVT: efeito de cada opção somando as combinações (seção por seção)
   expect(titulo!.options[1]!.probBeatControl!).toBeGreaterThan(0.99);
   expect(botao!.options.map((o) => o.conversions)).toEqual([40, 40]);
 });
+
+test('padrão: sem teste sequencial, CUPED nem metas de guarda (números como antes)', async () => {
+  const r = await t.get<ExperimentReport>('/experiments/exp_rep/report?days=7');
+  expect(r.stats).toEqual({ sequential: false, cuped: false, alpha: 0.05 });
+  expect(r.guardrails).toEqual([]);
+  const buy = r.goals[0]!;
+  expect(buy.cuped).toBeUndefined();
+  expect(buy.arms[1]).not.toHaveProperty('sequential');
+  expect(buy.arms[1]).not.toHaveProperty('guardrailViolated');
+});
+
+test('17.5: teste sequencial, CUPED com atividade anterior à exposição e meta de guarda', async () => {
+  const stats = ExperimentSchema.parse({
+    ...exp,
+    id: 'exp_stats',
+    key: 'stats',
+    variations: exp.variations.map((v) => ({ ...v, id: `s${v.id}` })),
+    goals: [
+      { id: 's_buy', key: 'compra', type: 'custom', event: 'compra' },
+      { id: 's_cta', key: 'cta', type: 'click', selector: '#cta' },
+      { id: 's_ok', key: 'satisfeito', type: 'custom', event: 'ok' },
+    ],
+    stats: { sequential: true, cuped: true, guardrails: ['s_ok'] },
+  });
+  const projectId = (await t.repo.listProjects(DEMO.accountId))[0]!.id;
+  await t.repo.saveExperiment(DEMO.accountId, {
+    projectId,
+    editorUrl: 'http://localhost:5180/',
+    experiment: stats,
+  });
+  const now = Date.now();
+  const at = now - 2 * 86_400_000;
+  const list: TrackingEvent[] = [];
+  const base = (visitorId: string, variationId: string, ts: number) => ({
+    visitorId,
+    experimentId: 'exp_stats',
+    experimentKey: 'stats',
+    variationId,
+    variationKey: 'x',
+    ts,
+  });
+  // 400 por braço. x = páginas vistas antes do teste (0..5); compra depende muito de x (CUPED ajuda).
+  for (let i = 0; i < 800; i++) {
+    const arm = i % 2 ? 'srv1' : 'srv0';
+    const k = Math.floor(i / 2);
+    const x = k % 6;
+    const v = `st-${i}`;
+    list.push(ev({ type: 'exposure', ...base(v, arm, at + i * 10) } as never));
+    for (let j = 0; j < x; j++)
+      list.push(
+        ev({ type: 'pageview', visitorId: v, device: 'desktop', ts: at - (j + 1) * 3_600_000 } as never),
+      );
+    // Página vista do próprio carregamento da exposição: fica fora da covariável.
+    list.push(ev({ type: 'pageview', visitorId: v, device: 'desktop', ts: at + i * 10 - 1 } as never));
+    if (x >= (arm === 'srv1' ? 3 : 4))
+      list.push(
+        ev({
+          type: 'conversion',
+          ...base(v, arm, at + i * 10 + 5),
+          goalId: 's_buy',
+          goalKey: 'compra',
+        } as never),
+      );
+    if (arm === 'srv0' ? k % 2 === 0 : k % 10 === 0)
+      list.push(
+        ev({
+          type: 'conversion',
+          ...base(v, arm, at + i * 10 + 6),
+          goalId: 's_ok',
+          goalKey: 'satisfeito',
+        } as never),
+      );
+  }
+  for (let i = 0; i < list.length; i += 150) await t.collect(list.slice(i, i + 150));
+  const r = await t.get<ExperimentReport>('/experiments/exp_stats/report?days=7');
+  expect(r.stats).toEqual({ sequential: true, cuped: true, alpha: 0.05 });
+  const [buy, , ok] = r.goals;
+  // Taxa exibida é a observada; x explica quase toda a variância (k % 6 decide a compra).
+  expect(buy!.arms.map((a) => a.rate)).toEqual([2 / 6, 3 / 6].map((p) => expect.closeTo(p, 2)));
+  expect(buy!.cuped!.reduction).toBeGreaterThan(0.5);
+  const b = buy!.arms[1]!;
+  expect(b.sequential!.pValue).toBeLessThan(0.05);
+  expect(b.sequential!.liftLow!).toBeGreaterThan(0);
+  expect(buy!.arms[0]!.sequential).toBeNull();
+  // Guarda: B derruba "satisfeito" (50% → 10%) → não é declarada vencedora e o alerta aparece.
+  expect(ok!.guardrail).toBe(true);
+  expect(ok!.arms[1]!.verdict).toBe('loser');
+  expect(r.guardrails).toMatchObject([{ goalId: 's_ok', variationId: 'srv1', metric: 'rate' }]);
+  expect(b.guardrailViolated).toBe(true);
+  expect(b.verdict).toBe('leading');
+});

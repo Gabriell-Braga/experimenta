@@ -314,11 +314,26 @@ export function meanVar(values: number[]): MeanInput {
 
 /** Veredito para a interface (limiares do produto). */
 export type Verdict = 'winner' | 'loser' | 'leading' | 'inconclusive' | 'baseline';
-export function verdict(r: ArmResult, minVisitors: number, visitors: number): Verdict {
+/**
+ * Com `sequential` (teste sequencial ligado), vencedora/perdedora exigem p sempre válido < `alpha`; "liderando"
+ * continua vindo da chance bayesiana.
+ */
+export function verdict(
+  r: ArmResult,
+  minVisitors: number,
+  visitors: number,
+  sequential?: { pValue: number; diff: number },
+  alpha = 0.05,
+): Verdict {
   if (r.probBeatControl === null) return 'baseline';
   if (visitors < minVisitors) return 'inconclusive';
-  if (r.probBeatControl >= 0.95) return 'winner';
-  if (r.probBeatControl <= 0.05) return 'loser';
+  if (sequential) {
+    if (sequential.pValue < alpha && sequential.diff > 0) return 'winner';
+    if (sequential.pValue < alpha && sequential.diff < 0) return 'loser';
+  } else {
+    if (r.probBeatControl >= 0.95) return 'winner';
+    if (r.probBeatControl <= 0.05) return 'loser';
+  }
   return r.probBeatControl >= 0.75 ? 'leading' : 'inconclusive';
 }
 
@@ -335,4 +350,78 @@ export function banditWeights(arms: ArmInput[], minShare = 0.05, minVisitors = 1
   const floor = Math.min(minShare, 1 / k);
   const best = compareRates(arms).map((r) => r.probBest);
   return best.map((p) => Math.max(1, Math.round((floor + (1 - floor * k) * p) * 1000)));
+}
+
+/**
+ * Teste sequencial (mSPRT com mistura normal; Johari, Pekelis, Walsh 2017/2022 "Always valid inference"):
+ * p-valor e intervalo que continuam válidos olhando o resultado quantas vezes quiser. Diferença das médias
+ * Δ̂ = B − A com variância V = varA/nA + varB/nB (aproximação normal, amostras grandes) e prior de mistura
+ * N(0, τ²) com τ = `mde` × |média do controle| (efeito relativo esperado). Estatística
+ *   Λ = √(V / (V + τ²)) · exp(τ² Δ̂² / (2V(V + τ²)))
+ * p = min(1, 1/Λ) (Ville: P(algum dia 1/Λ ≤ α | H0) ≤ α). Intervalo = {θ : Λ(θ) < 1/α}:
+ *   Δ̂ ± √( V(V + τ²)/τ² · (2·ln(1/α) + ln((V + τ²)/V)) ).
+ * Usa só os dados atuais (não o mínimo histórico de p), o que é conservador e não exige guardar estado.
+ * Sem variância ou sem escala (média 0 nos dois) devolve p = 1 e intervalo null.
+ */
+export function msprt(
+  a: MeanInput,
+  b: MeanInput,
+  alpha = 0.05,
+  mde = 0.1,
+): { pValue: number; diff: number; low: number | null; high: number | null } {
+  const diff = b.mean - a.mean;
+  const scale = Math.abs(a.mean) || Math.abs((a.mean * a.n + b.mean * b.n) / (a.n + b.n || 1));
+  const tau2 = (mde * scale) ** 2;
+  if (a.n < 2 || b.n < 2 || !tau2) return { pValue: 1, diff, low: null, high: null };
+  const v = a.variance / a.n + b.variance / b.n;
+  if (!v) return { pValue: diff ? 0 : 1, diff, low: diff, high: diff };
+  const logLambda = 0.5 * Math.log(v / (v + tau2)) + (tau2 * diff * diff) / (2 * v * (v + tau2));
+  const h = Math.sqrt(((v * (v + tau2)) / tau2) * (2 * Math.log(1 / alpha) + Math.log((v + tau2) / v)));
+  return { pValue: Math.min(1, Math.exp(-logLambda)), diff, low: diff - h, high: diff + h };
+}
+
+/** Média e variância de uma taxa (0/1 por visitante), para o teste sequencial. */
+export const rateInput = (a: ArmInput): MeanInput => {
+  const p = a.visitors ? a.conversions / a.visitors : 0;
+  return {
+    n: a.visitors,
+    mean: p,
+    variance: a.visitors > 1 ? (p * (1 - p) * a.visitors) / (a.visitors - 1) : 0,
+  };
+};
+
+/**
+ * CUPED (Deng et al. 2013): Y' = Y − θ(X − X̄), θ = cov(X, Y)/var(X) com X uma covariável de ANTES da
+ * exposição (não afetada pela variação), estimado com todos os visitantes juntos (mantém o efeito sem viés).
+ * Devolve Y' por visitante e a redução de variância obtida (= correlação²). var(X) = 0 (ex.: todos sem
+ * histórico) → θ = 0, nada muda.
+ */
+export function cuped(y: number[], x: number[]): { adjusted: number[]; theta: number; reduction: number } {
+  const n = y.length;
+  if (n < 2) return { adjusted: y, theta: 0, reduction: 0 };
+  let mx = 0;
+  let my = 0;
+  for (let i = 0; i < n; i++) {
+    mx += x[i]!;
+    my += y[i]!;
+  }
+  mx /= n;
+  my /= n;
+  let sxx = 0;
+  let sxy = 0;
+  let syy = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = x[i]! - mx;
+    const dy = y[i]! - my;
+    sxx += dx * dx;
+    sxy += dx * dy;
+    syy += dy * dy;
+  }
+  if (!sxx || !syy) return { adjusted: y, theta: 0, reduction: 0 };
+  const theta = sxy / sxx;
+  return {
+    adjusted: y.map((v, i) => v - theta * (x[i]! - mx)),
+    theta,
+    reduction: (sxy * sxy) / (sxx * syy),
+  };
 }

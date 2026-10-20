@@ -117,7 +117,12 @@ function Probability({ p }: { p: number | null }) {
   );
 }
 
+const pFmt = (p: number | null) =>
+  p === null ? 'n/d' : p < 0.001 ? '<0,001' : p.toFixed(3).replace('.', ',');
+
 function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
+  // Teste sequencial ligado: p e intervalo da melhoria sempre válidos (pode olhar a qualquer momento).
+  const seq = goal.arms.some((a) => a.sequential !== undefined);
   const lows = goal.arms.map((a) => a.rateLow);
   const highs = goal.arms.map((a) => a.rateHigh);
   const min = Math.min(...lows);
@@ -134,9 +139,18 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
             <th className="w-40 px-3 py-2 font-medium">Intervalo 95%</th>
             <th className="px-3 py-2 text-right font-medium">Melhoria</th>
             <th className="px-3 py-2 font-medium">Chance de vencer</th>
-            <th className="px-3 py-2 text-right font-medium" title="z-test bicaudal vs controle">
-              p-valor
-            </th>
+            {seq ? (
+              <th
+                className="px-3 py-2 text-right font-medium"
+                title="Teste sequencial (mSPRT): continua válido olhando o resultado a qualquer momento"
+              >
+                p sempre válido
+              </th>
+            ) : (
+              <th className="px-3 py-2 text-right font-medium" title="z-test bicaudal vs controle">
+                p-valor
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-900/[0.06]">
@@ -146,6 +160,15 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
                 <span className="flex items-center gap-2">
                   <VariationTag index={i} name={names[i] ?? a.variationId} />
                   <VerdictTag v={a.verdict} />
+                  {a.guardrailViolated && (
+                    <span
+                      className="flex items-center gap-1 font-mono text-[10px] text-signal uppercase"
+                      title="Piora uma meta de guarda: não é declarada vencedora"
+                      data-testid="guardrail-tag"
+                    >
+                      <TriangleAlert size={12} aria-hidden="true" /> guarda
+                    </span>
+                  )}
                 </span>
               </td>
               <td className="tabular px-3 py-2.5 text-right font-mono text-xs">{fmt.int(a.visitors)}</td>
@@ -171,21 +194,23 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
                 >
                   {signedPct(a.lift)}
                 </span>
-                {a.liftLow !== null && (
-                  <span className="block text-[10px] text-gray-400">
-                    {signedPct(a.liftLow, 0)} a {signedPct(a.liftHigh, 0)}
-                  </span>
-                )}
+                {seq
+                  ? a.sequential && (
+                      <span className="block text-[10px] text-gray-400" title="Intervalo sempre válido (95%)">
+                        {signedPct(a.sequential.liftLow, 0)} a {signedPct(a.sequential.liftHigh, 0)}
+                      </span>
+                    )
+                  : a.liftLow !== null && (
+                      <span className="block text-[10px] text-gray-400">
+                        {signedPct(a.liftLow, 0)} a {signedPct(a.liftHigh, 0)}
+                      </span>
+                    )}
               </td>
               <td className="px-3 py-2.5">
                 <Probability p={a.probBeatControl} />
               </td>
               <td className="tabular px-3 py-2.5 text-right font-mono text-xs text-gray-500">
-                {a.pValue === null
-                  ? 'n/d'
-                  : a.pValue < 0.001
-                    ? '<0,001'
-                    : a.pValue.toFixed(3).replace('.', ',')}
+                {pFmt(seq ? (a.sequential?.pValue ?? null) : a.pValue)}
               </td>
             </tr>
           ))}
@@ -346,6 +371,7 @@ function toCsv(r: ExperimentReport, names: string[]): string {
       'chance_de_vencer',
       'p_valor',
       'receita',
+      'p_sempre_valido',
     ],
   ];
   for (const g of r.goals)
@@ -360,6 +386,7 @@ function toCsv(r: ExperimentReport, names: string[]): string {
         a.probBeatControl === null ? '' : a.probBeatControl.toFixed(4),
         a.pValue === null ? '' : a.pValue.toFixed(5),
         a.revenue.toFixed(2),
+        a.sequential ? a.sequential.pValue.toFixed(5) : '',
       ]),
     );
   return rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -496,6 +523,28 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
             </div>
           )}
 
+          {!!report.guardrails?.length && (
+            <div
+              role="alert"
+              className="flex gap-3 rounded-lg border border-signal/30 bg-signal/5 px-4 py-3 text-sm text-gray-800"
+              data-testid="guardrail-alert"
+            >
+              <TriangleAlert size={18} className="mt-0.5 shrink-0 text-signal" aria-hidden="true" />
+              <span>
+                <b>Meta de guarda piorou.</b>{' '}
+                {report.guardrails.map((g, i) => (
+                  <span key={g.variationId + g.goalId}>
+                    {i > 0 && '; '}
+                    {names[report.variations.findIndex((v) => v.id === g.variationId)] ??
+                      g.variationId} piora {g.metric === 'revenue' ? 'a receita de ' : ''}
+                    <i>{g.goalKey}</i> ({signedPct(g.lift)})
+                  </span>
+                ))}
+                , com confiança. Enquanto isso ela não é declarada vencedora na meta primária; avalie pausar.
+              </span>
+            </div>
+          )}
+
           <section className="rounded-lg border border-gray-900/10 bg-white p-5">
             <div className="flex flex-wrap items-start gap-5">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-ink text-lime">
@@ -568,6 +617,9 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                         {g.primary && (
                           <span className="font-mono text-[10px] text-brand-600 uppercase">primária</span>
                         )}
+                        {g.guardrail && (
+                          <span className="font-mono text-[10px] text-gray-500 uppercase">guarda</span>
+                        )}
                       </span>
                       <span className="tabular font-mono text-[11px] text-gray-500">
                         melhor: {Number.isFinite(best) ? signedPct(best) : 'n/d'}
@@ -635,6 +687,15 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                   goal && (
                     <>
                       <Card title={`Conversão · ${goal.goalKey}`}>
+                        {goal.cuped && (
+                          <p className="mb-3 text-xs text-gray-600" data-testid="cuped-note">
+                            CUPED: variância {fmt.pct(goal.cuped.reduction, 0)} menor usando as páginas vistas
+                            antes da exposição
+                            {goal.cuped.revenueReduction !== null &&
+                              ` (receita: ${fmt.pct(goal.cuped.revenueReduction, 0)})`}
+                            . Taxa exibida é a observada; intervalo, melhoria e chances vêm do ajuste.
+                          </p>
+                        )}
                         <GoalTable goal={goal} names={names} />
                       </Card>
                       {goal.sections && <SectionsCard goal={goal} />}
@@ -660,10 +721,20 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                     </>
                   )
                 )}
-                <p className="text-xs text-gray-500">
-                  Estatística bayesiana: “chance de vencer” é a probabilidade de a variação ter taxa maior que
-                  o controle, dado o que foi observado. Vencedora a partir de 95% com pelo menos 100
-                  visitantes por variação. p-valor (z-test) ao lado para referência.
+                <p className="text-xs text-gray-500" data-testid="stats-note">
+                  {report.stats?.sequential ? (
+                    <>
+                      Teste sequencial (mSPRT): pode olhar o resultado quantas vezes quiser sem aumentar o
+                      risco de falso positivo. Vencedora quando o p sempre válido fica abaixo de 5% com pelo
+                      menos 100 visitantes por variação; “chance de vencer” (bayesiana) fica como referência.
+                    </>
+                  ) : (
+                    <>
+                      Estatística bayesiana: “chance de vencer” é a probabilidade de a variação ter taxa maior
+                      que o controle, dado o que foi observado. Vencedora a partir de 95% com pelo menos 100
+                      visitantes por variação. p-valor (z-test) ao lado para referência.
+                    </>
+                  )}
                 </p>
               </div>
             </div>

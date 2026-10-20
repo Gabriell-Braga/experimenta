@@ -139,3 +139,34 @@ test('frustração, scroll baixo, campo de formulário e passo de funil', () => 
   expect(r.find((x) => x.kind === 'funnel-step')!.title).toBe('Compra: 80% param antes de "Checkout"');
   expect(r.at(-1)!.severity).toBe('info');
 });
+
+test('meta de guarda piorada: alerta crítico e a variação não é anunciada como vencedora', () => {
+  const guarded = ExperimentSchema.parse({
+    ...exp(),
+    goals: [...exp().goals, { id: 'g2', key: 'retorno', type: 'custom', event: 'retorno' }],
+    stats: { guardrails: ['g2'] },
+  });
+  // B vence a primária (40% vs 10%) mas derruba "retorno" (40% → 10%).
+  const cur = traffic(400, (arm, i) => (arm === 'b' ? i % 10 < 4 : i % 10 < 1));
+  for (const arm of ['a', 'b'])
+    for (let i = 0; i < 400; i++)
+      if (arm === 'a' ? i % 10 < 4 : i % 10 < 1)
+        cur.push({
+          ...base(`${arm}${i}`, T + 3),
+          type: 'conversion',
+          experimentId: 'e1',
+          experimentKey: 'hero',
+          variationId: arm,
+          variationKey: arm,
+          goalId: 'g2',
+          goalKey: 'retorno',
+        } as TrackingEvent);
+  const r = run(cur, { running: [guarded] });
+  expect(r.find((x) => x.kind === 'winner')).toBeUndefined();
+  expect(r[0]).toMatchObject({
+    kind: 'guardrail',
+    severity: 'critical',
+    title: 'Hero: B piora a meta de guarda retorno',
+    link: { view: 'report', params: { id: 'e1', goal: 'g2' } },
+  });
+});

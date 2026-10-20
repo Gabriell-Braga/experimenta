@@ -135,6 +135,14 @@ test('piloto automático: perdedora sai e não volta; com vencedora, só ela rec
   ]);
   // Nunca zera tudo.
   expect(autopilotWeights([500, 500], v('baseline', 'loser'), exp([0, 1]))).toEqual([500, 500]);
+  // Piora meta de guarda: sai como perdedora.
+  expect(
+    autopilotWeights(
+      [400, 300, 300],
+      [{ verdict: 'baseline' }, { verdict: 'leading', guardrailViolated: true }, { verdict: 'leading' }],
+      exp([1, 1, 1]),
+    ),
+  ).toEqual([400, 0, 300]);
 });
 
 test('modelo grátis (API compatível com OpenAI): liga por env, manda o painel e valida a resposta', async () => {

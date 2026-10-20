@@ -129,6 +129,18 @@ export const ExperimentSchema = z
      */
     pages: z.array(FunnelPageSchema).max(20).optional(),
     /**
+     * Estatística do relatório (17.5), tudo opcional; ausente = bayesiano clássico. `sequential`: vencedora só
+     * com p sempre válido (mSPRT) < 5%, pode olhar a qualquer momento. `cuped`: redução de variância com a
+     * atividade do visitante antes da exposição. `guardrails`: ids de metas de guarda (alerta se piorarem).
+     */
+    stats: z
+      .object({
+        sequential: z.boolean().optional(),
+        cuped: z.boolean().optional(),
+        guardrails: z.array(z.string()).max(20).optional(),
+      })
+      .optional(),
+    /**
      * Grupo mutuamente exclusivo: só na config publicada (a API preenche ao compilar, nunca é gravado). O
      * visitante entra se a fatia `bucketOf(visitante, id) % 100` estiver em `slots`.
      */
@@ -150,7 +162,14 @@ export type Experiment = z.infer<typeof ExperimentSchema>;
  * Campos do experimento guardados juntos na coluna JSON `options` (tipo, MVT, alocação, audiências) e da
  * variação na coluna `extra` — evita uma coluna nova por recurso nos dois bancos.
  */
-export const EXPERIMENT_OPTION_KEYS = ['type', 'sections', 'allocation', 'audiences', 'pages'] as const;
+export const EXPERIMENT_OPTION_KEYS = [
+  'type',
+  'sections',
+  'allocation',
+  'audiences',
+  'pages',
+  'stats',
+] as const;
 export const VARIATION_EXTRA_KEYS = ['variables', 'combination'] as const;
 export function pickKeys<T extends object, K extends keyof T>(o: T, keys: readonly K[]): Partial<Pick<T, K>> {
   const out: Partial<Pick<T, K>> = {};

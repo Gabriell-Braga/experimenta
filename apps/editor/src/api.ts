@@ -521,12 +521,16 @@ export interface ArmStats {
   expectedLoss: number;
   pValue: number | null;
   verdict: Verdict;
+  /** Teste sequencial ligado: p sempre válido e intervalo da melhoria (null no controle). */
+  sequential?: { pValue: number; liftLow: number | null; liftHigh: number | null } | null;
 }
 export interface ArmRow extends ArmStats {
   visitors: number;
   conversions: number;
   revenue: number;
   rpv: number;
+  /** Meta primária: piora uma meta de guarda. */
+  guardrailViolated?: boolean;
 }
 export interface GoalReport {
   sections?: {
@@ -545,6 +549,9 @@ export interface GoalReport {
   hasRevenue: boolean;
   arms: ArmRow[];
   revenueArms: ArmStats[] | null;
+  guardrail?: boolean;
+  /** CUPED: redução de variância obtida (0..1). */
+  cuped?: { reduction: number; revenueReduction: number | null };
 }
 export interface ExperimentReport {
   experimentId: string;
@@ -555,6 +562,14 @@ export interface ExperimentReport {
   goals: GoalReport[];
   series: { variationId: string; points: { day: string; visitors: number; rate: number }[] }[];
   srm: { pValue: number; mismatch: boolean };
+  stats?: { sequential: boolean; cuped: boolean; alpha: number };
+  guardrails?: {
+    goalId: string;
+    goalKey: string;
+    variationId: string;
+    metric: 'rate' | 'revenue';
+    lift: number | null;
+  }[];
   estimate: { neededPerVariation: number | null; daysRemaining: number | null; mde: number };
 }
 export const rebalance = (id: string) =>

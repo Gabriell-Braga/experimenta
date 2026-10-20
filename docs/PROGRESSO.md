@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 17.4 concluída
+**Status:** 17.5 concluída
 **Fase atual:** 17
-**Tarefa atual:** 17.5
-**Última atualização:** 2026-10-20 05:57
-**Próximo passo:** 17.5 estatística sequencial, CUPED e métricas de guarda.
+**Tarefa atual:** 17.6
+**Última atualização:** 2026-10-20 06:12
+**Próximo passo:** 17.6 receita por canal (atribuição first/last touch por origem, UTM e campanha).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -611,3 +611,9 @@
 - Arquivos principais: apps/api/src/routes/schedules.ts, apps/api/src/bandit.ts, apps/api/src/audit.ts, apps/api/src/app.ts, apps/editor/src/components/Schedules.tsx, apps/editor/src/pages/Experiments.tsx, apps/editor/src/components/TopBar.tsx, apps/editor/src/pages/Activity.tsx, e2e/tests/schedule.spec.ts
 - Como testar manualmente: Testes → menu "…" de um teste pausado → Agendar… → Iniciar na próxima hora; a etiqueta aparece na lista e no editor. No Node o job roda 1 h depois de a API subir e depois a cada hora (a execução com relógio controlado está no teste da API). `pnpm --filter @abtest/api exec vitest run src/routes/schedules.test.ts`; `pnpm --filter @abtest/e2e e2e tests/schedule.spec.ts`.
 - Observações: precisão de hora em hora (cron `0 * * * *`; no Node o intervalo conta a partir de quando a API subiu). Editor aberto com o teste desde antes da execução pode sobrescrever o status ao salvar (mesmo caso dos pesos do bandit). Pop-ups e pesquisas não têm agendamento (D-078).
+
+### 2026-10-20 06:12 — Tarefa 17.5 concluída (teste sequencial, CUPED e metas de guarda)
+- O que foi feito: três opções por experimento em Configurações → "Estatística do relatório" (todas desligadas por padrão; experimentos existentes têm os mesmos números). **Teste sequencial** (mSPRT com mistura normal): p "sempre válido" e intervalo da melhoria que podem ser olhados a qualquer momento; com ele ligado, vencedora/perdedora exigem p < 5% (a chance bayesiana continua na tela e decide só o "liderando"). **CUPED**: covariável = páginas vistas pelo visitante nos 30 dias antes da 1ª exposição ao teste (até 5 s antes dela); novo visitante = 0; o relatório mostra a redução de variância obtida e usa o estimador ajustado no intervalo, melhoria, chances e p (a taxa exibida continua a observada); vale para taxa e receita por visitante. **Metas de guarda**: caixa "guarda" nas metas secundárias; variação "perdendo" numa delas (taxa ou receita) gera alerta no relatório, etiqueta "guarda" na linha, não pode ser vencedora na primária (vira "liderando"), sai do ar no piloto automático e vira achado crítico nos insights automáticos. As opções ficam na coluna `options` (sem migração) e não vão para a config publicada.
+- Arquivos principais: packages/shared/src/{stats,experiment}.ts, apps/api/src/analytics/{report,insights}.ts, apps/api/src/routes/report.ts, apps/api/src/{bandit,publish}.ts, apps/editor/src/pages/Report.tsx, apps/editor/src/components/SettingsPanel.tsx, e2e/tests/{report,publish-flow}.spec.ts
+- Como testar manualmente: no editor de um teste, Configurações → marcar "Teste sequencial", "CUPED" e "guarda" numa meta secundária; salvar; abrir o relatório (coluna "p sempre válido", nota do CUPED com a redução, alerta se a variação piorar a meta de guarda). `pnpm --filter @abtest/shared exec vitest run src/stats.test.ts` (simulação A/A com 20 olhadas); `pnpm --filter @abtest/api exec vitest run src/routes/report.test.ts`; `pnpm --filter @abtest/e2e e2e tests/report.spec.ts`.
+- Observações: simulação (400 testes A/A, 20 olhadas de 500 por braço, semente fixa): falso positivo 0,5% com o sequencial vs 25,5% espiando o p-valor comum; poder com +20% de efeito 93% (vs 99,5%). CUPED custa uma consulta a mais (páginas vistas e exposições dos visitantes do relatório desde 30 dias antes do período) e O(n) de CPU, só no relatório com a opção ligada; o bandit/piloto automático e os insights não usam CUPED. Snippet inalterado (10.233 B). D-079.

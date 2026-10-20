@@ -12,19 +12,20 @@ const DAY = 86_400_000;
 export const BANDIT_WINDOW_DAYS = 30;
 
 /**
- * Piloto automático sobre os pesos do bandit: perdedora (veredito na meta primária) sai do ar e não volta;
- * com vencedora declarada, só as vencedoras recebem tráfego. Sempre sobra ao menos uma variação.
+ * Piloto automático sobre os pesos do bandit: perdedora (veredito na meta primária) ou que piora uma meta de
+ * guarda sai do ar e não volta; com vencedora declarada, só as vencedoras recebem tráfego. Sempre sobra ao
+ * menos uma variação.
  */
 export function autopilotWeights(
   weights: number[],
-  arms: { verdict: string }[],
+  arms: { verdict: string; guardrailViolated?: boolean }[],
   exp: { variations: { weight: number }[] },
 ): number[] {
   const winners = arms.some((a) => a.verdict === 'winner');
   const out = weights.map((w, i) => {
     const v = arms[i]?.verdict;
     if (winners) return v === 'winner' ? w : 0;
-    return v === 'loser' || exp.variations[i]?.weight === 0 ? 0 : w;
+    return v === 'loser' || arms[i]?.guardrailViolated || exp.variations[i]?.weight === 0 ? 0 : w;
   });
   return out.some((w) => w > 0) ? out : weights;
 }

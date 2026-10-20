@@ -82,3 +82,92 @@ test('relatório: tabela por variação, vencedora, CSV e comparação de metas'
   await page.getByTestId('compare-goals').click();
   await expect(page.getByTestId('compare-table')).toContainText('cta');
 });
+
+test('relatório: teste sequencial, CUPED e alerta de meta de guarda', async ({ page, request }) => {
+  const token = await apiToken(request);
+  const headers = { authorization: `Bearer ${token}`, origin: 'http://localhost:5173' };
+  const projects = (await (await request.get(`${API}/projects`, { headers })).json()) as { id: string }[];
+  const id = `exp_e2s_${Math.random().toString(36).slice(2, 8)}`;
+  const experiment = {
+    id,
+    key: id.replace(/_/g, '-'),
+    name: 'Estatística E2E',
+    status: 'paused',
+    variations: [
+      { id: `${id}_c`, key: 'controle', name: 'Controle', weight: 50 },
+      { id: `${id}_b`, key: 'b', name: 'Botão verde', weight: 50 },
+    ],
+    goals: [
+      { id: `${id}_g1`, key: 'compra', type: 'custom', event: 'compra' },
+      { id: `${id}_g2`, key: 'retorno', type: 'custom', event: 'retorno' },
+    ],
+    stats: { sequential: true, cuped: true, guardrails: [`${id}_g2`] },
+  };
+  expect(
+    (
+      await request.post(`${API}/experiments`, {
+        headers,
+        data: { projectId: projects[0]!.id, editorUrl: 'http://localhost:5180/', experiment },
+      })
+    ).status(),
+  ).toBe(201);
+  const events = [];
+  const now = Date.now();
+  for (let i = 0; i < 600; i++) {
+    const arm = i % 2 ? 'b' : 'c';
+    const k = i >> 1;
+    const at = now - 60_000 - 1000 * i;
+    const base = { accountId: 'demo', visitorId: `${id}-v${i}`, url: 'http://localhost:5180/' };
+    const ctx = {
+      experimentId: id,
+      experimentKey: experiment.key,
+      variationId: `${id}_${arm}`,
+      variationKey: arm,
+    };
+    events.push({ ...base, ...ctx, ts: at, eventId: `${id}-e${i}`, type: 'exposure' });
+    // Atividade anterior ao teste (covariável do CUPED): quem navegou mais compra mais.
+    for (let j = 0; j < k % 4; j++)
+      events.push({
+        ...base,
+        ts: at - 3_600_000 * (j + 1),
+        eventId: `${id}-p${i}-${j}`,
+        type: 'pageview',
+        device: 'desktop',
+      });
+    if (k % 4 >= (arm === 'b' ? 2 : 3))
+      events.push({
+        ...base,
+        ...ctx,
+        ts: at + 1,
+        eventId: `${id}-c${i}`,
+        type: 'conversion',
+        goalId: `${id}_g1`,
+        goalKey: 'compra',
+      });
+    // B derruba a meta de guarda.
+    if (k % (arm === 'b' ? 10 : 2) === 0)
+      events.push({
+        ...base,
+        ...ctx,
+        ts: at + 2,
+        eventId: `${id}-r${i}`,
+        type: 'conversion',
+        goalId: `${id}_g2`,
+        goalKey: 'retorno',
+      });
+  }
+  for (let i = 0; i < events.length; i += 150)
+    await request.post(`${API}/collect`, { data: JSON.stringify({ events: events.slice(i, i + 150) }) });
+
+  await login(page);
+  await expect(page.getByTestId('user-menu')).toBeVisible();
+  await page.goto(`http://localhost:5173/?view=report&id=${id}`);
+  await expect(page.getByTestId('guardrail-alert')).toContainText('Botão verde piora');
+  await expect(page.getByTestId('guardrail-alert')).toContainText('retorno');
+  await expect(page.getByTestId('headline')).not.toContainText('venceu');
+  await expect(page.getByTestId('report-row').nth(1)).toContainText('guarda');
+  await expect(page.getByTestId('report-table')).toContainText('p sempre válido');
+  await expect(page.getByTestId('cuped-note')).toContainText('variância');
+  await expect(page.getByTestId('stats-note')).toContainText('Teste sequencial');
+  await expect(page.getByTestId('report-goal').nth(1)).toContainText('guarda');
+});
