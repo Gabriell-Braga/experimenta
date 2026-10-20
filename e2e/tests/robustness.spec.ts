@@ -187,6 +187,7 @@ const VIEWS = [
   'integrations',
   'privacy',
   'team',
+  'security',
   'activity',
   'approvals',
 ];

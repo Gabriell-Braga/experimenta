@@ -13,6 +13,8 @@ export const TARGET_LABEL: Record<string, [string, string]> = {
   invite: ['Convites', 'o convite de'],
   apikey: ['Chaves de API', 'a chave de API'],
   settings: ['Configurações da conta', ''],
+  security: ['Login em duas etapas', ''],
+  session: ['Sessões de login', ''],
   funnel: ['Funis', 'o funil'],
   audience: ['Audiências', 'a audiência'],
   segment: ['Segmentos', 'o segmento'],
@@ -66,6 +68,22 @@ export function sentence(a: ActivityItem): ReactNode {
       </>
     );
   }
+  if (a.targetType === 'security')
+    return a.action === 'totp_on' ? (
+      <>{who} ativou o login em duas etapas</>
+    ) : a.action === 'totp_off' ? (
+      <>{who} desativou o login em duas etapas</>
+    ) : (
+      <>{who} gerou novos códigos de recuperação</>
+    );
+  if (a.targetType === 'session')
+    return a.action === 'revoke_all' ? (
+      <>
+        {who} saiu de todos os outros lugares{a.detail && ` (${a.detail})`}
+      </>
+    ) : (
+      <>{who} encerrou uma sessão de login</>
+    );
   if (a.targetType === 'publish') {
     const note = a.detail && <span className="text-gray-500"> ({a.detail})</span>;
     if (a.action === 'request')
@@ -99,7 +117,7 @@ export function sentence(a: ActivityItem): ReactNode {
   const extra =
     a.action === 'draft'
       ? ' para rascunho'
-      : a.detail && (a.action === 'restore' || a.targetType === 'invite')
+      : a.detail && (a.action === 'restore' || a.targetType === 'invite' || a.targetType === 'settings')
         ? ` (${role(a.detail)})`
         : '';
   return (

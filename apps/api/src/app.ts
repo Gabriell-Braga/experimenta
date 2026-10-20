@@ -24,6 +24,8 @@ import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
 import { reportRoutes } from './routes/report';
 import { TEAM_PATHS, teamRoutes } from './routes/team';
+import { SECURITY_PATHS, securityRoutes } from './routes/security';
+import { ssoRoutes, type SsoProviders } from './sso';
 import { createSessionStore, type SessionStore } from './sessions';
 import type { PublishResult } from './publish';
 import {
@@ -47,6 +49,8 @@ export interface AppDeps {
   ai?: Anthropic;
   /** Modelo grátis compatível com OpenAI (AI_BASE_URL/AI_MODEL), usado quando não há chave do Claude. */
   aiCompat?: CompatAi;
+  /** Protocolos de SSO disponíveis (ponto de extensão, D-073); nenhum vem implementado. */
+  sso?: SsoProviders;
 }
 
 const ProjectOut = z.object({ id: z.string(), name: z.string(), siteUrl: z.string() }).openapi('Project');
@@ -142,6 +146,8 @@ export function createApp(deps: AppDeps) {
   });
   const PRIVATE = [
     ...TEAM_PATHS,
+    ...SECURITY_PATHS,
+    '/account/sso',
     '/projects',
     '/projects/*',
     '/experiments',
@@ -168,6 +174,8 @@ export function createApp(deps: AppDeps) {
   app.use('*', auditLog(repo));
 
   teamRoutes(app, repo, deps.jwtSecret);
+  securityRoutes(app, repo, deps.jwtSecret);
+  ssoRoutes(app, repo, deps.jwtSecret, deps.sso ?? {}, deps.editorOrigins);
 
   app.openapi(
     createRoute({

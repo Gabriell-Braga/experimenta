@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ApiError, login, type Me } from '../api';
+import { ApiError, login, loginTotp, type Me } from '../api';
 import { Button, inputCls, Logo } from '../ui';
 
 /** Cartão de "resultado" do painel de apresentação: a cara do produto antes de entrar. */
@@ -42,10 +42,12 @@ function SampleResult() {
   );
 }
 
-export function Login({ onLogin }: { onLogin(u: Me): void }) {
-  const [error, setError] = useState<string | null>(null);
+export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initialError?: string | null }) {
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+  /** Senha certa, falta a 2ª etapa (quem tem TOTP ligado). */
+  const [challenge, setChallenge] = useState<string | null>(null);
   return (
     <div className="grid min-h-full lg:grid-cols-[1.1fr_1fr]">
       <aside
@@ -78,72 +80,141 @@ export function Login({ onLogin }: { onLogin(u: Me): void }) {
       </aside>
 
       <main className="flex items-center justify-center p-6">
-        <form
-          className="w-full max-w-sm"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            setBusy(true);
-            setError(null);
-            try {
-              onLogin(await login(String(f.get('email')), String(f.get('password'))));
-            } catch (err) {
-              setError(
-                err instanceof ApiError && err.status === 401
-                  ? 'E-mail ou senha incorretos.'
-                  : 'Não foi possível entrar. Tente de novo.',
-              );
-              setBusy(false);
-            }
-          }}
-        >
-          <Logo className="mb-12 lg:hidden" />
-          <p className="label-mono">Acesso</p>
-          <h1 className="mt-2 font-display text-4xl font-normal text-ink">Bem-vindo de volta</h1>
-          <p className="mt-2 text-sm text-gray-600">Entre para ver seus experimentos e insights.</p>
-          <div className="mt-8 space-y-4">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-gray-700">E-mail</span>
+        {challenge ? (
+          <form
+            className="w-full max-w-sm"
+            data-testid="totp-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (busy) return;
+              const f = new FormData(e.currentTarget);
+              setBusy(true);
+              setError(null);
+              try {
+                onLogin(await loginTotp(challenge, String(f.get('code'))));
+              } catch (err) {
+                const expired = err instanceof ApiError && /expirou/.test(err.message);
+                setError(
+                  err instanceof ApiError && err.status !== 0
+                    ? err.message
+                    : 'Não foi possível entrar. Tente de novo.',
+                );
+                if (expired) setChallenge(null);
+                setBusy(false);
+              }
+            }}
+          >
+            <Logo className="mb-12 lg:hidden" />
+            <p className="label-mono">Duas etapas</p>
+            <h1 className="mt-2 font-display text-4xl font-normal text-ink">Código de verificação</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Digite o código de 6 dígitos do seu app autenticador. Sem o celular? Use um código de
+              recuperação.
+            </p>
+            <label className="mt-8 block">
+              <span className="mb-1 block text-sm font-medium text-gray-700">Código</span>
               <input
-                name="email"
-                type="email"
-                autoComplete="email"
+                name="code"
                 required
                 autoFocus
-                className={inputCls}
-                aria-label="E-mail"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={40}
+                className={`${inputCls} font-mono tracking-widest`}
+                aria-label="Código"
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-gray-700">Senha</span>
-              <span className="relative block">
+            {error && (
+              <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+            <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full py-2.5">
+              {busy ? 'Conferindo…' : 'Entrar'}
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setChallenge(null);
+                setError(null);
+              }}
+              className="mt-3 w-full text-center text-sm text-gray-500 hover:text-ink"
+            >
+              Voltar
+            </button>
+          </form>
+        ) : (
+          <form
+            className="w-full max-w-sm"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              setBusy(true);
+              setError(null);
+              try {
+                const r = await login(String(f.get('email')), String(f.get('password')));
+                if ('challenge' in r) {
+                  setChallenge(r.challenge);
+                  setBusy(false);
+                } else onLogin(r);
+              } catch (err) {
+                setError(
+                  err instanceof ApiError && err.status === 401
+                    ? 'E-mail ou senha incorretos.'
+                    : 'Não foi possível entrar. Tente de novo.',
+                );
+                setBusy(false);
+              }
+            }}
+          >
+            <Logo className="mb-12 lg:hidden" />
+            <p className="label-mono">Acesso</p>
+            <h1 className="mt-2 font-display text-4xl font-normal text-ink">Bem-vindo de volta</h1>
+            <p className="mt-2 text-sm text-gray-600">Entre para ver seus experimentos e insights.</p>
+            <div className="mt-8 space-y-4">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-gray-700">E-mail</span>
                 <input
-                  name="password"
-                  type={show ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
                   required
-                  className={`${inputCls} pr-16`}
-                  aria-label="Senha"
+                  autoFocus
+                  className={inputCls}
+                  aria-label="E-mail"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShow(!show)}
-                  className="absolute inset-y-0 right-2 my-auto h-7 rounded px-2 font-mono text-[11px] text-gray-500 hover:bg-gray-100"
-                >
-                  {show ? 'ocultar' : 'mostrar'}
-                </button>
-              </span>
-            </label>
-          </div>
-          {error && (
-            <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-          <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full py-2.5">
-            {busy ? 'Entrando…' : 'Entrar'}
-          </Button>
-        </form>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-gray-700">Senha</span>
+                <span className="relative block">
+                  <input
+                    name="password"
+                    type={show ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    required
+                    className={`${inputCls} pr-16`}
+                    aria-label="Senha"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShow(!show)}
+                    className="absolute inset-y-0 right-2 my-auto h-7 rounded px-2 font-mono text-[11px] text-gray-500 hover:bg-gray-100"
+                  >
+                    {show ? 'ocultar' : 'mostrar'}
+                  </button>
+                </span>
+              </label>
+            </div>
+            {error && (
+              <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+            <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full py-2.5">
+              {busy ? 'Entrando…' : 'Entrar'}
+            </Button>
+          </form>
+        )}
       </main>
     </div>
   );

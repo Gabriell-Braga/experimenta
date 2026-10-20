@@ -46,6 +46,7 @@ test('convite: só owner convida; pessoa nova cria login e entra na conta com o 
     email: 'nova@x.com',
     role: 'editor',
     hasUser: false,
+    hasTotp: false,
   });
   const accept = (body: unknown) =>
     t.app.request(`/auth/invites/${token}/accept`, {

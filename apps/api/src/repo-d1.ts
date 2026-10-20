@@ -19,10 +19,13 @@ import {
   normalizePage,
   scrollReached,
   mergeableActivity,
+  SESSION_TOUCH_MS,
   type AccountRef,
   type Activity,
   type Entity,
   type ExperimentRecord,
+  type LoginSession,
+  type Mfa,
   type Person,
   type Repo,
   type Role,
@@ -52,6 +55,7 @@ const toPerson = (r: Row): Person => ({
   email: r.email as string,
   name: r.name as string,
   passwordHash: r.password_hash as string,
+  mfa: r.mfa ? json<Mfa>(r.mfa) : null,
   createdAt: date(r.created_at),
 });
 /** Linha de users + role/can_publish_js da membership; `accountId` = a conta consultada. */
@@ -62,7 +66,16 @@ const toUser = (r: Row, accountId: string): User => ({
   canPublishJs: !!r.can_publish_js,
 });
 const MEMBER_SQL =
-  'SELECT u.id, u.email, u.name, u.password_hash, u.created_at, m.role, m.can_publish_js FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.account_id = ?';
+  'SELECT u.id, u.email, u.name, u.password_hash, u.mfa, u.created_at, m.role, m.can_publish_js FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.account_id = ?';
+const toSession = (r: Row): LoginSession => ({
+  id: r.id as string,
+  accountId: r.account_id as string,
+  userAgent: r.user_agent as string,
+  ip: r.ip as string,
+  createdAt: date(r.created_at).toISOString(),
+  lastSeenAt: date(r.last_seen_at).toISOString(),
+  expiresAt: date(r.expires_at).toISOString(),
+});
 const toProject = (r: Row) => ({
   id: r.id as string,
   accountId: r.account_id as string,
@@ -177,6 +190,7 @@ export function createD1Repo(d1: D1Like): Repo {
         role: u.role ?? 'editor',
         canPublishJs: u.canPublishJs ?? false,
         passwordHash: await hashPassword(u.password),
+        mfa: null,
         createdAt: new Date(),
       };
       const at = user.createdAt.getTime();
@@ -208,8 +222,95 @@ export function createD1Repo(d1: D1Like): Repo {
     },
 
     async getUser(accountId, id) {
-      const r = await first(`${MEMBER_SQL} AND m.user_id = ?`, accountId, id);
-      return r ? toUser(r, accountId) : undefined;
+      const r = await first(
+        'SELECT u.*, m.role, m.can_publish_js, a.require_totp FROM memberships m JOIN users u ON u.id = m.user_id JOIN accounts a ON a.id = m.account_id WHERE m.account_id = ? AND m.user_id = ?',
+        accountId,
+        id,
+      );
+      return r ? { ...toUser(r, accountId), requireTotp: !!r.require_totp } : undefined;
+    },
+
+    async setMfa(userId, mfa) {
+      await q('UPDATE users SET mfa = ? WHERE id = ?', mfa ? JSON.stringify(mfa) : null, userId).run();
+    },
+
+    async getRequireTotp(accountId) {
+      return !!(await first<{ v: number }>('SELECT require_totp AS v FROM accounts WHERE id = ?', accountId))
+        ?.v;
+    },
+
+    async setRequireTotp(accountId, on) {
+      await q('UPDATE accounts SET require_totp = ? WHERE id = ?', on ? 1 : 0, accountId).run();
+    },
+
+    async createSession(accountId, userId, s) {
+      const id = newId('ses');
+      const now = Date.now();
+      await d1.batch([
+        q('DELETE FROM user_sessions WHERE user_id = ? AND expires_at < ?', userId, now),
+        q(
+          'INSERT INTO user_sessions (id, account_id, user_id, user_agent, ip, created_at, last_seen_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          id,
+          accountId,
+          userId,
+          s.userAgent,
+          s.ip,
+          now,
+          now,
+          s.expiresAt.getTime(),
+        ),
+      ]);
+      return id;
+    },
+
+    async touchSession(userId, id) {
+      const now = Date.now();
+      const r = await first<{ last_seen_at: number; expires_at: number }>(
+        'SELECT last_seen_at, expires_at FROM user_sessions WHERE id = ? AND user_id = ?',
+        id,
+        userId,
+      );
+      if (!r || r.expires_at <= now) return false;
+      if (now - r.last_seen_at > SESSION_TOUCH_MS)
+        await q(
+          'UPDATE user_sessions SET last_seen_at = ? WHERE id = ? AND user_id = ?',
+          now,
+          id,
+          userId,
+        ).run();
+      return true;
+    },
+
+    async moveSession(userId, id, accountId) {
+      return !!(await first(
+        'UPDATE user_sessions SET account_id = ? WHERE id = ? AND user_id = ? RETURNING id',
+        accountId,
+        id,
+        userId,
+      ));
+    },
+
+    async listSessions(userId) {
+      return (
+        await all(
+          'SELECT * FROM user_sessions WHERE user_id = ? AND expires_at >= ? ORDER BY last_seen_at DESC',
+          userId,
+          Date.now(),
+        )
+      ).map(toSession);
+    },
+
+    async deleteSession(userId, id) {
+      return !!(await first(
+        'DELETE FROM user_sessions WHERE id = ? AND user_id = ? RETURNING id',
+        id,
+        userId,
+      ));
+    },
+
+    async deleteOtherSessions(userId, keep) {
+      return (await all('DELETE FROM user_sessions WHERE user_id = ? AND id <> ? RETURNING id', userId, keep))
+        .length;
     },
 
     async listAccountsOf(userId) {

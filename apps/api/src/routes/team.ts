@@ -1,6 +1,16 @@
 import { createRoute, z } from '@hono/zod-openapi';
+import type { Context } from 'hono';
 import { NameSchema } from '@abtest/shared';
-import { forbid, hasRole, issueToken } from '../auth';
+import {
+  checkSecondFactor,
+  forbid,
+  hasRole,
+  issueMfaChallenge,
+  issueToken,
+  openSession,
+  secondFactorError,
+  type AuthVars,
+} from '../auth';
 import { randomToken, sha256hex, verifyPassword } from '../crypto';
 import { errors, ErrorSchema, json, security, type Api } from '../http';
 import type { Entity, Repo, Role, User } from '../repo';
@@ -28,8 +38,19 @@ export const UserOut = z
   })
   .openapi('User');
 const AccountOut = z.object({ id: z.string(), name: z.string(), role: RoleSchema }).openapi('AccountRef');
-const MeOut = UserOut.extend({ accounts: z.array(AccountOut) }).openapi('Me');
-const Session = z.object({ token: z.string(), user: UserOut });
+const MeOut = UserOut.extend({
+  accounts: z.array(AccountOut),
+  totpEnabled: z.boolean(),
+  /** A conta ativa exige duas etapas e a pessoa ainda não ativou: só a tela de Segurança funciona. */
+  totpRequired: z.boolean(),
+}).openapi('Me');
+export const Session = z.object({ token: z.string(), user: UserOut }).openapi('Session');
+const MfaChallenge = z
+  .object({
+    mfa: z.literal('totp'),
+    challenge: z.string().openapi({ description: 'enviar em POST /auth/login/totp com o código (5 min)' }),
+  })
+  .openapi('MfaChallenge');
 const Password = z.string().min(8, 'mínimo de 8 caracteres').max(200);
 const Id = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 const TokenParam = z.object({
@@ -88,7 +109,16 @@ const keepsAnOwner = async (repo: Repo, accountId: string, userId: string) =>
   (await repo.listMembers(accountId)).some((m) => m.role === 'owner' && m.id !== userId);
 
 export function teamRoutes(app: Api, repo: Repo, secret: string) {
-  const session = async (u: User) => ({ token: await issueToken(u, secret), user: publicUser(u) });
+  const session = async (c: Context, u: User) => ({
+    token: await openSession(repo, secret, c, u),
+    user: publicUser(u),
+  });
+  /** Troca de conta / conta nova: a mesma sessão passa para a outra conta (novo token, mesmo `sid`). */
+  const moved = async (c: Context<{ Variables: AuthVars }>, u: User) => {
+    const sid = c.get('sid');
+    if (!sid || !(await repo.moveSession(u.id, sid, u.accountId))) return null;
+    return { token: await issueToken(u, sid, secret), user: publicUser(u) };
+  };
 
   app.openapi(
     createRoute({
@@ -110,7 +140,10 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
         ),
       },
       responses: {
-        200: json(Session, 'token JWT (12 h) da conta escolhida'),
+        200: json(
+          z.union([Session, MfaChallenge]),
+          'token JWT (12 h) da conta escolhida, ou o desafio da 2ª etapa para quem tem TOTP',
+        ),
         401: json(ErrorSchema, 'credenciais inválidas'),
       },
     }),
@@ -124,7 +157,9 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
       const acc = [accountId, person.accountId, ids[0]].find((id) => id && ids.includes(id));
       const user = acc && (await repo.getUser(acc, person.id));
       if (!user) return c.json({ error: 'e-mail ou senha inválidos' }, 401);
-      return c.json(await session(user), 200);
+      if (user.mfa?.enabled)
+        return c.json({ mfa: 'totp' as const, challenge: await issueMfaChallenge(user, secret) }, 200);
+      return c.json(await session(c, user), 200);
     },
   );
 
@@ -139,7 +174,16 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
     }),
     async (c) => {
       const user = c.get('user');
-      return c.json({ ...publicUser(user), accounts: await repo.listAccountsOf(user.id) }, 200);
+      const totpEnabled = !!user.mfa?.enabled;
+      return c.json(
+        {
+          ...publicUser(user),
+          accounts: await repo.listAccountsOf(user.id),
+          totpEnabled,
+          totpRequired: !!user.requireTotp && !totpEnabled,
+        },
+        200,
+      );
     },
   );
 
@@ -163,7 +207,8 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
       const acc = await repo.createAccount(name);
       await repo.addMember(acc.id, me.id, { role: 'owner', canPublishJs: true });
       await repo.createProject(acc.id, { name, siteUrl });
-      return c.json(await session((await repo.getUser(acc.id, me.id))!), 201);
+      const s = await moved(c, (await repo.getUser(acc.id, me.id))!);
+      return s ? c.json(s, 201) : c.json({ error: 'não autenticado' }, 401);
     },
   );
 
@@ -180,7 +225,8 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
     async (c) => {
       const me = c.get('user');
       const user = isPerson(me) ? await repo.getUser(c.req.valid('param').id, me.id) : undefined;
-      return user ? c.json(await session(user), 200) : c.json({ error: 'não é membro dessa conta' }, 404);
+      const s = user && (await moved(c, user));
+      return s ? c.json(s, 200) : c.json({ error: 'não é membro dessa conta' }, 404);
     },
   );
 
@@ -332,7 +378,14 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
       request: { params: TokenParam },
       responses: {
         200: json(
-          z.object({ accountName: z.string(), email: z.string(), role: RoleSchema, hasUser: z.boolean() }),
+          z.object({
+            accountName: z.string(),
+            email: z.string(),
+            role: RoleSchema,
+            hasUser: z.boolean(),
+            /** O login existente tem duas etapas: o aceite pede o código. */
+            hasTotp: z.boolean(),
+          }),
           'convite',
         ),
         404: errors[404],
@@ -342,8 +395,17 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
       const found = await findInvite(repo, c.req.valid('param').token);
       if (!found) return c.json({ error: 'convite inválido ou expirado' }, 404);
       const { data } = found.invite;
-      const hasUser = !!(await repo.findUserByEmail(data.email));
-      return c.json({ accountName: found.accountName, email: data.email, role: data.role, hasUser }, 200);
+      const person = await repo.findUserByEmail(data.email);
+      return c.json(
+        {
+          accountName: found.accountName,
+          email: data.email,
+          role: data.role,
+          hasUser: !!person,
+          hasTotp: !!person?.mfa?.enabled,
+        },
+        200,
+      );
     },
   );
 
@@ -356,13 +418,21 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
         'Aceita o convite. E-mail com login: confirma a senha e entra na conta. E-mail novo: cria o login com nome e senha',
       request: {
         params: TokenParam,
-        body: json(z.object({ password: Password, name: NameSchema.optional() }), 'senha (e nome, se novo)'),
+        body: json(
+          z.object({
+            password: Password,
+            name: NameSchema.optional(),
+            code: z.string().max(40).optional().openapi({ description: '2ª etapa, se o login tiver TOTP' }),
+          }),
+          'senha (e nome, se novo; código, se tiver duas etapas)',
+        ),
       },
       responses: {
         200: json(Session, 'token já na conta do convite'),
         400: errors[404],
-        401: json(ErrorSchema, 'senha incorreta'),
+        401: json(ErrorSchema, 'senha ou código incorreto'),
         404: errors[404],
+        429: json(ErrorSchema, 'muitas tentativas erradas na 2ª etapa'),
       },
     }),
     async (c) => {
@@ -370,11 +440,15 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
       if (!found) return c.json({ error: 'convite inválido ou expirado' }, 404);
       const { accountId, invite } = found;
       const { email, role, canPublishJs } = invite.data;
-      const { password, name } = c.req.valid('json');
+      const { password, name, code } = c.req.valid('json');
       const person = await repo.findUserByEmail(email);
       if (person) {
         if (!(await verifyPassword(password, person.passwordHash)))
           return c.json({ error: 'senha incorreta' }, 401);
+        if (person.mfa?.enabled) {
+          const r = await checkSecondFactor(repo, person, code ?? '');
+          if (r !== 'ok') return secondFactorError(c, r);
+        }
         await repo.addMember(accountId, person.id, { role, canPublishJs });
       } else {
         if (!name) return c.json({ error: 'name: obrigatório' }, 400);
@@ -386,7 +460,7 @@ export function teamRoutes(app: Api, repo: Repo, secret: string) {
       }
       await repo.deleteEntity(accountId, 'invite', invite.id);
       const user = (await repo.getUser(accountId, (await repo.findUserByEmail(email))!.id))!;
-      return c.json(await session(user), 200);
+      return c.json(await session(c, user), 200);
     },
   );
 }

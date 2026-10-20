@@ -27,6 +27,8 @@ export const accounts = pgTable('accounts', {
   heatmapSampleRate: real('heatmap_sample_rate'),
   /** Publicação passa por aprovação de quem pode publicar JS (fase 16.4, D-072). */
   requireApproval: boolean('require_approval').notNull().default(false),
+  /** Todo membro precisa do login em duas etapas (TOTP) para usar a conta (fase 16.5, D-073). */
+  requireTotp: boolean('require_totp').notNull().default(false),
   createdAt: createdAt(),
 });
 
@@ -45,9 +47,47 @@ export const users = pgTable(
     email: text('email').notNull(),
     name: text('name').notNull(),
     passwordHash: text('password_hash').notNull(),
+    /** Login em duas etapas (TOTP) da pessoa; null = nunca configurou (fase 16.5, D-073). */
+    mfa: jsonb('mfa').$type<Mfa>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('users_email_uq').on(t.email), index('users_account_idx').on(t.accountId)],
+);
+
+/** Estado do TOTP da pessoa. O segredo nunca sai da API depois de confirmado. */
+export interface Mfa {
+  /** Segredo base32. Com `enabled` false, é o segredo em configuração (ainda não confirmado). */
+  secret: string;
+  enabled: boolean;
+  /** SHA-256 dos códigos de recuperação ainda não usados. */
+  recovery: string[];
+  /** Último passo de 30 s aceito (o mesmo código não vale duas vezes). */
+  lastStep: number;
+  /** Erros seguidos; no 5º, bloqueia por 15 min (`lockedUntil`, ms). */
+  failures: number;
+  lockedUntil: number;
+}
+
+/**
+ * Sessão de login (fase 16.5): o JWT carrega o id (`sid`) e o middleware confere a cada requisição, então
+ * encerrar a sessão derruba o token na hora. A sessão é da pessoa (vale em todas as contas dela, como o login);
+ * `account_id` = conta ativa mais recente (troca de conta atualiza), só para mostrar na lista.
+ */
+export const userSessions = pgTable(
+  'user_sessions',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    userAgent: text('user_agent').notNull().default(''),
+    ip: text('ip').notNull().default(''),
+    createdAt: createdAt(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [index('user_sessions_user_idx').on(t.userId)],
 );
 
 /** Pessoa ↔ conta, com o papel nessa conta. Uma pessoa pode estar em várias contas. */

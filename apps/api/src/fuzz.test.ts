@@ -251,7 +251,14 @@ test('viewer não escreve: POST/PUT/PATCH/DELETE → 4xx', async () => {
       if (r.status < 400 || r.status >= 500) wrong.push(`${r.status} ${op.method} ${path}`);
     }
   // Sessão de edição: viewer abre o editor em modo leitura. Conta nova: quem cria é owner dela, não escreve nesta.
-  expect(wrong.filter((w) => !['201 POST /edit-sessions', '201 POST /accounts'].includes(w))).toEqual([]);
+  // Segurança pessoal (duas etapas, sair dos outros lugares): é da pessoa, qualquer papel faz.
+  const allowed = [
+    '201 POST /edit-sessions',
+    '201 POST /accounts',
+    '200 POST /me/totp/setup',
+    '200 DELETE /sessions',
+  ];
+  expect(wrong.filter((w) => !allowed.includes(w))).toEqual([]);
 }, 120_000);
 
 test('corpos quebrados e campos de topo trocados em toda rota com corpo → nunca 5xx', async () => {

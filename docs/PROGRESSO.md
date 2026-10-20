@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento (fase 16)
 **Fase atual:** 16
-**Tarefa atual:** 16.5 Segurança de acesso
-**Última atualização:** 2026-10-20 04:28
-**Próximo passo:** 16.5 (TOTP, sessões ativas, base para SSO).
+**Tarefa atual:** 16.6 Comentários e menções
+**Última atualização:** 2026-10-20 04:50
+**Próximo passo:** 16.6 (comentários e @menções em experimentos, campanhas e ideias).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -569,3 +569,9 @@
 - Arquivos principais: apps/api/src/routes/approvals.ts, apps/api/src/publish.ts, apps/api/src/app.ts, apps/api/src/audit.ts, apps/api/src/webhooks.ts, apps/api/drizzle/0009_past_scourge.sql, apps/api/migrations-d1/0009_require_approval.sql, apps/editor/src/pages/Approvals.tsx, apps/editor/src/shell.tsx, apps/editor/src/api.ts, e2e/tests/approvals.spec.ts
 - Como testar manualmente: owner → Configurar → Aprovações → ligar; entrar como editor@abtest.dev, mudar algo em execução e Publicar (aviso "Enviado para aprovação"); owner vê o contador no menu, recusa com comentário ou aprova. `pnpm --filter @abtest/api exec vitest run src/routes/approvals.test.ts`; `pnpm --filter @abtest/e2e e2e tests/approvals.spec.ts`.
 - Observações: em produção, o próximo `pnpm deploy:cf` aplica a migração 0009 no D1. Aprovar publica o estado do momento da aprovação (não um retrato do pedido); sem diff visual do que mudou (D-072). Exclusões silenciosas em listas (pop-up, pesquisa, flag) com aprovação ligada viram pedido sem aviso na hora (o contador mostra).
+
+### 2026-10-20 04:50 — Tarefa 16.5 concluída (segurança de acesso: duas etapas, sessões, base de SSO)
+- O que foi feito: login em duas etapas (TOTP, RFC 6238 com HMAC-SHA1 do Web Crypto) opcional por pessoa: configurar mostra a chave base32 e o link `otpauth://` (sem QR), ativar pede um código e devolve 10 códigos de recuperação (uma vez; só o hash fica). Com TOTP, o login devolve um desafio de 5 min e `POST /auth/login/totp` aceita o código do app (uma vez por passo, ±30 s) ou um de recuperação; 5 erros seguidos bloqueiam 15 min. Desativar pede senha + código; novos códigos pedem código. Convite para login com TOTP pede o código. Owner (com TOTP ligado) exige duas etapas na conta: quem não ativou só vê a tela de ativação (API responde 403 `totp_required` fora de `/me/*`, `/sessions*` e troca de conta); chave de API não é afetada. Sessões de login revogáveis: tabela `user_sessions`, o JWT carrega `sid` conferido a cada requisição; Configurar → Segurança lista as sessões (aparelho, IP, conta, atividade), encerra uma ou "sai de todos os outros"; "Sair" no menu encerra a sessão na API. Base de SSO: configuração OIDC/SAML por conta (entidade interna `sso`, segredo só escrita), ponto de extensão `SsoProvider` e fluxo start → IdP → callback → sessão (`#sso=` na URL do editor); nenhum protocolo implementado ainda (ver D-073). Ativar, desativar, novos códigos, encerrar sessões, exigência e SSO entram na auditoria.
+- Arquivos principais: apps/api/src/totp.ts, apps/api/src/auth.ts, apps/api/src/routes/security.ts, apps/api/src/sso.ts, apps/api/src/routes/team.ts, apps/api/src/repo.ts, apps/api/src/repo-d1.ts, apps/api/src/schema.ts, apps/api/drizzle/0010_spotty_big_bertha.sql, apps/api/migrations-d1/0010_security.sql, apps/editor/src/pages/Security.tsx, apps/editor/src/pages/Login.tsx, e2e/tests/security.spec.ts
+- Como testar manualmente: entrar como editor@abtest.dev → Configurar → Segurança → Configurar → adicionar a chave no app autenticador → código → guardar os códigos de recuperação; sair e entrar (pede o código). Em outra janela entrar de novo e, na primeira, "Sair de todos os outros". Como owner com TOTP: ligar "Exigir de todos os membros" e entrar como viewer (só a tela de ativação). `pnpm --filter @abtest/api exec vitest run src/totp.test.ts src/routes/security.test.ts`; `pnpm --filter @abtest/e2e e2e tests/security.spec.ts`.
+- Observações: tokens emitidos antes desta versão (sem `sid`) deixam de valer: todos entram de novo uma vez. Em produção, o próximo `pnpm deploy:cf` aplica a migração 0010 no D1. Custo D1: +1 leitura por requisição autenticada e no máximo 1 escrita a cada 5 min por sessão. SSO só configura: falta implementar OIDC/SAML (D-073).

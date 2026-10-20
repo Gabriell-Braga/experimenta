@@ -22,6 +22,10 @@ export interface Me {
   canPublishJs: boolean;
   /** Contas de que a pessoa é membro (vem do /me; não vem no login). */
   accounts?: AccountRef[];
+  /** Login em duas etapas ativado (vem do /me). */
+  totpEnabled?: boolean;
+  /** A conta exige duas etapas e a pessoa ainda não ativou: só a tela de configuração funciona. */
+  totpRequired?: boolean;
 }
 export interface Project {
   id: string;
@@ -56,6 +60,13 @@ export class ApiError extends Error {
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const logout = () => localStorage.removeItem(TOKEN_KEY);
+/** Sair de verdade: encerra a sessão na API (o token para de valer) e limpa o local. */
+export async function signOut() {
+  await api('/sessions/current', { method: 'DELETE' }).catch(() => undefined);
+  logout();
+}
+/** A conta passou a exigir duas etapas no meio do uso: o App recarrega o /me e mostra a configuração. */
+export const TOTP_REQUIRED = 'abt:totp-required';
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -68,7 +79,8 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (res.status === 401 && !path.startsWith('/auth/')) logout();
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    if (body.code === 'totp_required') dispatchEvent(new Event(TOTP_REQUIRED));
     throw new ApiError(res.status, body.error ?? `erro ${res.status}`);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
@@ -84,14 +96,29 @@ function startSession(r: Session): Me {
   return r.user;
 }
 
-export async function login(email: string, password: string): Promise<Me> {
+/** Login: entra direto ou, para quem tem duas etapas, devolve o desafio para `loginTotp`. */
+export async function login(email: string, password: string): Promise<Me | { challenge: string }> {
   const accountId = localStorage.getItem(ACCOUNT_KEY) ?? undefined;
-  return startSession(
-    await api<Session>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, accountId }),
-    }),
+  const r = await api<Session | { mfa: 'totp'; challenge: string }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, accountId }),
+  });
+  return 'challenge' in r ? { challenge: r.challenge } : startSession(r);
+}
+/** 2ª etapa: código do app autenticador ou código de recuperação. */
+export const loginTotp = async (challenge: string, code: string) =>
+  startSession(
+    await api<Session>('/auth/login/totp', { method: 'POST', body: JSON.stringify({ challenge, code }) }),
   );
+/** Volta do SSO (`#sso=<token>` na URL): guarda o token e limpa a URL. Devolve o erro do IdP, se houver. */
+export function takeSsoResult(): string | null {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const token = h.get('sso');
+  const error = h.get('sso_error');
+  if (!token && !error) return null;
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  history.replaceState(null, '', location.pathname + location.search);
+  return error;
 }
 
 /** Troca de conta / conta nova: novo token; a página recarrega para nenhuma tela ficar com dado da conta anterior. */
@@ -129,16 +156,68 @@ export const team = {
 export const inviteLink = (token: string) =>
   `${location.origin}${location.pathname}?invite=${encodeURIComponent(token)}`;
 export const inviteInfo = (token: string) =>
-  api<{ accountName: string; email: string; role: Role; hasUser: boolean }>(
+  api<{ accountName: string; email: string; role: Role; hasUser: boolean; hasTotp: boolean }>(
     `/auth/invites/${encodeURIComponent(token)}`,
   );
-export const acceptInvite = async (token: string, body: { password: string; name?: string }) =>
+export const acceptInvite = async (token: string, body: { password: string; name?: string; code?: string }) =>
   startSession(
     await api<Session>(`/auth/invites/${encodeURIComponent(token)}/accept`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
   );
+
+// ---------- Segurança de acesso (duas etapas, sessões, SSO) ----------
+export interface LoginSession {
+  id: string;
+  accountId: string;
+  accountName: string;
+  userAgent: string;
+  ip: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  current: boolean;
+}
+export interface SsoConfig {
+  enabled: boolean;
+  protocol: 'oidc' | 'saml';
+  domains: string[];
+  issuer?: string;
+  clientId?: string;
+  clientSecret?: string;
+  ssoUrl?: string;
+  idpEntityId?: string;
+  idpCert?: string;
+}
+export interface SsoState {
+  config: SsoConfig | null;
+  hasClientSecret: boolean;
+  available: SsoConfig['protocol'][];
+}
+const post = <T>(path: string, body?: unknown) =>
+  api<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) });
+export const securityApi = {
+  totp: () => api<{ enabled: boolean; recoveryCodesLeft: number; required: boolean }>('/me/totp'),
+  setup: () => post<{ secret: string; uri: string }>('/me/totp/setup'),
+  enable: (code: string) => post<{ recoveryCodes: string[] }>('/me/totp/enable', { code }),
+  disable: (password: string, code: string) => post<{ ok: boolean }>('/me/totp/disable', { password, code }),
+  recoveryCodes: (code: string) => post<{ recoveryCodes: string[] }>('/me/totp/recovery-codes', { code }),
+  sessions: () => api<LoginSession[]>('/sessions'),
+  revoke: (id: string) => api<void>(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  revokeOthers: () => api<{ revoked: number }>('/sessions', { method: 'DELETE' }),
+  account: () =>
+    api<{ requireTotp: boolean; withoutTotp: { id: string; name: string; email: string }[] }>(
+      '/account/security',
+    ),
+  setRequireTotp: (requireTotp: boolean) =>
+    api<{ requireTotp: boolean }>('/account/security', {
+      method: 'PUT',
+      body: JSON.stringify({ requireTotp }),
+    }),
+  sso: () => api<SsoState>('/account/sso'),
+  saveSso: (c: SsoConfig) => api<SsoState>('/account/sso', { method: 'PUT', body: JSON.stringify(c) }),
+};
 
 /** Linha do histórico de atividades (auditoria). */
 export interface ActivityItem {

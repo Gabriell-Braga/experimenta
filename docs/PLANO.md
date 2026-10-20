@@ -174,7 +174,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 - [x] 16.2 Multi-conta/workspaces: um usuário em várias contas (troca no menu do usuário), convite de membros por e-mail com papel, criação de conta nova (base do SaaS); toda consulta segue filtrando por account_id
 - [x] 16.3 Histórico de atividades (auditoria): quem criou/editou/publicou/pausou/excluiu o quê e quando, por conta, com filtro por pessoa e tipo; tela em Configurar → Atividades e linha do tempo dentro do experimento
 - [x] 16.4 Fluxo de aprovação opcional: editor pede publicação, owner (ou quem tem permissão) aprova/recusa com comentário; notificação na tela e por webhook
-- [ ] 16.5 Segurança de acesso: login em duas etapas (TOTP) opcional por usuário e obrigatório por conta; sessões ativas com "sair de todos"; base para SSO (SAML/OIDC) por conta
+- [x] 16.5 Segurança de acesso: login em duas etapas (TOTP) opcional por usuário e obrigatório por conta; sessões ativas com "sair de todos"; base para SSO (SAML/OIDC) por conta
 - [ ] 16.6 Comentários e menções: comentários em experimentos, campanhas e ideias, com @menção de membro da conta
 
 ### Fase 17 — Experimentação avançada que falta

@@ -45,11 +45,14 @@ export function AcceptInvite({ token }: { token: string }) {
                 await acceptInvite(token, {
                   password: String(f.get('password')),
                   ...(info.hasUser ? {} : { name: String(f.get('name')).trim() }),
+                  ...(info.hasTotp ? { code: String(f.get('code')) } : {}),
                 });
                 done();
               } catch (err) {
                 setError(
-                  err instanceof ApiError && err.status === 401 ? 'Senha incorreta.' : (err as Error).message,
+                  err instanceof ApiError && err.status === 401 && !info.hasTotp
+                    ? 'Senha incorreta.'
+                    : (err as Error).message,
                 );
                 setBusy(false);
               }
@@ -82,6 +85,21 @@ export function AcceptInvite({ token }: { token: string }) {
                   className={inputCls}
                 />
               </label>
+              {info.hasTotp && (
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-gray-700">
+                    Código do app autenticador (ou de recuperação)
+                  </span>
+                  <input
+                    name="code"
+                    required
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={40}
+                    className={`${inputCls} font-mono tracking-widest`}
+                  />
+                </label>
+              )}
             </div>
             {error && (
               <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">

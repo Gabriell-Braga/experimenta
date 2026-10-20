@@ -72,6 +72,7 @@ export const banditUser = (accountId: string): User => ({
   role: 'editor',
   canPublishJs: false,
   passwordHash: '',
+  mfa: null,
   createdAt: new Date(0),
 });
 

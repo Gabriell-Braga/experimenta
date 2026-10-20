@@ -7,7 +7,21 @@ import {
   type PublishedConfig,
   type TrackingEvent,
 } from '@abtest/shared';
-import { and, asc, desc, eq, getTableColumns, gte, inArray, lt, lte, max, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  gte,
+  inArray,
+  lt,
+  lte,
+  max,
+  ne,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import type { Db } from './db';
 import {
   accounts,
@@ -23,7 +37,9 @@ import {
   recordingChunks,
   recordings,
   users,
+  userSessions,
   variations,
+  type Mfa,
 } from './schema';
 
 import { hashPassword, newId } from './crypto';
@@ -34,7 +50,31 @@ export type Role = 'owner' | 'editor' | 'viewer';
 /** Pessoa (login). `accountId` = conta padrão ao entrar. */
 export type Person = typeof users.$inferSelect;
 /** Pessoa dentro de uma conta: `accountId` = conta ativa; papel e permissão vêm da membership dessa conta. */
-export type User = Person & { role: Role; canPublishJs: boolean };
+export type User = Person & {
+  role: Role;
+  canPublishJs: boolean;
+  /** A conta ativa exige duas etapas (só `getUser` preenche: é o que o middleware de autenticação usa). */
+  requireTotp?: boolean;
+};
+export type { Mfa };
+
+/** Sessão de login (fase 16.5). */
+export interface LoginSession {
+  id: string;
+  accountId: string;
+  userAgent: string;
+  ip: string;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+}
+export interface NewLoginSession {
+  userAgent: string;
+  ip: string;
+  expiresAt: Date;
+}
+/** `last_seen_at` só é regravado se estiver mais velho que isto (uma escrita a cada 5 min por sessão). */
+export const SESSION_TOUCH_MS = 5 * 60_000;
 /** Conta de que a pessoa é membro (troca de conta no menu do usuário). */
 export interface AccountRef {
   id: string;
@@ -305,11 +345,107 @@ export function createRepo(db: Db) {
     /** A pessoa como membro da conta (undefined se não for membro). */
     async getUser(accountId: string, id: string): Promise<User | undefined> {
       const [row] = await db
-        .select({ ...getTableColumns(users), role: memberships.role, canPublishJs: memberships.canPublishJs })
+        .select({
+          ...getTableColumns(users),
+          role: memberships.role,
+          canPublishJs: memberships.canPublishJs,
+          requireTotp: accounts.requireTotp,
+        })
         .from(memberships)
         .innerJoin(users, eq(users.id, memberships.userId))
+        .innerJoin(accounts, eq(accounts.id, memberships.accountId))
         .where(and(eq(memberships.accountId, accountId), eq(memberships.userId, id)));
       return row && { ...row, accountId };
+    },
+
+    /** TOTP da pessoa (null apaga). Por pessoa, como o login: vale em todas as contas dela. */
+    async setMfa(userId: string, mfa: Mfa | null): Promise<void> {
+      await db.update(users).set({ mfa }).where(eq(users.id, userId));
+    },
+
+    async getRequireTotp(accountId: string): Promise<boolean> {
+      const [row] = await db
+        .select({ v: accounts.requireTotp })
+        .from(accounts)
+        .where(eq(accounts.id, accountId));
+      return !!row?.v;
+    },
+
+    async setRequireTotp(accountId: string, on: boolean): Promise<void> {
+      await db.update(accounts).set({ requireTotp: on }).where(eq(accounts.id, accountId));
+    },
+
+    /** Abre uma sessão de login (e limpa as vencidas da pessoa). */
+    async createSession(accountId: string, userId: string, s: NewLoginSession): Promise<string> {
+      const id = newId('ses');
+      await db
+        .delete(userSessions)
+        .where(and(eq(userSessions.userId, userId), lt(userSessions.expiresAt, new Date())));
+      await db.insert(userSessions).values({ id, accountId, userId, ...s });
+      return id;
+    },
+
+    /**
+     * Sessão da pessoa ainda válida? Atualiza o "visto por último" no máximo a cada 5 min. Não confere a conta:
+     * a sessão é da pessoa (tokens de outras contas da mesma sessão continuam valendo); a conta vem do token e
+     * a membership é conferida em `getUser`.
+     */
+    async touchSession(userId: string, id: string): Promise<boolean> {
+      const now = new Date();
+      const where = and(eq(userSessions.id, id), eq(userSessions.userId, userId));
+      const [row] = await db
+        .select({ lastSeenAt: userSessions.lastSeenAt, expiresAt: userSessions.expiresAt })
+        .from(userSessions)
+        .where(where);
+      if (!row || row.expiresAt <= now) return false;
+      if (now.getTime() - row.lastSeenAt.getTime() > SESSION_TOUCH_MS)
+        await db.update(userSessions).set({ lastSeenAt: now }).where(where);
+      return true;
+    },
+
+    /** Troca de conta: a sessão passa a mostrar a conta nova como a ativa. */
+    async moveSession(userId: string, id: string, accountId: string): Promise<boolean> {
+      const rows = await db
+        .update(userSessions)
+        .set({ accountId })
+        .where(and(eq(userSessions.id, id), eq(userSessions.userId, userId)))
+        .returning({ id: userSessions.id });
+      return rows.length > 0;
+    },
+
+    /** Sessões ativas da pessoa (em qualquer conta), mais recentes primeiro. */
+    async listSessions(userId: string): Promise<LoginSession[]> {
+      const rows = await db
+        .select()
+        .from(userSessions)
+        .where(and(eq(userSessions.userId, userId), gte(userSessions.expiresAt, new Date())))
+        .orderBy(desc(userSessions.lastSeenAt));
+      return rows.map((r) => ({
+        id: r.id,
+        accountId: r.accountId,
+        userAgent: r.userAgent,
+        ip: r.ip,
+        createdAt: r.createdAt.toISOString(),
+        lastSeenAt: r.lastSeenAt.toISOString(),
+        expiresAt: r.expiresAt.toISOString(),
+      }));
+    },
+
+    async deleteSession(userId: string, id: string): Promise<boolean> {
+      const rows = await db
+        .delete(userSessions)
+        .where(and(eq(userSessions.id, id), eq(userSessions.userId, userId)))
+        .returning({ id: userSessions.id });
+      return rows.length > 0;
+    },
+
+    /** "Sair de todos": encerra todas as sessões da pessoa, menos `keep` (a atual). Devolve quantas. */
+    async deleteOtherSessions(userId: string, keep: string): Promise<number> {
+      const rows = await db
+        .delete(userSessions)
+        .where(and(eq(userSessions.userId, userId), ne(userSessions.id, keep)))
+        .returning({ id: userSessions.id });
+      return rows.length;
     },
 
     /** Contas da pessoa (por ordem de entrada). Filtra pela pessoa, não por conta: é a lista dela. */

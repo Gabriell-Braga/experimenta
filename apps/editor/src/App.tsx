@@ -1,6 +1,15 @@
 import type { CampaignType } from '@abtest/shared';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me } from './api';
+import {
+  ApiError,
+  getExperiment,
+  getToken,
+  me,
+  takeSsoResult,
+  TOTP_REQUIRED,
+  type ExperimentRecord,
+  type Me,
+} from './api';
 import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
 import { ActivityPage } from './pages/Activity';
@@ -27,6 +36,7 @@ import { ProfilePage, ProfilesPage } from './pages/Profiles';
 import { SurveyReportPage, SurveysPage } from './pages/Surveys';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { RecosPage } from './pages/Recos';
+import { SecurityPage, TotpGate } from './pages/Security';
 import { SegmentsPage } from './pages/Segments';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
@@ -48,6 +58,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   integrations: (user) => <IntegrationsPage user={user} />,
   privacy: (user) => <PrivacyPage user={user} />,
   team: (user) => <TeamPage user={user} />,
+  security: (user) => <SecurityPage user={user} />,
   activity: (_, r) => <ActivityPage params={r.params} />,
   approvals: (user) => <ApprovalsPage user={user} />,
   events: () => <EventsPage />,
@@ -82,6 +93,9 @@ function FullPageSpinner({ label }: { label: string }) {
   );
 }
 
+/** Volta do SSO: lida uma vez, antes do primeiro render (o token entra no localStorage). */
+const ssoError = takeSsoResult();
+
 export function App() {
   const [user, setUser] = useState<Me | null | undefined>(getToken() ? undefined : null);
   const [exp, setExp] = useState(expParam);
@@ -92,6 +106,12 @@ export function App() {
   useEffect(() => {
     if (user === undefined) me().then(setUser, () => setUser(null));
   }, [user]);
+  useEffect(() => {
+    // A conta passou a exigir duas etapas no meio do uso: recarrega o /me (mostra a configuração).
+    const onRequired = () => setUser(undefined);
+    addEventListener(TOTP_REQUIRED, onRequired);
+    return () => removeEventListener(TOTP_REQUIRED, onRequired);
+  }, []);
   useEffect(() => {
     const onPop = () => {
       setExp(expParam());
@@ -113,7 +133,8 @@ export function App() {
   if (invite) return <AcceptInvite token={invite} />;
   if (user === undefined) return <FullPageSpinner label="Carregando…" />;
   // Depois do login, busca o /me (traz as contas da pessoa para o menu).
-  if (!user) return <Login onLogin={() => setUser(undefined)} />;
+  if (!user) return <Login onLogin={() => setUser(undefined)} initialError={ssoError} />;
+  if (user.totpRequired) return <TotpGate user={user} onDone={() => setUser(undefined)} />;
   if (!exp && route.view === 'heatmap' && route.params.get('url'))
     return <HeatmapViewer key={route.params.get('url')} url={route.params.get('url')!} />;
   if (!exp && route.view === 'recording' && route.params.get('id'))

@@ -32,6 +32,8 @@ interface Rule {
   detail?: (x: Ctx) => unknown;
   /** Rota sem login (aceite de convite): a pessoa vem da resposta. */
   actor?: (res: Json) => User | undefined;
+  /** Não registra esta chamada (ex.: sair da própria sessão é logout, não auditoria). */
+  skip?: (x: Ctx) => boolean;
 }
 
 /** Ação de mudança de status (experimento ou campanha). */
@@ -245,6 +247,57 @@ const RULES: Rule[] = [
     action: (x) => (x.p.id === x.user.id ? 'leave' : 'delete'),
     name: beforeName,
   },
+  // Segurança de acesso (16.5): a pessoa é o alvo; fica na conta em que estava logada.
+  ...(
+    [
+      ['/me/totp/enable', 'totp_on'],
+      ['/me/totp/disable', 'totp_off'],
+      ['/me/totp/recovery-codes', 'recovery_codes'],
+    ] as const
+  ).map(([path, action]): Rule => ({
+    method: 'POST',
+    path,
+    target: 'security',
+    action,
+    name: (x) => x.user.name,
+    id: (x) => x.user.id,
+  })),
+  {
+    method: 'DELETE',
+    path: '/sessions/:id',
+    target: 'session',
+    action: 'revoke',
+    skip: (x) => x.p.id === 'current',
+    name: (x) => x.user.name,
+  },
+  {
+    method: 'DELETE',
+    path: '/sessions',
+    target: 'session',
+    action: 'revoke_all',
+    name: (x) => x.user.name,
+    id: (x) => x.user.id,
+    detail: (x) => `${x.res.revoked ?? 0} sessões`,
+  },
+  {
+    method: 'PUT',
+    path: '/account/security',
+    target: 'settings',
+    action: 'update',
+    name: () => 'Segurança da conta',
+    id: () => null,
+    detail: (x) => (x.body.requireTotp ? 'duas etapas obrigatória' : 'duas etapas opcional'),
+  },
+  {
+    method: 'PUT',
+    path: '/account/sso',
+    target: 'settings',
+    action: 'update',
+    name: () => 'SSO',
+    id: () => null,
+    detail: (x) =>
+      `${String(x.body.protocol ?? '').toUpperCase()} ${x.body.enabled ? 'ligado' : 'desligado'}`,
+  },
   {
     method: 'POST',
     path: '/auth/invites/:token/accept',
@@ -317,6 +370,7 @@ export function auditLog(repo: Repo): MiddlewareHandler<{ Variables: AuthVars }>
     const user = rule.actor ? rule.actor(res) : pre;
     if (!user?.accountId) return;
     const x: Ctx = { user, p, body: await readJson(c.req), res, before };
+    if (rule.skip?.(x)) return;
     const a: ActivityInput = {
       // Chave de API não é pessoa: fica sem userId, com o nome da chave.
       userId: user.id.startsWith('apikey:') ? null : user.id,

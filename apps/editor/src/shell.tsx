@@ -11,6 +11,7 @@ import {
   FlaskConical,
   Grid3x3,
   History,
+  KeyRound,
   LogOut,
   Megaphone,
   Menu,
@@ -41,8 +42,8 @@ import {
   approvals,
   createAccount,
   getAccountSettings,
-  logout,
   saveAccountSettings,
+  signOut,
   switchAccount,
   type Me,
 } from './api';
@@ -110,6 +111,7 @@ export const NAV: NavGroup[] = [
       { view: 'integrations', label: 'Integrações', icon: Plug },
       { view: 'privacy', label: 'Privacidade', icon: ShieldCheck },
       { view: 'team', label: 'Equipe', icon: UserPlus },
+      { view: 'security', label: 'Segurança', icon: KeyRound },
       { view: 'approvals', label: 'Aprovações', icon: ClipboardCheck },
       { view: 'activity', label: 'Atividades', icon: History },
     ],
@@ -323,8 +325,8 @@ function UserMenu({ user }: { user: Me }) {
           )}
           <button
             role="menuitem"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await signOut();
               location.href = location.pathname;
             }}
             className="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-gray-100"

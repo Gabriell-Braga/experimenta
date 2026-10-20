@@ -71,6 +71,13 @@
       "when": 1792478002828,
       "tag": "0009_past_scourge",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792481591636,
+      "tag": "0010_spotty_big_bertha",
+      "breakpoints": true
     }
   ]
 }
