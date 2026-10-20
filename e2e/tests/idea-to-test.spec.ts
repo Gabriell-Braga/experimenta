@@ -76,7 +76,8 @@ async function seedIdeas(request: APIRequestContext) {
     let s: Ideas = { status: 'running', ideas: [] };
     for (let i = 0; i < 60 && s.status === 'running'; i++) {
       await new Promise((ok) => setTimeout(ok, 250));
-      s = (await (await request.get(`${API}/ai/ideas`, { headers })).json()) as Ideas;
+      // A geração anda um passo por chamada (D-086), como a tela faz.
+      s = (await (await request.post(`${API}/ai/ideas/step`, { headers })).json()) as Ideas;
     }
     const mine = (t: string) => s.ideas.find((x) => x.page === PAGE && x.title === t && x.stage !== 'done');
     const cta = mine('Subir o CTA e a prova social');

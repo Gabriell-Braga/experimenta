@@ -67,25 +67,166 @@ test('Claude: modelo, fallback e saída estruturada; resposta validada', async (
   ).rejects.toThrow('formato');
 });
 
-/** Pede uma geração e espera terminar (em Node o segundo plano roda na hora). */
-async function generateIdeas(t: Awaited<ReturnType<typeof setupApp>>) {
+interface GenState {
+  status: string;
+  step?: string;
+  source?: string;
+  model?: string;
+  notice?: string;
+  error?: string;
+  ideas: { id: string; title: string; stage: string }[];
+}
+type T = Awaited<ReturnType<typeof setupApp>>;
+/** Um passo da geração, como a tela faz enquanto o status é "running". */
+const step = async (t: T, as = 'editor') =>
+  (await (await t.req('/ai/ideas/step', { method: 'POST', as })).json()) as GenState;
+
+/** Pede uma geração e avança os passos até terminar. */
+async function generateIdeas(t: T) {
   const r = await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
   expect(r.status).toBe(202);
-  expect(((await r.json()) as { status: string }).status).toBe('running');
-  for (let i = 0; i < 50; i++) {
-    const s = (await (await t.req('/ai/ideas', { as: 'editor' })).json()) as {
-      status: string;
-      source?: string;
-      model?: string;
-      ideas: { id: string; title: string; stage: string }[];
-    };
+  expect(await r.json()).toMatchObject({ status: 'running', step: 'dashboard' });
+  for (let i = 0; i < 5; i++) {
+    const s = await step(t);
     if (s.status !== 'running') return s;
-    await new Promise((ok) => setTimeout(ok, 20));
   }
   throw new Error('geração não terminou');
 }
 
-test('rota: gera em segundo plano, guarda, não repete, marca executada, descarta e limpa', async () => {
+/** Estado interno da geração (para simular uma invocação que morreu no meio). */
+async function job(t: T) {
+  const [e] = await t.repo.listEntities<Record<string, unknown>>(DEMO.accountId, 'ai-ideas-job');
+  return e!;
+}
+async function setJob(t: T, patch: Record<string, unknown>) {
+  const e = await job(t);
+  await t.repo.saveEntity(DEMO.accountId, {
+    id: e.id,
+    kind: e.kind,
+    name: e.name,
+    data: { ...e.data, ...patch },
+  });
+}
+const past = () => new Date(Date.now() - 1000).toISOString();
+
+test('geração em passos: painel numa chamada, modelo noutra; sem IA termina no passo do painel', async () => {
+  const good = fake({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
+  const t = await setupApp({ ai: good.client });
+  expect((await t.req('/ai/ideas', { method: 'POST', as: 'editor' })).status).toBe(202);
+  // GET só lê: nada anda sem o passo.
+  expect(await t.get('/ai/ideas')).toMatchObject({ status: 'running', step: 'dashboard' });
+  // Passo 1: painel calculado e guardado como entrada do modelo; o modelo ainda não foi chamado.
+  expect(await step(t)).toMatchObject({ status: 'running', step: 'model' });
+  expect(good.parse).not.toHaveBeenCalled();
+  const saved = (await job(t)).data as { input: { insights: unknown[] }; rules: unknown[] };
+  expect(saved.input.insights).toEqual([]);
+  expect(saved.rules).toEqual([]);
+  // Resposta não expõe a entrada nem o controle dos passos.
+  expect(await t.get('/ai/ideas')).not.toHaveProperty('input');
+  // Passo 2: modelo, com a entrada guardada.
+  expect(await step(t)).toMatchObject({ status: 'done', source: 'claude', ideas: [{ title: idea.title }] });
+  expect(good.parse).toHaveBeenCalledTimes(1);
+  // Sem geração em andamento, o passo não faz nada.
+  expect(await step(t)).toMatchObject({ status: 'done' });
+  expect(good.parse).toHaveBeenCalledTimes(1);
+
+  const rules = await setupApp();
+  await rules.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  expect(await step(rules, 'viewer')).toMatchObject({ status: 'done', source: 'regras' });
+}, 30_000);
+
+test('passo do painel falhando: tenta de novo, depois a IA recebe só a lista de testes; sem IA, erro', async () => {
+  const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const good = fake({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
+  const t = await setupApp({ ai: good.client });
+  const events = vi.spyOn(t.repo, 'listEvents').mockRejectedValue(new Error('banco ocupado'));
+  await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  expect(await step(t)).toMatchObject({ status: 'running', step: 'dashboard' });
+  expect(await step(t)).toMatchObject({ status: 'running', step: 'dashboard' });
+  expect(events).toHaveBeenCalledTimes(2);
+  // Esgotadas as tentativas: segue para o modelo sem painel, avisando por quê.
+  const s = await step(t);
+  expect(s).toMatchObject({ status: 'running', step: 'model' });
+  expect(s.notice).toContain('Painel do período indisponível (banco ocupado)');
+  const done = await step(t);
+  expect(done).toMatchObject({ status: 'done', source: 'claude', ideas: [{ title: idea.title }] });
+  expect(done.notice).toContain('sem as métricas');
+  expect(good.parse.mock.calls[0]![0].messages[0].content).toContain('Métricas do período indisponíveis');
+  events.mockRestore();
+
+  // Invocação morta no meio do painel (CPU do Worker): a vez vence e conta como tentativa.
+  const t2 = await setupApp();
+  await t2.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  await setJob(t2, { attempts: 2, leaseUntil: past() });
+  const e = await step(t2);
+  expect(e).toMatchObject({ status: 'error' });
+  expect(e.error).toContain('limite de CPU');
+  expect(e.error).toContain('sem IA configurada');
+  // Dá para gerar de novo.
+  expect(await generateIdeas(t2)).toMatchObject({ status: 'done', source: 'regras' });
+  err.mockRestore();
+}, 30_000);
+
+test('passo do modelo falhando ou morto cai nas regras com o motivo; vez em andamento não é repetida', async () => {
+  const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const broken = {
+    beta: { messages: { parse: vi.fn().mockRejectedValue(new Error('rede')) } },
+  } as unknown as Anthropic;
+  const t = await setupApp({ ai: broken });
+  expect(await generateIdeas(t)).toMatchObject({
+    status: 'done',
+    source: 'regras',
+    notice: 'Claude indisponível (rede); ideias por regras.',
+  });
+
+  // Modelo que nunca respondeu (invocação morreu): a vez vence e cai nas regras sem chamar de novo.
+  const good = fake({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
+  const t2 = await setupApp({ ai: good.client });
+  await t2.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  await step(t2);
+  await setJob(t2, { attempts: 1, leaseUntil: new Date(Date.now() + 60_000).toISOString() });
+  // Vez ainda válida: outra chamada não entra.
+  expect(await step(t2)).toMatchObject({ status: 'running', step: 'model' });
+  await setJob(t2, { leaseUntil: past() });
+  expect(await step(t2)).toMatchObject({
+    status: 'done',
+    source: 'regras',
+    notice: 'a chamada ao modelo não terminou; ideias por regras.',
+  });
+  expect(good.parse).not.toHaveBeenCalled();
+  err.mockRestore();
+}, 30_000);
+
+test('dois passos ao mesmo tempo chamam o modelo uma vez só; geração parada expira', async () => {
+  let answer!: (v: unknown) => void;
+  const parse = vi.fn().mockReturnValue(new Promise((ok) => (answer = ok)));
+  const t = await setupApp({ ai: { beta: { messages: { parse } } } as unknown as Anthropic });
+  await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  await step(t);
+  const a = step(t);
+  const b = step(t, 'viewer');
+  // A perdedora volta na hora com o passo atual; a outra espera o modelo.
+  expect(await b).toMatchObject({ status: 'running', step: 'model' });
+  answer({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
+  expect(await a).toMatchObject({ status: 'done', source: 'claude' });
+  expect(parse).toHaveBeenCalledTimes(1);
+  // Dois "Gerar" seguidos: uma geração só.
+  await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  expect(await t.repo.listEntities(DEMO.accountId, 'ai-ideas-job')).toHaveLength(1);
+
+  // Ninguém avançou por mais de 10 min: aparece como erro e "Gerar" começa outra.
+  await setJob(t, { startedAt: new Date(Date.now() - 11 * 60_000).toISOString() });
+  expect(await t.get('/ai/ideas')).toMatchObject({
+    status: 'error',
+    error: expect.stringContaining('parou'),
+  });
+  expect(await step(t)).toMatchObject({ status: 'error' });
+  const r = await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
+  expect(await r.json()).toMatchObject({ status: 'running', step: 'dashboard' });
+}, 30_000);
+
+test('rota: gera em passos, guarda, não repete, marca executada, descarta e limpa', async () => {
   const t = await setupApp();
   expect((await t.req('/ai/ideas', { method: 'POST', as: 'viewer' })).status).toBe(403);
   expect(await (await t.req('/ai/ideas', { as: 'viewer' })).json()).toEqual({ status: 'idle', ideas: [] });

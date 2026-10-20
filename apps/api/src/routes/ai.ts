@@ -14,12 +14,21 @@ import {
   type IdeaStage,
   type UrlRule,
 } from '@abtest/shared';
-import { AI_MODEL, claudeIdeas, compatIdeas, ruleIdeas, type CompatAi, type Idea } from '../ai';
+import {
+  AI_MODEL,
+  claudeIdeas,
+  compatIdeas,
+  ideaContext,
+  ruleIdeas,
+  type CompatAi,
+  type Idea,
+  type IdeaInput,
+} from '../ai';
 import { claudeVariation, compatVariation } from '../ai-variation';
 import { forbid, hasRole } from '../auth';
 import { newId, randomToken } from '../crypto';
 import { errors, json, period, PeriodQuery, security, type Api } from '../http';
-import type { Repo } from '../repo';
+import type { Entity, Repo } from '../repo';
 import type { ExperimentReport } from '../analytics/report';
 import { loadDashboard } from './data';
 import { background } from './integrations';
@@ -31,12 +40,52 @@ export const AI_PATHS = ['/ai/*'];
 const KIND = 'ai-ideas';
 /** Resultado do teste ligado à ideia, guardado à parte (uma entidade por ideia, `name` = id da ideia). */
 const RESULT_KIND = 'idea-result';
-/** Geração "rodando" há mais que isto morreu (Worker reciclado, deploy): libera gerar de novo. */
-const STALE_MS = 45_000;
-/** Orçamento da geração em segundo plano, contado do início (o Worker segura ~30 s depois de responder). */
-const BUDGET_MS = 24_000;
+/**
+ * Geração de ideias em andamento (uma entidade por conta), à parte das ideias: o quadro continua editável
+ * durante a geração sem desfazer o estado dela. Máquina de estados avançada por `POST /ai/ideas/step`, um passo
+ * por requisição (painel numa, modelo noutra), para caber na CPU e no tempo do Worker grátis (D-086).
+ */
+const JOB_KIND = 'ai-ideas-job';
+type Step = 'dashboard' | 'model';
+/** Quanto tempo um passo fica com a vez; vencido sem terminar = a invocação morreu (CPU, deploy, rede). */
+const LEASE_MS: Record<Step, number> = { dashboard: 15_000, model: 90_000 };
+/** Tentativas do painel antes de seguir sem ele (estourar a CPU se repete com os mesmos dados). */
+const DASHBOARD_TRIES = 2;
+/** Geração parada há mais que isto (ninguém com a tela aberta para avançar) expira. */
+const JOB_TTL_MS = 10 * 60_000;
+/** Tempo do modelo compatível com OpenAI (a lista de modelos é tentada dentro dele); Claude tem 60 s. */
+const MODEL_BUDGET_MS = 25_000;
+const NO_CPU = 'o cálculo não terminou no limite de CPU do servidor';
+const STUCK = 'a geração parou no meio (ninguém com a tela aberta para continuar); tente de novo';
 
 type Source = 'claude' | 'modelo' | 'regras';
+interface Job {
+  status: 'running' | 'done' | 'error';
+  step?: Step;
+  /** Período do painel (ISO). */
+  from?: string;
+  to?: string;
+  startedAt?: string;
+  /** O passo atual está com alguém até esta hora. */
+  leaseUntil?: string;
+  /** Tentativas do passo atual. */
+  attempts?: number;
+  /** Último erro (exceção) do painel. */
+  failure?: string;
+  /** Entrada do modelo, calculada no passo do painel. */
+  input?: IdeaInput;
+  /** Ideias por regras do painel (plano B se o modelo falhar). */
+  rules?: Idea[];
+  /** Seguiu sem painel: por quê (o modelo recebeu só a lista de testes). */
+  partial?: string;
+  finishedAt?: string;
+  source?: Source;
+  model?: string;
+  error?: string;
+  notice?: string;
+}
+const expired = (j: Job, now = Date.now()) =>
+  j.status === 'running' && now - Date.parse(j.startedAt ?? '') > JOB_TTL_MS;
 interface SavedIdea extends Omit<Idea, 'impact' | 'effort'> {
   /** Vazio nas ideias manuais (a prioridade delas é o ICE). */
   impact: Idea['impact'] | '';
@@ -108,13 +157,6 @@ export function ideaResult(
   };
 }
 interface IdeasState {
-  status: 'idle' | 'running' | 'done' | 'error';
-  startedAt?: string;
-  finishedAt?: string;
-  source?: Source;
-  model?: string;
-  error?: string;
-  notice?: string;
   ideas: SavedIdea[];
 }
 
@@ -171,6 +213,8 @@ const IdeaText = {
 const StateOut = z
   .object({
     status: z.enum(['idle', 'running', 'done', 'error']),
+    /** Passo atual da geração em andamento: painel do período ou modelo. */
+    step: z.enum(['dashboard', 'model']).optional(),
     startedAt: z.string().optional(),
     finishedAt: z.string().optional(),
     source: z.enum(['claude', 'modelo', 'regras']).optional(),
@@ -303,39 +347,47 @@ const VariationOut = z
   .openapi('AiVariation');
 const ErrorOut = z.object({ error: z.string() });
 
-/** Otimização por IA: ideias de teste a partir do painel, geradas em segundo plano e guardadas na conta. */
+/** Otimização por IA: ideias de teste a partir do painel, geradas em passos (D-086) e guardadas na conta. */
 export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: CompatAi) {
   async function read(accountId: string): Promise<{ id?: string; state: IdeasState }> {
     const [e] = await repo.listEntities<IdeasState>(accountId, KIND);
-    if (!e) return { state: { status: 'idle', ideas: [] } };
-    const state = { ...e.data, ideas: e.data.ideas.map(migrate) };
-    if (state.status === 'running' && Date.now() - Date.parse(state.startedAt ?? '') > STALE_MS)
-      return {
-        id: e.id,
-        state: { ...state, status: 'error', error: 'a geração não terminou; tente de novo' },
-      };
-    return { id: e.id, state };
+    return e ? { id: e.id, state: { ideas: e.data.ideas.map(migrate) } } : { state: { ideas: [] } };
   }
-  // ponytail: ler-modificar-gravar sem trava; duas gerações simultâneas da mesma conta podem perder uma.
+  // ponytail: ler-modificar-gravar sem trava nas ideias; duas edições no mesmo instante podem perder uma.
   const write = (accountId: string, id: string | undefined, state: IdeasState) =>
-    repo.saveEntity(accountId, { id, kind: KIND, name: 'ideias', data: state });
+    repo.saveEntity(accountId, { id, kind: KIND, name: 'ideias', data: { ideas: state.ideas } });
+
+  async function readJob(accountId: string): Promise<Entity<Job> | undefined> {
+    const [job, ...extra] = await repo.listEntities<Job>(accountId, JOB_KIND);
+    // Dois "Gerar" no mesmo instante na primeira vez criam duas: fica a mais recente.
+    for (const x of extra) await repo.deleteEntity(accountId, JOB_KIND, x.id);
+    return job;
+  }
+  /** Estado da geração para a resposta (sem a entrada do modelo nem o controle interno dos passos). */
+  function jobStatus(job?: Job) {
+    if (!job) return { status: 'idle' as const };
+    const { status, step, startedAt, finishedAt, source, model, error, notice, partial } = job;
+    if (expired(job)) return { status: 'error' as const, startedAt, error: STUCK };
+    return status === 'running'
+      ? { status, step, startedAt, ...(partial ? { notice: `${partial}.` } : {}) }
+      : { status, startedAt, finishedAt, source, model, error, notice };
+  }
 
   /**
    * Quadro para a resposta: coluna efetiva (status do teste ligado), nome do teste, score ICE e resultado
-   * guardado. Duas consultas leves (lista de testes e resultados guardados); nenhum relatório calculado aqui.
+   * guardado, mais o estado da geração. Consultas leves; nenhum relatório calculado aqui.
    */
   async function view(accountId: string, state: IdeasState) {
     const linked = state.ideas.some((i) => i.experimentId);
-    const [exps, results] = linked
-      ? await Promise.all([
-          repo.listExperiments(accountId),
-          repo.listEntities<IdeaResult>(accountId, RESULT_KIND),
-        ])
-      : [[], []];
+    const [exps, results, job] = await Promise.all([
+      linked ? repo.listExperiments(accountId) : [],
+      linked ? repo.listEntities<IdeaResult>(accountId, RESULT_KIND) : [],
+      readJob(accountId),
+    ]);
     const byId = new Map(exps.map((e) => [e.id, e]));
     const saved = new Map(results.map((r) => [r.name, r.data]));
     return {
-      ...state,
+      ...jobStatus(job?.data),
       ideas: state.ideas.map((i) => {
         const exp = i.experimentId ? byId.get(i.experimentId) : undefined;
         const result = saved.get(i.id);
@@ -355,62 +407,128 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
       if (!ideaId || r.name === ideaId) await repo.deleteEntity(accountId, RESULT_KIND, r.id);
   }
 
-  /** Gera, junta às ideias guardadas (sem repetir título ainda aberto) e grava o resultado. */
-  async function generate(accountId: string, id: string, days: ReturnType<typeof period>) {
-    let ideas: Idea[] = [];
-    let source: Source = 'regras';
-    let model: string | undefined;
-    /** Por que caiu nas regras (mostrado na tela). */
-    let notice: string | undefined;
-    const t0 = Date.now();
-    try {
-      const d = await loadDashboard(repo, accountId, days);
-      if (client)
-        try {
-          ideas = await claudeIdeas(client, d);
-          source = 'claude';
-          model = AI_MODEL;
-        } catch (e) {
-          console.error('[api] ideias com Claude falharam; usando regras', e);
-          notice = `Claude indisponível (${(e as Error).message.slice(0, 120)}); ideias por regras.`;
-        }
-      else if (compat)
-        try {
-          ({ ideas, model } = await compatIdeas(compat, d, fetch, BUDGET_MS - (Date.now() - t0)));
-          source = 'modelo';
-        } catch (e) {
-          console.error(`[api] ideias com ${compat.model} falharam; usando regras`, e);
-          notice = `Modelo de IA indisponível agora (${(e as Error).message.slice(0, 120)}); ideias por regras.`;
-        }
-      if (source === 'regras') ideas = ruleIdeas(d.insights);
-      const { state } = await read(accountId);
-      const open = new Set(state.ideas.filter((i) => i.stage !== 'done').map((i) => norm(i.title)));
-      const now = new Date().toISOString();
-      const fresh = ideas
-        // Sem repetir: nem as abertas, nem duas iguais no mesmo lote.
-        .filter((i) => !open.has(norm(i.title)) && open.add(norm(i.title)))
-        .map((i) => ({
-          ...i,
-          id: `idea_${randomToken(6)}`,
-          createdAt: now,
-          stage: 'idea' as const,
-          source,
-          ...(model ? { model } : {}),
-        }));
-      await write(accountId, id, {
-        ...state,
-        status: 'done',
-        finishedAt: now,
+  /** Junta as ideias novas às guardadas, sem repetir título ainda aberto (nem duas iguais no lote). */
+  async function addIdeas(accountId: string, ideas: Idea[], source: Source, model?: string) {
+    const { id, state } = await read(accountId);
+    const open = new Set(state.ideas.filter((i) => i.stage !== 'done').map((i) => norm(i.title)));
+    const now = new Date().toISOString();
+    const fresh = ideas
+      .filter((i) => !open.has(norm(i.title)) && open.add(norm(i.title)))
+      .map((i) => ({
+        ...i,
+        id: `idea_${randomToken(6)}`,
+        createdAt: now,
+        stage: 'idea' as const,
         source,
-        model,
-        error: undefined,
-        notice,
-        ideas: [...fresh, ...state.ideas],
+        ...(model ? { model } : {}),
+      }));
+    if (fresh.length) await write(accountId, id, { ideas: [...fresh, ...state.ideas] });
+  }
+
+  /**
+   * Avança a geração em um passo. Cada passo pega a vez com uma troca atômica (`swapEntity`): duas chamadas ao
+   * mesmo tempo (duas abas) não calculam o painel nem chamam o modelo duas vezes; a perdedora só devolve o
+   * estado. Passo que morreu no meio (CPU do Worker, deploy) é percebido quando a vez vence: o painel tenta de
+   * novo e depois segue sem ele; o modelo cai nas regras.
+   */
+  async function advance(accountId: string): Promise<void> {
+    const e = await readJob(accountId);
+    const job = e?.data;
+    if (!e || !job || job.status !== 'running') return;
+    let version = e.updatedAt;
+    const save = async (data: Job) => {
+      const v = await repo.swapEntity(accountId, JOB_KIND, e.id, version, data);
+      if (v) version = v;
+      return !!v;
+    };
+    const { startedAt } = job;
+    const fail = (error: string) =>
+      save({ status: 'error', startedAt, finishedAt: new Date().toISOString(), error });
+    /** Grava as ideias e só então marca pronto (a tela recarrega o quadro ao ver "done"). */
+    async function finish(ideas: Idea[], source: Source, model?: string, notice?: string) {
+      await addIdeas(accountId, ideas, source, model);
+      await save({ status: 'done', startedAt, finishedAt: new Date().toISOString(), source, model, notice });
+    }
+    /** Modelo indisponível: regras do painel; sem painel não há regras, então é erro com os dois motivos. */
+    const fallback = async (reason: string) => {
+      if (job.partial) await fail(`${job.partial}; ${reason}`);
+      else await finish(job.rules ?? [], 'regras', undefined, `${reason}; ideias por regras.`);
+    };
+
+    const now = Date.now();
+    if (expired(job, now)) return void (await fail(STUCK));
+    if (job.leaseUntil && Date.parse(job.leaseUntil) > now) return; // outro passo em andamento
+    const step = job.step ?? 'dashboard';
+    const tries = job.attempts ?? 0;
+    if (step === 'dashboard' && tries >= DASHBOARD_TRIES) {
+      const partial = `Painel do período indisponível (${job.failure ?? NO_CPU})`;
+      if (!client && !compat)
+        return void (await fail(`${partial}; sem IA configurada, as ideias por regras dependem dele`));
+      const exps = await repo.listExperiments(accountId);
+      await save({
+        ...job,
+        step: 'model',
+        attempts: 0,
+        leaseUntil: undefined,
+        partial,
+        rules: [],
+        input: {
+          aviso: 'Métricas do período indisponíveis agora: só a lista de testes da conta. Não cite números.',
+          experiments: exps.map((x) => ({ name: x.name, status: x.status })),
+        },
       });
-    } catch (e) {
-      console.error('[api] geração de ideias falhou', e);
-      const { state } = await read(accountId);
-      await write(accountId, id, { ...state, status: 'error', error: (e as Error).message });
+      return;
+    }
+    if (step === 'model' && tries >= 1) return fallback('a chamada ao modelo não terminou');
+    const claimed: Job = {
+      ...job,
+      step,
+      attempts: tries + 1,
+      leaseUntil: new Date(now + LEASE_MS[step]).toISOString(),
+    };
+    if (!(await save(claimed))) return; // outra chamada pegou o passo
+
+    if (step === 'dashboard') {
+      let d: Awaited<ReturnType<typeof loadDashboard>>;
+      try {
+        d = await loadDashboard(repo, accountId, {
+          from: new Date(job.from ?? 0),
+          to: new Date(job.to ?? now),
+        });
+      } catch (err) {
+        console.error('[api] painel para as ideias falhou', err);
+        // Solta a vez: a próxima chamada tenta de novo (ou segue sem painel, esgotadas as tentativas).
+        await save({ ...claimed, leaseUntil: undefined, failure: (err as Error).message.slice(0, 120) });
+        return;
+      }
+      const rules = ruleIdeas(d.insights);
+      if (!client && !compat) return finish(rules, 'regras');
+      await save({
+        ...claimed,
+        step: 'model',
+        attempts: 0,
+        leaseUntil: undefined,
+        input: ideaContext(d),
+        rules,
+      });
+      return;
+    }
+
+    const input = job.input ?? {};
+    const notice = job.partial ? `${job.partial}; ideias da IA sem as métricas.` : undefined;
+    if (client)
+      try {
+        return await finish(await claudeIdeas(client, input), 'claude', AI_MODEL, notice);
+      } catch (err) {
+        console.error('[api] ideias com Claude falharam; usando regras', err);
+        return fallback(`Claude indisponível (${(err as Error).message.slice(0, 120)})`);
+      }
+    try {
+      const r = await compatIdeas(compat!, input, fetch, MODEL_BUDGET_MS);
+      await finish(r.ideas, 'modelo', r.model, notice);
+    } catch (err) {
+      console.error(`[api] ideias com ${compat!.model} falharam; usando regras`, err);
+      await fallback(`Modelo de IA indisponível agora (${(err as Error).message.slice(0, 120)})`);
     }
   }
 
@@ -487,24 +605,49 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
       tags: ['insights'],
       security,
       summary:
-        'Gera novas ideias em segundo plano a partir do painel do período (Claude, modelo grátis compatível com OpenAI ou regras) e junta às guardadas; acompanhe por GET',
+        'Inicia a geração de ideias a partir do painel do período (Claude, modelo grátis compatível com OpenAI ou regras), que avança por POST /ai/ideas/step; as novas se juntam às guardadas',
       request: { query: PeriodQuery },
       responses: { 202: json(StateOut, 'geração iniciada (ou já em andamento)'), ...errors },
     }),
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
-      const { id, state } = await read(user.accountId);
-      if (state.status === 'running') return c.json(await view(user.accountId, state), 202);
-      const next: IdeasState = {
-        ...state,
-        status: 'running',
-        startedAt: new Date().toISOString(),
-        error: undefined,
-      };
-      const saved = await write(user.accountId, id, next);
-      background(c, generate(user.accountId, saved, period(c.req.valid('query'))));
-      return c.json(await view(user.accountId, next), 202);
+      const job = await readJob(user.accountId);
+      const range = period(c.req.valid('query'));
+      if (job?.data.status !== 'running' || expired(job.data)) {
+        const next: Job = {
+          status: 'running',
+          step: 'dashboard',
+          from: range.from.toISOString(),
+          to: range.to.toISOString(),
+          startedAt: new Date().toISOString(),
+          attempts: 0,
+        };
+        // Troca atômica: dois "Gerar" ao mesmo tempo começam uma geração só (o perdedor vê a do outro).
+        if (job) await repo.swapEntity(user.accountId, JOB_KIND, job.id, job.updatedAt, next);
+        else await repo.saveEntity(user.accountId, { kind: JOB_KIND, name: 'geracao', data: next });
+      }
+      return c.json(await view(user.accountId, (await read(user.accountId)).state), 202);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/ai/ideas/step',
+      tags: ['insights'],
+      security,
+      summary:
+        'Avança a geração em andamento em um passo (painel do período, depois o modelo) e devolve o estado. Chamado pela tela enquanto o status é "running"; chamadas simultâneas não repetem o passo. Qualquer papel avança uma geração que um editor iniciou.',
+      responses: { 200: json(StateOut, 'estado depois do passo'), ...errors },
+    }),
+    async (c) => {
+      const { accountId } = c.get('user');
+      const work = advance(accountId);
+      // No Worker, o passo termina mesmo se a pessoa fechar a tela no meio (até ~30 s).
+      background(c, work);
+      await work;
+      return c.json(await view(accountId, (await read(accountId)).state), 200);
     },
   );
 
@@ -768,13 +911,9 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
-      const { id, state } = await read(user.accountId);
-      // Geração em andamento continua; só as ideias somem.
-      const next: IdeasState = {
-        status: state.status === 'running' ? 'running' : 'idle',
-        startedAt: state.startedAt,
-        ideas: [],
-      };
+      const { id } = await read(user.accountId);
+      // Geração em andamento continua (ela é outra entidade); só as ideias somem.
+      const next: IdeasState = { ideas: [] };
       if (id) await write(user.accountId, id, next);
       await dropResult(user.accountId);
       return c.json(await view(user.accountId, next), 200);

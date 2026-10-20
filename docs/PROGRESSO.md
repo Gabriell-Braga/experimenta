@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 18.5 concluída
+**Status:** 18.6 concluída — Fase 18 concluída
 **Fase atual:** 18
-**Tarefa atual:** 18.6
-**Última atualização:** 2026-10-20 11:35
-**Próximo passo:** 18.6 geração de ideias em invocações separadas no Worker grátis.
+**Tarefa atual:** 19.1
+**Última atualização:** 2026-10-20 11:51
+**Próximo passo:** 19.1 integrações prontas (Shopify, WordPress, Segment, Mixpanel, Amplitude, CRMs). Antes, se for publicar: `pnpm deploy:cf` (migrações D1 0007–0011) e novo login.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -535,12 +535,14 @@
 - "Conversion Rate Optimization.pdf" (pedido original das fases 9–15) está coberto. Parciais: Mobile (só web no celular, sem app nativo → 19.3) e Revenue Attribution (receita por variação, sem atribuição por canal → 17.6).
 - O que a VWO tem e o app não (fontes de 2026, de terceiros; conferir em vwo.com): Copilot (variação por texto, resumos de gravação/heatmap/pesquisa), testes em app nativo, gestão de hipóteses, auditoria/aprovação/SSO/2FA/multi-conta, grupos mutuamente exclusivos, teste multipágina, integrações prontas (Shopify, WordPress, Segment, Mixpanel, Amplitude, CRMs), consentimento LGPD. Viraram as fases 16–19 do PLANO.md.
 
-### Contexto para retomar (estado em 2026-10-20)
-- Produção (Cloudflare, plano grátis): editor https://abtest-editor.hub-villa-deli.workers.dev, API https://abtest-api.hub-villa-deli.workers.dev, demo https://abtest-demo.hub-villa-deli.workers.dev. Deploy: `pnpm deploy:cf` (precisa `wrangler login`). Conta demo com dados de demonstração (`pnpm seed:data`, ver entrada de 01:30) e config publicada v32 (3 testes, pop-ups, NPS e gravação no ar no site demo).
+### Contexto para retomar (estado em 2026-10-20, atualizado às 11:51)
+- Fases 16, 17 e 18 concluídas no código; **produção ainda está na versão de antes da Fase 16** (deploy pendente). Próxima: Fase 19.
+- Produção (Cloudflare, plano grátis): editor https://abtest-editor.hub-villa-deli.workers.dev, API https://abtest-api.hub-villa-deli.workers.dev, demo https://abtest-demo.hub-villa-deli.workers.dev. Deploy: `pnpm deploy:cf` (precisa `wrangler login`); aplica as migrações D1 0007–0011 da Fase 16. Depois do deploy todos precisam entrar de novo (token com conta/sessão da 16.2/16.5). Conta demo com dados de demonstração (`pnpm seed:data`, ver entrada de 01:30).
 - IA: Gemini grátis (vars AI_BASE_URL/AI_MODEL/AI_REASONING no apps/api/wrangler.jsonc, chave no secret AI_API_KEY). A chave atual foi colada no chat: trocar por uma nova no AI Studio.
-- Limites do plano grátis que já apareceram: D1 100 mil linhas escritas/dia (cada evento = 7 linhas); KV 1.000 escritas/dia (cada deploy/publicação escreve várias); 5 cron triggers por conta (a API usa 1); waitUntil do Worker ~30 s.
-- Pendências: repositório sem remote git (push não feito); E2E não pode rodar com `pnpm dev` ligado (portas 4000/5173/5180 e o E2E não reaproveita a API).
-- Testes: `pnpm test` (API com fuzz de todas as rotas, contra Postgres e D1), `pnpm e2e` (funcional + robustez de todas as telas; 82 testes).
+- Limites do plano grátis que já apareceram: CPU 10 ms por invocação (o Painel estoura, ver 02:53; a geração de ideias já sobrevive a isso, D-086); D1 100 mil linhas escritas/dia (cada evento = 7 linhas); KV 1.000 escritas/dia; 5 cron triggers por conta (a API usa 1); waitUntil ~30 s.
+- Bloqueios em aberto (ver topo): CPU do Worker grátis no Painel/relatórios (Workers Paid ou agregados diários) e snippet no limite de 10 KB gzip (alvo es2020, D-069).
+- Pendências: E2E não pode rodar com `pnpm dev` ligado (portas 4000/5173/5180 e o E2E não reaproveita a API); SSO só configurado (D-073); sem serviço de e-mail.
+- Testes: `pnpm test` (API com fuzz de todas as rotas, contra Postgres e D1), `pnpm e2e` (funcional + robustez de todas as telas).
 
 ### 2026-10-20 02:53 — "Failed to fetch" no Painel (produção)
 - Causa: `GET /analytics/dashboard` gasta ~46 ms de CPU (lê e agrega os eventos do período atual + anterior); o plano grátis do Workers permite 10 ms. A Cloudflare encerra o Worker (`exceededCpu`, visto com `wrangler tail`) e responde 503 sem cabeçalho CORS, então o navegador só vê "Failed to fetch". Outras telas que leem muitos eventos podem cair no mesmo limite conforme o tráfego cresce.
@@ -659,3 +661,13 @@
 - Como testar manualmente: abrir o relatório de um teste com visitantes → "Explicar resultado" (sem chave: "Por regras"; com ANTHROPIC_API_KEY ou AI_BASE_URL/AI_MODEL: texto da IA, guardado até os números mudarem) → num teste perdedor, "Criar ideia no backlog" e conferir em Otimização por IA. `pnpm --filter @abtest/api exec vitest run src/ai-report.test.ts`; `pnpm --filter @abtest/e2e e2e tests/report-assistant.spec.ts` (regras de verdade; IA falsa por rota interceptada).
 - Observações: sem migração (cache na entidade `ai-summary`, chave `report:<teste>|<dias>|<dispositivo>`). CPU da rota: validar o JSON do relatório e uma leitura do experimento; nada de Monte Carlo. Números mudam a cada visitante, então dentro de 1 h a explicação guardada volta marcada "Há dados novos" (como na 18.4). Snippet inalterado. D-085.
 
+### 2026-10-20 11:51 — Tarefa 18.6 concluída (geração de ideias em passos)
+- O que foi feito: a geração de ideias deixou de rodar inteira em `waitUntil` (orçamento de 27 s). Agora é uma máquina de estados persistida numa entidade própria (`ai-ideas-job`, uma por conta, separada das ideias para o quadro continuar editável): `POST /ai/ideas` só cria a geração (passo "painel"); a tela chama `POST /ai/ideas/step` a cada 1,5 s enquanto o status é "running", e cada chamada faz **um** passo numa requisição própria: painel do período (guarda a entrada compacta do modelo e as ideias por regras) → modelo (Claude 60 s, compatível 25 s) → pronto. Cada passo pega a vez por troca atômica (`swapEntity`, nova nos dois repositórios: grava só se `updated_at` não mudou), então duas abas não calculam nem chamam o modelo duas vezes. Passo que morre no meio (CPU do Worker grátis, deploy) é percebido quando a vez vence: o painel tenta 2 vezes e depois segue com a IA recebendo só a lista de testes (aviso na tela); modelo morto ou com erro cai nas regras já guardadas, com o motivo. Sem IA, termina no passo do painel; sem painel e sem IA, erro claro. Geração parada há 10 min (ninguém com a tela aberta) vira erro e "Gerar" começa outra. O editor mostra a etapa atual ("Calculando o painel do período…", "A IA está escrevendo as ideias…") e, no fim, o motivo de ter caído nas regras.
+- Arquivos principais: apps/api/src/routes/ai.ts (`advance`, `readJob`, rota `/ai/ideas/step`), apps/api/src/ai.ts (modelo recebe a entrada pronta, timeout do Claude), apps/api/src/repo.ts e repo-d1.ts (`swapEntity`), apps/editor/src/pages/Optimize.tsx, apps/editor/src/api.ts, apps/api/src/ai.test.ts, apps/api/src/repo.test.ts, apps/api/src/fuzz.test.ts, e2e/tests/optimize.spec.ts, e2e/tests/idea-to-test.spec.ts
+- Como testar manualmente: Otimização por IA → Gerar ideias: aparece "Calculando o painel…", depois (com IA) "A IA está escrevendo…" e "Ideias prontas". Sair no meio e voltar: continua de onde parou. `pnpm --filter @abtest/api exec vitest run src/ai.test.ts` (passos, falha do painel e do modelo, invocação morta, concorrência, expiração).
+- Observações: sem migração (entidade nova na tabela `entities`). Qualquer papel avança uma geração que um editor iniciou (viewer não inicia). O estado de gerações antigas, guardado dentro da entidade das ideias, é ignorado (a linha "Última geração" some até a próxima). Snippet inalterado. D-086.
+
+### Resumo da Fase 18 (IA no estilo Copilot)
+- Entregue: variação por texto com IA e pré-visualização (18.1), ideia → teste em um clique (18.2), backlog de hipóteses com ICE (18.3), resumos por IA de gravação, mapa de calor e pesquisa (18.4), assistente de relatório (18.5) e geração de ideias em passos que sobrevive ao Worker grátis (18.6).
+- Nenhuma migração nova no D1 na fase (tudo em entidades/colunas JSON); o deploy pendente continua sendo o das migrações 0007–0011 da Fase 16, com novo login.
+- Pendências da fase: CPU do Worker grátis ainda derruba o Painel e pode derrubar relatórios grandes (a geração de ideias contorna seguindo sem painel); ler-modificar-gravar sem trava na entidade das ideias (D-083); máscara de PII por regex (D-084).

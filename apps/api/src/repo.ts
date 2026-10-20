@@ -976,6 +976,34 @@ export function createRepo(db: Db) {
       return id;
     },
 
+    /**
+     * Troca atômica: grava `data` só se a entidade não mudou desde `updatedAt` (lido antes). Para quem precisa
+     * de exclusão sem trava (ex.: um passo da geração de ideias por vez). Devolve o novo `updatedAt` ou null.
+     */
+    async swapEntity(
+      accountId: string,
+      kind: string,
+      id: string,
+      updatedAt: string,
+      data: unknown,
+    ): Promise<string | null> {
+      // Sempre depois do anterior: duas trocas no mesmo milissegundo não podem gerar a mesma versão.
+      const now = new Date(Math.max(Date.now(), Date.parse(updatedAt) + 1));
+      const r = await db
+        .update(entities)
+        .set({ data, updatedAt: now })
+        .where(
+          and(
+            eq(entities.accountId, accountId),
+            eq(entities.kind, kind),
+            eq(entities.id, id),
+            eq(entities.updatedAt, new Date(updatedAt)),
+          ),
+        )
+        .returning({ id: entities.id });
+      return r.length ? now.toISOString() : null;
+    },
+
     async deleteEntity(accountId: string, kind: string, id: string): Promise<boolean> {
       const r = await db
         .delete(entities)

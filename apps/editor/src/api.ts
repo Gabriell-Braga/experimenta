@@ -760,9 +760,11 @@ export interface SavedIdea extends Idea {
   /** Resultado definitivo guardado. */
   result?: IdeaResult;
 }
-/** Ideias guardadas na conta + estado da última geração (que roda em segundo plano na API). */
+/** Ideias guardadas na conta + estado da última geração (avançada em passos pela tela, D-086). */
 export interface Ideas {
   status: 'idle' | 'running' | 'done' | 'error';
+  /** Passo da geração em andamento. */
+  step?: 'dashboard' | 'model';
   startedAt?: string;
   finishedAt?: string;
   source?: 'claude' | 'modelo' | 'regras';
@@ -777,6 +779,8 @@ const ideaPath = (id: string) => `/ai/ideas/${encodeURIComponent(id)}`;
 export const ideas = {
   get: () => api<Ideas>('/ai/ideas'),
   generate: (days: number) => api<Ideas>(`/ai/ideas?days=${days}`, { method: 'POST' }),
+  /** Avança a geração em andamento em um passo (painel, depois modelo). */
+  step: () => api<Ideas>('/ai/ideas/step', { method: 'POST' }),
   /** Ideia escrita pela equipe. */
   create: (body: IdeaText) =>
     api<Ideas & { id: string }>('/ai/ideas/manual', { method: 'POST', body: JSON.stringify(body) }),

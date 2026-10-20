@@ -54,6 +54,12 @@ const SOURCE: Record<string, (model?: string) => string> = {
   regras: () => 'por regras · sem modelo de IA configurado',
 };
 
+/** Passo da geração em andamento (D-086). */
+const STEP: Record<string, string> = {
+  dashboard: 'Calculando o painel do período…',
+  model: 'A IA está escrevendo as ideias…',
+};
+
 /** Colunas do quadro (ideia → priorizada → em teste → concluída). */
 const STAGE: Record<IdeaStage, { label: string; help: string }> = {
   idea: { label: 'Ideias', help: 'Novas, da IA ou da equipe' },
@@ -612,8 +618,10 @@ export function OptimizePage({ user }: { user: Me }) {
   useEffect(() => {
     document.title = 'Otimização por IA · Experimenta';
   }, []);
-  // A geração roda na API; aqui só acompanha. Sair da tela não interrompe nada.
+  // A geração anda em passos pedidos por esta tela (painel numa requisição, modelo noutra: D-086). Sair da
+  // tela pausa; voltar (ou outra aba aberta aqui) continua de onde parou.
   const wasRunning = useRef(false);
+  const failures = useRef(0);
   useEffect(() => {
     if (!data) return;
     if (wasRunning.current && !running) {
@@ -622,8 +630,26 @@ export function OptimizePage({ user }: { user: Me }) {
     }
     wasRunning.current = running;
     if (!running) return;
-    const t = setTimeout(() => ideas.get().then(setData, () => {}), 2500);
-    return () => clearTimeout(t);
+    let alive = true;
+    const t = setTimeout(
+      () =>
+        ideas.step().then(
+          (d) => {
+            failures.current = 0;
+            if (alive) setData(d);
+          },
+          (e: Error) => {
+            // Passo que caiu (ex.: limite de CPU do servidor): a API percebe e segue; aqui só tenta de novo.
+            if (++failures.current >= 5) return toast('error', `A geração não avança: ${e.message}`);
+            if (alive) setData({ ...data });
+          },
+        ),
+      1500,
+    );
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
   }, [data, running, setData, toast]);
   /** Aplica a resposta da API; `false` = falhou (o aviso já apareceu e o modal fica aberto). */
   const change = (p: Promise<Ideas>) =>
@@ -654,11 +680,13 @@ export function OptimizePage({ user }: { user: Me }) {
   const last = !data
     ? ''
     : running
-      ? 'Gerando em segundo plano. Pode sair da tela: as ideias ficam salvas aqui.'
+      ? `${STEP[data.step ?? 'dashboard']}${data.notice ? ` ${data.notice}` : ''} Pode sair da tela: a geração continua de onde parou quando você voltar.`
       : data.status === 'error'
         ? `A última geração falhou: ${data.error ?? ''}`
         : data.source
-          ? (data.notice ?? `Última geração ${SOURCE[data.source]?.(data.model) ?? ''}`) +
+          ? (data.notice
+              ? `Última geração: ${data.notice}`
+              : `Última geração ${SOURCE[data.source]?.(data.model) ?? ''}`) +
             (data.finishedAt ? ` · ${timeAgo(data.finishedAt)}` : '')
           : '';
   return (

@@ -191,7 +191,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 - [x] 18.3 Backlog de hipóteses (gestão do programa): ideias da IA e manuais num quadro (ideia → priorizada → em teste → concluída), priorização por impacto/confiança/esforço, ligação com o experimento e o resultado
 - [x] 18.4 Resumo por IA de gravações (o que o visitante tentou fazer e onde travou), de mapa de calor de uma página e de respostas abertas de pesquisa (temas e sentimento)
 - [x] 18.5 Assistente de relatório: explica o resultado do teste em linguagem simples e sugere o próximo passo
-- [ ] 18.6 Geração de ideias mais confiável no Worker grátis: dividir em invocações separadas (painel numa, modelo noutra) para não depender do limite de 30 s do waitUntil (ver PROGRESSO 2026-10-20 02:30)
+- [x] 18.6 Geração de ideias mais confiável no Worker grátis: dividir em invocações separadas (painel numa, modelo noutra) para não depender do limite de 30 s do waitUntil (ver PROGRESSO 2026-10-20 02:30)
 
 ### Fase 19 — Ecossistema e mobile
 - [ ] 19.1 Integrações prontas: Shopify (instalar snippet + eventos de compra), WordPress (plugin), Segment, Mixpanel, Amplitude (enviar exposição/conversão), HubSpot/Salesforce (atributos do CDP); cada uma com tela de configuração

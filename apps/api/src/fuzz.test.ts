@@ -252,7 +252,9 @@ test('viewer não escreve: POST/PUT/PATCH/DELETE → 4xx', async () => {
     }
   // Sessão de edição: viewer abre o editor em modo leitura. Conta nova: quem cria é owner dela, não escreve nesta.
   // Segurança pessoal (duas etapas, sair dos outros lugares): é da pessoa, qualquer papel faz.
+  // Passo da geração de ideias: só avança a que um editor iniciou (sem geração, não faz nada).
   const allowed = [
+    '200 POST /ai/ideas/step',
     '201 POST /edit-sessions',
     '201 POST /accounts',
     '200 POST /me/totp/setup',

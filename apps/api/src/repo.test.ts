@@ -181,6 +181,20 @@ describe('repositório', () => {
     expect(await repo.getProject(b.id, projA.id)).toBeUndefined();
   });
 
+  test('troca atômica de entidade: só quem leu a versão atual grava', async () => {
+    const id = await repo.saveEntity(a.id, { kind: 'job', name: 'j', data: { n: 0 } });
+    const v0 = (await repo.getEntity(a.id, 'job', id))!.updatedAt;
+    const v1 = await repo.swapEntity(a.id, 'job', id, v0, { n: 1 });
+    expect(v1).not.toBeNull();
+    // Segunda troca com a versão velha perde (é o que impede dois passos simultâneos).
+    expect(await repo.swapEntity(a.id, 'job', id, v0, { n: 2 })).toBeNull();
+    expect(await repo.swapEntity(b.id, 'job', id, v1!, { n: 3 })).toBeNull();
+    expect(await repo.swapEntity(a.id, 'job', id, v1!, { n: 4 })).not.toBeNull();
+    const e = (await repo.getEntity<{ n: number }>(a.id, 'job', id))!;
+    expect(e.data.n).toBe(4);
+    expect(Date.parse(e.updatedAt)).toBeGreaterThan(Date.parse(v1!));
+  });
+
   test('chave do experimento é única por conta (não global)', async () => {
     await repo.saveExperiment(b.id, {
       projectId: projB.id,

@@ -830,6 +830,20 @@ export function createD1Repo(d1: D1Like): Repo {
       return id;
     },
 
+    async swapEntity(accountId, kind, id, updatedAt, data) {
+      const now = Math.max(Date.now(), Date.parse(updatedAt) + 1);
+      const r = await first<{ id: string }>(
+        'UPDATE entities SET data = ?, updated_at = ? WHERE account_id = ? AND kind = ? AND id = ? AND updated_at = ? RETURNING id',
+        JSON.stringify(data),
+        now,
+        accountId,
+        kind,
+        id,
+        Date.parse(updatedAt),
+      );
+      return r ? new Date(now).toISOString() : null;
+    },
+
     async deleteEntity(accountId, kind, id) {
       const r = await first<{ id: string }>(
         'DELETE FROM entities WHERE account_id = ? AND kind = ? AND id = ? RETURNING id',

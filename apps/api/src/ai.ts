@@ -150,17 +150,23 @@ export function ideaContext(d: Dashboard) {
   };
 }
 
+/** Entrada do modelo: o painel reduzido (`ideaContext`) ou, sem painel, só a lista de testes. */
+export type IdeaInput = object;
+
 /** Ideias de teste com Claude a partir do painel (saída estruturada e validada). */
-export async function claudeIdeas(client: Anthropic, d: Dashboard): Promise<Idea[]> {
-  const res = await client.beta.messages.parse({
-    model: AI_MODEL,
-    max_tokens: 16000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { effort: 'medium', format: betaJSONSchemaOutputFormat(IDEAS_JSON_SCHEMA) },
-    system: SYSTEM,
-    messages: [{ role: 'user', content: `Painel da conta:\n${JSON.stringify(ideaContext(d))}` }],
-  });
+export async function claudeIdeas(client: Anthropic, input: IdeaInput, timeoutMs = 60_000): Promise<Idea[]> {
+  const res = await client.beta.messages.parse(
+    {
+      model: AI_MODEL,
+      max_tokens: 16000,
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      output_config: { effort: 'medium', format: betaJSONSchemaOutputFormat(IDEAS_JSON_SCHEMA) },
+      system: SYSTEM,
+      messages: [{ role: 'user', content: `Painel da conta:\n${JSON.stringify(input)}` }],
+    },
+    { timeout: timeoutMs },
+  );
   if (res.stop_reason === 'refusal' || res.stop_reason === 'max_tokens')
     throw new Error(`sem ideias (${res.stop_reason})`);
   const parsed = z.object({ ideas: z.array(IdeaSchema) }).safeParse(res.parsed_output);
@@ -193,9 +199,9 @@ export function compatFromEnv(env: Record<string, string | undefined>): CompatAi
 
 export async function compatIdeas(
   cfg: CompatAi,
-  d: Dashboard,
+  input: IdeaInput,
   f: typeof fetch = fetch,
-  /** Tempo total para tentar a lista toda (o Worker só segura ~30 s de trabalho em segundo plano). */
+  /** Tempo total para tentar a lista toda. */
   budgetMs = 75_000,
 ): Promise<{ model: string; ideas: Idea[] }> {
   const { model, result } = await compatJson(
@@ -204,7 +210,7 @@ export async function compatIdeas(
 Responda só com um objeto JSON neste JSON Schema (sem texto fora dele):
 ${JSON.stringify(IDEAS_JSON_SCHEMA)}`,
     `Painel da conta:
-${JSON.stringify(ideaContext(d))}`,
+${JSON.stringify(input)}`,
     (json) => {
       const parsed = z.object({ ideas: z.array(IdeaSchema).min(1) }).safeParse(json);
       if (!parsed.success) throw new Error('resposta fora do formato');
