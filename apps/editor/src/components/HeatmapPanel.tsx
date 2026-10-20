@@ -21,7 +21,7 @@ export const HEATMAP_MODES: [HeatmapMode, string, string][] = [
   ['heat', 'Calor', 'Onde os visitantes clicam (intensidade), contagem por elemento e alcance do scroll'],
   ['click', 'Cliques', 'Contagem e % de cliques em cada elemento clicado'],
   ['scroll', 'Scroll', 'Quantos % dos visitantes chegaram a cada trecho da página'],
-  ['move', 'Movimento', 'Por onde o mouse passa — onde a atenção se concentra'],
+  ['move', 'Movimento', 'Por onde o mouse passa: onde a atenção se concentra'],
   ['frustration', 'Frustração', 'Rage clicks (cliques repetidos) e dead clicks (cliques sem reação)'],
 ];
 

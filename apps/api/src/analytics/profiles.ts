@@ -106,7 +106,7 @@ export function crossDevice(profiles: Iterable<ProfileSummary>) {
     users++;
     if (p.devices.length > 1) multi++;
     if (p.visitors.length > 1) multiBrowser++;
-    const k = [...p.devices].sort().join(' + ') || '—';
+    const k = [...p.devices].sort().join(' + ') || 'n/d';
     combos.set(k, (combos.get(k) ?? 0) + 1);
   }
   return {

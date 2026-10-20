@@ -65,7 +65,7 @@ export function VariationTag({ index, name }: { index: number; name: string }) {
 /** Probabilidade sem prometer certeza absoluta (Monte Carlo nunca dá 100% de verdade). */
 const prob = (p: number) => (p > 0.995 ? '>99%' : p < 0.005 ? '<1%' : fmt.pct(p, 0));
 
-const signedPct = (n: number | null, d = 1) => (n === null ? '—' : `${n > 0 ? '+' : ''}${fmt.pct(n, d)}`);
+const signedPct = (n: number | null, d = 1) => (n === null ? 'n/d' : `${n > 0 ? '+' : ''}${fmt.pct(n, d)}`);
 
 /** Faixa do intervalo de 95% (todas as linhas na mesma escala), com o ponto estimado. */
 function IntervalStrip({
@@ -101,7 +101,7 @@ function IntervalStrip({
 }
 
 function Probability({ p }: { p: number | null }) {
-  if (p === null) return <span className="text-gray-400">—</span>;
+  if (p === null) return <span className="text-gray-400">n/d</span>;
   const tone = p >= 0.95 ? 'bg-brand-500' : p <= 0.05 ? 'bg-signal' : 'bg-gray-400';
   return (
     <span className="flex items-center gap-2">
@@ -178,7 +178,7 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
               </td>
               <td className="tabular px-3 py-2.5 text-right font-mono text-xs text-gray-500">
                 {a.pValue === null
-                  ? '—'
+                  ? 'n/d'
                   : a.pValue < 0.001
                     ? '<0,001'
                     : a.pValue.toFixed(3).replace('.', ',')}
@@ -295,7 +295,7 @@ function Headline({
   if (!visitors || !best)
     return (
       <p className="text-gray-600">
-        Ainda sem visitantes no período — publique o experimento e aguarde o tráfego.
+        Ainda sem visitantes no período. Publique o experimento e aguarde o tráfego.
       </p>
     );
   const { a, i } = best;
@@ -380,7 +380,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
     );
   }, [id, days, device, toast]);
   useEffect(() => {
-    document.title = `Relatório: ${record?.experiment.name ?? ''} — Experimenta`;
+    document.title = `Relatório: ${record?.experiment.name ?? ''} | Experimenta`;
   }, [record]);
 
   const names = useMemo(() => report?.variations.map((v) => v.name) ?? [], [report]);
@@ -480,7 +480,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
             <TriangleAlert size={18} className="mt-0.5 shrink-0 text-signal" aria-hidden="true" />
             <span>
               <b>Divisão de tráfego fora do esperado</b> (SRM, p = {report.srm.pValue.toExponential(1)}). A
-              proporção de visitantes por variação não bate com os pesos configurados — algo na atribuição ou
+              proporção de visitantes por variação não bate com os pesos configurados. Algo na atribuição ou
               na coleta está distorcendo o teste. Revise redirecionamentos, cache e o snippet antes de confiar
               no resultado.
             </span>
@@ -510,7 +510,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
             <div>
               <dt className="label-mono">Amostra p/ +{fmt.pct(report.estimate.mde, 0)}</dt>
               <dd className="tabular mt-1 text-xl font-semibold text-ink">
-                {report.estimate.neededPerVariation ? fmt.int(report.estimate.neededPerVariation) : '—'}
+                {report.estimate.neededPerVariation ? fmt.int(report.estimate.neededPerVariation) : 'n/d'}
                 <span className="ml-1 text-xs font-normal text-gray-500">por variação</span>
               </dd>
             </div>
@@ -520,7 +520,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
                 {primary?.arms.some((a) => a.verdict === 'winner' || a.verdict === 'loser')
                   ? 'pronto para decidir'
                   : report.estimate.daysRemaining === null
-                    ? '—'
+                    ? 'n/d'
                     : report.estimate.daysRemaining === 0
                       ? 'amostra atingida'
                       : `~${report.estimate.daysRemaining} dias`}
@@ -561,7 +561,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
                       )}
                     </span>
                     <span className="tabular font-mono text-[11px] text-gray-500">
-                      melhor: {Number.isFinite(best) ? signedPct(best) : '—'}
+                      melhor: {Number.isFinite(best) ? signedPct(best) : 'n/d'}
                       {g.hasRevenue && ' · receita'}
                     </span>
                   </button>

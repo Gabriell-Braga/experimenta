@@ -230,7 +230,7 @@ export function FlagsPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Feature flags — Experimenta';
+    document.title = 'Feature flags | Experimenta';
     void load();
   }, [load]);
   const patch = async (e: Entity<Flag>, p: Partial<Flag>) => {
@@ -293,7 +293,7 @@ abt.track('compra', usuario.id, { value: 199.9 });`;
                   <span className="min-w-0 flex-1">
                     <span className="block font-mono text-sm font-medium text-ink">{e.data.key}</span>
                     <span className="block truncate text-xs text-gray-500">
-                      {e.data.description || '—'}
+                      {e.data.description || 'Sem descrição'}
                       {e.data.rules.length
                         ? ` · ${e.data.rules.map((r) => `${r.attribute} ${r.op} ${r.value}`).join(' e ')}`
                         : ''}

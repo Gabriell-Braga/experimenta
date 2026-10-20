@@ -285,7 +285,7 @@ export function SegmentsPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Segmentos — Experimenta';
+    document.title = 'Segmentos | Experimenta';
     void load();
   }, [load]);
   useEffect(() => {
@@ -409,7 +409,7 @@ export function SegmentsPage({ user }: { user: Me }) {
                             {p.sessions} visitas
                           </span>
                           <span className="tabular w-24 text-right font-mono text-[11px] text-gray-500">
-                            {p.revenue ? fmt.money(p.revenue) : '—'}
+                            {p.revenue ? fmt.money(p.revenue) : 'n/d'}
                           </span>
                           <span className="w-20 text-right text-xs text-gray-400">
                             {timeAgo(new Date(p.lastSeen).toISOString())}

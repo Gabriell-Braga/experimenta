@@ -50,7 +50,7 @@ export const COMMANDS: [string, string][] = [
 
 export function InstallPage({ user }: { user: Me }) {
   useEffect(() => {
-    document.title = 'Instalação — Experimenta';
+    document.title = 'Instalação | Experimenta';
   }, []);
   const tag = `<script src="${API_URL}/cdn/${user.accountId}.js"></script>`;
   return (
@@ -69,7 +69,7 @@ export function InstallPage({ user }: { user: Me }) {
               aparecer (anti-flicker por elemento, sem esconder a página inteira).
             </li>
             <li>
-              <b className="text-ink">SPA (React, Vue, Next…):</b> nada a fazer — mudanças de rota são
+              <b className="text-ink">SPA (React, Vue, Next…):</b> nada a fazer: mudanças de rota são
               detectadas automaticamente.
             </li>
             <li>

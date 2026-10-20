@@ -230,7 +230,7 @@ export function RecosPage({ user }: { user: Me }) {
     );
   }, [toast]);
   useEffect(() => {
-    document.title = 'Recomendações — Experimenta';
+    document.title = 'Recomendações | Experimenta';
     load();
   }, [load]);
   const toggle = async (e: Entity<RecoWidget>) => {
@@ -298,7 +298,7 @@ export function RecosPage({ user }: { user: Me }) {
                           {fmt.int(s?.views ?? 0)}
                         </td>
                         <td className="tabular px-4 py-3 text-right font-mono text-xs">
-                          {s?.views ? fmt.pct(s.ctr, 1) : '—'}
+                          {s?.views ? fmt.pct(s.ctr, 1) : 'n/d'}
                         </td>
                         <td className="px-2 py-3 text-right whitespace-nowrap">
                           {canEdit && (

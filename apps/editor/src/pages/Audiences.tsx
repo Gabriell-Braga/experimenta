@@ -512,7 +512,7 @@ export function AudiencesPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Audiências — Experimenta';
+    document.title = 'Audiências | Experimenta';
     void load();
   }, [load]);
   return (

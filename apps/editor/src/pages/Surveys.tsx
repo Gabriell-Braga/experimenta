@@ -36,10 +36,10 @@ import {
 import type { EngageStats } from './Popups';
 
 const TYPES: [Question['type'], string][] = [
-  ['nps', 'NPS (0–10)'],
-  ['csat', 'Satisfação (CSAT 1–5)'],
-  ['ces', 'Esforço (CES 1–7)'],
-  ['rating', 'Nota (1–5)'],
+  ['nps', 'NPS (0 a 10)'],
+  ['csat', 'Satisfação (CSAT 1 a 5)'],
+  ['ces', 'Esforço (CES 1 a 7)'],
+  ['rating', 'Nota (1 a 5)'],
   ['choice', 'Escolha única'],
   ['multi', 'Múltipla escolha'],
   ['text', 'Texto livre'],
@@ -188,7 +188,7 @@ function QuestionEditor({
             }
             className={`${selectCls} py-0.5 text-xs`}
           >
-            <option value="">— sem lógica —</option>
+            <option value="">Sem lógica</option>
             <option value="eq">for</option>
             {scale && <option value="gte">for ≥</option>}
             {scale && <option value="lte">for ≤</option>}
@@ -389,7 +389,7 @@ export function SurveysPage({ user }: { user: Me }) {
     );
   }, [toast]);
   useEffect(() => {
-    document.title = 'Pesquisas — Experimenta';
+    document.title = 'Pesquisas | Experimenta';
     load();
   }, [load]);
   const toggle = async (e: Entity<Survey>) => {
@@ -556,7 +556,7 @@ interface SurveyReport {
   questions: QReport[];
 }
 
-/** Barras verticais da distribuição de notas (0–10, 1–5…). */
+/** Barras verticais da distribuição de notas (0 a 10, 1 a 5…). */
 function Distribution({ q }: { q: QReport }) {
   const values = SCALES[q.type]!.values;
   const max = Math.max(1, ...values.map((v) => q.distribution?.[v] ?? 0));
@@ -629,7 +629,7 @@ export function SurveyReportPage({ id }: { id: string }) {
                     className={`tabular text-5xl font-semibold ${q.score === null || q.score === undefined ? 'text-gray-300' : q.score >= 0 ? 'text-brand-600' : 'text-signal'}`}
                     data-testid="nps-score"
                   >
-                    {q.score ?? '—'}
+                    {q.score ?? 'n/d'}
                   </p>
                   <p className="mt-1 font-mono text-[11px] text-gray-500">
                     {q.promoters} promotores · {q.passives} neutros · {q.detractors} detratores
@@ -641,12 +641,12 @@ export function SurveyReportPage({ id }: { id: string }) {
             {q.type === 'csat' && (
               <div className="grid items-center gap-5 md:grid-cols-[200px_1fr]">
                 <div>
-                  <p className="label-mono">Satisfeitos (4–5)</p>
+                  <p className="label-mono">Satisfeitos (4 a 5)</p>
                   <p className="tabular text-5xl font-semibold text-ink">
-                    {q.score === null || q.score === undefined ? '—' : fmt.pct(q.score, 0)}
+                    {q.score === null || q.score === undefined ? 'n/d' : fmt.pct(q.score, 0)}
                   </p>
                   <p className="mt-1 font-mono text-[11px] text-gray-500">
-                    média {q.average?.toFixed(1) ?? '—'}
+                    média {q.average?.toFixed(1) ?? 'n/d'}
                   </p>
                 </div>
                 <Distribution q={q} />
@@ -656,7 +656,7 @@ export function SurveyReportPage({ id }: { id: string }) {
               <div className="grid items-center gap-5 md:grid-cols-[200px_1fr]">
                 <div>
                   <p className="label-mono">Média</p>
-                  <p className="tabular text-5xl font-semibold text-ink">{q.average?.toFixed(1) ?? '—'}</p>
+                  <p className="tabular text-5xl font-semibold text-ink">{q.average?.toFixed(1) ?? 'n/d'}</p>
                   <p className="mt-1 font-mono text-[11px] text-gray-500">
                     {q.type === 'ces' ? '1 = muito difícil · 7 = muito fácil' : 'de 1 a 5'}
                   </p>

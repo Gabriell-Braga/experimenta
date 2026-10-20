@@ -195,7 +195,7 @@ export function SettingsPanel({
         <fieldset className="flex flex-col gap-1" disabled={experiment.allocation !== 'manual'}>
           <legend className="mb-1 text-gray-600">
             Divisão entre variações (pesos)
-            {experiment.allocation !== 'manual' && ' — controlada automaticamente'}
+            {experiment.allocation !== 'manual' && ' (controlada automaticamente)'}
           </legend>
           {experiment.variations.map((v, i) => (
             <div key={v.id}>

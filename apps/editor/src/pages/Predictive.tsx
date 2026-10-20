@@ -40,7 +40,7 @@ export function PredictivePage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Analytics preditivo — Experimenta';
+    document.title = 'Analytics preditivo | Experimenta';
     void load();
     getOverview(90).then(
       (o) => setEvents(o.topEvents.map((e) => e.key)),
@@ -145,7 +145,7 @@ export function PredictivePage({ user }: { user: Me }) {
                 <Stat label="Taxa base" value={fmt.pct(m.baseRate)} hint={`meta em ${m.horizonDays} d`} />
                 <Stat
                   label="Top 10% converte"
-                  value={top ? fmt.pct(top.rate) : '—'}
+                  value={top ? fmt.pct(top.rate) : 'n/d'}
                   tone="up"
                   hint={
                     top && m.baseRate
@@ -165,7 +165,7 @@ export function PredictivePage({ user }: { user: Me }) {
                     format={(n) => fmt.pct(n)}
                     items={m.deciles.map((d, i) => ({
                       key: String(i),
-                      label: i === 0 ? 'Top 10%' : `${i * 10}–${(i + 1) * 10}%`,
+                      label: i === 0 ? 'Top 10%' : `${i * 10} a ${(i + 1) * 10}%`,
                       value: d.rate,
                       hint: `score ≥ ${d.minScore.toFixed(2).replace('.', ',')}`,
                     }))}

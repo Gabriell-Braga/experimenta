@@ -264,7 +264,7 @@ export function EditorView({ record, user }: Props) {
         running ? 'success' : 'info',
         running
           ? `Publicado (versão ${version}). Visitantes recebem o experimento em até 1 min.`
-          : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação — mude o status em Configurações.`,
+          : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação. Mude o status em Configurações.`,
         running
           ? { label: 'Ver no site', href: state.url }
           : { label: 'Abrir configurações', onClick: () => setSettingsOpen(true) },
@@ -305,7 +305,7 @@ export function EditorView({ record, user }: Props) {
   })();
 
   useEffect(() => {
-    document.title = `${state.dirty ? '● ' : ''}${state.experiment.name} — Experimenta`;
+    document.title = `${state.dirty ? '● ' : ''}${state.experiment.name} | Experimenta`;
   }, [state.dirty, state.experiment.name]);
 
   useEffect(() => {
@@ -418,7 +418,7 @@ export function EditorView({ record, user }: Props) {
             <TriangleAlert size={15} className="mr-1 inline align-[-2px]" aria-hidden="true" />
             Alteração com seletor frágil (<code>{fragileWarning}</code>): depende da posição ou de classes
             geradas e pode quebrar quando o site mudar. Peça ao time do site um <code>id</code> ou{' '}
-            <code>data-testid</code> estável nesse elemento — a impressão digital tenta curar, mas não é
+            <code>data-testid</code> estável nesse elemento. A impressão digital tenta curar, mas não é
             garantida.
           </span>
           <button onClick={() => setFragileWarning(null)} aria-label="Fechar">
@@ -482,7 +482,7 @@ export function EditorView({ record, user }: Props) {
         <div className="bg-brand-50 px-4 py-1.5 text-sm text-brand-900" data-testid="redirect-banner">
           <b>{variation.name}</b> redireciona os visitantes para{' '}
           <code className="font-mono text-xs">{variation.redirect.url}</code>. Alterações visuais aqui não
-          valem para ela — mude o destino em Configurações.
+          valem para ela. Mude o destino em Configurações.
         </div>
       )}
       {mode === 'preview' && (
@@ -490,7 +490,7 @@ export function EditorView({ record, user }: Props) {
           className="bg-orange-50 px-4 py-1 text-center text-sm text-orange-800"
           data-testid="preview-banner"
         >
-          Preview de <b>{variation.name}</b> — o site funciona normalmente. Volte para “Editar” para alterar.
+          Preview de <b>{variation.name}</b>: o site funciona normalmente. Volte para “Editar” para alterar.
         </div>
       )}
       <div className="flex min-h-0 flex-1">

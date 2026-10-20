@@ -5,7 +5,7 @@ import { Button, inputCls, Logo } from '../ui';
 /** Cartão de "resultado" do painel de apresentação: a cara do produto antes de entrar. */
 function SampleResult() {
   const rows = [
-    ['C', 'Controle', '3,12%', '—', 'bg-white/15'],
+    ['C', 'Controle', '3,12%', 'base', 'bg-white/15'],
     ['V1', 'Botão "Comprar agora"', '3,51%', '+12,4%', 'bg-lime'],
   ] as const;
   return (
@@ -66,7 +66,7 @@ export function Login({ onLogin }: { onLogin(u: Me): void }) {
           </h2>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/60">
             Experimentos A/B e multivariados, mapas de calor, gravações de sessão, funis, formulários,
-            pesquisas e personalização — sobre o seu site real, sem mexer no código.
+            pesquisas e personalização, sobre o seu site real, sem mexer no código.
           </p>
           <div className="mt-10">
             <SampleResult />

@@ -67,7 +67,7 @@ export function ProfilesPage() {
   const [kind, setKind] = useState<'all' | 'user' | 'anon'>('all');
   const [data, setData] = useState<ProfilesResponse | null>(null);
   useEffect(() => {
-    document.title = 'Perfis — Experimenta';
+    document.title = 'Perfis | Experimenta';
   }, []);
   useEffect(() => {
     const t = setTimeout(
@@ -106,7 +106,7 @@ export function ProfilesPage() {
         />
         <Stat
           label="Combinação mais comum"
-          value={<span className="text-base">{cd?.combos[0]?.devices ?? '—'}</span>}
+          value={<span className="text-base">{cd?.combos[0]?.devices ?? 'n/d'}</span>}
         />
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -182,7 +182,7 @@ export function ProfilesPage() {
                     {fmt.int(p.conversions)}
                   </td>
                   <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                    {p.revenue ? fmt.money(p.revenue) : '—'}
+                    {p.revenue ? fmt.money(p.revenue) : 'n/d'}
                   </td>
                   <td className="px-4 py-3 text-right text-xs whitespace-nowrap text-gray-500">
                     {timeAgo(new Date(p.lastSeen).toISOString())}

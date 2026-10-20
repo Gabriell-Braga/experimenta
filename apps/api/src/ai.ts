@@ -49,7 +49,14 @@ Recebe o painel de uma conta (métricas agregadas e achados automáticos do per�
 em português do Brasil, priorizadas por impacto esperado / esforço. Cada ideia nasce de um dado do painel (cite qual
 em "basedOn"), tem hipótese falsificável e uma mudança concreta que um editor visual consegue fazer (texto, layout,
 ordem, visibilidade, CTA, campos de formulário, pop-up). Não invente números que não estão no painel. Se um teste em
-execução já tem vencedora, a primeira ideia é implementá-la e testar o próximo passo.`;
+execução já tem vencedora, a primeira ideia é implementá-la e testar o próximo passo. Não use travessão nem meia-risca
+no texto; use vírgula, dois-pontos ou ponto.`;
+
+/** Tira travessão/meia-risca que o modelo usar mesmo assim (o app não usa esses traços). */
+const noDash = (ideas: Idea[]): Idea[] =>
+  ideas.map(
+    (i) => Object.fromEntries(Object.entries(i).map(([k, v]) => [k, v.replace(/\s*[—–]\s*/g, ', ')])) as Idea,
+  );
 
 /** Ideias sem IA: uma por achado automático (usado sem chave da API ou se a chamada falhar). */
 export function ruleIdeas(insights: Insight[]): Idea[] {
@@ -157,7 +164,7 @@ export async function claudeIdeas(client: Anthropic, d: Dashboard): Promise<Idea
     throw new Error(`sem ideias (${res.stop_reason})`);
   const parsed = z.object({ ideas: z.array(IdeaSchema) }).safeParse(res.parsed_output);
   if (!parsed.success) throw new Error('resposta fora do formato');
-  return parsed.data.ideas.slice(0, 6);
+  return noDash(parsed.data.ideas.slice(0, 6));
 }
 
 /**
@@ -209,5 +216,5 @@ export async function compatIdeas(cfg: CompatAi, d: Dashboard, f: typeof fetch =
   }
   const parsed = z.object({ ideas: z.array(IdeaSchema).min(1) }).safeParse(json);
   if (!parsed.success) throw new Error('resposta fora do formato');
-  return parsed.data.ideas.slice(0, 6);
+  return noDash(parsed.data.ideas.slice(0, 6));
 }

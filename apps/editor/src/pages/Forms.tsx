@@ -74,7 +74,7 @@ function FormFunnel({ f }: { f: FormRow }) {
             <p className="label-mono mt-2">{label}</p>
             <p className="tabular text-xl font-semibold text-ink">{fmt.int(n)}</p>
             <p className="font-mono text-[11px] text-gray-500">
-              {i === 0 ? '100%' : `${prev ? fmt.pct(n / prev, 1) : '—'} da etapa anterior`}
+              {i === 0 ? '100%' : `${prev ? fmt.pct(n / prev, 1) : 'n/d'} da etapa anterior`}
             </p>
           </div>
         );
@@ -91,7 +91,7 @@ export function FormsPage() {
   const [sel, setSel] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>('avgTime');
   useEffect(() => {
-    document.title = 'Formulários — Experimenta';
+    document.title = 'Formulários | Experimenta';
   }, []);
   useEffect(() => {
     query<FormRow[]>('/analytics/forms', { days, device: device || undefined }).then(setRows, (e: Error) =>

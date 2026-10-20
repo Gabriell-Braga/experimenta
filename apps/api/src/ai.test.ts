@@ -133,3 +133,15 @@ test('modelo grátis (API compatível com OpenAI): liga por env, manda o painel 
   await expect(compatIdeas(cfg, d, reply('{"ideas":[{"title":1}]}'))).rejects.toThrow('formato');
   await expect(compatIdeas(cfg, d, reply('', 429))).rejects.toThrow('429');
 });
+
+test('modelo grátis: travessão na resposta vira vírgula', async () => {
+  const cfg = compatFromEnv({ AI_BASE_URL: 'https://x.ai/v1', AI_MODEL: 'm' })!;
+  const d = { insights: [], traffic: { series: [] } } as unknown as Dashboard;
+  const content = JSON.stringify({ ideas: [{ ...idea, title: 'CTA no topo — agora' }] });
+  const f = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content } }] })),
+    ) as unknown as typeof fetch;
+  expect((await compatIdeas(cfg, d, f))[0]!.title).toBe('CTA no topo, agora');
+});

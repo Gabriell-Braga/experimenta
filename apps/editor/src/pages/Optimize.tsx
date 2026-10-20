@@ -28,7 +28,7 @@ export function OptimizePage({ user }: { user: Me }) {
   const [data, setData] = useState<Ideas | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    document.title = 'Otimização por IA — Experimenta';
+    document.title = 'Otimização por IA | Experimenta';
   }, []);
   const run = async () => {
     setBusy(true);

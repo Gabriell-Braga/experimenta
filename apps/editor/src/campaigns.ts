@@ -39,7 +39,7 @@ export const CAMPAIGNS: Record<
   server: {
     label: 'Server-side',
     short: 'Server',
-    help: 'Variáveis entregues pelo SDK no seu backend ou app — nada é aplicado na página.',
+    help: 'Variáveis entregues pelo SDK no seu backend ou app. Nada é aplicado na página.',
     icon: Server,
   },
 };

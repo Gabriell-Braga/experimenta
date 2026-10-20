@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "A/B Editor — modo edição",
+  "name": "A/B Editor (modo edição)",
   "version": "0.2.0",
   "description": "Permite abrir no editor visual sites que bloqueiam iframe ou ainda não têm o snippet. Só age em sessões iniciadas pelo app do editor.",
   "permissions": ["declarativeNetRequestWithHostAccess", "storage", "cookies", "scripting"],

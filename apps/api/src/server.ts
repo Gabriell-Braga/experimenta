@@ -43,8 +43,7 @@ if (existsSync(join(cdnDir, 'abt.js'))) {
 const repo = createRepo(db);
 if (process.env.NODE_ENV !== 'production') await seedDev(repo);
 const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-troque-em-producao';
-if (!process.env.JWT_SECRET)
-  console.warn('[api] JWT_SECRET não definido — usando segredo de desenvolvimento');
+if (!process.env.JWT_SECRET) console.warn('[api] JWT_SECRET não definido; usando segredo de desenvolvimento');
 
 // Padrão do servidor; cada conta pode sobrescrever (D-038).
 const publish = createPublisher({

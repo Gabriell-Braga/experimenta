@@ -23,7 +23,7 @@ export function CohortsPage() {
   const [event, setEvent] = useState('');
   const [data, setData] = useState<Cohorts | null>(null);
   useEffect(() => {
-    document.title = 'Coortes — Experimenta';
+    document.title = 'Coortes | Experimenta';
   }, []);
   useEffect(() => {
     const t = setTimeout(

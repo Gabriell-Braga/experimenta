@@ -39,7 +39,7 @@ interface FunnelReport {
 const path = (u: string) => (u.startsWith('(') ? u : u.replace(/^https?:\/\/[^/]+/, '') || '/');
 const dur = (ms: number | null) =>
   ms === null
-    ? '—'
+    ? 'n/d'
     : ms < 60_000
       ? `${Math.round(ms / 1000)} s`
       : ms < 3_600_000
@@ -238,7 +238,7 @@ export function FunnelsPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Funis — Experimenta';
+    document.title = 'Funis | Experimenta';
     void load();
   }, [load]);
   useEffect(() => {
@@ -389,7 +389,7 @@ export function FunnelsPage({ user }: { user: Me }) {
                       {s.dropoff > 0 && (
                         <details className="mt-1 ml-7 text-xs text-gray-600">
                           <summary className="font-mono text-[11px] text-signal">
-                            {fmt.int(s.dropoff)} desistiram aqui — para onde foram
+                            {fmt.int(s.dropoff)} desistiram aqui: para onde foram
                           </summary>
                           <ul className="mt-1 space-y-0.5 pl-3">
                             {s.dropoffNext.map((d) => (

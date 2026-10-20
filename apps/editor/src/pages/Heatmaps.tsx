@@ -27,7 +27,7 @@ export function HeatmapsPage() {
   const [days, setDays] = useState<Period>('30');
   const [rows, setRows] = useState<PageRow[] | null>(null);
   useEffect(() => {
-    document.title = 'Mapas de calor — Experimenta';
+    document.title = 'Mapas de calor | Experimenta';
   }, []);
   useEffect(() => {
     query<PageRow[]>('/analytics/pages', { days }).then(setRows, (e: Error) => toast('error', e.message));
@@ -94,7 +94,7 @@ export function HeatmapsPage() {
                     </span>
                   </td>
                   <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
-                    {r.avgScroll === null ? '—' : `${r.avgScroll}%`}
+                    {r.avgScroll === null ? 'n/d' : `${r.avgScroll}%`}
                   </td>
                 </tr>
               ))}
@@ -137,7 +137,7 @@ export function HeatmapViewer({ url }: { url: string }) {
   const siteOrigin = new URL(url).origin;
 
   useEffect(() => {
-    document.title = 'Mapa de calor — Experimenta';
+    document.title = 'Mapa de calor | Experimenta';
     createEditSession().then(setToken, (e: Error) => toast('error', e.message));
   }, [toast]);
   useEffect(() => {

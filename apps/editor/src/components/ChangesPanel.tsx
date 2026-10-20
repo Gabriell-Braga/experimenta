@@ -84,7 +84,7 @@ export function ChangesPanel({
             {healed.has(op.id) && (
               <span className="text-xs text-yellow-700">
                 <TriangleAlert size={12} className="mr-1 inline align-[-2px]" aria-hidden="true" />
-                seletor curado ({healed.get(op.id) === 'fingerprint' ? 'impressão digital' : 'alternativo'}) —
+                seletor curado ({healed.get(op.id) === 'fingerprint' ? 'impressão digital' : 'alternativo'}),
                 revise
               </span>
             )}

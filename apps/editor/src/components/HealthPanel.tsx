@@ -12,7 +12,7 @@ interface Props {
   onHighlight(selector: string | null): void;
 }
 
-const pct = (n: number, total: number) => (total ? `${Math.round((n / total) * 1000) / 10}%` : '—');
+const pct = (n: number, total: number) => (total ? `${Math.round((n / total) * 1000) / 10}%` : 'n/d');
 
 /** Saúde dos seletores em produção (eventos selector_failed / selector_healed enviados pelo snippet). */
 export function HealthPanel({ experimentId, variation, onAdopt, onHighlight }: Props) {

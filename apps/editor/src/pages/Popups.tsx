@@ -265,7 +265,7 @@ export function PopupsPage({ user }: { user: Me }) {
     );
   }, [toast]);
   useEffect(() => {
-    document.title = 'Pop-ups — Experimenta';
+    document.title = 'Pop-ups | Experimenta';
     load();
   }, [load]);
   const toggle = async (e: Entity<Popup>) => {
@@ -303,7 +303,7 @@ export function PopupsPage({ user }: { user: Me }) {
           </div>
         ) : !list.length ? (
           <EmptyState icon={<Megaphone size={20} aria-hidden="true" />} title="Nenhum pop-up ainda">
-            Comece por um cupom na intenção de saída — costuma recuperar parte de quem ia embora.
+            Comece por um cupom na intenção de saída: costuma recuperar parte de quem ia embora.
           </EmptyState>
         ) : (
           <div className="overflow-hidden rounded-lg border border-gray-900/10 bg-white">
@@ -339,7 +339,7 @@ export function PopupsPage({ user }: { user: Me }) {
                         {fmt.int(s?.views ?? 0)}
                       </td>
                       <td className="tabular px-4 py-3 text-right font-mono text-xs">
-                        {s?.views ? fmt.pct(s.ctr, 1) : '—'}
+                        {s?.views ? fmt.pct(s.ctr, 1) : 'n/d'}
                       </td>
                       <td className="px-2 py-3 text-right whitespace-nowrap">
                         {canEdit && (

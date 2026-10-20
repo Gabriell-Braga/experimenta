@@ -109,7 +109,7 @@ export function DashboardPage() {
   const [days, setDays] = useState<Period>('30');
   const [d, setD] = useState<Dashboard | null>(null);
   useEffect(() => {
-    document.title = 'Painel — Experimenta';
+    document.title = 'Painel | Experimenta';
   }, []);
   useEffect(() => {
     getDashboard(Number(days)).then(setD, (e: Error) => toast('error', e.message));
@@ -217,11 +217,11 @@ export function DashboardPage() {
             )}
           </Module>
           <Module title="Scroll médio" view="heatmaps">
-            <Big>{d?.behavior.avgScroll != null ? `${d.behavior.avgScroll}%` : '—'}</Big>
+            <Big>{d?.behavior.avgScroll != null ? `${d.behavior.avgScroll}%` : 'n/d'}</Big>
             <p>da página, média entre páginas</p>
           </Module>
           <Module title="Formulários" view="forms">
-            <Big>{d?.forms.completion != null ? fmt.pct(d.forms.completion, 0) : '—'}</Big>
+            <Big>{d?.forms.completion != null ? fmt.pct(d.forms.completion, 0) : 'n/d'}</Big>
             <p>
               concluem · {fmt.int(d?.forms.submitted ?? 0)} de {fmt.int(d?.forms.interacted ?? 0)} que
               começaram
@@ -245,11 +245,11 @@ export function DashboardPage() {
                 <p key={k} className="flex justify-between">
                   <span>{{ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Celular' }[k] ?? k}</span>
                   <span className="tabular font-mono text-xs">
-                    {t?.pageviews ? fmt.pct(v / t.pageviews, 0) : '—'}
+                    {t?.pageviews ? fmt.pct(v / t.pageviews, 0) : 'n/d'}
                   </span>
                 </p>
               ))}
-            {!Object.keys(t?.devices ?? {}).length && <Big>—</Big>}
+            {!Object.keys(t?.devices ?? {}).length && <Big>n/d</Big>}
           </Module>
           <Module title="Eventos" view="events">
             <Big>{fmt.int(t?.events ?? 0)}</Big>
