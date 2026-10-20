@@ -174,12 +174,64 @@ export function saveExperiment(rec: ExperimentRecord, isNew = false): Promise<{ 
 export interface AccountSettings {
   /** Fração 0..1; null = padrão do servidor. */
   heatmapSampleRate: number | null;
+  /** Publicação passa por aprovação (owner ou "publica JS"). */
+  requireApproval?: boolean;
 }
 export const getAccountSettings = () => api<AccountSettings>('/account/settings');
 export const saveAccountSettings = (s: AccountSettings) =>
   api<AccountSettings>('/account/settings', { method: 'PUT', body: JSON.stringify(s) });
 
-export const publish = () => api<{ version: number }>('/publish', { method: 'POST' });
+/** Resultado da publicação: versão no ar ou, em conta com aprovação, pedido aguardando (202). */
+export type PublishResult = { version: number } | { pending: true; requestId: string };
+/** Avisa o menu (contador de aprovações) que os pedidos mudaram. */
+export const APPROVALS_CHANGED = 'abt:approvals';
+const approvalsChanged = () => dispatchEvent(new Event(APPROVALS_CHANGED));
+
+export async function publish(): Promise<PublishResult> {
+  const r = await api<PublishResult>('/publish', { method: 'POST' });
+  approvalsChanged();
+  return r;
+}
+
+export const PENDING_TEXT =
+  'Enviado para aprovação: vai ao ar quando um owner aprovar (Configurar → Aprovações).';
+/** Texto do aviso depois de publicar: `ok` quando foi ao ar, o de pedido quando ficou aguardando aprovação. */
+export const publishedText = (r: PublishResult, ok: string) => ('pending' in r ? PENDING_TEXT : ok);
+
+export interface PublishRequest {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  note: string;
+  requestedBy: { id: string; name: string };
+  decidedBy?: { id: string; name: string };
+  decidedAt?: string;
+  comment?: string;
+  version?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+const decided = <T>(p: Promise<T>) => p.finally(approvalsChanged);
+export const approvals = {
+  list: () => api<PublishRequest[]>('/publish-requests'),
+  request: (note: string) =>
+    decided(api<PublishRequest>('/publish-requests', { method: 'POST', body: JSON.stringify({ note }) })),
+  approve: (id: string, comment: string) =>
+    decided(
+      api<{ version: number }>(`/publish-requests/${encodeURIComponent(id)}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ comment }),
+      }),
+    ),
+  reject: (id: string, comment: string) =>
+    decided(
+      api<PublishRequest>(`/publish-requests/${encodeURIComponent(id)}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ comment }),
+      }),
+    ),
+};
+/** Quem aprova: owner ou membro com "publica JS" (mesma regra da API). */
+export const canApprove = (u: Me) => u.role === 'owner' || (u.role === 'editor' && u.canPublishJs);
 
 export async function createEditSession(): Promise<string> {
   return (await api<{ token: string }>('/edit-sessions', { method: 'POST' })).token;

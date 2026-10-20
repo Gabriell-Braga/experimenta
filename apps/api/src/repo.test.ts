@@ -169,10 +169,10 @@ describe('repositório', () => {
   });
 
   test('configurações da conta e expurgo de eventos antigos', async () => {
-    expect(await repo.getAccountSettings(a.id)).toEqual({ heatmapSampleRate: null });
-    await repo.updateAccountSettings(a.id, { heatmapSampleRate: 0.1 });
-    expect(await repo.getAccountSettings(a.id)).toEqual({ heatmapSampleRate: 0.1 });
-    expect(await repo.getAccountSettings(b.id)).toEqual({ heatmapSampleRate: null });
+    expect(await repo.getAccountSettings(a.id)).toEqual({ heatmapSampleRate: null, requireApproval: false });
+    await repo.updateAccountSettings(a.id, { heatmapSampleRate: 0.1, requireApproval: true });
+    expect(await repo.getAccountSettings(a.id)).toEqual({ heatmapSampleRate: 0.1, requireApproval: true });
+    expect(await repo.getAccountSettings(b.id)).toEqual({ heatmapSampleRate: null, requireApproval: false });
 
     const ev = (id: string) =>
       ({

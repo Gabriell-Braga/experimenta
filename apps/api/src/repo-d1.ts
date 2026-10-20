@@ -475,17 +475,21 @@ export function createD1Repo(d1: D1Like): Repo {
     },
 
     async getAccountSettings(accountId) {
-      const row = await first<{ heatmap_sample_rate: number | null }>(
-        'SELECT heatmap_sample_rate FROM accounts WHERE id = ?',
+      const row = await first<{ heatmap_sample_rate: number | null; require_approval: number }>(
+        'SELECT heatmap_sample_rate, require_approval FROM accounts WHERE id = ?',
         accountId,
       );
-      return { heatmapSampleRate: row?.heatmap_sample_rate ?? null };
+      return {
+        heatmapSampleRate: row?.heatmap_sample_rate ?? null,
+        requireApproval: !!row?.require_approval,
+      };
     },
 
     async updateAccountSettings(accountId, s) {
       await q(
-        'UPDATE accounts SET heatmap_sample_rate = ? WHERE id = ?',
+        'UPDATE accounts SET heatmap_sample_rate = ?, require_approval = ? WHERE id = ?',
         s.heatmapSampleRate,
+        s.requireApproval ? 1 : 0,
         accountId,
       ).run();
     },

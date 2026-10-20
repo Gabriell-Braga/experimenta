@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento (fase 16)
 **Fase atual:** 16
-**Tarefa atual:** 16.4 Fluxo de aprovação opcional
-**Última atualização:** 2026-10-20 03:29
-**Próximo passo:** 16.4 (fluxo de aprovação).
+**Tarefa atual:** 16.5 Segurança de acesso
+**Última atualização:** 2026-10-20 04:28
+**Próximo passo:** 16.5 (TOTP, sessões ativas, base para SSO).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -563,3 +563,9 @@
 - Arquivos principais: apps/api/src/audit.ts, apps/api/src/routes/activities.ts, apps/api/src/repo.ts, apps/api/src/repo-d1.ts, apps/api/drizzle/0008_first_human_robot.sql, apps/api/migrations-d1/0008_activities.sql, apps/editor/src/pages/Activity.tsx, e2e/tests/activity.spec.ts
 - Como testar manualmente: criar um teste, iniciar e pausar pela lista; abrir o relatório (card Atividades no fim) e Configurar → Atividades, filtrar por pessoa/tipo. `pnpm --filter @abtest/api exec vitest run src/audit.test.ts`; `pnpm --filter @abtest/e2e e2e tests/activity.spec.ts`.
 - Observações: em produção, o próximo `pnpm deploy:cf` aplica a migração 0008 no D1. Ações automáticas (bandit de hora em hora, piloto automático) não entram, só o que uma pessoa ou chave de API fez. Sem expurgo de atividades antigas (D-071).
+
+### 2026-10-20 04:28 — Tarefa 16.4 concluída (fluxo de aprovação de publicação)
+- O que foi feito: opção por conta "exigir aprovação" (coluna `accounts.require_approval`, liga em Configurar → Aprovações, só owner). Ligada, quem não pode aprovar (editor sem "publica JS", chave de API) recebe 202 no `POST /publish` e vira um pedido (um pendente por pessoa; pedir de novo atualiza o recado); quem aprova (owner ou "publica JS") aprova = publica a configuração atual (os outros pendentes vão junto) ou recusa com comentário obrigatório. A checagem fica no publicador: sem aprovação, só republica o que já foi aprovado, então o rebalanceamento de hora em hora e o retreino preditivo continuam publicando pesos/modelo, mas nunca mudança pendente. Notificação: contador no item Aprovações do menu (pendentes para quem aprova; respostas não vistas para quem pediu), aviso em toda tela que publica e webhook `approval` (pending/approved/rejected). Pedido, aprovação e recusa entram no histórico de atividades.
+- Arquivos principais: apps/api/src/routes/approvals.ts, apps/api/src/publish.ts, apps/api/src/app.ts, apps/api/src/audit.ts, apps/api/src/webhooks.ts, apps/api/drizzle/0009_past_scourge.sql, apps/api/migrations-d1/0009_require_approval.sql, apps/editor/src/pages/Approvals.tsx, apps/editor/src/shell.tsx, apps/editor/src/api.ts, e2e/tests/approvals.spec.ts
+- Como testar manualmente: owner → Configurar → Aprovações → ligar; entrar como editor@abtest.dev, mudar algo em execução e Publicar (aviso "Enviado para aprovação"); owner vê o contador no menu, recusa com comentário ou aprova. `pnpm --filter @abtest/api exec vitest run src/routes/approvals.test.ts`; `pnpm --filter @abtest/e2e e2e tests/approvals.spec.ts`.
+- Observações: em produção, o próximo `pnpm deploy:cf` aplica a migração 0009 no D1. Aprovar publica o estado do momento da aprovação (não um retrato do pedido); sem diff visual do que mudou (D-072). Exclusões silenciosas em listas (pop-up, pesquisa, flag) com aprovação ligada viram pedido sem aviso na hora (o contador mostra).

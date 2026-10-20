@@ -7,7 +7,7 @@ import { ROLE_LABEL } from './Team';
 /** Tipos de alvo (filtro "tipo") com o artigo usado na frase. */
 export const TARGET_LABEL: Record<string, [string, string]> = {
   experiment: ['Testes e campanhas', 'o teste'],
-  publish: ['Publicações', 'a configuração'],
+  publish: ['Publicações e aprovações', 'a configuração'],
   project: ['Projetos', 'o projeto'],
   member: ['Membros', ''],
   invite: ['Convites', 'o convite de'],
@@ -66,12 +66,34 @@ export function sentence(a: ActivityItem): ReactNode {
       </>
     );
   }
-  if (a.targetType === 'publish')
+  if (a.targetType === 'publish') {
+    const note = a.detail && <span className="text-gray-500"> ({a.detail})</span>;
+    if (a.action === 'request')
+      return (
+        <>
+          {who} pediu aprovação para publicar{note}
+        </>
+      );
+    if (a.action === 'approve')
+      return (
+        <>
+          {who} aprovou a publicação pedida por {what}
+          {note}
+        </>
+      );
+    if (a.action === 'reject')
+      return (
+        <>
+          {who} recusou a publicação pedida por {what}
+          {note}
+        </>
+      );
     return (
       <>
         {who} publicou a {what}
       </>
     );
+  }
   const noun = TARGET_LABEL[a.targetType]?.[1] ?? a.targetType;
   const verb = a.action === 'draft' ? 'voltou' : (VERB[a.action] ?? a.action);
   const extra =

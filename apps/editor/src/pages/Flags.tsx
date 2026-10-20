@@ -1,7 +1,7 @@
 import { FlagSchema, type Flag } from '@abtest/shared';
 import { Flag as FlagIcon, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { API_URL, entities, publish, type Entity, type Me } from '../api';
+import { API_URL, entities, type Entity, type Me, PENDING_TEXT, publish, publishedText } from '../api';
 import {
   Button,
   Card,
@@ -84,8 +84,7 @@ function FlagEditor({
     setBusy(true);
     try {
       await entities.save('flag', { id: initial?.id, name: f.key, data: { ...f, variables } });
-      await publish();
-      toast('success', 'Salva e publicada: o SDK recebe em até 1 min.');
+      toast('success', publishedText(await publish(), 'Salva e publicada: o SDK recebe em até 1 min.'));
       onSaved();
       onClose();
     } catch (e) {
@@ -232,7 +231,7 @@ export function FlagsPage({ user }: { user: Me }) {
   const patch = async (e: Entity<Flag>, p: Partial<Flag>) => {
     try {
       await entities.save('flag', { id: e.id, name: e.name, data: { ...e.data, ...p } });
-      await publish();
+      if ('pending' in (await publish())) toast('info', PENDING_TEXT);
       load();
     } catch (err) {
       toast('error', (err as Error).message);

@@ -9,6 +9,7 @@ import {
   frameUrl,
   getConflicts,
   getHeatmap,
+  PENDING_TEXT,
   publish,
   saveExperiment,
   type Conflict,
@@ -258,7 +259,9 @@ export function EditorView({ record, user }: Props) {
     setPublishing(true);
     try {
       await persist();
-      const { version } = await publish();
+      const r = await publish();
+      if ('pending' in r) return toast('info', PENDING_TEXT);
+      const { version } = r;
       const running = state.experiment.status === 'running';
       toast(
         running ? 'success' : 'info',

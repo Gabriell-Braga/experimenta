@@ -1,7 +1,16 @@
 import { WEBHOOK_EVENTS, type Integrations, type Webhook } from '@abtest/shared';
 import { Copy, KeyRound, Send, Trash2, Webhook as WebhookIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { apiKeys, entities, publish, testWebhook, type ApiKey, type Entity, type Me } from '../api';
+import {
+  type ApiKey,
+  apiKeys,
+  entities,
+  type Entity,
+  type Me,
+  publish,
+  publishedText,
+  testWebhook,
+} from '../api';
 import {
   Button,
   Card,
@@ -24,6 +33,7 @@ const EVENT_LABEL: Record<(typeof WEBHOOK_EVENTS)[number], string> = {
   identify: 'Usuário identificado',
   event: 'Evento personalizado',
   publish: 'Publicação',
+  approval: 'Pedido de publicação (aprovação)',
 };
 
 function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
@@ -39,8 +49,10 @@ function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
       const next = { ...data, ...p };
       const { id } = await entities.save('integrations', { id: e?.id, name: 'integrações', data: next });
       setData([{ ...(e ?? ({} as Entity<Integrations>)), id, name: 'integrações', data: next }]);
-      await publish();
-      toast('success', 'Publicado: o snippet passa a enviar na próxima visita.');
+      toast(
+        'success',
+        publishedText(await publish(), 'Publicado: o snippet passa a enviar na próxima visita.'),
+      );
     } catch (err) {
       toast('error', (err as Error).message);
     }

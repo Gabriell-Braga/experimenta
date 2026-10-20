@@ -2,7 +2,7 @@ import { renderPopup } from '@abtest/engage';
 import { PopupSchema, type Popup } from '@abtest/shared';
 import { Megaphone, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { entities, publish, query, type Entity, type Me } from '../api';
+import { entities, type Entity, type Me, publish, publishedText, query } from '../api';
 import { EngageFields, TRIGGER_LABEL } from '../components/EngageFields';
 import {
   Button,
@@ -108,8 +108,10 @@ function PopupEditor({
         name: name.trim() || p.title || 'Pop-up',
         data: andPublish ? { ...p, status: 'running' } : p,
       });
-      if (andPublish) await publish();
-      toast('success', andPublish ? 'Publicado: aparece no site em até 1 min.' : 'Salvo.');
+      toast(
+        'success',
+        andPublish ? publishedText(await publish(), 'Publicado: aparece no site em até 1 min.') : 'Salvo.',
+      );
       onSaved();
       onClose();
     } catch (e) {
@@ -276,8 +278,11 @@ export function PopupsPage({ user }: { user: Me }) {
         name: e.name,
         data: { ...e.data, status: e.data.status === 'running' ? 'paused' : 'running' },
       });
-      await publish();
-      toast('success', e.data.status === 'running' ? 'Pausado e retirado do site.' : 'No ar em até 1 min.');
+      const r = await publish();
+      toast(
+        'success',
+        publishedText(r, e.data.status === 'running' ? 'Pausado e retirado do site.' : 'No ar em até 1 min.'),
+      );
       load();
     } catch (err) {
       toast('error', (err as Error).message);

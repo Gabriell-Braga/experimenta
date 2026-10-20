@@ -2,7 +2,17 @@ import { renderShelf } from '@abtest/engage';
 import { RecoWidgetSchema, type RecoWidget } from '@abtest/shared';
 import { Pause, Pencil, Play, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { API_URL, entities, publish, query, rebuildRecos, type Entity, type Me } from '../api';
+import {
+  API_URL,
+  entities,
+  type Entity,
+  type Me,
+  PENDING_TEXT,
+  publish,
+  publishedText,
+  query,
+  rebuildRecos,
+} from '../api';
 import { EngageFields, type EngageCommon } from '../components/EngageFields';
 import {
   Button,
@@ -104,8 +114,10 @@ function RecoEditor({
         name: name.trim() || 'Vitrine',
         data: andPublish ? { ...w, status: 'running' } : w,
       });
-      if (andPublish) await publish();
-      toast('success', andPublish ? 'Publicada: aparece no site em até 1 min.' : 'Salva.');
+      toast(
+        'success',
+        andPublish ? publishedText(await publish(), 'Publicada: aparece no site em até 1 min.') : 'Salva.',
+      );
       onSaved();
       onClose();
     } catch (e) {
@@ -243,7 +255,7 @@ export function RecosPage({ user }: { user: Me }) {
       name: e.name,
       data: { ...e.data, status: e.data.status === 'running' ? 'paused' : 'running' },
     });
-    await publish();
+    if ('pending' in (await publish())) toast('info', PENDING_TEXT);
     load();
   };
   const api = `GET ${API_URL}/reco/${user.accountId}/coview?product=<id>&limit=4`;

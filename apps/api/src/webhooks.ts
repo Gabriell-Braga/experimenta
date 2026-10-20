@@ -60,17 +60,20 @@ export async function dispatchEvents(
   );
 }
 
-/** Aviso de publicação (`publish`): versão nova no ar. */
-export async function dispatchPublish(
+/** Aviso da conta para quem assinou o tipo: `{ account, type, ...data }`. */
+export async function dispatchNotice(
   repo: Repo,
   accountId: string,
-  version: number,
+  type: 'publish' | 'approval',
+  data: Record<string, unknown>,
   fetchImpl?: typeof fetch,
 ) {
-  const hooks = (await hooksOf(repo, accountId)).filter((h) => h.data.events.includes('publish'));
+  const hooks = (await hooksOf(repo, accountId)).filter((h) => h.data.events.includes(type));
   await Promise.all(
-    hooks.map((h) =>
-      deliver(h.data.url, h.data.secret, { account: accountId, type: 'publish', version }, fetchImpl),
-    ),
+    hooks.map((h) => deliver(h.data.url, h.data.secret, { account: accountId, type, ...data }, fetchImpl)),
   );
 }
+
+/** Aviso de publicação (`publish`): versão nova no ar. */
+export const dispatchPublish = (repo: Repo, accountId: string, version: number, fetchImpl?: typeof fetch) =>
+  dispatchNotice(repo, accountId, 'publish', { version }, fetchImpl);

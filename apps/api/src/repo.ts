@@ -62,6 +62,8 @@ export const retentionCutoff = (days: number, now = Date.now()) =>
 export interface AccountSettings {
   /** null = padrão do servidor. */
   heatmapSampleRate: number | null;
+  /** Quem não pode aprovar pede publicação em vez de publicar (D-072). */
+  requireApproval: boolean;
 }
 
 /** Filtro genérico de eventos crus (analytics em memória, ver D-041). */
@@ -592,16 +594,16 @@ export function createRepo(db: Db) {
 
     async getAccountSettings(accountId: string): Promise<AccountSettings> {
       const [row] = await db
-        .select({ heatmapSampleRate: accounts.heatmapSampleRate })
+        .select({ heatmapSampleRate: accounts.heatmapSampleRate, requireApproval: accounts.requireApproval })
         .from(accounts)
         .where(eq(accounts.id, accountId));
-      return { heatmapSampleRate: row?.heatmapSampleRate ?? null };
+      return { heatmapSampleRate: row?.heatmapSampleRate ?? null, requireApproval: !!row?.requireApproval };
     },
 
     async updateAccountSettings(accountId: string, s: AccountSettings): Promise<void> {
       await db
         .update(accounts)
-        .set({ heatmapSampleRate: s.heatmapSampleRate })
+        .set({ heatmapSampleRate: s.heatmapSampleRate, requireApproval: s.requireApproval })
         .where(eq(accounts.id, accountId));
     },
 

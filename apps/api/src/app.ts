@@ -19,12 +19,20 @@ import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integ
 import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
 import { ACTIVITY_PATHS, activityRoutes } from './routes/activities';
 import { AI_PATHS, aiRoutes } from './routes/ai';
-import { dispatchEvents, dispatchPublish } from './webhooks';
+import { dispatchEvents, dispatchNotice, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
 import { reportRoutes } from './routes/report';
 import { TEAM_PATHS, teamRoutes } from './routes/team';
 import { createSessionStore, type SessionStore } from './sessions';
+import type { PublishResult } from './publish';
+import {
+  APPROVAL_PATHS,
+  approvalRoutes,
+  canApprove,
+  requestPublish,
+  settleRequests,
+} from './routes/approvals';
 
 export interface AppDeps {
   repo: Repo;
@@ -34,10 +42,7 @@ export interface AppDeps {
   jwtSecret: string;
   sessions?: SessionStore;
   /** Publicação (tarefa 4.3); injetada para não acoplar a API ao disco nos testes. */
-  publish?: (
-    accountId: string,
-    user: User,
-  ) => Promise<{ version: number } | { error: string; status: 403 | 400 }>;
+  publish?: (accountId: string, user: User) => Promise<PublishResult>;
   /** Cliente da API do Claude (só com ANTHROPIC_API_KEY); sem ele as ideias vêm das regras. */
   ai?: Anthropic;
   /** Modelo grátis compatível com OpenAI (AI_BASE_URL/AI_MODEL), usado quando não há chave do Claude. */
@@ -153,6 +158,7 @@ export function createApp(deps: AppDeps) {
     ...PREDICTIVE_PATHS,
     ...AI_PATHS,
     ...ACTIVITY_PATHS,
+    ...APPROVAL_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
@@ -646,9 +652,11 @@ export function createApp(deps: AppDeps) {
       path: '/publish',
       tags: ['publish'],
       security,
-      summary: 'Compila os experimentos em execução e grava a configuração na CDN',
+      summary:
+        'Compila os experimentos em execução e grava a configuração na CDN. Conta com aprovação: quem não pode aprovar recebe 202 e vira um pedido',
       responses: {
         200: json(z.object({ version: z.number() }), 'publicado'),
+        202: json(z.object({ pending: z.literal(true), requestId: z.string() }), 'pedido de aprovação'),
         ...errors,
         400: json(ErrorSchema, 'inválido'),
       },
@@ -658,9 +666,25 @@ export function createApp(deps: AppDeps) {
       if (!hasRole(user, 'editor')) return forbid(c);
       if (!deps.publish) return c.json({ error: 'publicação indisponível' }, 400);
       const r = await deps.publish(user.accountId, user);
-      if ('error' in r) return c.json({ error: r.error }, r.status);
-      background(c, dispatchPublish(repo, user.accountId, r.version));
-      return c.json(r, 200);
+      if ('error' in r) {
+        if (!r.needsApproval) return c.json({ error: r.error }, r.status);
+        const { request, created } = await requestPublish(repo, user);
+        if (created)
+          background(c, dispatchNotice(repo, user.accountId, 'approval', { status: 'pending', request }));
+        return c.json({ pending: true as const, requestId: request.id }, 202);
+      }
+      // Quem pode aprovar publicou: os pedidos pendentes foram ao ar junto.
+      const settled = canApprove(user) ? await settleRequests(repo, user, r.version) : [];
+      background(
+        c,
+        Promise.all([
+          dispatchPublish(repo, user.accountId, r.version),
+          ...settled.map((q) =>
+            dispatchNotice(repo, user.accountId, 'approval', { status: q.status, request: q }),
+          ),
+        ]),
+      );
+      return c.json({ version: r.version }, 200);
     },
   );
 
@@ -668,6 +692,8 @@ export function createApp(deps: AppDeps) {
     .object({
       /** null = padrão do servidor (HEATMAP_SAMPLE_RATE). */
       heatmapSampleRate: z.number().min(0).max(1).nullable(),
+      /** Publicação passa por aprovação (owner ou "publica JS"); ausente = mantém. */
+      requireApproval: z.boolean().optional(),
     })
     .openapi('AccountSettings');
 
@@ -697,8 +723,13 @@ export function createApp(deps: AppDeps) {
       const user = c.get('user');
       if (!hasRole(user, 'owner')) return forbid(c);
       const body = c.req.valid('json');
-      await repo.updateAccountSettings(user.accountId, body);
-      return c.json(body, 200);
+      const s = {
+        heatmapSampleRate: body.heatmapSampleRate,
+        requireApproval:
+          body.requireApproval ?? (await repo.getAccountSettings(user.accountId)).requireApproval,
+      };
+      await repo.updateAccountSettings(user.accountId, s);
+      return c.json(s, 200);
     },
   );
 
@@ -711,6 +742,7 @@ export function createApp(deps: AppDeps) {
   predictiveRoutes(app, repo, deps.publish);
   aiRoutes(app, repo, deps.ai, deps.aiCompat);
   activityRoutes(app, repo);
+  approvalRoutes(app, repo, deps.publish);
 
   app.openapi(
     createRoute({

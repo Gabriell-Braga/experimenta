@@ -1,6 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import type { AuthVars } from './auth';
 import type { ActivityInput, Repo, User } from './repo';
+import { REQUEST_KIND, type PublishRequestData } from './routes/approvals';
 
 // Histórico de atividades (auditoria, fase 16.3), registrado num ponto só: um middleware olha cada escrita bem
 // sucedida (2xx) das rotas abaixo e grava uma linha. Rotas novas que mudam configuração entram nesta tabela.
@@ -58,6 +59,10 @@ const entityBefore =
 const memberBefore: Rule['before'] = async (repo, acc, p) => {
   const u = await repo.getUser(acc, p.id!);
   return u ? { name: u.name } : null;
+};
+const requestBefore: Rule['before'] = async (repo, acc, p) => {
+  const r = await repo.getEntity<PublishRequestData>(acc, REQUEST_KIND, p.id!);
+  return r && { name: r.data.requestedBy.name, status: r.data.status };
 };
 const exp = (x: Ctx) => x.body.experiment as Json | undefined;
 const beforeName = (x: Ctx) => x.before?.name;
@@ -125,9 +130,37 @@ const RULES: Rule[] = [
     method: 'POST',
     path: '/publish',
     target: 'publish',
-    action: 'publish',
-    name: (x) => `versão ${x.res.version}`,
-    id: () => null,
+    // Conta com aprovação: 202 = virou pedido (fase 16.4).
+    action: (x) => (x.res.pending ? 'request' : 'publish'),
+    name: (x) => (x.res.pending ? x.user.name : `versão ${x.res.version}`),
+    id: (x) => x.res.requestId ?? null,
+  },
+  {
+    method: 'POST',
+    path: '/publish-requests',
+    target: 'publish',
+    action: 'request',
+    name: (x) => x.user.name,
+    id: (x) => x.res.id,
+    detail: (x) => x.body.note,
+  },
+  {
+    method: 'POST',
+    path: '/publish-requests/:id/approve',
+    target: 'publish',
+    before: requestBefore,
+    action: 'approve',
+    name: beforeName,
+    detail: (x) => [`versão ${x.res.version}`, x.body.comment].filter(Boolean).join(' · '),
+  },
+  {
+    method: 'POST',
+    path: '/publish-requests/:id/reject',
+    target: 'publish',
+    before: requestBefore,
+    action: 'reject',
+    name: beforeName,
+    detail: (x) => x.body.comment,
   },
   {
     method: 'PUT',

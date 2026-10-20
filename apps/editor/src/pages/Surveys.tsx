@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { entities, publish, query, type Entity, type Me } from '../api';
+import { entities, type Entity, type Me, publish, publishedText, query } from '../api';
 import { BarList, SERIES } from '../charts';
 import { EngageFields } from '../components/EngageFields';
 import { navigate } from '../nav';
@@ -269,8 +269,10 @@ function SurveyEditor({
         name: name.trim() || 'Pesquisa',
         data: andPublish ? { ...s, status: 'running' } : s,
       });
-      if (andPublish) await publish();
-      toast('success', andPublish ? 'Publicada: aparece no site em até 1 min.' : 'Salva.');
+      toast(
+        'success',
+        andPublish ? publishedText(await publish(), 'Publicada: aparece no site em até 1 min.') : 'Salva.',
+      );
       onSaved();
       onClose();
     } catch (e) {
@@ -400,8 +402,11 @@ export function SurveysPage({ user }: { user: Me }) {
         name: e.name,
         data: { ...e.data, status: e.data.status === 'running' ? 'paused' : 'running' },
       });
-      await publish();
-      toast('success', e.data.status === 'running' ? 'Pausada e retirada do site.' : 'No ar em até 1 min.');
+      const r = await publish();
+      toast(
+        'success',
+        publishedText(r, e.data.status === 'running' ? 'Pausada e retirada do site.' : 'No ar em até 1 min.'),
+      );
       load();
     } catch (err) {
       toast('error', (err as Error).message);

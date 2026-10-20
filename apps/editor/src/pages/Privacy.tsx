@@ -1,6 +1,6 @@
 import { ConsentSchema, type Consent } from '@abtest/shared';
 import { useEffect, useState } from 'react';
-import { entities, publish, type Entity, type Me } from '../api';
+import { entities, type Entity, type Me, publish, publishedText } from '../api';
 import { Button, Card, inputCls, PageHeader, selectCls, Skeleton, useLoad, useToast } from '../ui';
 import { Switch } from './Flags';
 import { CodeBlock } from './Install';
@@ -44,8 +44,7 @@ function ConsentCard({ canEdit }: { canEdit: boolean }) {
         data: parsed.data,
       });
       setData([{ ...(saved ?? ({} as Entity<Consent>)), id, name: 'consentimento', data: parsed.data }]);
-      await publish();
-      toast('success', 'Publicado: vale a partir da próxima página vista.');
+      toast('success', publishedText(await publish(), 'Publicado: vale a partir da próxima página vista.'));
     } catch (err) {
       toast('error', (err as Error).message);
     }

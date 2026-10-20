@@ -35,6 +35,48 @@ const jsOf = (exps: Experiment[]) =>
     ),
   );
 
+/** Resultado da publicação. `needsApproval`: conta exige aprovação e há mudança que quem publicou não pode aprovar. */
+export type PublishResult = { version: number } | { error: string; status: 403 | 400; needsApproval?: true };
+
+export const APPROVAL_ERROR = 'esta conta exige aprovação para publicar (peça a um owner)';
+
+/** JSON com chaves ordenadas: o jsonb do Postgres não guarda a ordem das chaves. */
+const canon = (v: unknown) =>
+  JSON.stringify(v, (_k, x: unknown) =>
+    x && typeof x === 'object' && !Array.isArray(x)
+      ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1)))
+      : x,
+  );
+
+type SdkPart = Pick<SdkConfig, 'flags' | 'experiments'>;
+
+/**
+ * O que muda o site e precisa de aprovação: a config sem versão, data, modelo preditivo (retreina sozinho) e
+ * pesos de experimentos com alocação automática (`auto`: bandit/piloto), mais as flags e campanhas do SDK.
+ * Assim o rebalanceamento de hora em hora continua publicando, mas não leva junto mudança não aprovada.
+ */
+function reviewable(c: PublishedConfig, sdk: SdkPart | null, auto: Set<string>) {
+  const noWeights = <T extends { id: string; variations: { weight: number }[] }>(e: T) =>
+    auto.has(e.id) ? { ...e, variations: e.variations.map((v) => ({ ...v, weight: 0 })) } : e;
+  return canon({
+    ...c,
+    version: 0,
+    publishedAt: '',
+    propensity: null,
+    experiments: c.experiments.map(noWeights),
+    sdk: sdk && { flags: sdk.flags, experiments: sdk.experiments.map(noWeights) },
+  });
+}
+
+async function lastSdk(cdn: CdnStore, accountId: string): Promise<SdkPart | null> {
+  try {
+    const s = JSON.parse((await cdn.get(`${accountId}.sdk.json`)) ?? 'null') as SdkPart | null;
+    return s && { flags: s.flags ?? [], experiments: s.experiments ?? [] };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Compila os experimentos EM EXECUÇÃO da conta num JSON versionado, registra a publicação (só inserção)
  * e grava `/cdn/<conta>.json` + `/cdn/<conta>.js`. customJS novo ou alterado exige permissão.
@@ -56,10 +98,7 @@ export function createPublisher(deps: PublisherDeps) {
 }
 
 function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDeps) {
-  return async (
-    accountId: string,
-    user: User,
-  ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
+  return async (accountId: string, user: User): Promise<PublishResult> => {
     const [
       all,
       last,
@@ -146,6 +185,17 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
         .filter((e) => e.type === 'server')
         .map(({ id, key, traffic, variations, goals }) => ({ id, key, traffic, variations, goals })),
     };
+    // Aprovação (fase 16.4): quem não pode aprovar só republica o que já foi aprovado (D-072).
+    if (settings.requireApproval && !canPublishJs(user)) {
+      const auto = new Set(
+        [...running, ...(last?.config.experiments ?? [])]
+          .filter((e) => e.allocation !== 'manual')
+          .map((e) => e.id),
+      );
+      const prev = last ? await lastSdk(cdn, accountId) : null;
+      if (!last || reviewable(config, sdk, auto) !== reviewable(last.config, prev, auto))
+        return { status: 403, error: APPROVAL_ERROR, needsApproval: true };
+    }
     await Promise.all([
       repo.insertPublication(accountId, config, user.id),
       writeAccountFiles(cdn, config),

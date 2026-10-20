@@ -1,7 +1,14 @@
 import type { Experiment, Goal } from '@abtest/shared';
 import { ArrowLeft, BarChart3, Plus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { API_URL, getExperiment, publish, saveExperiment, type ExperimentRecord } from '../api';
+import {
+  API_URL,
+  getExperiment,
+  publish,
+  publishedText,
+  saveExperiment,
+  type ExperimentRecord,
+} from '../api';
 import { navigate } from '../nav';
 import { uid } from '../store';
 import { Button, Card, inputCls, LoadingBlock, PageHeader, selectCls, StatusBadge, useToast } from '../ui';
@@ -59,10 +66,14 @@ export function ServerExperimentPage({ id }: { id: string }) {
         projectId: rec.projectId,
         editorUrl: rec.editorUrl,
       });
-      if (andPublish) await publish();
       toast(
         'success',
-        andPublish ? 'Salvo e publicado: o SDK recebe a nova configuração em até 1 min.' : 'Salvo.',
+        andPublish
+          ? publishedText(
+              await publish(),
+              'Salvo e publicado: o SDK recebe a nova configuração em até 1 min.',
+            )
+          : 'Salvo.',
       );
     } catch (e) {
       toast('error', (e as Error).message);

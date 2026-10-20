@@ -4,6 +4,7 @@ import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me }
 import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
 import { ActivityPage } from './pages/Activity';
+import { ApprovalsPage } from './pages/Approvals';
 import { AudiencesPage } from './pages/Audiences';
 import { CohortsPage } from './pages/Cohorts';
 import { DashboardPage } from './pages/Dashboard';
@@ -48,6 +49,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   privacy: (user) => <PrivacyPage user={user} />,
   team: (user) => <TeamPage user={user} />,
   activity: (_, r) => <ActivityPage params={r.params} />,
+  approvals: (user) => <ApprovalsPage user={user} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
   optimize: (user) => <OptimizePage user={user} />,

@@ -25,6 +25,8 @@ export const accounts = pgTable('accounts', {
   name: text('name').notNull(),
   /** Fração de visitantes com captura de mapa de calor (null = padrão do servidor, HEATMAP_SAMPLE_RATE). */
   heatmapSampleRate: real('heatmap_sample_rate'),
+  /** Publicação passa por aprovação de quem pode publicar JS (fase 16.4, D-072). */
+  requireApproval: boolean('require_approval').notNull().default(false),
   createdAt: createdAt(),
 });
 

@@ -2,6 +2,7 @@ import {
   Activity,
   Boxes,
   ChevronDown,
+  ClipboardCheck,
   ClipboardList,
   Code2,
   Flame,
@@ -36,6 +37,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  APPROVALS_CHANGED,
+  approvals,
   createAccount,
   getAccountSettings,
   logout,
@@ -44,6 +47,7 @@ import {
   type Me,
 } from './api';
 import { navigate } from './nav';
+import { approvalBadge } from './pages/Approvals';
 import { Button, inputCls, Logo, Modal, useToast } from './ui';
 
 export interface NavItem {
@@ -106,6 +110,7 @@ export const NAV: NavGroup[] = [
       { view: 'integrations', label: 'Integrações', icon: Plug },
       { view: 'privacy', label: 'Privacidade', icon: ShieldCheck },
       { view: 'team', label: 'Equipe', icon: UserPlus },
+      { view: 'approvals', label: 'Aprovações', icon: ClipboardCheck },
       { view: 'activity', label: 'Atividades', icon: History },
     ],
   },
@@ -356,6 +361,28 @@ function UserMenu({ user }: { user: Me }) {
 
 const NAV_CLOSED = 'abt.nav.closed';
 
+/** Contadores do menu: pedidos de aprovação (recarrega ao publicar/decidir e a cada minuto). */
+function useApprovalBadge(user: Me): Record<string, number> {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      approvals.list().then(
+        (list) => alive && setN(approvalBadge(list, user)),
+        () => {},
+      );
+    void load();
+    const timer = setInterval(load, 60_000);
+    addEventListener(APPROVALS_CHANGED, load);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      removeEventListener(APPROVALS_CHANGED, load);
+    };
+  }, [user]);
+  return { approvals: n };
+}
+
 /** Moldura das telas (exceto o editor visual): menu lateral escuro + conteúdo sobre papel. */
 export function AppShell({ user, view, children }: { user: Me; view: string; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -380,6 +407,7 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
       }
       return next;
     });
+  const badges = useApprovalBadge(user);
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMobileOpen(false);
@@ -445,6 +473,15 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
                           className={active ? 'text-lime' : 'text-white/45 group-hover:text-white/80'}
                         />
                         {label}
+                        {!!badges[v] && (
+                          <span
+                            className="ml-auto rounded-full bg-lime px-1.5 font-mono text-[10.5px] font-semibold text-ink"
+                            aria-label={`${badges[v]} novos`}
+                            data-testid={`nav-badge-${v}`}
+                          >
+                            {badges[v]}
+                          </span>
+                        )}
                       </button>
                     </li>
                   );

@@ -112,10 +112,12 @@ function Members({ user }: { user: Me }) {
                     <span className="flex items-center gap-2 text-xs text-gray-600">
                       <Switch
                         on={m.canPublishJs}
-                        label={`${m.name} pode publicar JS`}
+                        label={`${m.name} pode publicar JS e aprovar publicações`}
                         onChange={(canPublishJs) => update(m, { role: m.role, canPublishJs })}
                       />
-                      publica JS
+                      <span title="Publica JavaScript customizado e aprova pedidos de publicação">
+                        publica JS e aprova
+                      </span>
                     </span>
                   )}
                   <RoleSelect
