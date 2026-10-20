@@ -140,6 +140,21 @@ export const acceptInvite = async (token: string, body: { password: string; name
     }),
   );
 
+/** Linha do histórico de atividades (auditoria). */
+export interface ActivityItem {
+  id: string;
+  userId: string | null;
+  userName: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  targetName: string;
+  detail: string | null;
+  createdAt: string;
+}
+export const listActivities = (f: { userId?: string; type?: string; targetId?: string; before?: string }) =>
+  query<{ items: ActivityItem[]; next: string | null }>('/activities', f);
+
 export const me = () => api<Me>('/me');
 export const listProjects = () => api<Project[]>('/projects');
 export const listExperiments = () => api<ExperimentSummary[]>('/experiments');

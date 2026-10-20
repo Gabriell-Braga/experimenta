@@ -26,6 +26,7 @@ import {
   useLoad,
   useToast,
 } from '../ui';
+import { ExperimentTimeline } from './Activity';
 import { shortDay } from './Events';
 
 const PERIODS = [
@@ -667,6 +668,9 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
           )}
         </div>
       )}
+      <div className="mt-6">
+        <ExperimentTimeline id={exp.id} />
+      </div>
     </>
   );
 }

@@ -262,3 +262,29 @@ export const entities = pgTable(
   },
   (t) => [index('entities_account_kind_idx').on(t.accountId, t.kind)],
 );
+
+/**
+ * Histórico de atividades (auditoria, fase 16.3): quem fez o quê e quando. Nome da pessoa e do alvo ficam
+ * copiados na linha, para o histórico continuar legível depois que a pessoa sai da conta ou o alvo é excluído.
+ */
+export const activities = pgTable(
+  'activities',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    userId: text('user_id'),
+    userName: text('user_name').notNull(),
+    /** create, update, delete, start, pause, publish… (ver audit.ts). */
+    action: text('action').notNull(),
+    /** experiment, project, publish, member, invite, apikey, settings ou o tipo da entidade. */
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id'),
+    targetName: text('target_name').notNull(),
+    detail: text('detail'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('activities_account_ts_idx').on(t.accountId, t.createdAt),
+    index('activities_target_idx').on(t.accountId, t.targetId),
+  ],
+);

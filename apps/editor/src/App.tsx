@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError, getExperiment, getToken, me, type ExperimentRecord, type Me } from './api';
 import { EditorView } from './EditorView';
 import { currentRoute, expParam, go, type Route } from './nav';
+import { ActivityPage } from './pages/Activity';
 import { AudiencesPage } from './pages/Audiences';
 import { CohortsPage } from './pages/Cohorts';
 import { DashboardPage } from './pages/Dashboard';
@@ -46,6 +47,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   integrations: (user) => <IntegrationsPage user={user} />,
   privacy: (user) => <PrivacyPage user={user} />,
   team: (user) => <TeamPage user={user} />,
+  activity: (_, r) => <ActivityPage params={r.params} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
   optimize: (user) => <OptimizePage user={user} />,

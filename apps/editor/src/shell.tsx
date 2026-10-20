@@ -9,6 +9,7 @@ import {
   Fingerprint,
   FlaskConical,
   Grid3x3,
+  History,
   LogOut,
   Megaphone,
   Menu,
@@ -105,6 +106,7 @@ export const NAV: NavGroup[] = [
       { view: 'integrations', label: 'Integrações', icon: Plug },
       { view: 'privacy', label: 'Privacidade', icon: ShieldCheck },
       { view: 'team', label: 'Equipe', icon: UserPlus },
+      { view: 'activity', label: 'Atividades', icon: History },
     ],
   },
 ];

@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento (fase 16)
 **Fase atual:** 16
-**Tarefa atual:** 16.3 Histórico de atividades (auditoria)
-**Última atualização:** 2026-10-20 03:18
-**Próximo passo:** 16.3 (histórico de atividades).
+**Tarefa atual:** 16.4 Fluxo de aprovação opcional
+**Última atualização:** 2026-10-20 03:29
+**Próximo passo:** 16.4 (fluxo de aprovação).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -558,3 +558,8 @@
 - Como testar manualmente: entrar como demo@abtest.dev → Configurar → Equipe → convidar um e-mail → abrir o link em janela anônima, criar o acesso → menu do usuário → Nova conta → trocar entre as contas pelo menu. `pnpm --filter @abtest/api exec vitest run src/routes/team.test.ts`; `pnpm --filter @abtest/e2e e2e tests/team.spec.ts`.
 - Observações: sem serviço de e-mail, o convite não é enviado: o owner copia o link (D-070). Em produção, o próximo `pnpm deploy:cf` aplica a migração 0007 no D1. Sem cadastro público (só quem já tem login cria conta) e sem limite de contas por pessoa.
 
+### 2026-10-20 03:29 — Tarefa 16.3 concluída (histórico de atividades)
+- O que foi feito: tabela `activities` (pessoa, ação, tipo e nome do alvo copiados na linha) gravada por um middleware único (`audit.ts`) que observa as escritas bem sucedidas das rotas de configuração: testes (criar, editar, iniciar, pausar, arquivar, restaurar versão, duplicar, rebalancear, excluir), campanhas e demais entidades (status de pop-up/pesquisa também vira iniciar/pausar), publicação, projetos, configurações, chaves de API, convites e equipe (entrou pelo convite, mudou papel, removeu, saiu). Salvamentos seguidos do mesmo alvo pela mesma pessoa em 10 min viram uma linha. `GET /activities` com filtro por pessoa, tipo e alvo e paginação. Tela Configurar → Atividades (filtros na URL, "Carregar mais") e linha do tempo no relatório do experimento.
+- Arquivos principais: apps/api/src/audit.ts, apps/api/src/routes/activities.ts, apps/api/src/repo.ts, apps/api/src/repo-d1.ts, apps/api/drizzle/0008_first_human_robot.sql, apps/api/migrations-d1/0008_activities.sql, apps/editor/src/pages/Activity.tsx, e2e/tests/activity.spec.ts
+- Como testar manualmente: criar um teste, iniciar e pausar pela lista; abrir o relatório (card Atividades no fim) e Configurar → Atividades, filtrar por pessoa/tipo. `pnpm --filter @abtest/api exec vitest run src/audit.test.ts`; `pnpm --filter @abtest/e2e e2e tests/activity.spec.ts`.
+- Observações: em produção, o próximo `pnpm deploy:cf` aplica a migração 0008 no D1. Ações automáticas (bandit de hora em hora, piloto automático) não entram, só o que uma pessoa ou chave de API fez. Sem expurgo de atividades antigas (D-071).

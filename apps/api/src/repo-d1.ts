@@ -18,7 +18,9 @@ import {
   NotFoundError,
   normalizePage,
   scrollReached,
+  mergeableActivity,
   type AccountRef,
+  type Activity,
   type Entity,
   type ExperimentRecord,
   type Person,
@@ -816,6 +818,71 @@ export function createD1Repo(d1: D1Like): Repo {
       return rows
         .flatMap((r) => json<{ timestamp: number }[]>(r.data))
         .sort((a, b) => a.timestamp - b.timestamp);
+    },
+
+    async logActivity(accountId, a, now = Date.now()) {
+      const [last] = await this.listActivities(accountId, { limit: 1 });
+      if (last && mergeableActivity(last, a, now)) {
+        await q(
+          'UPDATE activities SET created_at = ?, target_name = ?, detail = ? WHERE account_id = ? AND id = ?',
+          now,
+          a.targetName,
+          a.detail ?? null,
+          accountId,
+          last.id,
+        ).run();
+        return;
+      }
+      await q(
+        'INSERT INTO activities (id, account_id, user_id, user_name, action, target_type, target_id, target_name, detail, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        newId('act'),
+        accountId,
+        a.userId,
+        a.userName,
+        a.action,
+        a.targetType,
+        a.targetId,
+        a.targetName,
+        a.detail ?? null,
+        now,
+      ).run();
+    },
+
+    async listActivities(accountId, f = {}) {
+      const where = ['account_id = ?'];
+      const args: unknown[] = [accountId];
+      if (f.userId) {
+        where.push('user_id = ?');
+        args.push(f.userId);
+      }
+      if (f.targetType) {
+        where.push('target_type = ?');
+        args.push(f.targetType);
+      }
+      if (f.targetId) {
+        where.push('target_id = ?');
+        args.push(f.targetId);
+      }
+      if (f.before) {
+        where.push('created_at < ?');
+        args.push(f.before.getTime());
+      }
+      const rows = await all(
+        `SELECT * FROM activities WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ?`,
+        ...args,
+        f.limit ?? 50,
+      );
+      return rows.map((r): Activity => ({
+        id: r.id as string,
+        userId: (r.user_id as string | null) ?? null,
+        userName: r.user_name as string,
+        action: r.action as string,
+        targetType: r.target_type as string,
+        targetId: (r.target_id as string | null) ?? null,
+        targetName: r.target_name as string,
+        detail: (r.detail as string | null) ?? null,
+        createdAt: date(r.created_at).toISOString(),
+      }));
     },
 
     async insertPublication(accountId, config, userId) {

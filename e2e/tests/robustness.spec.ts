@@ -187,6 +187,7 @@ const VIEWS = [
   'integrations',
   'privacy',
   'team',
+  'activity',
 ];
 
 test('a lista de telas cobre o menu inteiro', async ({ page }) => {

@@ -4,6 +4,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { ExperimentSchema, NameSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
 import { cors } from 'hono/cors';
+import { auditLog } from './audit';
 import { forbid, hasRole, requireAuth, type AuthVars } from './auth';
 import { serveCdn, type CdnStore } from './cdn';
 import { rebuildReco, serveReco } from './reco';
@@ -16,6 +17,7 @@ import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
 import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
+import { ACTIVITY_PATHS, activityRoutes } from './routes/activities';
 import { AI_PATHS, aiRoutes } from './routes/ai';
 import { dispatchEvents, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
@@ -150,11 +152,14 @@ export function createApp(deps: AppDeps) {
     ...INTEGRATION_PATHS,
     ...PREDICTIVE_PATHS,
     ...AI_PATHS,
+    ...ACTIVITY_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
   const auth = requireAuth(repo, deps.jwtSecret);
   for (const p of PRIVATE) app.use(p, auth);
+  // Depois da autenticação: registra as escritas bem sucedidas no histórico de atividades (audit.ts).
+  app.use('*', auditLog(repo));
 
   teamRoutes(app, repo, deps.jwtSecret);
 
@@ -705,6 +710,7 @@ export function createApp(deps: AppDeps) {
   integrationRoutes(app, repo);
   predictiveRoutes(app, repo, deps.publish);
   aiRoutes(app, repo, deps.ai, deps.aiCompat);
+  activityRoutes(app, repo);
 
   app.openapi(
     createRoute({

@@ -11,6 +11,7 @@ import { and, asc, desc, eq, getTableColumns, gte, inArray, lt, lte, max, sql, t
 import type { Db } from './db';
 import {
   accounts,
+  activities,
   events,
   experiments,
   experimentVersions,
@@ -119,6 +120,43 @@ export interface Entity<T = unknown> {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Linha do histórico de atividades (auditoria, fase 16.3). */
+export interface ActivityInput {
+  userId: string | null;
+  userName: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  targetName: string;
+  detail?: string | null;
+}
+export interface Activity extends ActivityInput {
+  id: string;
+  detail: string | null;
+  createdAt: string;
+}
+export interface ActivityFilter {
+  userId?: string;
+  targetType?: string;
+  targetId?: string;
+  /** Paginação: só atividades anteriores a este instante. */
+  before?: Date;
+  limit?: number;
+}
+/**
+ * Salvamentos seguidos do mesmo alvo pela mesma pessoa em até 10 min viram uma linha só (a hora é atualizada):
+ * clicar "Salvar" várias vezes não enche o histórico nem o limite de escritas do D1.
+ */
+export const ACTIVITY_MERGE_MS = 10 * 60_000;
+export const mergeableActivity = (last: Activity | undefined, a: ActivityInput, now: number) =>
+  !!last &&
+  a.action === 'update' &&
+  last.action === 'update' &&
+  last.userId === a.userId &&
+  last.targetType === a.targetType &&
+  last.targetId === a.targetId &&
+  now - new Date(last.createdAt).getTime() < ACTIVITY_MERGE_MS;
 
 /** Primeira/última marca de tempo e páginas (eventos Meta do rrweb, tipo 4) de um bloco. */
 export function chunkSummary(list: RecordingChunkInput['events']) {
@@ -855,6 +893,45 @@ export function createRepo(db: Db) {
         .orderBy(asc(recordingChunks.firstTs));
       if (!rows.length) return null;
       return rows.flatMap((r) => r.data as { timestamp: number }[]).sort((a, b) => a.timestamp - b.timestamp);
+    },
+
+    async logActivity(accountId: string, a: ActivityInput, now = Date.now()): Promise<void> {
+      const [last] = await this.listActivities(accountId, { limit: 1 });
+      if (last && mergeableActivity(last, a, now)) {
+        await db
+          .update(activities)
+          .set({ createdAt: new Date(now), targetName: a.targetName, detail: a.detail ?? null })
+          .where(and(eq(activities.accountId, accountId), eq(activities.id, last.id)));
+        return;
+      }
+      await db
+        .insert(activities)
+        .values({ id: newId('act'), accountId, ...a, detail: a.detail ?? null, createdAt: new Date(now) });
+    },
+
+    async listActivities(accountId: string, f: ActivityFilter = {}): Promise<Activity[]> {
+      const conds: SQL[] = [eq(activities.accountId, accountId)];
+      if (f.userId) conds.push(eq(activities.userId, f.userId));
+      if (f.targetType) conds.push(eq(activities.targetType, f.targetType));
+      if (f.targetId) conds.push(eq(activities.targetId, f.targetId));
+      if (f.before) conds.push(lt(activities.createdAt, f.before));
+      const rows = await db
+        .select()
+        .from(activities)
+        .where(and(...conds))
+        .orderBy(desc(activities.createdAt))
+        .limit(f.limit ?? 50);
+      return rows.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        userName: r.userName,
+        action: r.action,
+        targetType: r.targetType,
+        targetId: r.targetId,
+        targetName: r.targetName,
+        detail: r.detail,
+        createdAt: r.createdAt.toISOString(),
+      }));
     },
 
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {
