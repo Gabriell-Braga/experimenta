@@ -1,4 +1,4 @@
-import { Check, Copy, Plane, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { Check, Copy, MessageSquare, Plane, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ideas, type Ideas, type Me, type SavedIdea } from '../api';
 import { navigate } from '../nav';
@@ -14,6 +14,7 @@ import {
   useLoad,
   useToast,
 } from '../ui';
+import { Comments } from './Comments';
 import { PERIODS, type Period } from './Events';
 
 const LEVEL: Record<string, string> = {
@@ -42,17 +43,27 @@ function IdeaCard({
   i,
   n,
   canEdit,
+  user,
   onChange,
 }: {
   i: SavedIdea;
   n: number;
   canEdit: boolean;
+  user: Me;
   onChange(p: Promise<Ideas>): Promise<unknown>;
 }) {
   const copy = useCopy();
   const done = !!i.doneAt;
+  // `?idea=<id>` (link da tela Menções) abre os comentários desta ideia e a traz à vista.
+  const [talk, setTalk] = useState(() => new URLSearchParams(location.search).get('idea') === i.id);
+  const self = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (talk) self.current?.scrollIntoView({ block: 'center' });
+    // Só na primeira renderização.
+  }, []);
   return (
     <li
+      ref={self}
       className={`rounded-lg border border-gray-900/10 bg-white p-4 ${done ? 'opacity-60' : ''}`}
       data-testid="idea"
       data-done={done || undefined}
@@ -107,6 +118,15 @@ function IdeaCard({
         >
           <Copy size={14} aria-hidden="true" /> Copiar
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setTalk(!talk)}
+          aria-expanded={talk}
+          data-testid="idea-comments"
+        >
+          <MessageSquare size={14} aria-hidden="true" /> Comentários
+        </Button>
         {canEdit && (
           <Button
             size="sm"
@@ -123,6 +143,11 @@ function IdeaCard({
           {i.doneAt ? ` · executada ${timeAgo(i.doneAt)}` : ''}
         </span>
       </div>
+      {talk && (
+        <div className="mt-3 border-t border-gray-900/[0.07] pt-3">
+          <Comments targetType="idea" targetId={i.id} user={user} bare />
+        </div>
+      )}
     </li>
   );
 }
@@ -217,7 +242,7 @@ export function OptimizePage({ user }: { user: Me }) {
               {open.length > 0 && (
                 <ol className="space-y-3" data-testid="ideas">
                   {open.map((i, n) => (
-                    <IdeaCard key={i.id} i={i} n={n} canEdit={canEdit} onChange={change} />
+                    <IdeaCard key={i.id} i={i} n={n} canEdit={canEdit} user={user} onChange={change} />
                   ))}
                 </ol>
               )}
@@ -228,7 +253,7 @@ export function OptimizePage({ user }: { user: Me }) {
                   </summary>
                   <ol className="space-y-3" data-testid="ideas-done">
                     {done.map((i, n) => (
-                      <IdeaCard key={i.id} i={i} n={n} canEdit={canEdit} onChange={change} />
+                      <IdeaCard key={i.id} i={i} n={n} canEdit={canEdit} user={user} onChange={change} />
                     ))}
                   </ol>
                 </details>

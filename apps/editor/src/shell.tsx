@@ -1,5 +1,6 @@
 import {
   Activity,
+  AtSign,
   Boxes,
   ChevronDown,
   ClipboardCheck,
@@ -40,7 +41,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   APPROVALS_CHANGED,
   approvals,
+  comments,
   createAccount,
+  MENTIONS_CHANGED,
   getAccountSettings,
   saveAccountSettings,
   signOut,
@@ -49,6 +52,7 @@ import {
 } from './api';
 import { navigate } from './nav';
 import { approvalBadge } from './pages/Approvals';
+import { mentionBadge } from './pages/Comments';
 import { Button, inputCls, Logo, Modal, useToast } from './ui';
 
 export interface NavItem {
@@ -63,7 +67,13 @@ export interface NavGroup {
 
 /** Menu lateral por módulo. `tela:tipo` filtra a lista de campanhas por tipo. Cada tela entra quando fica pronta. */
 export const NAV: NavGroup[] = [
-  { label: 'Visão geral', items: [{ view: 'home', label: 'Painel', icon: LayoutDashboard }] },
+  {
+    label: 'Visão geral',
+    items: [
+      { view: 'home', label: 'Painel', icon: LayoutDashboard },
+      { view: 'mentions', label: 'Menções', icon: AtSign },
+    ],
+  },
   {
     label: 'Testes',
     items: [
@@ -363,26 +373,34 @@ function UserMenu({ user }: { user: Me }) {
 
 const NAV_CLOSED = 'abt.nav.closed';
 
-/** Contadores do menu: pedidos de aprovação (recarrega ao publicar/decidir e a cada minuto). */
-function useApprovalBadge(user: Me): Record<string, number> {
+/** Um contador do menu: carrega, recarrega quando `event` dispara e a cada minuto. */
+function useBadge<T>(load: () => Promise<T>, count: (data: T) => number, event: string, user: Me): number {
   const [n, setN] = useState(0);
   useEffect(() => {
     let alive = true;
-    const load = () =>
-      approvals.list().then(
-        (list) => alive && setN(approvalBadge(list, user)),
+    const run = () =>
+      load().then(
+        (data) => alive && setN(count(data)),
         () => {},
       );
-    void load();
-    const timer = setInterval(load, 60_000);
-    addEventListener(APPROVALS_CHANGED, load);
+    void run();
+    const timer = setInterval(run, 60_000);
+    addEventListener(event, run);
     return () => {
       alive = false;
       clearInterval(timer);
-      removeEventListener(APPROVALS_CHANGED, load);
+      removeEventListener(event, run);
     };
-  }, [user]);
-  return { approvals: n };
+  }, [user, event]);
+  return n;
+}
+
+/** Contadores do menu: pedidos de aprovação (ao publicar/decidir) e menções em comentários. */
+function useBadges(user: Me): Record<string, number> {
+  return {
+    approvals: useBadge(approvals.list, (l) => approvalBadge(l, user), APPROVALS_CHANGED, user),
+    mentions: useBadge(comments.mentions, (l) => mentionBadge(l, user), MENTIONS_CHANGED, user),
+  };
 }
 
 /** Moldura das telas (exceto o editor visual): menu lateral escuro + conteúdo sobre papel. */
@@ -409,7 +427,7 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
       }
       return next;
     });
-  const badges = useApprovalBadge(user);
+  const badges = useBadges(user);
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMobileOpen(false);

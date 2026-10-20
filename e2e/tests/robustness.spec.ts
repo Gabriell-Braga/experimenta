@@ -163,6 +163,7 @@ test('novo experimento: clique duplo em Criar cria um só', async ({ page }) => 
 // Mesma lista do menu (apps/editor/src/shell.tsx#NAV); o primeiro teste confere que nenhuma ficou de fora.
 const VIEWS = [
   'home',
+  'mentions',
   'tests',
   'tests:personalization',
   'tests:rollout',

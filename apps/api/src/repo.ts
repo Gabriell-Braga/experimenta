@@ -26,6 +26,7 @@ import type { Db } from './db';
 import {
   accounts,
   activities,
+  comments,
   events,
   experiments,
   experimentVersions,
@@ -200,6 +201,24 @@ export const mergeableActivity = (last: Activity | undefined, a: ActivityInput, 
   last.targetId === a.targetId &&
   now - new Date(last.createdAt).getTime() < ACTIVITY_MERGE_MS;
 
+/** Comentário em experimento, campanha ou ideia (fase 16.6). */
+export interface CommentInput {
+  targetType: string;
+  targetId: string;
+  targetName: string;
+  userId: string;
+  userName: string;
+  body: string;
+  /** Membros mencionados (validados na rota). */
+  mentions: { id: string; name: string }[];
+}
+export interface Comment extends CommentInput {
+  id: string;
+  createdAt: string;
+}
+/** Máximo de comentários devolvidos por alvo (os mais antigos ficam de fora). */
+export const COMMENTS_PER_TARGET = 500;
+
 /** Primeira/última marca de tempo e páginas (eventos Meta do rrweb, tipo 4) de um bloco. */
 export function chunkSummary(list: RecordingChunkInput['events']) {
   let first = Infinity;
@@ -254,6 +273,18 @@ const toEntity = <T>(r: typeof entities.$inferSelect): Entity<T> => ({
   createdBy: r.createdBy,
   createdAt: r.createdAt.toISOString(),
   updatedAt: r.updatedAt.toISOString(),
+});
+
+const toComment = (r: typeof comments.$inferSelect): Comment => ({
+  id: r.id,
+  targetType: r.targetType,
+  targetId: r.targetId,
+  targetName: r.targetName,
+  userId: r.userId,
+  userName: r.userName,
+  body: r.body,
+  mentions: r.mentions,
+  createdAt: r.createdAt.toISOString(),
 });
 
 export function createRepo(db: Db) {
@@ -1070,6 +1101,64 @@ export function createRepo(db: Db) {
         detail: r.detail,
         createdAt: r.createdAt.toISOString(),
       }));
+    },
+
+    async addComment(accountId: string, c: CommentInput): Promise<Comment> {
+      const [r] = await db
+        .insert(comments)
+        .values({ id: newId('cmt'), accountId, ...c })
+        .returning();
+      return toComment(r!);
+    },
+
+    /** Conversa de um alvo, da mais antiga para a mais nova. */
+    async listComments(accountId: string, targetType: string, targetId: string): Promise<Comment[]> {
+      const rows = await db
+        .select()
+        .from(comments)
+        .where(
+          and(
+            eq(comments.accountId, accountId),
+            eq(comments.targetId, targetId),
+            eq(comments.targetType, targetType),
+          ),
+        )
+        .orderBy(desc(comments.createdAt))
+        .limit(COMMENTS_PER_TARGET);
+      return rows.reverse().map(toComment);
+    },
+
+    /** Comentários que mencionam a pessoa, mais recentes primeiro. */
+    async listMentions(accountId: string, userId: string, limit = 50): Promise<Comment[]> {
+      // ponytail: varre os comentários da conta (sem índice nas menções); tabela de menções se crescer.
+      const rows = await db
+        .select()
+        .from(comments)
+        .where(
+          and(
+            eq(comments.accountId, accountId),
+            sql`${comments.mentions} @> ${JSON.stringify([{ id: userId }])}::jsonb`,
+          ),
+        )
+        .orderBy(desc(comments.createdAt))
+        .limit(limit);
+      return rows.map(toComment);
+    },
+
+    async getComment(accountId: string, id: string): Promise<Comment | null> {
+      const [r] = await db
+        .select()
+        .from(comments)
+        .where(and(eq(comments.accountId, accountId), eq(comments.id, id)));
+      return r ? toComment(r) : null;
+    },
+
+    async deleteComment(accountId: string, id: string): Promise<boolean> {
+      const r = await db
+        .delete(comments)
+        .where(and(eq(comments.accountId, accountId), eq(comments.id, id)))
+        .returning({ id: comments.id });
+      return r.length > 0;
     },
 
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {

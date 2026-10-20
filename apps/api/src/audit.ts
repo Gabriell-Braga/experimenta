@@ -13,6 +13,8 @@ type Json = Record<string, unknown>;
 interface Before {
   name: string;
   status?: string;
+  /** Alvo a registrar no lugar do id da rota (comentário → o item comentado). */
+  id?: string;
 }
 interface Ctx {
   user: User;
@@ -65,6 +67,10 @@ const memberBefore: Rule['before'] = async (repo, acc, p) => {
 const requestBefore: Rule['before'] = async (repo, acc, p) => {
   const r = await repo.getEntity<PublishRequestData>(acc, REQUEST_KIND, p.id!);
   return r && { name: r.data.requestedBy.name, status: r.data.status };
+};
+const commentBefore: Rule['before'] = async (repo, acc, p) => {
+  const r = await repo.getComment(acc, p.id!);
+  return r && { name: r.targetName, id: r.targetId };
 };
 const exp = (x: Ctx) => x.body.experiment as Json | undefined;
 const beforeName = (x: Ctx) => x.before?.name;
@@ -163,6 +169,16 @@ const RULES: Rule[] = [
     action: 'reject',
     name: beforeName,
     detail: (x) => x.body.comment,
+  },
+  // Comentários (16.6): o comentário já é o registro de quem disse o quê; só a exclusão entra (some da conversa).
+  {
+    method: 'DELETE',
+    path: '/comments/:id',
+    target: 'comment',
+    before: commentBefore,
+    action: 'delete',
+    name: beforeName,
+    id: (x) => x.before?.id,
   },
   {
     method: 'PUT',

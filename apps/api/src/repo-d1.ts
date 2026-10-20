@@ -22,6 +22,8 @@ import {
   SESSION_TOUCH_MS,
   type AccountRef,
   type Activity,
+  type Comment,
+  COMMENTS_PER_TARGET,
   type Entity,
   type ExperimentRecord,
   type LoginSession,
@@ -82,6 +84,18 @@ const toProject = (r: Row) => ({
   name: r.name as string,
   siteUrl: r.site_url as string,
   createdAt: date(r.created_at),
+});
+
+const toComment = (r: Row): Comment => ({
+  id: r.id as string,
+  targetType: r.target_type as string,
+  targetId: r.target_id as string,
+  targetName: r.target_name as string,
+  userId: r.user_id as string,
+  userName: r.user_name as string,
+  body: r.body as string,
+  mentions: json<Comment['mentions']>(r.mentions),
+  createdAt: date(r.created_at).toISOString(),
 });
 
 const toEntity = <T>(r: Row): Entity<T> => ({
@@ -988,6 +1002,59 @@ export function createD1Repo(d1: D1Like): Repo {
         detail: (r.detail as string | null) ?? null,
         createdAt: date(r.created_at).toISOString(),
       }));
+    },
+
+    async addComment(accountId, c) {
+      const row: Comment = { id: newId('cmt'), ...c, createdAt: new Date().toISOString() };
+      await q(
+        'INSERT INTO comments (id, account_id, target_type, target_id, target_name, user_id, user_name, body, mentions, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        row.id,
+        accountId,
+        c.targetType,
+        c.targetId,
+        c.targetName,
+        c.userId,
+        c.userName,
+        c.body,
+        JSON.stringify(c.mentions),
+        Date.parse(row.createdAt),
+      ).run();
+      return row;
+    },
+
+    async listComments(accountId, targetType, targetId) {
+      const rows = await all(
+        'SELECT * FROM comments WHERE account_id = ? AND target_id = ? AND target_type = ? ORDER BY created_at DESC LIMIT ?',
+        accountId,
+        targetId,
+        targetType,
+        COMMENTS_PER_TARGET,
+      );
+      return rows.reverse().map(toComment);
+    },
+
+    async listMentions(accountId, userId, limit = 50) {
+      const rows = await all(
+        "SELECT * FROM comments WHERE account_id = ? AND EXISTS (SELECT 1 FROM json_each(comments.mentions) WHERE json_extract(value, '$.id') = ?) ORDER BY created_at DESC LIMIT ?",
+        accountId,
+        userId,
+        limit,
+      );
+      return rows.map(toComment);
+    },
+
+    async getComment(accountId, id) {
+      const r = await first('SELECT * FROM comments WHERE account_id = ? AND id = ?', accountId, id);
+      return r ? toComment(r) : null;
+    },
+
+    async deleteComment(accountId, id) {
+      const r = await first<{ id: string }>(
+        'DELETE FROM comments WHERE account_id = ? AND id = ? RETURNING id',
+        accountId,
+        id,
+      );
+      return !!r;
     },
 
     async insertPublication(accountId, config, userId) {

@@ -34,6 +34,7 @@ const EVENT_LABEL: Record<(typeof WEBHOOK_EVENTS)[number], string> = {
   event: 'Evento personalizado',
   publish: 'Publicação',
   approval: 'Pedido de publicação (aprovação)',
+  mention: 'Menção em comentário',
 };
 
 function NativeIntegrations({ canEdit }: { canEdit: boolean }) {

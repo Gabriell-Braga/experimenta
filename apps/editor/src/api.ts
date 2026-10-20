@@ -234,6 +234,30 @@ export interface ActivityItem {
 export const listActivities = (f: { userId?: string; type?: string; targetId?: string; before?: string }) =>
   query<{ items: ActivityItem[]; next: string | null }>('/activities', f);
 
+/** Comentários e @menções (fase 16.6). Texto puro: renderizar sempre como texto, nunca como HTML. */
+export type CommentTarget = 'experiment' | 'popup' | 'survey' | 'idea';
+export interface CommentItem {
+  id: string;
+  targetType: CommentTarget;
+  targetId: string;
+  targetName: string;
+  userId: string;
+  userName: string;
+  body: string;
+  mentions: { id: string; name: string }[];
+  createdAt: string;
+}
+/** Avisa o menu (contador de menções) que algo mudou. */
+export const MENTIONS_CHANGED = 'abt:mentions';
+export const comments = {
+  list: (targetType: CommentTarget, targetId: string) =>
+    query<CommentItem[]>('/comments', { targetType, targetId }),
+  mentions: () => api<CommentItem[]>('/comments/mentions'),
+  add: (c: { targetType: CommentTarget; targetId: string; body: string; mentions: string[] }) =>
+    api<CommentItem>('/comments', { method: 'POST', body: JSON.stringify(c) }),
+  remove: (id: string) => api(`/comments/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
 export const me = () => api<Me>('/me');
 export const listProjects = () => api<Project[]>('/projects');
 export const listExperiments = () => api<ExperimentSummary[]>('/experiments');

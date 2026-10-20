@@ -248,6 +248,7 @@ export const WEBHOOK_EVENTS = [
   'event',
   'publish',
   'approval',
+  'mention',
 ] as const;
 
 /** Webhook: POST JSON assinado (HMAC-SHA256 em `X-Abt-Signature`) para cada evento escolhido. */

@@ -18,6 +18,7 @@ import { DATA_PATHS, dataRoutes } from './routes/data';
 import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
 import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
 import { ACTIVITY_PATHS, activityRoutes } from './routes/activities';
+import { COMMENT_PATHS, commentRoutes } from './routes/comments';
 import { AI_PATHS, aiRoutes } from './routes/ai';
 import { dispatchEvents, dispatchNotice, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
@@ -165,6 +166,7 @@ export function createApp(deps: AppDeps) {
     ...AI_PATHS,
     ...ACTIVITY_PATHS,
     ...APPROVAL_PATHS,
+    ...COMMENT_PATHS,
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
@@ -751,6 +753,7 @@ export function createApp(deps: AppDeps) {
   aiRoutes(app, repo, deps.ai, deps.aiCompat);
   activityRoutes(app, repo);
   approvalRoutes(app, repo, deps.publish);
+  commentRoutes(app, repo);
 
   app.openapi(
     createRoute({

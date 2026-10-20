@@ -1,9 +1,9 @@
 # Progresso
-**Status:** em andamento (fase 16)
-**Fase atual:** 16
-**Tarefa atual:** 16.6 Comentários e menções
-**Última atualização:** 2026-10-20 04:50
-**Próximo passo:** 16.6 (comentários e @menções em experimentos, campanhas e ideias).
+**Status:** fase 16 concluída
+**Fase atual:** 17
+**Tarefa atual:** 17.1
+**Última atualização:** 2026-10-20 05:05
+**Próximo passo:** fase 17 (ver docs/PLANO.md).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -575,3 +575,14 @@
 - Arquivos principais: apps/api/src/totp.ts, apps/api/src/auth.ts, apps/api/src/routes/security.ts, apps/api/src/sso.ts, apps/api/src/routes/team.ts, apps/api/src/repo.ts, apps/api/src/repo-d1.ts, apps/api/src/schema.ts, apps/api/drizzle/0010_spotty_big_bertha.sql, apps/api/migrations-d1/0010_security.sql, apps/editor/src/pages/Security.tsx, apps/editor/src/pages/Login.tsx, e2e/tests/security.spec.ts
 - Como testar manualmente: entrar como editor@abtest.dev → Configurar → Segurança → Configurar → adicionar a chave no app autenticador → código → guardar os códigos de recuperação; sair e entrar (pede o código). Em outra janela entrar de novo e, na primeira, "Sair de todos os outros". Como owner com TOTP: ligar "Exigir de todos os membros" e entrar como viewer (só a tela de ativação). `pnpm --filter @abtest/api exec vitest run src/totp.test.ts src/routes/security.test.ts`; `pnpm --filter @abtest/e2e e2e tests/security.spec.ts`.
 - Observações: tokens emitidos antes desta versão (sem `sid`) deixam de valer: todos entram de novo uma vez. Em produção, o próximo `pnpm deploy:cf` aplica a migração 0010 no D1. Custo D1: +1 leitura por requisição autenticada e no máximo 1 escrita a cada 5 min por sessão. SSO só configura: falta implementar OIDC/SAML (D-073).
+
+### 2026-10-20 05:05 — Tarefa 16.6 concluída (comentários e @menções)
+- O que foi feito: tabela `comments` (alvo, nome do alvo, autor, texto, menções `[{ id, name }]` copiados na linha) nos dois bancos. Rotas `GET/POST /comments`, `DELETE /comments/:id` (quem escreveu ou owner) e `GET /comments/mentions`. Alvos: experimentos (todos os tipos de teste e campanha, no relatório), pop-ups (botão na lista, modal), pesquisas (relatório da pesquisa) e ideias da Otimização por IA (botão "Comentários" no cartão). Qualquer membro comenta, inclusive viewer; chave de API só lê. Menção: `@` abre a lista de membros (setas, Enter/Tab, clique); o servidor só aceita ids de membros da conta e grava o nome atual. Aviso: item "Menções" no menu com contador (padrão das Aprovações) e tela com links para o item comentado; webhook `mention`. Texto sempre renderizado como texto (menções só destacadas). Exclusão entra nas atividades do item.
+- Arquivos principais: apps/api/src/routes/comments.ts, apps/api/src/repo.ts, apps/api/src/repo-d1.ts, apps/api/src/schema.ts, apps/api/drizzle/0011_aromatic_human_cannonball.sql, apps/api/migrations-d1/0011_comments.sql, apps/api/src/audit.ts, apps/editor/src/pages/Comments.tsx, apps/editor/src/shell.tsx, e2e/tests/comments.spec.ts
+- Como testar manualmente: como demo@abtest.dev abrir o relatório de um teste, comentar com `@editor` e escolher "Editor Demo"; entrar como editor@abtest.dev (contador em Menções), abrir a menção. `pnpm --filter @abtest/api exec vitest run src/routes/comments.test.ts`; `pnpm --filter @abtest/e2e e2e tests/comments.spec.ts`.
+- Observações: em produção, o próximo `pnpm deploy:cf` aplica a migração 0011 no D1. Sem edição de comentário nem e-mail (D-074). Comentários de item excluído ficam na tela Menções (o link leva a "não encontrado").
+
+### Resumo da Fase 16 (confiança, governança e privacidade)
+- Entregue: consentimento LGPD/GDPR no snippet com CMPs prontos (16.1), multi-conta com papel por conta, convites por link e conta nova (16.2), histórico de atividades por middleware (16.3), aprovação opcional de publicação (16.4), login em duas etapas, sessões revogáveis e base de SSO (16.5), comentários com @menções (16.6).
+- Migrações novas no D1 (0007–0011) entram no próximo `pnpm deploy:cf`.
+- Pendências da fase: SSO só configurado (falta OIDC/SAML, D-073); sem serviço de e-mail (convites copiados à mão, avisos só na tela e por webhook); snippet a 58 B do limite de 10 KB gzip (alvo es2020 libera ~440 B, D-069).

@@ -8,6 +8,7 @@ import {
   type ArmStats,
   type ExperimentReport,
   type GoalReport,
+  type Me,
   type Verdict,
 } from '../api';
 import { LineChart, seriesColor } from '../charts';
@@ -27,6 +28,7 @@ import {
   useToast,
 } from '../ui';
 import { ExperimentTimeline } from './Activity';
+import { Comments } from './Comments';
 import { shortDay } from './Events';
 
 const PERIODS = [
@@ -363,7 +365,7 @@ function toCsv(r: ExperimentReport, names: string[]): string {
   return rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
 }
 
-export function ReportPage({ id, params }: { id: string; params: URLSearchParams }) {
+export function ReportPage({ id, params, user }: { id: string; params: URLSearchParams; user: Me }) {
   const toast = useToast();
   const [days, setDays] = useState<(typeof PERIODS)[number][0]>((params.get('days') as '30') ?? '30');
   const [device, setDevice] = useState(params.get('device') ?? '');
@@ -668,7 +670,8 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
           )}
         </div>
       )}
-      <div className="mt-6">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Comments targetType="experiment" targetId={exp.id} user={user} />
         <ExperimentTimeline id={exp.id} />
       </div>
     </>

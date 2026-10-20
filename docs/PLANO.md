@@ -175,7 +175,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 - [x] 16.3 Histórico de atividades (auditoria): quem criou/editou/publicou/pausou/excluiu o quê e quando, por conta, com filtro por pessoa e tipo; tela em Configurar → Atividades e linha do tempo dentro do experimento
 - [x] 16.4 Fluxo de aprovação opcional: editor pede publicação, owner (ou quem tem permissão) aprova/recusa com comentário; notificação na tela e por webhook
 - [x] 16.5 Segurança de acesso: login em duas etapas (TOTP) opcional por usuário e obrigatório por conta; sessões ativas com "sair de todos"; base para SSO (SAML/OIDC) por conta
-- [ ] 16.6 Comentários e menções: comentários em experimentos, campanhas e ideias, com @menção de membro da conta
+- [x] 16.6 Comentários e menções: comentários em experimentos, campanhas e ideias, com @menção de membro da conta
 
 ### Fase 17 — Experimentação avançada que falta
 - [ ] 17.1 Grupos mutuamente exclusivos: experimentos num grupo dividem o tráfego e o visitante entra em no máximo um; tela de grupos e aviso na lista

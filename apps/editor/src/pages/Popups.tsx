@@ -1,9 +1,11 @@
 import { renderPopup } from '@abtest/engage';
 import { PopupSchema, type Popup } from '@abtest/shared';
-import { Megaphone, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
+import { Megaphone, MessageSquare, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { entities, type Entity, type Me, publish, publishedText, query } from '../api';
 import { EngageFields, TRIGGER_LABEL } from '../components/EngageFields';
+import { setParams } from '../nav';
+import { Comments } from './Comments';
 import {
   Button,
   EmptyState,
@@ -258,6 +260,12 @@ export function PopupsPage({ user }: { user: Me }) {
   const toast = useToast();
   const canEdit = user.role !== 'viewer';
   const [editing, setEditing] = useState<Entity<Popup> | null | 'new'>(null);
+  // Comentários do pop-up (qualquer papel); `?comments=<id>` abre direto (link da tela Menções).
+  const [talk, setTalk] = useState(() => new URLSearchParams(location.search).get('comments'));
+  const openTalk = (id: string | null) => {
+    setTalk(id);
+    setParams({ comments: id ?? undefined });
+  };
   const { data: list, reload: reloadList } = useLoad(() => entities.list<Popup>('popup'), []);
   const { data: statsList, reload: reloadStats } = useLoad(
     () => query<EngageStats[]>('/analytics/engage', { days: 30 }).catch(() => []),
@@ -346,6 +354,15 @@ export function PopupsPage({ user }: { user: Me }) {
                         {s?.views ? fmt.pct(s.ctr, 1) : 'n/d'}
                       </td>
                       <td className="px-2 py-3 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openTalk(e.id)}
+                          aria-label={`Comentários de ${e.name}`}
+                          data-testid="popup-comments"
+                        >
+                          <MessageSquare size={14} />
+                        </Button>
                         {canEdit && (
                           <>
                             <Button
@@ -387,6 +404,14 @@ export function PopupsPage({ user }: { user: Me }) {
           </div>
         )}
       </div>
+      <Modal
+        open={!!talk}
+        onClose={() => openTalk(null)}
+        title={`Comentários · ${list?.find((e) => e.id === talk)?.name ?? 'pop-up'}`}
+        testId="popup-comments-modal"
+      >
+        {talk && <Comments targetType="popup" targetId={talk} user={user} bare />}
+      </Modal>
       <PopupEditor
         open={editing !== null}
         initial={editing === 'new' ? null : editing}

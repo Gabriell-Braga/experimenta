@@ -17,6 +17,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { entities, type Entity, type Me, publish, publishedText, query } from '../api';
 import { BarList, SERIES } from '../charts';
 import { EngageFields } from '../components/EngageFields';
+import { Comments } from './Comments';
 import { navigate } from '../nav';
 import { uid } from '../store';
 import {
@@ -585,7 +586,7 @@ function Distribution({ q }: { q: QReport }) {
   );
 }
 
-export function SurveyReportPage({ id }: { id: string }) {
+export function SurveyReportPage({ id, user }: { id: string; user: Me }) {
   const { data: r } = useLoad(
     () => query<SurveyReport>(`/analytics/survey/${encodeURIComponent(id)}`, { days: 90 }),
     [id],
@@ -698,6 +699,7 @@ export function SurveyReportPage({ id }: { id: string }) {
             )}
           </Card>
         ))}
+        <Comments targetType="survey" targetId={id} user={user} />
       </div>
     </>
   );

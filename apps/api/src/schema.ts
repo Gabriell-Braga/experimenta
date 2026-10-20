@@ -330,3 +330,25 @@ export const activities = pgTable(
     index('activities_target_idx').on(t.accountId, t.targetId),
   ],
 );
+
+/**
+ * Comentários em experimentos, campanhas e ideias (fase 16.6, D-074). Autor, nome do alvo e menções
+ * (`[{ id, name }]`, só membros da conta) ficam copiados na linha, como no histórico de atividades.
+ */
+export const comments = pgTable(
+  'comments',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    /** experiment, popup, survey ou idea. */
+    targetType: text('target_type').notNull(),
+    targetId: text('target_id').notNull(),
+    targetName: text('target_name').notNull(),
+    userId: text('user_id').notNull(),
+    userName: text('user_name').notNull(),
+    body: text('body').notNull(),
+    mentions: jsonb('mentions').$type<{ id: string; name: string }[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('comments_target_idx').on(t.accountId, t.targetId, t.createdAt)],
+);

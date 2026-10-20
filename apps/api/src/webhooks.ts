@@ -64,7 +64,7 @@ export async function dispatchEvents(
 export async function dispatchNotice(
   repo: Repo,
   accountId: string,
-  type: 'publish' | 'approval',
+  type: 'publish' | 'approval' | 'mention',
   data: Record<string, unknown>,
   fetchImpl?: typeof fetch,
 ) {

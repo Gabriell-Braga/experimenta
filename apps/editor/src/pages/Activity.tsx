@@ -26,6 +26,7 @@ export const TARGET_LABEL: Record<string, [string, string]> = {
   integrations: ['Integrações', 'as integrações'],
   consent: ['Privacidade', 'a privacidade'],
   propensity: ['Modelo preditivo', 'o modelo preditivo'],
+  comment: ['Comentários', 'um comentário em'],
 };
 
 const VERB: Record<string, string> = {

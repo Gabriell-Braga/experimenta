@@ -15,6 +15,7 @@ import { currentRoute, expParam, go, type Route } from './nav';
 import { ActivityPage } from './pages/Activity';
 import { ApprovalsPage } from './pages/Approvals';
 import { AudiencesPage } from './pages/Audiences';
+import { MentionsPage } from './pages/Comments';
 import { CohortsPage } from './pages/Cohorts';
 import { DashboardPage } from './pages/Dashboard';
 import { EventsPage } from './pages/Events';
@@ -54,6 +55,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
     />
   ),
   home: () => <DashboardPage />,
+  mentions: () => <MentionsPage />,
   install: (user) => <InstallPage user={user} />,
   integrations: (user) => <IntegrationsPage user={user} />,
   privacy: (user) => <PrivacyPage user={user} />,
@@ -70,7 +72,9 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   profile: (_, r) => <ProfilePage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   recos: (user) => <RecosPage user={user} />,
   surveys: (user) => <SurveysPage user={user} />,
-  survey: (_, r) => <SurveyReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
+  survey: (user, r) => (
+    <SurveyReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} user={user} />
+  ),
   audiences: (user) => <AudiencesPage user={user} />,
   server: (_, r) => <ServerExperimentPage key={r.params.get('id')} id={r.params.get('id') ?? ''} />,
   heatmaps: () => <HeatmapsPage />,
@@ -80,7 +84,9 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   cohorts: () => <CohortsPage />,
   predictive: (user) => <PredictivePage user={user} />,
   recordings: (_, r) => <RecordingsPage params={r.params} />,
-  report: (_, r) => <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} />,
+  report: (user, r) => (
+    <ReportPage key={r.params.get('id')} id={r.params.get('id') ?? ''} params={r.params} user={user} />
+  ),
 };
 
 function FullPageSpinner({ label }: { label: string }) {
