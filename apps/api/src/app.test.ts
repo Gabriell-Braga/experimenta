@@ -72,6 +72,31 @@ test('GET /health', async () => {
   expect(await (await app.request('/health')).json()).toEqual({ ok: true });
 });
 
+test('cota diária do plano grátis vira 503 plan_limit com CORS; outro erro vira 500 genérico', async () => {
+  const failing = (message: string) =>
+    createApp({
+      repo: {
+        ...repo,
+        listProjects: async () => {
+          throw new Error(message);
+        },
+      },
+      cdn: fsCdnStore(cdnDir),
+      editorOrigins: [APP],
+      jwtSecret: 'teste',
+      sessions: createSessionStore(),
+    }).request('/projects', {
+      headers: { origin: APP, authorization: `Bearer ${tokens.owner}` },
+    });
+  const limit = await failing('D1_ERROR: Exceeded maximum daily rows written');
+  expect(limit.status).toBe(503);
+  expect(limit.headers.get('access-control-allow-origin')).toBe(APP);
+  expect(await limit.json()).toMatchObject({ code: 'plan_limit' });
+  const other = await failing('boom');
+  expect(other.status).toBe(500);
+  expect(await other.json()).toEqual({ error: 'erro interno' });
+});
+
 describe('autenticação', () => {
   test('login inválido → 401; sem token → 401; token adulterado → 401', async () => {
     expect(

@@ -1,5 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { CompatAi } from './ai';
+import { HTTPException } from 'hono/http-exception';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { ExperimentSchema, NameSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
@@ -71,6 +72,9 @@ const ExperimentInput = z
   .openapi('ExperimentInput');
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 
+// Mensagens de cota do D1/KV quando o plano grátis estoura (ex.: "Exceeded maximum daily rows written", "KV put() limit exceeded for the day").
+const PLAN_LIMIT = /exceeded|limit .*for the day|daily limit|quota/i;
+
 export function createApp(deps: AppDeps) {
   const repo = deps.repo;
   const sessions = deps.sessions ?? createSessionStore();
@@ -83,6 +87,15 @@ export function createApp(deps: AppDeps) {
           400,
         );
     },
+  });
+  // Cota diária do plano grátis (D1 linhas escritas/lidas, KV escritas): 503 com código próprio para o editor dizer
+  // que é limite da versão de testes, não erro. (Estouro de CPU não chega aqui: a Cloudflare encerra o Worker.)
+  app.onError((err, c) => {
+    if (err instanceof HTTPException) return err.getResponse();
+    if (PLAN_LIMIT.test(String(err?.message)))
+      return c.json({ error: 'limite diário do plano gratuito atingido', code: 'plan_limit' }, 503);
+    console.error(err);
+    return c.json({ error: 'erro interno' }, 500);
   });
   app.openAPIRegistry.registerComponent('securitySchemes', 'bearer', {
     type: 'http',

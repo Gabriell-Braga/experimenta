@@ -675,3 +675,8 @@
 ### 2026-10-20 12:14 — Correção: E2E instável na suíte completa (preview-link, ECONNRESET)
 - Causa: preview.js apagava o token da sessão quando o `fetch` do rascunho era abortado pela navegação (goBack antes da resposta com a API carregada); a página seguinte carregava sem pré-visualização. Agora só resposta não-2xx da API encerra o link (teste em packages/snippet/src/preview.test.ts). Também: keep-alive da API em 65 s (ECONNRESET em POST de login nos testes) e fuzz de robustez pula campo que sumiu num re-render. D-087.
 
+
+### 2026-10-20 12:29 — Mensagens de limite do plano grátis e deploy
+- O que foi feito: editor separa limite do servidor grátis (CPU ou cota diária, aviso âmbar) de erro real e de falta de conexão; "Tentar de novo" em toda tela que falha ao carregar; API responde 503 `plan_limit` para cota do D1/KV (D-088).
+- Arquivos principais: apps/editor/src/api.ts, apps/editor/src/ui.tsx, apps/api/src/app.ts, e2e/tests/limits.spec.ts
+- Como testar manualmente: em produção, Painel com 90 dias (estoura CPU) mostra o aviso âmbar; local: `pnpm --filter @abtest/e2e e2e tests/limits.spec.ts`.

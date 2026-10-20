@@ -65,6 +65,27 @@ export class ApiError extends Error {
   }
 }
 
+// Limites do plano grátis da Cloudflare (versão de testes): não são erro do app nem dos dados.
+export const LIMIT_CPU =
+  'Limite da versão de testes: esta consulta passou do tempo de processamento que o servidor gratuito permite. Não é erro do app nem dos seus dados. Tente um período menor (ex.: 7 dias) ou de novo em instantes.';
+export const LIMIT_DAILY =
+  'Limite diário da versão de testes atingido no servidor gratuito (gravações no banco). Não é erro do app; volta a funcionar após 00:00 UTC (21:00 em Brasília).';
+export const OFFLINE = 'Sem conexão com a API. Verifique sua internet e tente de novo.';
+export const isLimitMessage = (m: unknown) => m === LIMIT_CPU || m === LIMIT_DAILY;
+
+/**
+ * "Failed to fetch" = sem resposta legível. Quando o Worker passa do limite de CPU a Cloudflare o encerra e responde
+ * 503 sem CORS, igual a uma queda de rede para o navegador. Sonda o /health (barato, `no-cors`): se a API responde,
+ * a requisição foi derrubada pelo limite; se não, é rede/API fora do ar.
+ */
+async function noResponse(): Promise<never> {
+  const alive = await fetch(`${API_URL}/health`, { mode: 'no-cors', signal: AbortSignal.timeout(4000) }).then(
+    () => true,
+    () => false,
+  );
+  throw new ApiError(alive ? 503 : 0, alive ? LIMIT_CPU : OFFLINE);
+}
+
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const logout = () => localStorage.removeItem(TOKEN_KEY);
 /** Sair de verdade: encerra a sessão na API (o token para de valer) e limpa o local. */
@@ -80,14 +101,12 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (token) headers.set('authorization', `Bearer ${token}`);
   if (init.body) headers.set('content-type', 'application/json');
-  // "Failed to fetch" = sem resposta legível: rede caiu ou o Worker foi encerrado (ex.: limite de CPU, 503 sem CORS).
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers }).catch(() => {
-    throw new ApiError(0, 'A API não respondeu (rede ou limite do servidor). Tente de novo.');
-  });
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers }).catch(noResponse);
   if (res.status === 401 && !path.startsWith('/auth/')) logout();
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
     if (body.code === 'totp_required') dispatchEvent(new Event(TOTP_REQUIRED));
+    if (body.code === 'plan_limit') throw new ApiError(res.status, LIMIT_DAILY);
     throw new ApiError(res.status, body.error ?? `erro ${res.status}`);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
@@ -674,7 +693,9 @@ export const rebuildRecos = () =>
 
 /** Baixa um arquivo autenticado (CSV de exportação). */
 export async function downloadFile(path: string, filename: string) {
-  const res = await fetch(`${API_URL}${path}`, { headers: { authorization: `Bearer ${getToken() ?? ''}` } });
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { authorization: `Bearer ${getToken() ?? ''}` },
+  }).catch(noResponse);
   if (!res.ok) throw new ApiError(res.status, `erro ${res.status}`);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(await res.blob());

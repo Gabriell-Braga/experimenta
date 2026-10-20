@@ -534,3 +534,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - **Escolha**: só a resposta da API (não-2xx) encerra a sessão e mostra "expirado ou revogado". Sem resposta, a página fica original sem selo e a próxima página tenta de novo.
 - **Keep-alive**: o servidor Node da API (`server.ts`) passou a manter conexões ociosas por 65 s (padrão do Node: 5 s; `headersTimeout` 66 s). Cliente com keep-alive que reusa o socket no instante em que o servidor fecha recebia ECONNRESET em POST (visto no E2E: o agent do Playwright reusa sockets entre testes sem tempo de ociosidade). 65 s fica acima do ocioso típico de balanceadores (60 s). Worker não muda.
 
+
+## D-088 — Mensagens de limite do plano grátis (versão de testes)
+- Enquanto a produção roda no plano grátis da Cloudflare, quem testa precisa distinguir "limite do servidor" de "erro do app".
+- Estouro de CPU (10 ms): a Cloudflare encerra o Worker e responde 503 sem CORS, que o navegador vê como "Failed to fetch". O editor sonda `GET /health` com `mode: 'no-cors'` (resposta opaca basta): se a API responde, mostra "Limite da versão de testes…" (sugere período menor); se não, "Sem conexão com a API". Não dá para saber com certeza que foi CPU, mas com a API viva é a causa conhecida.
+- Cotas diárias (D1 linhas, KV escritas): `app.onError` reconhece a mensagem da cota e responde 503 `{ code: 'plan_limit' }` com CORS; o editor mostra "Limite diário da versão de testes…" (renova 00:00 UTC). Outros erros inesperados viram 500 `erro interno` (antes: texto cru do Hono); `HTTPException` segue com a resposta própria.
+- Na tela: toast de limite com ícone âmbar e 15 s (não é vermelho de erro); toda falha de carregamento (`useLoad`) ganhou "Tentar de novo".
+- Quando passar para o Workers Paid, as mensagens continuam válidas (só aparecem menos).

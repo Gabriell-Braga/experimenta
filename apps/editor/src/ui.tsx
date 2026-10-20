@@ -1,4 +1,5 @@
-import { CircleAlert, CircleCheck, ExternalLink, Info, X } from 'lucide-react';
+import { CircleAlert, CircleCheck, ExternalLink, Gauge, Info, X } from 'lucide-react';
+import { isLimitMessage } from './api';
 // Primitivas de UI do app (sem biblioteca de componentes: só Tailwind).
 import {
   createContext,
@@ -90,7 +91,7 @@ export function useLoad<T>(fn: () => Promise<T> | null, deps: unknown[]) {
       (e: Error) => {
         if (id !== seq.current) return;
         setError(e);
-        toast('error', e.message);
+        toast('error', e.message, { label: 'Tentar de novo', onClick: () => setTick((t) => t + 1) });
       },
     );
   }, [...deps, tick]);
@@ -229,7 +230,7 @@ export function timeAgo(iso: string, now = Date.now()): string {
 
 // ---------- Toasts ----------
 
-type ToastKind = 'success' | 'error' | 'info';
+type ToastKind = 'success' | 'error' | 'info' | 'limit';
 interface Toast {
   id: number;
   kind: ToastKind;
@@ -245,6 +246,7 @@ function ToastIcon({ kind }: { kind: ToastKind }) {
   if (kind === 'success')
     return <CircleCheck size={18} className={`${cls} text-green-600`} aria-hidden="true" />;
   if (kind === 'error') return <CircleAlert size={18} className={`${cls} text-red-600`} aria-hidden="true" />;
+  if (kind === 'limit') return <Gauge size={18} className={`${cls} text-amber-600`} aria-hidden="true" />;
   return <Info size={18} className={`${cls} text-gray-500`} aria-hidden="true" />;
 }
 
@@ -255,8 +257,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback<Push>(
     (kind, text, action) => {
       const id = ++seq.current;
+      // Limite do servidor grátis chega como erro comum das telas; mostra diferente (não é erro do app).
+      if (kind === 'error' && isLimitMessage(text)) kind = 'limit';
       setToasts((t) => [...t.slice(-3), { id, kind, text, action }]);
-      setTimeout(() => close(id), kind === 'error' ? 8000 : 4500);
+      setTimeout(() => close(id), kind === 'limit' ? 15000 : kind === 'error' ? 8000 : 4500);
     },
     [close],
   );
