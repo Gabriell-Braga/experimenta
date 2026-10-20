@@ -314,7 +314,7 @@ export function FlagsPage({ user }: { user: Me }) {
             </ul>
           )}
         </div>
-        <Card title="SDK server-side">
+        <Card title="SDKs: servidor e app">
           <SdkSnippets
             input={{
               accountId: user.accountId,
@@ -326,8 +326,10 @@ export function FlagsPage({ user }: { user: Me }) {
             }}
           />
           <p className="mt-2 text-xs text-gray-500">
-            Node/TS, Python, PHP, Go e Java/Kotlin decidem igual (mesmo hash por usuário). A config fica em
-            cache e é recarregada a cada minuto; a decisão é local, sem ida à rede.
+            Node/TS, Python, PHP, Go, Java/Kotlin e React Native decidem igual (mesmo hash por usuário). A
+            config fica em cache e é recarregada periodicamente; a decisão é local, sem ida à rede. No app, as
+            regras também recebem <code>platform</code>, <code>osVersion</code>, <code>deviceType</code> e{' '}
+            <code>appVersion</code>.
           </p>
         </Card>
       </div>

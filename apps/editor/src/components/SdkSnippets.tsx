@@ -9,6 +9,7 @@ export const SDK_LANGS = [
   ['go', 'Go'],
   ['java', 'Java'],
   ['kotlin', 'Kotlin'],
+  ['react-native', 'React Native'],
 ] as const;
 export type SdkLang = (typeof SDK_LANGS)[number][0];
 
@@ -34,6 +35,8 @@ export const SDK_INSTALL: Record<SdkLang, string> = {
   go: `go get ${REPO}/sdks/go`,
   java: 'Maven: com.experimenta:experimenta-sdk (sdks/java; Java 11+)',
   kotlin: 'o mesmo SDK Java (com.experimenta:experimenta-sdk)',
+  'react-native':
+    'pacote @abtest/react-native (packages/react-native) + npm i @react-native-async-storage/async-storage',
 };
 
 /** Exemplo de uso por linguagem. */
@@ -145,10 +148,39 @@ export function sdkSnippet(lang: SdkLang, o: SnippetInput): string {
         `val v = abt.getVariation("${o.experiment}", usuario.id) // v?.key${vComment}, v?.variables`,
         `abt.track("${o.event}", usuario.id, ${dbl}, null)`,
       ].join('\n');
+    case 'react-native':
+      return [
+        `import AsyncStorage from '@react-native-async-storage/async-storage';`,
+        `import { ExperimentaProvider, createClient, useFlag, useTrack, useVariation } from '@abtest/react-native';`,
+        ``,
+        `// Uma vez, fora dos componentes. Guarda visitante, variações e eventos offline no AsyncStorage.`,
+        `const abt = createClient({ accountId: '${o.accountId}', cdnUrl: '${o.cdnUrl}', storage: AsyncStorage, appVersion: '1.4.0' });`,
+        ``,
+        `const nav = createNavigationContainerRef();`,
+        `export const App = () => (`,
+        `  <ExperimentaProvider client={abt}>`,
+        `    {/* tela vista = pageview app://app/<Tela> (funis, jornadas) */}`,
+        `    <NavigationContainer ref={nav} onStateChange={() => abt.screen(nav.getCurrentRoute()?.name ?? '')}>`,
+        `      <Rotas />`,
+        `    </NavigationContainer>`,
+        `  </ExperimentaProvider>`,
+        `);`,
+        ``,
+        `function Checkout({ usuario }) {`,
+        ...(o.flag
+          ? [
+              `  const { enabled, variables } = useFlag('${o.flag}', { plano: usuario.plano }); // + platform, appVersion`,
+            ]
+          : []),
+        `  const v = useVariation('${o.experiment}'); // v?.key${vComment}, v?.variables; null = fora ou carregando`,
+        `  const track = useTrack();`,
+        `  return <Button title="Comprar" onPress={() => track('${o.event}', { value: ${o.value} })} />;`,
+        `}`,
+      ].join('\n');
   }
 }
 
-/** Abas por linguagem com o exemplo de uso do SDK server-side e a instalação. */
+/** Abas por linguagem com o exemplo de uso do SDK (servidor ou React Native) e a instalação. */
 export function SdkSnippets({ input, size = 'sm' }: { input: SnippetInput; size?: 'sm' | 'md' }) {
   const [lang, setLang] = useState<SdkLang>(() => {
     try {

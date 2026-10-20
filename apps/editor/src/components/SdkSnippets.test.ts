@@ -22,4 +22,7 @@ test('exemplo de cada linguagem usa a conta, a CDN, a flag, a campanha e a meta'
   expect(sdkSnippet('java', input)).toContain('120.0, null');
   expect(sdkSnippet('python', input)).toContain('value=120)');
   expect(sdkSnippet('node', { ...input, flag: undefined })).not.toContain('isEnabled');
+  expect(sdkSnippet('react-native', input)).toContain("useFlag('novo-frete', { plano: usuario.plano })");
+  expect(sdkSnippet('react-native', input)).toContain("track('compra', { value: 120 })");
+  expect(sdkSnippet('react-native', { ...input, flag: undefined })).not.toContain('useFlag(');
 });

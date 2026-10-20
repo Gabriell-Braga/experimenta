@@ -1,9 +1,15 @@
 package com.experimenta.sdk;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,7 +50,8 @@ public final class Client implements AutoCloseable {
     long flushMs = 2_000;
     Map<String, Object> config;
     Transport transport;
-    Duration timeout = Duration.ofSeconds(10);
+    // Em ms (não Duration): nada de java.time no caminho padrão, que roda no Android abaixo da API 26.
+    long timeoutMs = 10_000;
 
     /**
      * @param accountId id da conta
@@ -85,7 +92,12 @@ public final class Client implements AutoCloseable {
 
     /** Timeout das requisições do transporte padrão. Padrão 10 s. */
     public Options timeout(Duration timeout) {
-      this.timeout = timeout;
+      return timeoutMs(timeout.toMillis());
+    }
+
+    /** Timeout das requisições do transporte padrão, em ms. Padrão 10 000. */
+    public Options timeoutMs(long ms) {
+      this.timeoutMs = ms;
       return this;
     }
   }
@@ -102,7 +114,7 @@ public final class Client implements AutoCloseable {
   private Client(Options o) {
     this.accountId = o.accountId;
     this.configUrl = o.cdnUrl.replaceAll("/+$", "") + "/" + o.accountId + ".sdk.json";
-    this.transport = o.transport != null ? o.transport : httpTransport(o.timeout);
+    this.transport = o.transport != null ? o.transport : defaultTransport(o.timeoutMs);
     this.config = o.config;
     if (config == null) load();
     timers =
@@ -126,6 +138,49 @@ public final class Client implements AutoCloseable {
    */
   public static Client create(Options options) {
     return new Client(options);
+  }
+
+  /** java.net.http no JVM; no Android (que não tem java.net.http) cai para o HttpURLConnection. */
+  private static Transport defaultTransport(long timeoutMs) {
+    try {
+      return httpTransport(Duration.ofMillis(timeoutMs));
+    } catch (LinkageError e) {
+      return urlConnectionTransport(timeoutMs);
+    }
+  }
+
+  /**
+   * Transporte com {@link HttpURLConnection} (Android e qualquer JVM). É o padrão quando java.net.http não
+   * existe; passe-o em {@link Options#transport} para usá-lo sempre.
+   */
+  public static Transport urlConnectionTransport(long timeoutMs) {
+    return (method, url, body) -> {
+      HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+      try {
+        c.setConnectTimeout((int) timeoutMs);
+        c.setReadTimeout((int) timeoutMs);
+        c.setRequestMethod(method);
+        if ("POST".equals(method)) {
+          byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+          c.setDoOutput(true);
+          c.setRequestProperty("content-type", "text/plain");
+          c.setFixedLengthStreamingMode(bytes.length);
+          try (OutputStream out = c.getOutputStream()) {
+            out.write(bytes);
+          }
+        }
+        int status = c.getResponseCode();
+        if (status < 200 || status >= 300) return null;
+        try (InputStream in = c.getInputStream()) {
+          ByteArrayOutputStream buf = new ByteArrayOutputStream();
+          byte[] chunk = new byte[8192];
+          for (int n; (n = in.read(chunk)) > 0; ) buf.write(chunk, 0, n);
+          return new String(buf.toByteArray(), StandardCharsets.UTF_8);
+        }
+      } finally {
+        c.disconnect();
+      }
+    };
   }
 
   private static Transport httpTransport(Duration timeout) {

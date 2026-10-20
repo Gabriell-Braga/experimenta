@@ -205,7 +205,7 @@ export function ServerExperimentPage({ id, accountId }: { id: string; accountId:
               <Plus size={14} aria-hidden="true" /> Variação
             </Button>
           </Card>
-          <Card title="Como usar no seu backend">
+          <Card title="Como usar no backend ou no app">
             <SdkSnippets
               size="md"
               input={{

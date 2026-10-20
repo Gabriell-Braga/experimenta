@@ -182,5 +182,51 @@ public final class VectorsTest {
     check(latch[0].await(2, TimeUnit.SECONDS), "timer não enviou");
     timed.close();
     check(timerSent.getCount() == 0, "envio manual");
+
+    urlConnectionTests(body);
+  }
+
+  /** Transporte do Android (HttpURLConnection) contra um servidor HTTP local de verdade. */
+  private static void urlConnectionTests(String sdkJson) throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    List<String> posted = Collections.synchronizedList(new ArrayList<>());
+    server.createContext("/cdn/acc-vetores.sdk.json", ex -> {
+      byte[] b = sdkJson.getBytes(StandardCharsets.UTF_8);
+      ex.sendResponseHeaders(200, b.length);
+      ex.getResponseBody().write(b);
+      ex.close();
+    });
+    server.createContext("/collect", ex -> {
+      posted.add(ex.getRequestMethod() + " " + ex.getRequestHeaders().getFirst("content-type") + " "
+          + new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+      ex.sendResponseHeaders(204, -1);
+      ex.close();
+    });
+    server.createContext("/falha", ex -> {
+      ex.sendResponseHeaders(500, -1);
+      ex.close();
+    });
+    server.start();
+    try {
+      String base = "http://127.0.0.1:" + server.getAddress().getPort();
+      Client.Transport t = Client.urlConnectionTransport(5_000);
+      Client c = Client.create(new Client.Options("acc-vetores", base + "/cdn").refreshMs(0).flushMs(0).transport(t));
+      check(c.version() == 7, "urlConnection: versão " + c.version());
+      check(t.send("GET", base + "/falha", null) == null, "urlConnection: 5xx = null");
+      check(t.send("POST", base + "/collect", "{\"events\":[\"ç\"]}") != null, "urlConnection: 204 = corpo");
+      check(posted.size() == 1 && posted.get(0).equals("POST text/plain {\"events\":[\"ç\"]}"),
+          "urlConnection: POST " + posted);
+      boolean threw = false;
+      try {
+        Client.urlConnectionTransport(1_000).send("GET", "http://127.0.0.1:1/nada", null);
+      } catch (java.io.IOException e) {
+        threw = true;
+      }
+      check(threw, "urlConnection: rede fora lança exceção");
+      c.close();
+    } finally {
+      server.stop(0);
+    }
   }
 }

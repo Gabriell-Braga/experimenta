@@ -1,0 +1,6 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test": { "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/sdks/test-vectors.json"] }
+  }
+}

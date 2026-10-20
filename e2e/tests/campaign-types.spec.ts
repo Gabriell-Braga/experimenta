@@ -44,4 +44,6 @@ test('tipos de campanha: URL dividida, rollout no menu e server-side com variáv
   await expect(snippets.getByTestId('sdk-code')).toContainText("new Experimenta\\Client('demo'");
   await snippets.getByRole('tab', { name: 'Java' }).click();
   await expect(snippets.getByTestId('sdk-code')).toContainText('abt.getVariation("');
+  await snippets.getByRole('tab', { name: 'React Native' }).click();
+  await expect(snippets.getByTestId('sdk-code')).toContainText("useVariation('");
 });

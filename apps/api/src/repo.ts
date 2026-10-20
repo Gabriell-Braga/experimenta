@@ -240,11 +240,15 @@ export const mergePages = (a: string[], b: string[]) => {
   return out.slice(0, 200);
 };
 
-/** Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. */
+/**
+ * Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. Telas do app
+ * (`app://<appId>/<Tela>`, SDK React Native) não têm origin no padrão de URL: viram `app://<appId>/<Tela>`.
+ */
 export function normalizePage(url: string): string {
   try {
     const u = new URL(url);
-    return (u.origin + u.pathname).replace(/\/$/, '');
+    const origin = u.origin === 'null' ? `${u.protocol}//${u.host}` : u.origin;
+    return (origin + u.pathname).replace(/\/$/, '');
   } catch {
     return url.split('#')[0]!.split('?')[0]!.replace(/\/$/, '');
   }

@@ -14,6 +14,7 @@ Editor visual de testes A/B (substituto do VWO), futuro SaaS multi-tenant. O sit
 - `packages/selector` — geração/resolução de seletores + impressão digital (fallback "seletor curado").
 - `packages/snippet` — runtime do site do cliente, vanilla TS sem deps, < 10 KB gzip.
 - `packages/agent` — editor agent, UI em Shadow DOM, só carregado no modo edição.
+- `packages/sdk` (SDK server-side TS), `packages/react-native` (SDK de app: Provider/hooks, storage e fila offline; ver docs/SDK-MOBILE.md), `sdks/` (Python, PHP, Go, Java; conferidos por `sdks/test-vectors.json`).
 - `apps/editor` (React+Vite+Tailwind+Monaco), `apps/api` (Hono+Drizzle+Postgres), `apps/extension` (Chrome MV3), `apps/demo` (sites de teste).
 
 ## Editor (apps/editor)

@@ -1,7 +1,8 @@
 # Experimenta — SDK Java/Kotlin
 
 Feature flags e campanhas server-side decididas localmente, com o mesmo bucketing do snippet e do SDK JS.
-Java 11+, sem dependências (HTTP do `java.net.http`, JSON próprio). No Kotlin, use o mesmo SDK.
+Java 11+, sem dependências (HTTP do `java.net.http`, JSON próprio). No Kotlin, use o mesmo SDK. No Android também
+(`HttpURLConnection` no lugar do `java.net.http`): threads, lifecycle e R8 em [docs/SDK-MOBILE.md](../../docs/SDK-MOBILE.md).
 
 ## Instalação
 
@@ -45,7 +46,8 @@ abt.track("compra", usuario.id, 199.9, null)
 ```
 
 Opções (`Client.Options`): `refreshMs` (0 = nunca recarrega; padrão 60 s), `flushMs` (0 = só em
-`flush()`/`close()`; padrão 2 s), `config`, `transport`, `timeout`. Seguro entre threads.
+`flush()`/`close()`; padrão 2 s), `config`, `transport` (ex.: `Client.urlConnectionTransport(ms)`), `timeoutMs`
+(ou `timeout(Duration)`). Seguro entre threads.
 
 ## Testes
 

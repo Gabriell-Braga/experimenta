@@ -24,6 +24,31 @@ export interface Decision {
   variables: Record<string, unknown>;
 }
 
+/**
+ * Decisão de flag (ligada + regras de atributo + dentro do rollout), sem efeitos colaterais. Núcleo também
+ * do SDK React Native (packages/react-native).
+ */
+export function flagEnabled(
+  config: SdkConfig | null,
+  key: string,
+  userId: string,
+  attrs: Attributes,
+): boolean {
+  const flag = config?.flags.find((x) => x.key === key);
+  if (!flag?.enabled) return false;
+  if (!flag.rules.every((r) => flagRuleMatches(r, attrs))) return false;
+  return bucketOf(userId, `flag:${key}`) < Math.round(flag.rollout * (BUCKETS / 100));
+}
+
+/** Variáveis da flag (vazio quando inativa). */
+export const flagVariables = (
+  config: SdkConfig | null,
+  key: string,
+  userId: string,
+  attrs: Attributes,
+): Record<string, unknown> =>
+  flagEnabled(config, key, userId, attrs) ? (config?.flags.find((x) => x.key === key)?.variables ?? {}) : {};
+
 const rid = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 
@@ -73,16 +98,11 @@ export async function createClient(o: ClientOptions) {
   return {
     /** Flag ativa para este usuário? (ligada + regras de atributo + dentro do rollout). */
     isEnabled(key: string, userId: string, attrs: Attributes = {}): boolean {
-      const flag = config?.flags.find((x) => x.key === key);
-      if (!flag?.enabled) return false;
-      if (!flag.rules.every((r) => flagRuleMatches(r, attrs))) return false;
-      return bucketOf(userId, `flag:${key}`) < Math.round(flag.rollout * (BUCKETS / 100));
+      return flagEnabled(config, key, userId, attrs);
     },
     /** Variáveis da flag (vazio quando inativa). */
     getVariables(key: string, userId: string, attrs: Attributes = {}): Record<string, unknown> {
-      return this.isEnabled(key, userId, attrs)
-        ? (config?.flags.find((x) => x.key === key)?.variables ?? {})
-        : {};
+      return flagVariables(config, key, userId, attrs);
     },
     /** Variação da campanha server-side (registra a exposição na 1ª vez). null = fora do tráfego/inexistente. */
     getVariation(experimentKey: string, userId: string): Decision | null {

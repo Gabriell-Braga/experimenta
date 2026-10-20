@@ -24,6 +24,9 @@ test('feature flag: cria com rollout, publica e o sdk.json da conta traz a flag'
   await expect(snippets.getByTestId('sdk-code')).toContainText('abt = Client("demo"');
   await snippets.getByRole('tab', { name: 'Go' }).click();
   await expect(snippets.getByTestId('sdk-code')).toContainText('experimenta.New(');
+  await snippets.getByRole('tab', { name: 'React Native' }).click();
+  await expect(snippets.getByTestId('sdk-code')).toContainText("useFlag('");
+  await expect(snippets.getByTestId('sdk-code')).toContainText('<ExperimentaProvider client={abt}>');
   // Desligar pela lista republica.
   await page.getByTestId('flag-row').filter({ hasText: key }).getByRole('switch').click();
   await expect

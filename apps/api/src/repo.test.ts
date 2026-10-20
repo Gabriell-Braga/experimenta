@@ -1,6 +1,6 @@
 import { ExperimentSchema } from '@abtest/shared';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { NotFoundError, retentionCutoff, verifyPassword, type Repo } from './repo';
+import { normalizePage, NotFoundError, retentionCutoff, verifyPassword, type Repo } from './repo';
 import { testRepo } from './test-repo';
 
 let repo: Repo;
@@ -247,4 +247,10 @@ describe('repositório', () => {
     expect(retentionCutoff(90, 100 * 86_400_000)).toEqual(new Date(10 * 86_400_000));
     expect(retentionCutoff(0)).toBeNull();
   });
+});
+
+test('normalizePage: páginas do site e telas do app (SDK React Native)', () => {
+  expect(normalizePage('https://loja.com/produto/?a=1#x')).toBe('https://loja.com/produto');
+  expect(normalizePage('app://com.loja/Carrinho')).toBe('app://com.loja/Carrinho');
+  expect(normalizePage('app://app/')).toBe('app://app');
 });

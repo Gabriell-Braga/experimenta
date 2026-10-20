@@ -1,4 +1,4 @@
-# SDKs server-side: o SDK TS gera sdks/test-vectors.json e cada linguagem confere decisão por decisão.
+# SDKs (servidor e React Native): o SDK TS gera sdks/test-vectors.json e cada linguagem confere decisão por decisão.
 name: SDKs
 
 on:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'sdks/**'
       - 'packages/sdk/**'
+      - 'packages/react-native/**'
       - 'packages/snippet/src/bucket.ts'
       - 'packages/shared/src/**'
       - '.github/workflows/sdks.yml'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'sdks/**'
       - 'packages/sdk/**'
+      - 'packages/react-native/**'
       - 'packages/snippet/src/bucket.ts'
       - 'packages/shared/src/**'
       - '.github/workflows/sdks.yml'
@@ -34,6 +36,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # CI=true: o Vitest não reescreve o arquivo, só falha se estiver desatualizado.
       - run: pnpm --filter @abtest/sdk exec vitest run src/vectors.test.ts
+      # React Native decide com o mesmo núcleo TS: confere os vetores pelo cliente do app (visitante = id do vetor).
+      - run: pnpm --filter @abtest/react-native exec vitest run src/vectors.test.ts
 
   python:
     name: Python ${{ matrix.version }}
