@@ -131,8 +131,8 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
               icon={<Video size={20} aria-hidden="true" />}
               title="Nenhuma sessão gravada com esses filtros"
             >
-              A gravação vale para a fração de visitantes definida em Configurações da conta (a mesma do mapa
-              de calor).
+              A gravação vale para a fração de visitantes definida em Configurações do workspace (a mesma do
+              mapa de calor).
             </EmptyState>
           ) : (
             <ul className="divide-y divide-gray-900/[0.06]" data-testid="recordings">

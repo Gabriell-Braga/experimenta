@@ -11,7 +11,7 @@ import { fsCdnStore, syncBundles } from './cdn-fs';
 import { createDb } from './db';
 import { createPublisher } from './publish';
 import { createRepo, retentionCutoff } from './repo';
-import { seedDev } from './seed';
+import { DEMO, seedDev } from './seed';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
 const port = Number(process.env.PORT ?? 4000);
@@ -24,21 +24,22 @@ if (!process.env.DATABASE_URL && !dataDir.startsWith('memory://')) mkdirSync(dat
 const db = await createDb({ url: process.env.DATABASE_URL, dataDir });
 
 // CDN local (dev): copia os bundles compilados, recompila as configs já publicadas com o runtime atual
-// e cria a config vazia da conta demo até a primeira publicação.
+// e cria a config vazia dos workspaces do demo até a primeira publicação.
 syncBundles(cdnDir, repoRoot);
 const cdn = fsCdnStore(cdnDir);
 if (existsSync(join(cdnDir, 'abt.js'))) {
   for (const f of readdirSync(cdnDir).filter((f) => f.endsWith('.json')))
     await writeAccountFiles(cdn, JSON.parse(readFileSync(join(cdnDir, f), 'utf8')));
-  if (!existsSync(join(cdnDir, 'demo.json')))
-    await writeAccountFiles(cdn, {
-      accountId: 'demo',
-      version: 1,
-      publishedAt: new Date().toISOString(),
-      apiUrl: publicUrl,
-      trackingUrl: `${publicUrl}/collect`,
-      experiments: [],
-    });
+  for (const accountId of [DEMO.accountId, DEMO.saasAccountId])
+    if (!existsSync(join(cdnDir, `${accountId}.json`)))
+      await writeAccountFiles(cdn, {
+        accountId,
+        version: 1,
+        publishedAt: new Date().toISOString(),
+        apiUrl: publicUrl,
+        trackingUrl: `${publicUrl}/collect`,
+        experiments: [],
+      });
 }
 
 const repo = createRepo(db);

@@ -35,18 +35,18 @@ test('owner convida; convidado cria login, cria conta própria e troca entre as 
   await expect(again.getByRole('heading', { name: 'Convite inválido' })).toBeVisible();
 
   // Conta nova: entra nela como owner, vazia, só com a própria pessoa na equipe.
-  await guest.getByTestId('user-menu').click();
+  await guest.getByTestId('workspace-menu').click();
   await guest.getByTestId('new-account').click();
-  await guest.getByLabel('Nome da conta').fill('Loja da Convidada');
+  await guest.getByLabel('Nome do workspace').fill('Loja da Convidada');
   await guest.getByLabel('Endereço do site').fill('https://convidada.example/');
-  await guest.getByRole('button', { name: 'Criar conta' }).click();
+  await guest.getByRole('button', { name: 'Criar workspace' }).click();
   await expect(guest.getByTestId('current-account')).toHaveText('Loja da Convidada');
   await nav(guest, 'team');
   await expect(guest.getByTestId('member')).toHaveCount(1);
   await expect(guest.getByTestId('invite-create')).toBeVisible(); // owner da conta nova
 
-  // Troca de volta pela lista de contas do menu.
-  await guest.getByTestId('user-menu').click();
+  // Troca de volta pelo seletor de workspace no topo do menu.
+  await guest.getByTestId('workspace-menu').click();
   await guest.getByTestId('account-list').getByRole('menuitemradio', { name: 'Loja Demo' }).click();
   await expect(guest.getByTestId('current-account')).toHaveText('Loja Demo');
   await nav(guest, 'team');

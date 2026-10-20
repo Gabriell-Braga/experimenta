@@ -54,7 +54,7 @@ export function HeatmapsPage() {
         <div className="mt-6 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
           {!rows.length ? (
             <EmptyState icon={<Flame size={20} aria-hidden="true" />} title="Nenhuma página com dados ainda">
-              A captura vale para a fração de visitantes definida em Configurações da conta. Publique e
+              A captura vale para a fração de visitantes definida em Configurações do workspace. Publique e
               navegue pelo site.
             </EmptyState>
           ) : (

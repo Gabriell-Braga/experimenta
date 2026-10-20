@@ -12,7 +12,7 @@ export const TARGET_LABEL: Record<string, [string, string]> = {
   member: ['Membros', ''],
   invite: ['Convites', 'o convite de'],
   apikey: ['Chaves de API', 'a chave de API'],
-  settings: ['Configurações da conta', ''],
+  settings: ['Configurações do workspace', ''],
   security: ['Login em duas etapas', ''],
   session: ['Sessões de login', ''],
   funnel: ['Funis', 'o funil'],

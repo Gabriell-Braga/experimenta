@@ -9,7 +9,7 @@ import { writeAccountFiles, type CdnStore } from './cdn';
 import { createPublisher } from './publish';
 import { retentionCutoff } from './repo';
 import { createD1Repo, createD1SessionStore, type D1Like } from './repo-d1';
-import { seedDev } from './seed';
+import { DEMO, seedDev } from './seed';
 
 export interface Env {
   DB: D1Database;
@@ -64,16 +64,17 @@ async function build(env: Env) {
   const d1 = env.DB as unknown as D1Like;
   const { repo, cdn, publish } = core(env);
   await seedDev(repo, env.DEMO_SITE_URL, env.SEED_PASSWORD);
-  // Config vazia da conta demo até a primeira publicação (o site demo já carrega o script).
-  if (!(await cdn.get('demo.json')))
-    await writeAccountFiles(cdn, {
-      accountId: 'demo',
-      version: 1,
-      publishedAt: new Date().toISOString(),
-      apiUrl: env.PUBLIC_URL,
-      trackingUrl: `${env.PUBLIC_URL}/collect`,
-      experiments: [],
-    });
+  // Config vazia dos workspaces do demo até a primeira publicação (os sites do demo já carregam o script).
+  for (const accountId of [DEMO.accountId, DEMO.saasAccountId])
+    if (!(await cdn.get(`${accountId}.json`)))
+      await writeAccountFiles(cdn, {
+        accountId,
+        version: 1,
+        publishedAt: new Date().toISOString(),
+        apiUrl: env.PUBLIC_URL,
+        trackingUrl: `${env.PUBLIC_URL}/collect`,
+        experiments: [],
+      });
   return createApp({
     repo,
     cdn,

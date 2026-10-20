@@ -23,7 +23,10 @@ interface Me {
 test('login de sempre continua: conta padrão e /me com a lista de contas', async () => {
   const me = await t.get<Me>('/me');
   expect(me).toMatchObject({ accountId: DEMO.accountId, role: 'owner' });
-  expect(me.accounts).toEqual([{ id: DEMO.accountId, name: 'Loja Demo', role: 'owner' }]);
+  expect(me.accounts).toEqual([
+    { id: DEMO.accountId, name: 'Loja Demo', role: 'owner' },
+    { id: DEMO.saasAccountId, name: 'Fluxo (SaaS)', role: 'owner' },
+  ]);
 });
 
 test('convite: só owner convida; pessoa nova cria login e entra na conta com o papel do convite', async () => {
@@ -135,12 +138,12 @@ test('membros: owner muda papel e remove; nunca sem owner; isolamento entre cont
   expect((await send('PUT', `/members/${owner}`, { role: 'viewer' }, 'other')).status).toBe(404);
   expect((await send('DELETE', `/members/${owner}`, undefined, 'other')).status).toBe(404);
 
-  // Editor pode sair da própria conta; removido perde o acesso na hora (e sem outra conta, o login some).
+  // Editor pode sair da própria conta; removido perde o acesso na hora (o login fica: ainda é do Fluxo).
   const editor = id(DEMO.editor.email);
   expect((await send('DELETE', `/members/${viewer}`, undefined, 'editor')).status).toBe(403);
   expect((await send('DELETE', `/members/${editor}`, undefined, 'editor')).status).toBe(204);
   expect((await t.req('/me', { as: 'editor' })).status).toBe(401);
-  expect(await t.repo.findUserByEmail(DEMO.editor.email)).toBeUndefined();
+  expect(await t.repo.findUserByEmail(DEMO.editor.email)).toBeDefined();
 });
 
 test('conta nova: quem cria vira owner, ganha o primeiro projeto e entra nela; dados isolados', async () => {
@@ -154,7 +157,11 @@ test('conta nova: quem cria vira owner, ganha o primeiro projeto e entra nela; d
     (await t.app.request(path, { headers: bearer(s.token) })).json() as Promise<unknown>;
   expect(await get('/projects')).toMatchObject([{ name: 'Loja Nova', siteUrl: 'https://nova.com/' }]);
   expect(await get('/experiments')).toEqual([]);
-  expect(((await get('/me')) as Me).accounts.map((a) => a.name)).toEqual(['Loja Demo', 'Loja Nova']);
+  expect(((await get('/me')) as Me).accounts.map((a) => a.name)).toEqual([
+    'Loja Demo',
+    'Fluxo (SaaS)',
+    'Loja Nova',
+  ]);
   // Conta padrão no login continua a demo.
   expect((await t.get<Me>('/me')).accountId).toBe(DEMO.accountId);
 });

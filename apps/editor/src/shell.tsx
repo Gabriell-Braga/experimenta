@@ -130,7 +130,7 @@ export const NAV: NavGroup[] = [
   },
 ];
 
-/** Configurações da conta (só owner): amostragem do mapa de calor. */
+/** Configurações do workspace (só owner): amostragem do mapa de calor. */
 export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose(): void }) {
   const toast = useToast();
   const [pct, setPct] = useState<string | null>(null); // null = carregando; '' = padrão do servidor
@@ -161,7 +161,7 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
     <Modal
       open={open}
       onClose={onClose}
-      title="Configurações da conta"
+      title="Configurações do workspace"
       testId="account-modal"
       footer={
         <>
@@ -197,7 +197,7 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
   );
 }
 
-/** Nova conta (base do SaaS): quem cria vira owner e já entra nela. */
+/** Novo workspace (conta própria): quem cria vira owner e já entra nele. */
 function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -205,7 +205,7 @@ function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) 
     <Modal
       open={open}
       onClose={onClose}
-      title="Nova conta"
+      title="Novo workspace"
       testId="new-account-modal"
       footer={
         <>
@@ -213,7 +213,7 @@ function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) 
             Cancelar
           </Button>
           <Button type="submit" form="new-account-form" variant="primary" loading={busy}>
-            Criar conta
+            Criar workspace
           </Button>
         </>
       }
@@ -236,7 +236,7 @@ function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) 
         }}
       >
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-gray-700">Nome da conta</span>
+          <span className="font-medium text-gray-700">Nome do workspace</span>
           <input name="name" required maxLength={200} placeholder="Ex.: Loja da Ana" className={inputCls} />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -249,7 +249,7 @@ function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) 
             className={inputCls}
           />
           <span className="text-xs text-gray-500">
-            Conta separada: testes, dados, equipe e snippet próprios. Você entra como owner.
+            Workspace separado: snippet, testes, dados e equipe próprios. Você entra como owner.
           </span>
         </label>
       </form>
@@ -258,20 +258,8 @@ function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) 
 }
 
 function UserMenu({ user }: { user: Me }) {
-  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const accounts = user.accounts ?? [];
-  const current = accounts.find((a) => a.id === user.accountId);
-  const switchTo = async (id: string) => {
-    try {
-      await switchAccount(id);
-      location.href = location.pathname; // recarrega: nenhuma tela fica com dado da conta anterior
-    } catch (err) {
-      toast('error', (err as Error).message);
-    }
-  };
   const initials = user.name
     .split(' ')
     .map((p) => p[0])
@@ -290,38 +278,7 @@ function UserMenu({ user }: { user: Me }) {
             <br />
             Papel: <b className="text-gray-700">{user.role}</b>
           </div>
-          <div className="border-y border-gray-900/[0.07] py-1" data-testid="account-list">
-            <p className="px-3 pt-1 pb-0.5 font-mono text-[10px] tracking-[0.12em] text-gray-400 uppercase">
-              Contas
-            </p>
-            {accounts.map((a) => (
-              <button
-                key={a.id}
-                role="menuitemradio"
-                aria-checked={a.id === user.accountId}
-                onClick={() => (a.id === user.accountId ? setOpen(false) : switchTo(a.id))}
-                className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-gray-100"
-              >
-                <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                {a.id === user.accountId ? (
-                  <Check size={14} className="text-brand-600" aria-hidden="true" />
-                ) : (
-                  <span className="text-[11px] text-gray-400">{a.role}</span>
-                )}
-              </button>
-            ))}
-            <button
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                setCreating(true);
-              }}
-              className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-gray-600 hover:bg-gray-100"
-              data-testid="new-account"
-            >
-              <Plus size={14} aria-hidden="true" /> Nova conta
-            </button>
-          </div>
+          <div className="border-t border-gray-900/[0.07]" />
           {user.role === 'owner' && (
             <button
               role="menuitem"
@@ -332,7 +289,7 @@ function UserMenu({ user }: { user: Me }) {
               className="flex w-full items-center gap-2 rounded px-3 py-2 text-left hover:bg-gray-100"
               data-testid="account-settings"
             >
-              <Settings2 size={14} aria-hidden="true" /> Configurações da conta
+              <Settings2 size={14} aria-hidden="true" /> Configurações do workspace
             </button>
           )}
           <button
@@ -359,15 +316,98 @@ function UserMenu({ user }: { user: Me }) {
         </span>
         <span className="min-w-0">
           <span className="block truncate text-sm text-white">{user.name}</span>
-          <span
-            className="block truncate font-mono text-[10.5px] text-white/45"
-            data-testid="current-account"
-          >
-            {current?.name ?? `conta ${user.accountId}`}
-          </span>
+          <span className="block truncate font-mono text-[10.5px] text-white/45">{user.email}</span>
         </span>
       </button>
       <AccountSettingsModal open={account} onClose={() => setAccount(false)} />
+    </div>
+  );
+}
+
+/**
+ * Seletor de workspace no topo do menu (como o VWO): cada workspace é uma conta separada, com snippet,
+ * testes, dados e equipe próprios. Trocar recarrega a página para nenhuma tela ficar com dado do anterior.
+ */
+function WorkspaceSwitcher({ user }: { user: Me }) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const accounts = user.accounts ?? [];
+  const current = accounts.find((a) => a.id === user.accountId);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    addEventListener('mousedown', close);
+    addEventListener('keydown', esc);
+    return () => {
+      removeEventListener('mousedown', close);
+      removeEventListener('keydown', esc);
+    };
+  }, [open]);
+  const switchTo = async (id: string) => {
+    try {
+      await switchAccount(id);
+      location.href = location.pathname;
+    } catch (err) {
+      toast('error', (err as Error).message);
+    }
+  };
+  return (
+    <div ref={ref} className="relative px-2.5 pb-1">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 rounded-md border border-white/[0.1] bg-white/[0.04] px-2.5 py-2 text-left hover:bg-white/[0.08]"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-testid="workspace-menu"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-[9.5px] tracking-[0.12em] text-white/35 uppercase">
+            Workspace
+          </span>
+          <span className="block truncate text-sm text-white" data-testid="current-account">
+            {current?.name ?? user.accountId}
+          </span>
+        </span>
+        <ChevronDown size={14} aria-hidden="true" className="shrink-0 text-white/50" />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full right-2.5 left-2.5 z-30 mt-1 max-h-80 overflow-y-auto rounded-md border border-gray-900/10 bg-white p-1 text-sm text-gray-800 shadow-xl"
+          data-testid="account-list"
+        >
+          {accounts.map((a) => (
+            <button
+              key={a.id}
+              role="menuitemradio"
+              aria-checked={a.id === user.accountId}
+              onClick={() => (a.id === user.accountId ? setOpen(false) : switchTo(a.id))}
+              className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-gray-100"
+            >
+              <span className="min-w-0 flex-1 truncate">{a.name}</span>
+              {a.id === user.accountId ? (
+                <Check size={14} className="text-brand-600" aria-hidden="true" />
+              ) : (
+                <span className="text-[11px] text-gray-400">{a.role}</span>
+              )}
+            </button>
+          ))}
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              setCreating(true);
+            }}
+            className="mt-1 flex w-full items-center gap-2 rounded border-t border-gray-900/[0.07] px-3 py-1.5 text-left text-gray-600 hover:bg-gray-100"
+            data-testid="new-account"
+          >
+            <Plus size={14} aria-hidden="true" /> Novo workspace
+          </button>
+        </div>
+      )}
       <NewAccountModal open={creating} onClose={() => setCreating(false)} />
     </div>
   );
@@ -452,6 +492,7 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
           <X size={18} />
         </button>
       </div>
+      <WorkspaceSwitcher user={user} />
       <div ref={scroller} className="nav-scroll flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
         {NAV.map((g) => {
           const open = g.items.length === 1 || !closed.has(g.label);

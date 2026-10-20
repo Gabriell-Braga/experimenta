@@ -728,3 +728,7 @@
 - Arquivos principais: apps/demo/{vite.config.ts,public/_redirects,loja/*,saas/*}, scripts/{migrar-demo-loja,seed-data}.ts, apps/editor/src/pages/Comments.tsx, docs/PENDENCIAS.md
 - Como testar manualmente: `pnpm --filter @abtest/demo dev` e abrir /loja/ (adicionar ao carrinho → Finalizar compra → Pagar) e /saas/; num relatório, comentar com @ no fim da página.
 - Testes: `pnpm lint`, `pnpm test`, E2E comments/loja/recos passaram.
+
+### 2026-10-20 18:03 — Workspaces como no VWO, migração aplicada e deploy
+- Seletor de workspace no topo da sidebar (D-095); workspace "Fluxo (SaaS)" do demo com snippet próprio; migração dos dados simulados aplicada no D1 e na config da CDN; tabelas com rolagem horizontal no celular.
+- Testes: `pnpm lint`, `pnpm test`, `pnpm typecheck`, `pnpm e2e` (120 passaram).

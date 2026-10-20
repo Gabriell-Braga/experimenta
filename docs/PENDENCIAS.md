@@ -20,20 +20,13 @@ nas decisões citadas. Ordem: o que destrava primeiro.
 - Máscara de PII por regex antes de mandar dados para a IA (D-084): revisar antes de usar com cliente real.
 - Ideias: ler-modificar-gravar sem trava na entidade (D-083).
 
-## 3. Demo: site simples removido de produção (feito no código, falta aplicar)
+## 3. Demo: site simples removido de produção (feito)
 - O build do demo só leva a loja (`/loja/`, agora com `checkout.html` e `obrigado.html` próprios), o novo site
   SaaS (`/saas/`) e o `/bloqueado/`. A raiz redireciona para `/loja/`; `/produto.html` e `/obrigado.html` antigos
   redirecionam para o checkout e o obrigado da loja. As páginas simples ficam só no dev, como fixtures do E2E.
-- **Migração dos dados simulados para a loja** (mesmos números, só URLs/seletores/nomes trocados):
-  `scripts/migrar-demo-loja.ts` gera `apps/api/.tmp-migrar.sql` e `.tmp-demo.json`. Testado numa cópia local do
-  D1 (contagens por tipo/teste/variação iguais, idempotente). Aplicar **depois da 00:00 UTC** (cota do item 1):
-  1. `cd apps/api && pnpm exec wrangler d1 export abtest-db --remote --output=../../.data/backup-antes-loja.sql`
-  2. `pnpm exec wrangler d1 execute abtest-db --remote --file=.tmp-migrar.sql`
-  3. `pnpm exec wrangler kv key put demo.json --binding CDN --remote --path .tmp-demo.json`
-  4. `pnpm deploy:cf` (recompila `demo.js` e publica o demo novo).
+- Migração dos dados simulados para a loja: **aplicada em 2026-10-20 17:56** (32.724 linhas, backup em `.data/backup-d1-2026-10-20-pre-migracao.sql`).
 - As 6 gravações de sessão reais continuam mostrando o site antigo (o DOM gravado não dá para converter).
-- Seletor de sites no topo (como as contas/workspaces do VWO): hoje a conta tem projetos na API, mas o editor só usa
-  o primeiro. Decidir se cada site vira uma conta (já funciona, com troca de conta) ou se entra um seletor de projeto.
+- Feito: seletor de workspace no topo, como o VWO (D-095); o SaaS do demo é o workspace "Fluxo (SaaS)".
 
 ## 4. Validação com contas e aparelhos reais
 - Integrações da 19.1 (HubSpot, Salesforce, Shopify, WordPress), destinos da exportação da 19.4 (S3/R2/GCS,
