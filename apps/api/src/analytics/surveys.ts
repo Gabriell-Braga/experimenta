@@ -1,7 +1,7 @@
 import type { Survey, TrackingEvent } from '@abtest/shared';
 
 /** Palavras sem conteúdo (pt) ignoradas na contagem das respostas abertas. */
-const STOP = new Set(
+export const STOP = new Set(
   'a o e é de do da dos das em no na nos nas um uma uns umas que se por para com sem mais mas muito muita pouco ou eu me meu minha não nao sim foi ser ter tem está esta isso isto já ja como quando porque pra pro ao à as os the and to'.split(
     ' ',
   ),

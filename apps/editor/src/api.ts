@@ -806,3 +806,28 @@ export interface AiVariation {
 }
 export const aiVariation = (prompt: string, page: PageSummary) =>
   api<AiVariation>('/ai/variation', { method: 'POST', body: JSON.stringify({ prompt, page }) });
+
+/** Resumo por IA (18.4) de uma gravação, do mapa de calor de uma página ou das respostas abertas de uma pesquisa. */
+export type AiSummaryRequest =
+  | { kind: 'recording'; sessionId: string }
+  | {
+      kind: 'heatmap';
+      url: string;
+      device?: string;
+      experimentId?: string;
+      variationId?: string;
+      context?: import('@abtest/shared').HeatmapContext;
+    }
+  | { kind: 'survey'; surveyId: string; days?: number };
+export interface AiSummary {
+  kind: AiSummaryRequest['kind'];
+  summary: Record<string, unknown>;
+  source: 'claude' | 'modelo' | 'regras';
+  model?: string;
+  createdAt: string;
+  cached: boolean;
+  stale: boolean;
+  note?: string;
+}
+export const aiSummary = (body: AiSummaryRequest & { refresh?: boolean }) =>
+  api<AiSummary>('/ai/summary', { method: 'POST', body: JSON.stringify(body) });

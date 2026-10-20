@@ -2,6 +2,7 @@ import type { HeatmapMode } from '@abtest/shared';
 import { ArrowLeft, Flame, Monitor, Smartphone, Tablet, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { createEditSession, frameUrl, getHeatmap, query, type HeatmapFilters } from '../api';
+import { AiSummaryCard } from '../components/AiSummary';
 import { HeatmapPanel, type HeatmapResult } from '../components/HeatmapPanel';
 import { DEVICE_WIDTH, type Device } from '../components/TopBar';
 import { connectAgent, type AgentPeer } from '../connection';
@@ -252,6 +253,22 @@ export function HeatmapViewer({ url }: { url: string }) {
             missing={missing}
             onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
           />
+          {data && (data.clicks.total > 0 || data.scroll.pageviews > 0) && (
+            <AiSummaryCard
+              key={`${current}|${JSON.stringify(filters)}`}
+              className="border-t border-gray-900/10 px-4 py-3"
+              request={async () => {
+                const selectors = [
+                  ...new Set([...data.clicks.elements, ...data.frustration].map((e) => e.selector)),
+                ].slice(0, 500);
+                // Texto dos elementos lido na página real; sem o agent, o resumo usa só os seletores.
+                const context = await peer.current
+                  ?.call('heatmapContext', { selectors })
+                  .catch(() => undefined);
+                return { kind: 'heatmap', url: current, ...filters, ...(context ? { context } : {}) };
+              }}
+            />
+          )}
         </aside>
       </div>
     </div>

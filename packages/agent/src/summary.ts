@@ -1,5 +1,6 @@
-import { fingerprint, generateSelector, normText } from '@abtest/selector';
+import { fingerprint, generateSelector, normText, resolveTarget } from '@abtest/selector';
 import {
+  type HeatmapContext,
   PAGE_ELEMENTS_MAX,
   PAGE_SUMMARY_CHARS,
   type PageElement,
@@ -86,4 +87,48 @@ export function pageSnapshot(doc: Document): PageSnapshot {
     targets[ref] = { selector: gen.selector, alternates: gen.alternates, fingerprint: fingerprint(el) };
   }
   return { url: win.location.href.slice(0, 2000), title: doc.title.slice(0, 200), elements, targets };
+}
+
+/** Nome legível de um elemento: aria-label, texto visível, alt/title ou o valor de botão. */
+const labelOf = (el: Element) =>
+  normText(
+    el.getAttribute('aria-label') ||
+      textOf(el, 80) ||
+      el.getAttribute('alt') ||
+      el.getAttribute('title') ||
+      (el instanceof HTMLInputElement ? el.value : '') ||
+      '',
+  ).slice(0, 80);
+
+const CLICKABLE = 'a[href],button,[role=button],input[type=submit],input[type=button]';
+
+/**
+ * Para o resumo do mapa de calor (IA): o texto de cada elemento clicado (os seletores do mapa) e os
+ * clicáveis visíveis que não estão entre eles nem dentro deles (o que é ignorado), até 30.
+ */
+export function heatmapContext(doc: Document, selectors: string[]): HeatmapContext {
+  const win = doc.defaultView!;
+  const labels: Record<string, string> = {};
+  const clicked: Element[] = [];
+  for (const selector of selectors) {
+    const el = resolveTarget({ selector, alternates: [] }, doc)?.el;
+    if (!el) continue;
+    clicked.push(el);
+    const l = labelOf(el);
+    if (l) labels[selector] = l;
+  }
+  const hidden = (el: Element) => {
+    if (win.getComputedStyle(el).visibility === 'hidden') return true;
+    for (let p: Element | null = el; p; p = p.parentElement)
+      if (win.getComputedStyle(p).display === 'none') return true;
+    return false;
+  };
+  const ignored: string[] = [];
+  for (const el of doc.querySelectorAll(CLICKABLE)) {
+    if (ignored.length >= 30) break;
+    if (clicked.some((c) => c === el || c.contains(el) || el.contains(c)) || hidden(el)) continue;
+    const l = labelOf(el);
+    if (l && !ignored.includes(l)) ignored.push(l);
+  }
+  return { labels, ignored };
 }

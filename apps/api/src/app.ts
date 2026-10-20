@@ -22,6 +22,7 @@ import { COMMENT_PATHS, commentRoutes } from './routes/comments';
 import { previewRoutes } from './routes/previews';
 import { SCHEDULE_PATHS, scheduleRoutes } from './routes/schedules';
 import { AI_PATHS, aiRoutes } from './routes/ai';
+import { aiSummaryRoutes } from './routes/ai-summary';
 import { dispatchEvents, dispatchNotice, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
@@ -754,6 +755,7 @@ export function createApp(deps: AppDeps) {
   integrationRoutes(app, repo);
   predictiveRoutes(app, repo, deps.publish);
   aiRoutes(app, repo, deps.ai, deps.aiCompat);
+  aiSummaryRoutes(app, repo, deps.ai, deps.aiCompat);
   activityRoutes(app, repo);
   approvalRoutes(app, repo, deps.publish);
   commentRoutes(app, repo);

@@ -60,6 +60,7 @@ function connect() {
       showHeatmap: ({ clicks }) => ({ resolved: clicks.elements.length, missing: 0 }),
       hideHeatmap: () => ({}),
       pageSummary: () => ({ url: 'https://loja.com/', title: 'Loja', elements: [], targets: {} }),
+      heatmapContext: () => ({ labels: {}, ignored: [] }),
     },
   });
   return { app, site, appPeer, agentPeer };

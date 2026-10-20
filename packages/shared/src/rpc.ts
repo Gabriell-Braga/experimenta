@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HeatmapContextSchema } from './ai-summary';
 import { PageSnapshotSchema } from './ai-variation';
 import { OperationSchema, TargetSchema } from './operations';
 
@@ -101,6 +102,11 @@ export const agentMethods = {
   hideHeatmap: method(z.object({}), z.object({})),
   /** Resumo do DOM visível para a variação por texto (IA). */
   pageSummary: method(z.object({}), PageSnapshotSchema),
+  /** Resumo do mapa de calor (IA): texto dos elementos clicados e clicáveis visíveis que ninguém clicou. */
+  heatmapContext: method(
+    z.object({ selectors: z.array(z.string().max(500)).max(500) }),
+    HeatmapContextSchema,
+  ),
 };
 
 /** Métodos que o APP expõe (o agent chama). */

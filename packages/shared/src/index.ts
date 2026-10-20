@@ -13,3 +13,4 @@ export * from './sdk-config';
 export * from './predict';
 export * from './ai-variation';
 export * from './ideas';
+export * from './ai-summary';

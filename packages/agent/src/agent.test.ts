@@ -345,4 +345,22 @@ describe('agent: resumo da página para a IA', () => {
     // Nada de seletor no que vai para o modelo.
     expect(JSON.stringify(elements)).not.toContain('#t');
   });
+
+  test('contexto do mapa de calor: texto dos clicados e clicáveis visíveis sem clique', async () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `<button id="b1">Assinar</button><a href="/ajuda" aria-label="Ajuda"><i></i></a><a href="/x2"><span>Ir</span></a>
+       <div style="display:none"><a href="/oculto">Oculto</a></div>`,
+    );
+    const r = (await call('heatmapContext', { selectors: ['#t', '#nao-existe', '#b1'] })) as {
+      ok: boolean;
+      result: { labels: Record<string, string>; ignored: string[] };
+    };
+    expect(r.ok).toBe(true);
+    expect(r.result.labels).toEqual({ '#t': 'Título', '#b1': 'Assinar' });
+    // O link "Ir" da página base e o "Ajuda" não foram clicados; o oculto não entra.
+    expect(r.result.ignored).toEqual(expect.arrayContaining(['Ir', 'Ajuda']));
+    expect(r.result.ignored).not.toContain('Oculto');
+    expect(r.result.ignored).not.toContain('Assinar');
+  });
 });

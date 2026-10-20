@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { entities, type Entity, type Me, publish, publishedText, query } from '../api';
+import { AiSummaryCard } from '../components/AiSummary';
 import { BarList, SERIES } from '../charts';
 import { EngageFields } from '../components/EngageFields';
 import { Comments } from './Comments';
@@ -607,6 +608,11 @@ export function SurveyReportPage({ id, user }: { id: string; user: Me }) {
         <Stat label="Taxa de resposta" value={fmt.pct(r.responseRate, 0)} />
         <Stat label="Concluídas" value={fmt.int(r.completed)} />
       </div>
+      {r.questions.some((q) => q.type === 'text') && (
+        <Card title="Respostas abertas: temas e sentimento" className="mt-5">
+          <AiSummaryCard request={() => ({ kind: 'survey', surveyId: id, days: 90 })} />
+        </Card>
+      )}
       <div className="mt-5 space-y-5" data-testid="survey-report">
         {r.questions.map((q, i) => (
           <Card

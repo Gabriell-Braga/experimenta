@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getRecording, listRecordings } from '../api';
+import { AiSummaryCard } from '../components/AiSummary';
 import { navigate } from '../nav';
 import {
   Button,
@@ -416,6 +417,10 @@ export function RecordingPlayer({ id }: { id: string }) {
           </div>
         </main>
         <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-900/10 bg-white">
+          <AiSummaryCard
+            request={() => ({ kind: 'recording', sessionId: id })}
+            className="border-b border-gray-900/10 px-4 py-3"
+          />
           <p className="label-mono px-4 pt-4 pb-2">Linha do tempo</p>
           <ol className="pb-4" data-testid="timeline-list">
             {marks.map(({ e, at }) => {
