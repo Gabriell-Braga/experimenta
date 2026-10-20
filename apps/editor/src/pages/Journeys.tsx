@@ -2,7 +2,7 @@ import { ArrowRight, Route } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { query } from '../api';
 import { BarList, SERIES } from '../charts';
-import { Card, EmptyState, fmt, PageHeader, Segmented, selectCls, Spinner, useToast } from '../ui';
+import { Card, EmptyState, fmt, LoadingBlock, PageHeader, Segmented, selectCls, useLoad } from '../ui';
 import { PERIODS, type Period } from './Events';
 
 interface Count {
@@ -35,27 +35,20 @@ function PageChip({ page, onClick }: { page: string; onClick?(): void }) {
 }
 
 export function JourneysPage() {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
   const [device, setDevice] = useState('');
   const [focus, setFocus] = useState<string | null>(null);
-  const [data, setData] = useState<Journeys | null>(null);
   useEffect(() => {
     document.title = 'Jornadas · Experimenta';
   }, []);
+  const { data } = useLoad(
+    () =>
+      query<Journeys>('/analytics/journeys', { days, device: device || undefined, page: focus ?? undefined }),
+    [days, device, focus],
+  );
   useEffect(() => {
-    query<Journeys>('/analytics/journeys', {
-      days,
-      device: device || undefined,
-      page: focus ?? undefined,
-    }).then(
-      (d) => {
-        setData(d);
-        if (!focus && d.entries[0]) setFocus(d.entries[0].key);
-      },
-      (e: Error) => toast('error', e.message),
-    );
-  }, [days, device, focus, toast]);
+    if (!focus && data?.entries[0]) setFocus(data.entries[0].key);
+  }, [data, focus]);
 
   return (
     <>
@@ -81,8 +74,12 @@ export function JourneysPage() {
         }
       />
       {!data ? (
-        <div className="grid place-items-center py-24 text-gray-400">
-          <Spinner />
+        <div className="mt-6 space-y-5">
+          <LoadingBlock rows={4} />
+          <div className="grid gap-5 lg:grid-cols-2">
+            <LoadingBlock rows={5} />
+            <LoadingBlock rows={5} />
+          </div>
         </div>
       ) : !data.sessions ? (
         <div className="mt-6">

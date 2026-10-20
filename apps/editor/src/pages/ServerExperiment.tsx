@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { API_URL, getExperiment, publish, saveExperiment, type ExperimentRecord } from '../api';
 import { navigate } from '../nav';
 import { uid } from '../store';
-import { Button, Card, inputCls, PageHeader, selectCls, Spinner, StatusBadge, useToast } from '../ui';
+import { Button, Card, inputCls, LoadingBlock, PageHeader, selectCls, StatusBadge, useToast } from '../ui';
 
 /**
  * Campanha server-side: nada é aplicado na página — o SDK decide a variação no backend/app e entrega as
@@ -18,8 +18,13 @@ export function ServerExperimentPage({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [event, setEvent] = useState('');
   useEffect(() => {
+    // Troca de id: esvazia na hora e ignora resposta atrasada do id anterior.
+    let alive = true;
+    setRec(null);
+    setExp(null);
     getExperiment(id).then(
       (r) => {
+        if (!alive) return;
         setRec(r);
         setExp(r.experiment);
         setVars(
@@ -29,15 +34,13 @@ export function ServerExperimentPage({ id }: { id: string }) {
         );
         document.title = `${r.experiment.name} · Experimenta`;
       },
-      (e: Error) => toast('error', e.message),
+      (e: Error) => alive && toast('error', e.message),
     );
+    return () => {
+      alive = false;
+    };
   }, [id, toast]);
-  if (!exp || !rec)
-    return (
-      <div className="grid place-items-center py-24 text-gray-400">
-        <Spinner />
-      </div>
-    );
+  if (!exp || !rec) return <LoadingBlock rows={6} />;
   const patch = (p: Partial<Experiment>) => setExp({ ...exp, ...p });
   const save = async (andPublish = false) => {
     let variations;

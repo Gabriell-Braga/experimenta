@@ -1,7 +1,7 @@
 import { renderShelf } from '@abtest/engage';
 import { RecoWidgetSchema, type RecoWidget } from '@abtest/shared';
 import { Pause, Pencil, Play, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { API_URL, entities, publish, query, rebuildRecos, type Entity, type Me } from '../api';
 import { EngageFields, type EngageCommon } from '../components/EngageFields';
 import {
@@ -11,10 +11,12 @@ import {
   fmt,
   inputCls,
   Modal,
+  LoadingBlock,
   PageHeader,
   selectCls,
-  Spinner,
+  Skeleton,
   StatusBadge,
+  useLoad,
   useToast,
 } from '../ui';
 import type { EngageStats } from './Popups';
@@ -38,15 +40,16 @@ interface RecoItem {
 
 function Preview({ w, accountId }: { w: RecoWidget; accountId: string }) {
   const box = useRef<HTMLDivElement>(null);
-  const [items, setItems] = useState<RecoItem[] | null>(null);
-  useEffect(() => {
-    fetch(`${API_URL}/reco/${accountId}/${w.strategy}?limit=${w.limit}`)
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then(
-        (d: { items: RecoItem[] }) => setItems(d.items),
-        () => setItems([]),
-      );
-  }, [accountId, w.strategy, w.limit]);
+  const { data: items } = useLoad(
+    () =>
+      fetch(`${API_URL}/reco/${accountId}/${w.strategy}?limit=${w.limit}`)
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then(
+          (d: { items: RecoItem[] }) => d.items,
+          (): RecoItem[] => [],
+        ),
+    [accountId, w.strategy, w.limit],
+  );
   useLayoutEffect(() => {
     const el = box.current;
     if (!el || !items?.length) return;
@@ -56,6 +59,7 @@ function Preview({ w, accountId }: { w: RecoWidget; accountId: string }) {
   }, [items, w]);
   return (
     <div className="rounded-md border border-gray-900/10 bg-white p-3" data-testid="reco-preview">
+      {!items && <Skeleton className="h-32 w-full" />}
       {items && !items.length && (
         <p className="py-8 text-center text-sm text-gray-400">
           Sem dados de produtos ainda: integre abq.push(['product', …]).
@@ -217,22 +221,22 @@ function RecoEditor({
 export function RecosPage({ user }: { user: Me }) {
   const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<RecoWidget>[] | null>(null);
-  const [stats, setStats] = useState<Record<string, EngageStats>>({});
   const [editing, setEditing] = useState<Entity<RecoWidget> | null | 'new'>(null);
   const [model, setModel] = useState<{ products: number; builtAt: string } | null>(null);
   const [rebuilding, setRebuilding] = useState(false);
-  const load = useCallback(() => {
-    entities.list<RecoWidget>('reco').then(setList, (e: Error) => toast('error', e.message));
-    query<EngageStats[]>('/analytics/engage', { days: 30 }).then(
-      (l) => setStats(Object.fromEntries(l.map((s) => [s.campaignId, s]))),
-      () => {},
-    );
-  }, [toast]);
+  const { data: list, reload: reloadList } = useLoad(() => entities.list<RecoWidget>('reco'), []);
+  const { data: statsList, reload: reloadStats } = useLoad(
+    () => query<EngageStats[]>('/analytics/engage', { days: 30 }).catch(() => []),
+    [],
+  );
+  const stats = Object.fromEntries((statsList ?? []).map((s) => [s.campaignId, s]));
+  const load = () => {
+    reloadList();
+    reloadStats();
+  };
   useEffect(() => {
     document.title = 'Recomendações · Experimenta';
-    load();
-  }, [load]);
+  }, []);
   const toggle = async (e: Entity<RecoWidget>) => {
     await entities.save('reco', {
       id: e.id,
@@ -259,10 +263,8 @@ export function RecosPage({ user }: { user: Me }) {
       />
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_340px]">
         <div>
-          {list === null ? (
-            <div className="grid place-items-center py-24 text-gray-400">
-              <Spinner />
-            </div>
+          {list === null || statsList === null ? (
+            <LoadingBlock rows={4} />
           ) : !list.length ? (
             <EmptyState icon={<ShoppingBag size={20} aria-hidden="true" />} title="Nenhuma vitrine ainda">
               Ex.: “Quem viu também viu” abaixo da grade de produtos, ou “Comprados juntos” no carrinho.

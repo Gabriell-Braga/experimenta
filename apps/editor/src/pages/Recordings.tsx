@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getRecording, listRecordings, type RecordingRow } from '../api';
+import { getRecording, listRecordings } from '../api';
 import { navigate } from '../nav';
 import {
   Button,
@@ -23,9 +23,11 @@ import {
   inputCls,
   PageHeader,
   Segmented,
+  LoadingBlock,
   selectCls,
   Spinner,
   timeAgo,
+  useLoad,
   useToast,
 } from '../ui';
 import { PERIODS, type Period } from './Events';
@@ -38,32 +40,32 @@ export const DEVICE_ICON: Record<string, LucideIcon> = {
 const path = (url: string) => url.replace(/^https?:\/\/[^/]+/, '') || '/';
 
 export function RecordingsPage({ params }: { params: URLSearchParams }) {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
   const [device, setDevice] = useState('');
   const [page, setPage] = useState('');
+  const [dPage, setDPage] = useState('');
   const [minSeconds, setMinSeconds] = useState('');
   const [frustrated, setFrustrated] = useState(false);
   const visitorId = params.get('visitor') ?? undefined;
-  const [rows, setRows] = useState<RecordingRow[] | null>(null);
   useEffect(() => {
     document.title = 'Gravações · Experimenta';
   }, []);
   useEffect(() => {
-    const t = setTimeout(
-      () =>
-        listRecordings({
-          days,
-          device: device || undefined,
-          page: page || undefined,
-          minSeconds: minSeconds || undefined,
-          frustrated: frustrated ? '1' : undefined,
-          visitorId,
-        }).then(setRows, (e: Error) => toast('error', e.message)),
-      page ? 300 : 0,
-    );
+    const t = setTimeout(() => setDPage(page), page ? 300 : 0);
     return () => clearTimeout(t);
-  }, [days, device, page, minSeconds, frustrated, visitorId, toast]);
+  }, [page]);
+  const { data: rows } = useLoad(
+    () =>
+      listRecordings({
+        days,
+        device: device || undefined,
+        page: dPage || undefined,
+        minSeconds: minSeconds || undefined,
+        frustrated: frustrated ? '1' : undefined,
+        visitorId,
+      }),
+    [days, device, dPage, minSeconds, frustrated, visitorId],
+  );
 
   return (
     <>
@@ -119,83 +121,83 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
           </Button>
         )}
       </div>
-      <div className="mt-4 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
-        {rows === null ? (
-          <div className="grid place-items-center py-16 text-gray-400">
-            <Spinner />
-          </div>
-        ) : !rows.length ? (
-          <EmptyState
-            icon={<Video size={20} aria-hidden="true" />}
-            title="Nenhuma sessão gravada com esses filtros"
-          >
-            A gravação vale para a fração de visitantes definida em Configurações da conta (a mesma do mapa de
-            calor).
-          </EmptyState>
-        ) : (
-          <ul className="divide-y divide-gray-900/[0.06]" data-testid="recordings">
-            {rows.map((r) => {
-              const Icon = DEVICE_ICON[r.device] ?? Monitor;
-              return (
-                <li key={r.sessionId}>
-                  <button
-                    onClick={() => navigate('recording', { id: r.sessionId })}
-                    className="group flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-lime-soft/40"
-                    data-testid="recording-row"
-                  >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-ink text-lime group-hover:bg-brand-600 group-hover:text-white">
-                      <Play size={15} aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2 text-sm font-medium text-ink">
-                        <span className="truncate">{path(r.pages[0] ?? '')}</span>
-                        {r.pages.length > 1 && (
-                          <span className="shrink-0 font-mono text-[11px] font-normal text-gray-500">
-                            +{r.pages.length - 1} página{r.pages.length > 2 ? 's' : ''}
+      {rows === null ? (
+        <LoadingBlock className="mt-4" rows={8} />
+      ) : (
+        <div className="mt-4 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+          {!rows.length ? (
+            <EmptyState
+              icon={<Video size={20} aria-hidden="true" />}
+              title="Nenhuma sessão gravada com esses filtros"
+            >
+              A gravação vale para a fração de visitantes definida em Configurações da conta (a mesma do mapa
+              de calor).
+            </EmptyState>
+          ) : (
+            <ul className="divide-y divide-gray-900/[0.06]" data-testid="recordings">
+              {rows.map((r) => {
+                const Icon = DEVICE_ICON[r.device] ?? Monitor;
+                return (
+                  <li key={r.sessionId}>
+                    <button
+                      onClick={() => navigate('recording', { id: r.sessionId })}
+                      className="group flex w-full items-center gap-4 px-4 py-3 text-left hover:bg-lime-soft/40"
+                      data-testid="recording-row"
+                    >
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-ink text-lime group-hover:bg-brand-600 group-hover:text-white">
+                        <Play size={15} aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2 text-sm font-medium text-ink">
+                          <span className="truncate">{path(r.pages[0] ?? '')}</span>
+                          {r.pages.length > 1 && (
+                            <span className="shrink-0 font-mono text-[11px] font-normal text-gray-500">
+                              +{r.pages.length - 1} página{r.pages.length > 2 ? 's' : ''}
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 flex items-center gap-3 font-mono text-[11px] text-gray-500">
+                          <span title={new Date(r.startedAt).toLocaleString('pt-BR')}>
+                            {timeAgo(r.startedAt)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Icon size={12} aria-hidden="true" /> {r.vw}×{r.vh}
+                          </span>
+                          <span>visitante {r.visitorId.slice(0, 8)}</span>
+                        </span>
+                      </span>
+                      <span className="hidden items-center gap-3 font-mono text-[11px] text-gray-600 sm:flex">
+                        <span className="flex items-center gap-1" title="Cliques">
+                          <MousePointerClick size={13} aria-hidden="true" /> {r.clicks}
+                        </span>
+                        {r.rage + r.dead > 0 && (
+                          <span
+                            className="rounded-sm bg-signal/10 px-1.5 py-0.5 text-signal"
+                            title="Rage / dead clicks"
+                          >
+                            {r.rage} rage · {r.dead} dead
+                          </span>
+                        )}
+                        {r.conversions > 0 && (
+                          <span
+                            className="rounded-sm bg-lime-soft px-1.5 py-0.5 text-brand-900"
+                            title="Conversões"
+                          >
+                            {r.conversions} conv.
                           </span>
                         )}
                       </span>
-                      <span className="mt-0.5 flex items-center gap-3 font-mono text-[11px] text-gray-500">
-                        <span title={new Date(r.startedAt).toLocaleString('pt-BR')}>
-                          {timeAgo(r.startedAt)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Icon size={12} aria-hidden="true" /> {r.vw}×{r.vh}
-                        </span>
-                        <span>visitante {r.visitorId.slice(0, 8)}</span>
+                      <span className="tabular w-14 shrink-0 text-right font-mono text-xs text-ink">
+                        {fmt.dur(r.durationMs)}
                       </span>
-                    </span>
-                    <span className="hidden items-center gap-3 font-mono text-[11px] text-gray-600 sm:flex">
-                      <span className="flex items-center gap-1" title="Cliques">
-                        <MousePointerClick size={13} aria-hidden="true" /> {r.clicks}
-                      </span>
-                      {r.rage + r.dead > 0 && (
-                        <span
-                          className="rounded-sm bg-signal/10 px-1.5 py-0.5 text-signal"
-                          title="Rage / dead clicks"
-                        >
-                          {r.rage} rage · {r.dead} dead
-                        </span>
-                      )}
-                      {r.conversions > 0 && (
-                        <span
-                          className="rounded-sm bg-lime-soft px-1.5 py-0.5 text-brand-900"
-                          title="Conversões"
-                        >
-                          {r.conversions} conv.
-                        </span>
-                      )}
-                    </span>
-                    <span className="tabular w-14 shrink-0 text-right font-mono text-xs text-ink">
-                      {fmt.dur(r.durationMs)}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
     </>
   );
 }

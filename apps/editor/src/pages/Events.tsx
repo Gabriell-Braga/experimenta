@@ -1,9 +1,20 @@
 import type { TrackingEvent } from '@abtest/shared';
 import { Pause, Play, Radio } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getOverview, listEvents, type Overview } from '../api';
+import { getOverview, listEvents } from '../api';
 import { BarList, LineChart, SERIES } from '../charts';
-import { Button, Card, EmptyState, fmt, PageHeader, Segmented, Stat, useToast } from '../ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  fmt,
+  LoadingBlock,
+  PageHeader,
+  Segmented,
+  Skeleton,
+  Stat,
+  useLoad,
+} from '../ui';
 
 export const PERIODS = [
   ['7', '7 dias'],
@@ -120,17 +131,14 @@ function LiveStream() {
 }
 
 export function EventsPage() {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
-  const [data, setData] = useState<Overview | null>(null);
   useEffect(() => {
     document.title = 'Eventos · Experimenta';
   }, []);
-  useEffect(() => {
-    getOverview(Number(days)).then(setData, (e: Error) => toast('error', e.message));
-  }, [days, toast]);
+  const { data } = useLoad(() => getOverview(Number(days)), [days]);
   const t = data?.totals;
   const empty = data && !t?.pageviews && !t?.events;
+  const sk = <Skeleton className="h-7 w-16" />;
   return (
     <>
       <PageHeader
@@ -139,67 +147,81 @@ export function EventsPage() {
         description="Tudo o que o snippet coleta: páginas vistas, eventos customizados, identificações e conversões."
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
-      <div className={`mt-6 space-y-5 transition-opacity ${data ? '' : 'opacity-50'}`}>
+      <div className="mt-6 space-y-5">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5" data-testid="overview-totals">
-          <Stat label="Visitantes" value={fmt.int(t?.visitors ?? 0)} />
-          <Stat label="Sessões" value={fmt.int(t?.sessions ?? 0)} />
-          <Stat label="Páginas vistas" value={fmt.int(t?.pageviews ?? 0)} />
-          <Stat label="Eventos" value={fmt.int(t?.events ?? 0)} />
-          <Stat label="Receita" value={fmt.money(t?.revenue ?? 0)} hint="soma dos valores dos eventos" />
+          <Stat label="Visitantes" value={t ? fmt.int(t.visitors) : sk} />
+          <Stat label="Sessões" value={t ? fmt.int(t.sessions) : sk} />
+          <Stat label="Páginas vistas" value={t ? fmt.int(t.pageviews) : sk} />
+          <Stat label="Eventos" value={t ? fmt.int(t.events) : sk} />
+          <Stat label="Receita" value={t ? fmt.money(t.revenue) : sk} hint="soma dos valores dos eventos" />
         </div>
-        {empty ? (
-          <EmptyState icon={<Radio size={20} aria-hidden="true" />} title="Ainda sem dados neste período">
-            Instale o snippet (menu Configurar → Instalação) e navegue pelo site. Os eventos aparecem aqui em
-            segundos.
-          </EmptyState>
+        {!data ? (
+          <LoadingBlock rows={6} />
         ) : (
-          <Card title="Visitantes e sessões por dia">
-            <LineChart
-              area
-              labels={(data?.series ?? []).map((d) => shortDay(d.day))}
-              series={[
-                {
-                  name: 'Visitantes',
-                  color: SERIES[0]!,
-                  values: (data?.series ?? []).map((d) => d.visitors),
-                },
-                { name: 'Sessões', color: SERIES[1]!, values: (data?.series ?? []).map((d) => d.sessions) },
-              ]}
-            />
-          </Card>
+          <>
+            {empty ? (
+              <EmptyState icon={<Radio size={20} aria-hidden="true" />} title="Ainda sem dados neste período">
+                Instale o snippet (menu Configurar → Instalação) e navegue pelo site. Os eventos aparecem aqui
+                em segundos.
+              </EmptyState>
+            ) : (
+              <Card title="Visitantes e sessões por dia">
+                <LineChart
+                  area
+                  labels={(data?.series ?? []).map((d) => shortDay(d.day))}
+                  series={[
+                    {
+                      name: 'Visitantes',
+                      color: SERIES[0]!,
+                      values: (data?.series ?? []).map((d) => d.visitors),
+                    },
+                    {
+                      name: 'Sessões',
+                      color: SERIES[1]!,
+                      values: (data?.series ?? []).map((d) => d.sessions),
+                    },
+                  ]}
+                />
+              </Card>
+            )}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Card title="Páginas mais vistas">
+                <BarList
+                  items={(data?.topPages ?? []).map((p) => ({
+                    key: p.key,
+                    label: path(p.key),
+                    value: p.count,
+                  }))}
+                />
+              </Card>
+              <Card title="Eventos customizados">
+                <BarList
+                  color={SERIES[1]}
+                  items={(data?.topEvents ?? []).map((p) => ({ key: p.key, label: p.key, value: p.count }))}
+                  empty="Nenhum evento. Use abq.push(['track', 'nome'])."
+                />
+              </Card>
+              <Card title="Dispositivos">
+                <BarList
+                  color={SERIES[2]}
+                  items={Object.entries(data?.devices ?? {}).map(([k, v]) => ({
+                    key: k,
+                    label: { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Celular' }[k] ?? k,
+                    value: v,
+                    hint: t?.pageviews ? fmt.pct(v / t.pageviews, 0) : undefined,
+                  }))}
+                />
+              </Card>
+              <Card title="Origens (referência externa)">
+                <BarList
+                  color={SERIES[3]}
+                  items={(data?.referrers ?? []).map((p) => ({ key: p.key, label: p.key, value: p.count }))}
+                  empty="Sem tráfego vindo de outros sites."
+                />
+              </Card>
+            </div>
+          </>
         )}
-        <div className="grid gap-5 lg:grid-cols-2">
-          <Card title="Páginas mais vistas">
-            <BarList
-              items={(data?.topPages ?? []).map((p) => ({ key: p.key, label: path(p.key), value: p.count }))}
-            />
-          </Card>
-          <Card title="Eventos customizados">
-            <BarList
-              color={SERIES[1]}
-              items={(data?.topEvents ?? []).map((p) => ({ key: p.key, label: p.key, value: p.count }))}
-              empty="Nenhum evento. Use abq.push(['track', 'nome'])."
-            />
-          </Card>
-          <Card title="Dispositivos">
-            <BarList
-              color={SERIES[2]}
-              items={Object.entries(data?.devices ?? {}).map(([k, v]) => ({
-                key: k,
-                label: { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Celular' }[k] ?? k,
-                value: v,
-                hint: t?.pageviews ? fmt.pct(v / t.pageviews, 0) : undefined,
-              }))}
-            />
-          </Card>
-          <Card title="Origens (referência externa)">
-            <BarList
-              color={SERIES[3]}
-              items={(data?.referrers ?? []).map((p) => ({ key: p.key, label: p.key, value: p.count }))}
-              empty="Sem tráfego vindo de outros sites."
-            />
-          </Card>
-        </div>
         <LiveStream />
       </div>
     </>

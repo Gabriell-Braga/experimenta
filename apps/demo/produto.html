@@ -17,7 +17,7 @@
       <p class="price">R$ 299</p>
       <button class="btn btn-primary" id="add-to-cart">Adicionar ao carrinho</button>
       <a href="/obrigado.html" class="btn">Finalizar compra</a>
-      <form id="checkout" class="checkout" action="/obrigado.html" method="get">
+      <form id="checkout" class="checkout" action="/obrigado.html" method="post">
         <h2>Entrega e pagamento</h2>
         <label>Nome completo <input name="nome" autocomplete="name" required /></label>
         <label>E-mail <input name="email" type="email" autocomplete="email" required /></label>
@@ -28,6 +28,13 @@
         <label><input type="checkbox" name="presente" /> É para presente</label>
         <button type="submit" class="btn btn-primary">Pagar R$ 299</button>
       </form>
+      <script>
+        // Dados do checkout nunca vão para a URL (ficariam em histórico, analytics e gravações).
+        document.getElementById('checkout').addEventListener('submit', (e) => {
+          e.preventDefault();
+          setTimeout(() => location.assign('/obrigado.html'), 0);
+        });
+      </script>
     </main>
   </body>
 </html>

@@ -29,7 +29,7 @@ import {
   BrainCircuit,
   Sparkles,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
 import { navigate } from './nav';
 import { Button, inputCls, Logo, Modal, useToast } from './ui';
@@ -229,14 +229,43 @@ function UserMenu({ user }: { user: Me }) {
   );
 }
 
+const NAV_CLOSED = 'abt.nav.closed';
+
 /** Moldura das telas (exceto o editor visual): menu lateral escuro + conteúdo sobre papel. */
 export function AppShell({ user, view, children }: { user: Me; view: string; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const activeGroup = NAV.find((g) => g.items.some((i) => i.view === view))?.label ?? null;
-  const [openGroup, setOpenGroup] = useState(activeGroup);
+  // Grupos recolhidos pelo usuário (lembrados neste navegador); o da tela atual sempre abre.
+  const [closed, setClosed] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(NAV_CLOSED) ?? '[]') as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggle = (label: string) =>
+    setClosed((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      try {
+        localStorage.setItem(NAV_CLOSED, JSON.stringify([...next]));
+      } catch {
+        /* sem armazenamento: só não lembra */
+      }
+      return next;
+    });
+  const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setMobileOpen(false);
-    setOpenGroup(activeGroup);
+    if (activeGroup)
+      setClosed((prev) =>
+        prev.has(activeGroup) ? new Set([...prev].filter((l) => l !== activeGroup)) : prev,
+      );
+    // Item ativo sempre à vista quando o menu rola.
+    requestAnimationFrame(() =>
+      scroller.current?.querySelector('[aria-current=page]')?.scrollIntoView({ block: 'nearest' }),
+    );
   }, [view, activeGroup]);
   const sidebar = (
     <nav className="flex h-full flex-col bg-ink text-white" aria-label="Módulos">
@@ -248,16 +277,15 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
           <X size={18} />
         </button>
       </div>
-      <div className="flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
+      <div ref={scroller} className="nav-scroll flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
         {NAV.map((g) => {
-          // Um grupo aberto por vez (o da tela atual): o menu cabe na tela sem rolar.
-          const open = g.items.length === 1 || g.label === openGroup;
+          const open = g.items.length === 1 || !closed.has(g.label);
           const hasActive = g.items.some((i) => i.view === view);
           return (
             <div key={g.label} data-nav-group={g.label}>
               {g.items.length > 1 && (
                 <button
-                  onClick={() => setOpenGroup(open ? null : g.label)}
+                  onClick={() => toggle(g.label)}
                   aria-expanded={open}
                   className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 font-mono text-[10px] tracking-[0.12em] uppercase hover:text-white/70 ${hasActive && !open ? 'text-lime' : 'text-white/35'}`}
                 >

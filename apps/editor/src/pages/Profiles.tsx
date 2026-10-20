@@ -8,12 +8,13 @@ import {
   EmptyState,
   fmt,
   inputCls,
+  LoadingBlock,
   PageHeader,
   Segmented,
-  Spinner,
+  Skeleton,
   Stat,
   timeAgo,
-  useToast,
+  useLoad,
 } from '../ui';
 import { PERIODS, type Period } from './Events';
 import { DEVICE_ICON } from './Recordings';
@@ -61,27 +62,28 @@ function Devices({ list }: { list: string[] }) {
 }
 
 export function ProfilesPage() {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
   const [q, setQ] = useState('');
+  const [dq, setDq] = useState('');
   const [kind, setKind] = useState<'all' | 'user' | 'anon'>('all');
-  const [data, setData] = useState<ProfilesResponse | null>(null);
   useEffect(() => {
     document.title = 'Perfis · Experimenta';
   }, []);
   useEffect(() => {
-    const t = setTimeout(
-      () =>
-        query<ProfilesResponse>('/profiles', {
-          days,
-          q: q || undefined,
-          kind: kind === 'all' ? undefined : kind,
-        }).then(setData, (e: Error) => toast('error', e.message)),
-      q ? 300 : 0,
-    );
+    const t = setTimeout(() => setDq(q), q ? 300 : 0);
     return () => clearTimeout(t);
-  }, [days, q, kind, toast]);
+  }, [q]);
+  const { data } = useLoad(
+    () =>
+      query<ProfilesResponse>('/profiles', {
+        days,
+        q: dq || undefined,
+        kind: kind === 'all' ? undefined : kind,
+      }),
+    [days, dq, kind],
+  );
   const cd = data?.crossDevice;
+  const sk = <Skeleton className="h-7 w-16" />;
   return (
     <>
       <PageHeader
@@ -91,22 +93,22 @@ export function ProfilesPage() {
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Perfis" value={fmt.int(data?.total ?? 0)} />
+        <Stat label="Perfis" value={data ? fmt.int(data.total) : sk} />
         <Stat
           label="Identificados"
-          value={fmt.int(data?.identified ?? 0)}
+          value={data ? fmt.int(data.identified) : sk}
           hint={data?.total ? fmt.pct((data.identified || 0) / data.total, 1) : undefined}
         />
         <Stat
           label="Usam 2+ dispositivos"
-          value={fmt.int(cd?.multiDevice ?? 0)}
+          value={cd ? fmt.int(cd.multiDevice) : sk}
           hint={
             cd?.identified ? `${fmt.pct(cd.multiDevice / cd.identified, 0)} dos identificados` : undefined
           }
         />
         <Stat
           label="Combinação mais comum"
-          value={<span className="text-base">{cd?.combos[0]?.devices ?? 'n/d'}</span>}
+          value={cd ? <span className="text-base">{cd.combos[0]?.devices ?? 'n/d'}</span> : sk}
         />
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -128,71 +130,74 @@ export function ProfilesPage() {
           ]}
         />
       </div>
-      <div className="mt-4 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
-        {!data ? (
-          <div className="grid place-items-center py-16 text-gray-400">
-            <Spinner />
-          </div>
-        ) : !data.profiles.length ? (
-          <EmptyState icon={<Fingerprint size={20} aria-hidden="true" />} title="Nenhum perfil encontrado" />
-        ) : (
-          <table className="w-full text-left text-sm" data-testid="profiles">
-            <thead className="border-b border-gray-900/10 bg-gray-50">
-              <tr className="label-mono">
-                <th className="px-4 py-2.5 font-medium">Perfil</th>
-                <th className="hidden px-4 py-2.5 font-medium md:table-cell">Dispositivos</th>
-                <th className="px-4 py-2.5 text-right font-medium">Sessões</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Conversões</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Receita</th>
-                <th className="px-4 py-2.5 text-right font-medium">Última visita</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-900/[0.06]">
-              {data.profiles.map((p) => (
-                <tr
-                  key={p.id}
-                  className="cursor-pointer hover:bg-lime-soft/40"
-                  onClick={() => navigate('profile', { id: p.id })}
-                  data-testid="profile-row"
-                >
-                  <td className="px-4 py-3">
-                    <span className="flex items-center gap-2.5">
-                      <span
-                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${p.kind === 'user' ? 'bg-ink text-lime' : 'bg-gray-100 text-gray-400'}`}
-                      >
-                        <UserRound size={15} aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium text-ink">{nameOf(p)}</span>
-                        <span className="block truncate font-mono text-[11px] text-gray-400">
-                          {Object.entries(p.attributes)
-                            .slice(0, 3)
-                            .map(([k, v]) => `${k}=${v}`)
-                            .join(' · ') ||
-                            `${p.visitors.length} visitante${p.visitors.length > 1 ? 's' : ''}`}
+      {!data ? (
+        <LoadingBlock className="mt-4" rows={8} />
+      ) : (
+        <div className="mt-4 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+          {!data.profiles.length ? (
+            <EmptyState
+              icon={<Fingerprint size={20} aria-hidden="true" />}
+              title="Nenhum perfil encontrado"
+            />
+          ) : (
+            <table className="w-full text-left text-sm" data-testid="profiles">
+              <thead className="border-b border-gray-900/10 bg-gray-50">
+                <tr className="label-mono">
+                  <th className="px-4 py-2.5 font-medium">Perfil</th>
+                  <th className="hidden px-4 py-2.5 font-medium md:table-cell">Dispositivos</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Sessões</th>
+                  <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Conversões</th>
+                  <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Receita</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Última visita</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-900/[0.06]">
+                {data.profiles.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="cursor-pointer hover:bg-lime-soft/40"
+                    onClick={() => navigate('profile', { id: p.id })}
+                    data-testid="profile-row"
+                  >
+                    <td className="px-4 py-3">
+                      <span className="flex items-center gap-2.5">
+                        <span
+                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-md ${p.kind === 'user' ? 'bg-ink text-lime' : 'bg-gray-100 text-gray-400'}`}
+                        >
+                          <UserRound size={15} aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-ink">{nameOf(p)}</span>
+                          <span className="block truncate font-mono text-[11px] text-gray-400">
+                            {Object.entries(p.attributes)
+                              .slice(0, 3)
+                              .map(([k, v]) => `${k}=${v}`)
+                              .join(' · ') ||
+                              `${p.visitors.length} visitante${p.visitors.length > 1 ? 's' : ''}`}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                  </td>
-                  <td className="hidden px-4 py-3 md:table-cell">
-                    <Devices list={p.devices} />
-                  </td>
-                  <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(p.sessions)}</td>
-                  <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                    {fmt.int(p.conversions)}
-                  </td>
-                  <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                    {p.revenue ? fmt.money(p.revenue) : 'n/d'}
-                  </td>
-                  <td className="px-4 py-3 text-right text-xs whitespace-nowrap text-gray-500">
-                    {timeAgo(new Date(p.lastSeen).toISOString())}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                    </td>
+                    <td className="hidden px-4 py-3 md:table-cell">
+                      <Devices list={p.devices} />
+                    </td>
+                    <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(p.sessions)}</td>
+                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
+                      {fmt.int(p.conversions)}
+                    </td>
+                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
+                      {p.revenue ? fmt.money(p.revenue) : 'n/d'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs whitespace-nowrap text-gray-500">
+                      {timeAgo(new Date(p.lastSeen).toISOString())}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </>
   );
 }
@@ -235,23 +240,14 @@ function describe(e: TrackingEvent): [string, string] {
 }
 
 export function ProfilePage({ id }: { id: string }) {
-  const toast = useToast();
-  const [d, setD] = useState<{
-    profile: Profile;
-    timeline: TrackingEvent[];
-    recordings: RecordingRow[];
-  } | null>(null);
-  useEffect(() => {
-    query<{ profile: Profile; timeline: TrackingEvent[]; recordings: RecordingRow[] }>(
-      `/profiles/${encodeURIComponent(id)}`,
-    ).then(setD, (e: Error) => toast('error', e.message));
-  }, [id, toast]);
-  if (!d)
-    return (
-      <div className="grid place-items-center py-24 text-gray-400">
-        <Spinner />
-      </div>
-    );
+  const { data: d } = useLoad(
+    () =>
+      query<{ profile: Profile; timeline: TrackingEvent[]; recordings: RecordingRow[] }>(
+        `/profiles/${encodeURIComponent(id)}`,
+      ),
+    [id],
+  );
+  if (!d) return <LoadingBlock stats={4} rows={8} />;
   const p = d.profile;
   return (
     <>

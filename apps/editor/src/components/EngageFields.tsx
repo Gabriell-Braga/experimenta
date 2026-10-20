@@ -1,8 +1,7 @@
 import type { Audience, Trigger, UrlRule } from '@abtest/shared';
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { entities, type Entity } from '../api';
-import { inputCls, selectCls } from '../ui';
+import { inputCls, selectCls, Skeleton, useLoad } from '../ui';
 
 /** Campos comuns de pop-ups e pesquisas: gatilho, frequência e segmentação (páginas, dispositivos, audiências). */
 export interface EngageCommon {
@@ -40,10 +39,10 @@ export function EngageFields<T extends EngageCommon>({
   value: T;
   onChange(v: NoInfer<T>): void;
 }) {
-  const [auds, setAuds] = useState<Entity<Audience>[]>([]);
-  useEffect(() => {
-    entities.list<Audience>('audience').then(setAuds, () => {});
-  }, []);
+  const { data: auds } = useLoad(
+    () => entities.list<Audience>('audience').catch((): Entity<Audience>[] => []),
+    [],
+  );
   const set = (p: Partial<EngageCommon>) => onChange({ ...value, ...p });
   const tg = value.targeting;
   const t = value.trigger;
@@ -196,7 +195,14 @@ export function EngageFields<T extends EngageCommon>({
           ))}
         </span>
       </fieldset>
-      {auds.length > 0 && (
+      {auds === null && (
+        <div className="space-y-1.5" aria-hidden="true">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+      )}
+      {!!auds?.length && (
         <fieldset>
           <legend className="label-mono mb-1">Audiências (todas precisam bater)</legend>
           {auds.map((a) => (

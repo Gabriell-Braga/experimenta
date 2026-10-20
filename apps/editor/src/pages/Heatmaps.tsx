@@ -6,7 +6,17 @@ import { HeatmapPanel, type HeatmapResult } from '../components/HeatmapPanel';
 import { DEVICE_WIDTH, type Device } from '../components/TopBar';
 import { connectAgent, type AgentPeer } from '../connection';
 import { navigate } from '../nav';
-import { Button, EmptyState, fmt, PageHeader, Segmented, Spinner, useToast } from '../ui';
+import {
+  Button,
+  EmptyState,
+  fmt,
+  LoadingBlock,
+  PageHeader,
+  Segmented,
+  Spinner,
+  useLoad,
+  useToast,
+} from '../ui';
 import { PERIODS, type Period } from './Events';
 
 export interface PageRow {
@@ -23,15 +33,11 @@ export interface PageRow {
 
 /** Lista de páginas com dados de comportamento (entrada do módulo Mapas de calor). */
 export function HeatmapsPage() {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
-  const [rows, setRows] = useState<PageRow[] | null>(null);
   useEffect(() => {
     document.title = 'Mapas de calor · Experimenta';
   }, []);
-  useEffect(() => {
-    query<PageRow[]>('/analytics/pages', { days }).then(setRows, (e: Error) => toast('error', e.message));
-  }, [days, toast]);
+  const { data: rows } = useLoad(() => query<PageRow[]>('/analytics/pages', { days }), [days]);
   const max = Math.max(1, ...(rows ?? []).map((r) => r.pageviews));
   return (
     <>
@@ -41,72 +47,71 @@ export function HeatmapsPage() {
         description="Cliques, scroll, movimento do mouse e cliques de frustração desenhados sobre o seu site real. Escolha uma página."
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
-      <div className="mt-6 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
-        {rows && !rows.length ? (
-          <EmptyState icon={<Flame size={20} aria-hidden="true" />} title="Nenhuma página com dados ainda">
-            A captura vale para a fração de visitantes definida em Configurações da conta. Publique e navegue
-            pelo site.
-          </EmptyState>
-        ) : (
-          <table className="w-full text-left text-sm" data-testid="pages-table">
-            <thead className="border-b border-gray-900/10 bg-gray-50">
-              <tr className="label-mono">
-                <th className="px-4 py-2.5 font-medium">Página</th>
-                <th className="px-4 py-2.5 text-right font-medium">Vistas</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">Visitantes</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Cliques</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium lg:table-cell">Rage / dead</th>
-                <th className="hidden px-4 py-2.5 text-right font-medium lg:table-cell">Scroll médio</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-900/[0.06]">
-              {(rows ?? []).map((r) => (
-                <tr
-                  key={r.page}
-                  className="group cursor-pointer hover:bg-lime-soft/40"
-                  onClick={() => navigate('heatmap', { url: r.href })}
-                  data-testid="page-row"
-                >
-                  <td className="max-w-md px-4 py-3">
-                    <span className="block truncate font-medium text-ink group-hover:underline decoration-lime decoration-2 underline-offset-4">
-                      {r.title || r.page.replace(/^https?:\/\/[^/]+/, '') || '/'}
-                    </span>
-                    <span className="block truncate font-mono text-[11px] text-gray-400">
-                      {r.page.replace(/^https?:\/\//, '')}
-                    </span>
-                    <span className="mt-1.5 block h-1 rounded-full bg-gray-100">
-                      <span
-                        className="block h-full rounded-full bg-brand-500"
-                        style={{ width: `${(r.pageviews / max) * 100}%` }}
-                      />
-                    </span>
-                  </td>
-                  <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(r.pageviews)}</td>
-                  <td className="tabular hidden px-4 py-3 text-right font-mono text-xs md:table-cell">
-                    {fmt.int(r.visitors)}
-                  </td>
-                  <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
-                    {fmt.int(r.clicks)}
-                  </td>
-                  <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
-                    <span className={r.rage + r.dead ? 'text-signal' : 'text-gray-400'}>
-                      {r.rage} / {r.dead}
-                    </span>
-                  </td>
-                  <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
-                    {r.avgScroll === null ? 'n/d' : `${r.avgScroll}%`}
-                  </td>
+      {rows === null ? (
+        <LoadingBlock className="mt-6" rows={6} />
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+          {!rows.length ? (
+            <EmptyState icon={<Flame size={20} aria-hidden="true" />} title="Nenhuma página com dados ainda">
+              A captura vale para a fração de visitantes definida em Configurações da conta. Publique e
+              navegue pelo site.
+            </EmptyState>
+          ) : (
+            <table className="w-full text-left text-sm" data-testid="pages-table">
+              <thead className="border-b border-gray-900/10 bg-gray-50">
+                <tr className="label-mono">
+                  <th className="px-4 py-2.5 font-medium">Página</th>
+                  <th className="px-4 py-2.5 text-right font-medium">Vistas</th>
+                  <th className="hidden px-4 py-2.5 text-right font-medium md:table-cell">Visitantes</th>
+                  <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Cliques</th>
+                  <th className="hidden px-4 py-2.5 text-right font-medium lg:table-cell">Rage / dead</th>
+                  <th className="hidden px-4 py-2.5 text-right font-medium lg:table-cell">Scroll médio</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {rows === null && (
-          <div className="grid place-items-center py-16 text-gray-400">
-            <Spinner />
-          </div>
-        )}
-      </div>
+              </thead>
+              <tbody className="divide-y divide-gray-900/[0.06]">
+                {rows.map((r) => (
+                  <tr
+                    key={r.page}
+                    className="group cursor-pointer hover:bg-lime-soft/40"
+                    onClick={() => navigate('heatmap', { url: r.href })}
+                    data-testid="page-row"
+                  >
+                    <td className="max-w-md px-4 py-3">
+                      <span className="block truncate font-medium text-ink group-hover:underline decoration-lime decoration-2 underline-offset-4">
+                        {r.title || r.page.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                      </span>
+                      <span className="block truncate font-mono text-[11px] text-gray-400">
+                        {r.page.replace(/^https?:\/\//, '')}
+                      </span>
+                      <span className="mt-1.5 block h-1 rounded-full bg-gray-100">
+                        <span
+                          className="block h-full rounded-full bg-brand-500"
+                          style={{ width: `${(r.pageviews / max) * 100}%` }}
+                        />
+                      </span>
+                    </td>
+                    <td className="tabular px-4 py-3 text-right font-mono text-xs">{fmt.int(r.pageviews)}</td>
+                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs md:table-cell">
+                      {fmt.int(r.visitors)}
+                    </td>
+                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs sm:table-cell">
+                      {fmt.int(r.clicks)}
+                    </td>
+                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
+                      <span className={r.rage + r.dead ? 'text-signal' : 'text-gray-400'}>
+                        {r.rage} / {r.dead}
+                      </span>
+                    </td>
+                    <td className="tabular hidden px-4 py-3 text-right font-mono text-xs lg:table-cell">
+                      {r.avgScroll === null ? 'n/d' : `${r.avgScroll}%`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </>
   );
 }

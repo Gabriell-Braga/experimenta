@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { listVersions, restoreVersion, type VersionInfo } from '../api';
+import { useState } from 'react';
+import { listVersions, restoreVersion } from '../api';
+import { Skeleton, useLoad } from '../ui';
 
 interface Props {
   experimentId: string;
@@ -11,15 +12,20 @@ interface Props {
 
 /** Cada salvamento é uma versão; restaurar grava a escolhida como nova versão (nada se perde). */
 export function VersionsPanel({ experimentId, dirty, onRestored }: Props) {
-  const [items, setItems] = useState<VersionInfo[] | null>(null);
+  const { data: items, error: loadError } = useLoad(() => listVersions(experimentId), [experimentId]);
   const [confirm, setConfirm] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    listVersions(experimentId).then(setItems, (e: Error) => setError(e.message));
-  }, [experimentId]);
 
-  if (error) return <p className="p-3 text-sm text-red-600">{error}</p>;
-  if (!items) return <p className="p-3 text-sm text-gray-500">Carregando…</p>;
+  const err = error ?? loadError?.message;
+  if (err) return <p className="p-3 text-sm text-red-600">{err}</p>;
+  if (!items)
+    return (
+      <div className="space-y-2 p-3" role="status" aria-label="Carregando" data-testid="loading">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    );
   return (
     <div className="text-sm" data-testid="versions">
       {dirty && (

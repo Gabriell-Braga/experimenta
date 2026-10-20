@@ -1,6 +1,6 @@
 import type { Audience, AudienceRule } from '@abtest/shared';
 import { Pencil, Plus, Trash2, Users, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { entities, type Entity, type Me } from '../api';
 import {
   Button,
@@ -11,7 +11,8 @@ import {
   PageHeader,
   Segmented,
   selectCls,
-  Spinner,
+  Skeleton,
+  useLoad,
   useToast,
 } from '../ui';
 
@@ -503,18 +504,12 @@ export function describeRule(r: AudienceRule): string {
 }
 
 export function AudiencesPage({ user }: { user: Me }) {
-  const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<Audience>[] | null>(null);
   const [editing, setEditing] = useState<Entity<Audience> | null | 'new'>(null);
-  const load = useCallback(
-    () => entities.list<Audience>('audience').then(setList, (e: Error) => toast('error', e.message)),
-    [toast],
-  );
+  const { data: list, reload: load } = useLoad(() => entities.list<Audience>('audience'), []);
   useEffect(() => {
     document.title = 'Audiências · Experimenta';
-    void load();
-  }, [load]);
+  }, []);
   return (
     <>
       <PageHeader
@@ -531,8 +526,15 @@ export function AudiencesPage({ user }: { user: Me }) {
       />
       <div className="mt-6">
         {list === null ? (
-          <div className="grid place-items-center py-24 text-gray-400">
-            <Spinner />
+          <div
+            className="grid gap-3 md:grid-cols-2"
+            role="status"
+            aria-label="Carregando"
+            data-testid="loading"
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
           </div>
         ) : !list.length ? (
           <EmptyState icon={<Users size={20} aria-hidden="true" />} title="Nenhuma audiência ainda">
@@ -560,7 +562,7 @@ export function AudiencesPage({ user }: { user: Me }) {
                         aria-label="Excluir"
                         onClick={async () => {
                           await entities.remove('audience', a.id);
-                          void load();
+                          load();
                         }}
                       >
                         <Trash2 size={14} />
@@ -587,7 +589,7 @@ export function AudiencesPage({ user }: { user: Me }) {
         open={editing !== null}
         initial={editing === 'new' ? null : editing}
         onClose={() => setEditing(null)}
-        onSaved={() => void load()}
+        onSaved={() => load()}
       />
     </>
   );

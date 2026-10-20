@@ -1,8 +1,8 @@
 import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react';
 import type { Operation, Variation } from '@abtest/shared';
-import { useCallback, useEffect, useState } from 'react';
-import { getHealth, type Health } from '../api';
+import { getHealth } from '../api';
 import { describeOperation } from '../describe';
+import { Skeleton, useLoad } from '../ui';
 
 interface Props {
   experimentId: string;
@@ -16,15 +16,17 @@ const pct = (n: number, total: number) => (total ? `${Math.round((n / total) * 1
 
 /** Saúde dos seletores em produção (eventos selector_failed / selector_healed enviados pelo snippet). */
 export function HealthPanel({ experimentId, variation, onAdopt, onHighlight }: Props) {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const load = useCallback(() => {
-    getHealth(experimentId).then(setHealth, (e: Error) => setError(e.message));
-  }, [experimentId]);
-  useEffect(load, [load]);
+  const { data: health, error, reload } = useLoad(() => getHealth(experimentId), [experimentId]);
 
-  if (error) return <p className="p-3 text-sm text-red-600">{error}</p>;
-  if (!health) return <p className="p-3 text-sm text-gray-500">Carregando…</p>;
+  if (error) return <p className="p-3 text-sm text-red-600">{error.message}</p>;
+  if (!health)
+    return (
+      <div className="space-y-2 p-3" role="status" aria-label="Carregando" data-testid="loading">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    );
 
   const exposures = health.exposures[variation.id] ?? 0;
   const byOp = new Map(
@@ -41,7 +43,7 @@ export function HealthPanel({ experimentId, variation, onAdopt, onHighlight }: P
             {problems.length ? `${problems.length} alteração(ões) com problema` : 'todas as alterações OK'}
           </span>
         </span>
-        <button onClick={load} className="text-xs text-orange-600" data-testid="health-refresh">
+        <button onClick={reload} className="text-xs text-orange-600" data-testid="health-refresh">
           Atualizar
         </button>
       </div>

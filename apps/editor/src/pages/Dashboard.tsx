@@ -9,10 +9,10 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { getDashboard, type Dashboard, type Insight } from '../api';
+import { getDashboard, type Insight } from '../api';
 import { LineChart, SERIES } from '../charts';
 import { navigate } from '../nav';
-import { Card, EmptyState, fmt, PageHeader, Segmented, Stat, useToast } from '../ui';
+import { Card, EmptyState, fmt, LoadingBlock, PageHeader, Segmented, Skeleton, Stat, useLoad } from '../ui';
 import { PERIODS, shortDay, type Period } from './Events';
 import { VerdictTag } from './Report';
 
@@ -105,15 +105,11 @@ const Big = ({ children }: { children: ReactNode }) => (
 );
 
 export function DashboardPage() {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
-  const [d, setD] = useState<Dashboard | null>(null);
   useEffect(() => {
     document.title = 'Painel · Experimenta';
   }, []);
-  useEffect(() => {
-    getDashboard(Number(days)).then(setD, (e: Error) => toast('error', e.message));
-  }, [days, toast]);
+  const { data: d } = useLoad(() => getDashboard(Number(days)), [days]);
   const t = d?.traffic;
   return (
     <>
@@ -123,141 +119,162 @@ export function DashboardPage() {
         description="O pulso da conta: tráfego, testes no ar e o que cada módulo encontrou no período."
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
-      <div className={`mt-6 space-y-5 transition-opacity ${d ? '' : 'opacity-50'}`} data-testid="dashboard">
-        <Card title={`Insights automáticos${d?.insights.length ? ` (${d.insights.length})` : ''}`}>
-          {d && <Insights list={d.insights} />}
-        </Card>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Stat
-            label="Visitantes"
-            value={fmt.int(t?.visitors ?? 0)}
-            hint={t && <Delta d={t.deltas.visitors} />}
-          />
-          <Stat
-            label="Sessões"
-            value={fmt.int(t?.sessions ?? 0)}
-            hint={t && <Delta d={t.deltas.sessions} />}
-          />
-          <Stat
-            label="Páginas vistas"
-            value={fmt.int(t?.pageviews ?? 0)}
-            hint={t && <Delta d={t.deltas.pageviews} />}
-          />
-          <Stat
-            label="Conversões em testes"
-            value={fmt.int(t?.conversions ?? 0)}
-            hint={t && <Delta d={t.deltas.conversions} />}
-          />
-          <Stat
-            label="Receita"
-            value={fmt.money(t?.revenue ?? 0)}
-            hint={t && <Delta d={t.deltas.revenue} />}
-          />
-        </div>
-
-        <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          <Card title="Visitantes por dia">
-            <LineChart
-              area
-              labels={(t?.series ?? []).map((x) => shortDay(x.day))}
-              series={[
-                { name: 'Visitantes', color: SERIES[0]!, values: (t?.series ?? []).map((x) => x.visitors) },
-              ]}
-            />
-          </Card>
-          <Card title={`Testes no ar (${d?.experiments.length ?? 0})`}>
-            {d && !d.experiments.length ? (
-              <EmptyState icon={<FlaskConical size={20} aria-hidden="true" />} title="Nenhum teste rodando">
-                Crie um experimento e publique para ver o líder aqui.
-              </EmptyState>
-            ) : (
-              <ul className="divide-y divide-gray-900/[0.06]" data-testid="dashboard-experiments">
-                {d?.experiments.map((x) => (
-                  <li key={x.id}>
-                    <button
-                      onClick={() => navigate('report', { id: x.id })}
-                      className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-paper/60"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-ink">{x.name}</span>
-                        <span className="block text-xs text-gray-500">
-                          {fmt.int(x.visitors)} visitantes
-                          {x.leader?.lift != null &&
-                            ` · ${x.leader.name} ${x.leader.lift >= 0 ? '+' : ''}${fmt.pct(x.leader.lift)}`}
-                          {x.daysRemaining != null &&
-                            x.daysRemaining > 0 &&
-                            x.leader?.verdict !== 'winner' &&
-                            ` · ~${x.daysRemaining} d restantes`}
-                        </span>
-                      </span>
-                      {x.srm && (
-                        <span className="rounded-sm bg-signal/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-signal uppercase">
-                          SRM
-                        </span>
-                      )}
-                      {x.leader && <VerdictTag v={x.leader.verdict} />}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Module title="Frustração" view="heatmaps">
-            <Big>{fmt.int((d?.behavior.rage ?? 0) + (d?.behavior.dead ?? 0))}</Big>
-            <p>
-              {fmt.int(d?.behavior.rage ?? 0)} rage · {fmt.int(d?.behavior.dead ?? 0)} dead clicks
-            </p>
-            {d?.behavior.worstPage && (
-              <p className="truncate font-mono text-[11px]" title={d.behavior.worstPage}>
-                pior: {d.behavior.worstPage.replace(/^https?:\/\/[^/]+/, '') || '/'}
-              </p>
-            )}
-          </Module>
-          <Module title="Scroll médio" view="heatmaps">
-            <Big>{d?.behavior.avgScroll != null ? `${d.behavior.avgScroll}%` : 'n/d'}</Big>
-            <p>da página, média entre páginas</p>
-          </Module>
-          <Module title="Formulários" view="forms">
-            <Big>{d?.forms.completion != null ? fmt.pct(d.forms.completion, 0) : 'n/d'}</Big>
-            <p>
-              concluem · {fmt.int(d?.forms.submitted ?? 0)} de {fmt.int(d?.forms.interacted ?? 0)} que
-              começaram
-            </p>
-          </Module>
-          <Module title="Pop-ups e pesquisas" view="popups">
-            <Big>{fmt.int(d?.engage.views ?? 0)}</Big>
-            <p>
-              exibições · {fmt.int(d?.engage.clicks ?? 0)} cliques · {fmt.int(d?.engage.surveyResponses ?? 0)}{' '}
-              respostas
-            </p>
-          </Module>
-          <Module title="Perfis identificados" view="profiles">
-            <Big>{fmt.int(d?.profiles.identified ?? 0)}</Big>
-            <p>{fmt.int(d?.profiles.multiDevice ?? 0)} em mais de um dispositivo</p>
-          </Module>
-          <Module title="Dispositivos" view="events">
-            {Object.entries(t?.devices ?? {})
-              .sort((a, b) => b[1] - a[1])
-              .map(([k, v]) => (
-                <p key={k} className="flex justify-between">
-                  <span>{{ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Celular' }[k] ?? k}</span>
-                  <span className="tabular font-mono text-xs">
-                    {t?.pageviews ? fmt.pct(v / t.pageviews, 0) : 'n/d'}
-                  </span>
-                </p>
+      <div className="mt-6 space-y-5" data-testid="dashboard">
+        {!d ? (
+          <>
+            <LoadingBlock rows={3} />
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              {['Visitantes', 'Sessões', 'Páginas vistas', 'Conversões em testes', 'Receita'].map((l) => (
+                <Stat key={l} label={l} value={<Skeleton className="h-7 w-16" />} />
               ))}
-            {!Object.keys(t?.devices ?? {}).length && <Big>n/d</Big>}
-          </Module>
-          <Module title="Eventos" view="events">
-            <Big>{fmt.int(t?.events ?? 0)}</Big>
-            <p className="flex items-center gap-1">
-              <Activity size={12} aria-hidden="true" /> eventos customizados
-            </p>
-          </Module>
-        </div>
+            </div>
+            <LoadingBlock rows={6} />
+          </>
+        ) : (
+          <>
+            <Card title={`Insights automáticos${d?.insights.length ? ` (${d.insights.length})` : ''}`}>
+              {d && <Insights list={d.insights} />}
+            </Card>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <Stat
+                label="Visitantes"
+                value={fmt.int(t?.visitors ?? 0)}
+                hint={t && <Delta d={t.deltas.visitors} />}
+              />
+              <Stat
+                label="Sessões"
+                value={fmt.int(t?.sessions ?? 0)}
+                hint={t && <Delta d={t.deltas.sessions} />}
+              />
+              <Stat
+                label="Páginas vistas"
+                value={fmt.int(t?.pageviews ?? 0)}
+                hint={t && <Delta d={t.deltas.pageviews} />}
+              />
+              <Stat
+                label="Conversões em testes"
+                value={fmt.int(t?.conversions ?? 0)}
+                hint={t && <Delta d={t.deltas.conversions} />}
+              />
+              <Stat
+                label="Receita"
+                value={fmt.money(t?.revenue ?? 0)}
+                hint={t && <Delta d={t.deltas.revenue} />}
+              />
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+              <Card title="Visitantes por dia">
+                <LineChart
+                  area
+                  labels={(t?.series ?? []).map((x) => shortDay(x.day))}
+                  series={[
+                    {
+                      name: 'Visitantes',
+                      color: SERIES[0]!,
+                      values: (t?.series ?? []).map((x) => x.visitors),
+                    },
+                  ]}
+                />
+              </Card>
+              <Card title={`Testes no ar (${d?.experiments.length ?? 0})`}>
+                {d && !d.experiments.length ? (
+                  <EmptyState
+                    icon={<FlaskConical size={20} aria-hidden="true" />}
+                    title="Nenhum teste rodando"
+                  >
+                    Crie um experimento e publique para ver o líder aqui.
+                  </EmptyState>
+                ) : (
+                  <ul className="divide-y divide-gray-900/[0.06]" data-testid="dashboard-experiments">
+                    {d?.experiments.map((x) => (
+                      <li key={x.id}>
+                        <button
+                          onClick={() => navigate('report', { id: x.id })}
+                          className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-paper/60"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-ink">{x.name}</span>
+                            <span className="block text-xs text-gray-500">
+                              {fmt.int(x.visitors)} visitantes
+                              {x.leader?.lift != null &&
+                                ` · ${x.leader.name} ${x.leader.lift >= 0 ? '+' : ''}${fmt.pct(x.leader.lift)}`}
+                              {x.daysRemaining != null &&
+                                x.daysRemaining > 0 &&
+                                x.leader?.verdict !== 'winner' &&
+                                ` · ~${x.daysRemaining} d restantes`}
+                            </span>
+                          </span>
+                          {x.srm && (
+                            <span className="rounded-sm bg-signal/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-signal uppercase">
+                              SRM
+                            </span>
+                          )}
+                          {x.leader && <VerdictTag v={x.leader.verdict} />}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <Module title="Frustração" view="heatmaps">
+                <Big>{fmt.int((d?.behavior.rage ?? 0) + (d?.behavior.dead ?? 0))}</Big>
+                <p>
+                  {fmt.int(d?.behavior.rage ?? 0)} rage · {fmt.int(d?.behavior.dead ?? 0)} dead clicks
+                </p>
+                {d?.behavior.worstPage && (
+                  <p className="truncate font-mono text-[11px]" title={d.behavior.worstPage}>
+                    pior: {d.behavior.worstPage.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                  </p>
+                )}
+              </Module>
+              <Module title="Scroll médio" view="heatmaps">
+                <Big>{d?.behavior.avgScroll != null ? `${d.behavior.avgScroll}%` : 'n/d'}</Big>
+                <p>da página, média entre páginas</p>
+              </Module>
+              <Module title="Formulários" view="forms">
+                <Big>{d?.forms.completion != null ? fmt.pct(d.forms.completion, 0) : 'n/d'}</Big>
+                <p>
+                  concluem · {fmt.int(d?.forms.submitted ?? 0)} de {fmt.int(d?.forms.interacted ?? 0)} que
+                  começaram
+                </p>
+              </Module>
+              <Module title="Pop-ups e pesquisas" view="popups">
+                <Big>{fmt.int(d?.engage.views ?? 0)}</Big>
+                <p>
+                  exibições · {fmt.int(d?.engage.clicks ?? 0)} cliques ·{' '}
+                  {fmt.int(d?.engage.surveyResponses ?? 0)} respostas
+                </p>
+              </Module>
+              <Module title="Perfis identificados" view="profiles">
+                <Big>{fmt.int(d?.profiles.identified ?? 0)}</Big>
+                <p>{fmt.int(d?.profiles.multiDevice ?? 0)} em mais de um dispositivo</p>
+              </Module>
+              <Module title="Dispositivos" view="events">
+                {Object.entries(t?.devices ?? {})
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([k, v]) => (
+                    <p key={k} className="flex justify-between">
+                      <span>{{ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Celular' }[k] ?? k}</span>
+                      <span className="tabular font-mono text-xs">
+                        {t?.pageviews ? fmt.pct(v / t.pageviews, 0) : 'n/d'}
+                      </span>
+                    </p>
+                  ))}
+                {!Object.keys(t?.devices ?? {}).length && <Big>n/d</Big>}
+              </Module>
+              <Module title="Eventos" view="events">
+                <Big>{fmt.int(t?.events ?? 0)}</Big>
+                <p className="flex items-center gap-1">
+                  <Activity size={12} aria-hidden="true" /> eventos customizados
+                </p>
+              </Module>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

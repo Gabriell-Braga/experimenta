@@ -1,6 +1,6 @@
 import type { Funnel, FunnelStep } from '@abtest/shared';
 import { ArrowDown, Filter, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { entities, query, type Entity, type Me } from '../api';
 import { SERIES } from '../charts';
 import {
@@ -11,9 +11,11 @@ import {
   inputCls,
   Modal,
   PageHeader,
+  LoadingBlock,
   Segmented,
   selectCls,
-  Spinner,
+  Skeleton,
+  useLoad,
   useToast,
 } from '../ui';
 import { PERIODS, type Period } from './Events';
@@ -218,36 +220,28 @@ export function FunnelEditor({
 }
 
 export function FunnelsPage({ user }: { user: Me }) {
-  const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<Funnel>[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [days, setDays] = useState<Period>('30');
   const [device, setDevice] = useState('');
-  const [report, setReport] = useState<FunnelReport | null>(null);
   const [editing, setEditing] = useState<Entity<Funnel> | null | 'new'>(null);
-  const load = useCallback(
-    (select?: string) =>
-      entities.list<Funnel>('funnel').then(
-        (l) => {
-          setList(l);
-          setSel((s) => select ?? s ?? l[0]?.id ?? null);
-        },
-        (e: Error) => toast('error', e.message),
-      ),
-    [toast],
-  );
+  const { data: list, reload } = useLoad(() => entities.list<Funnel>('funnel'), []);
   useEffect(() => {
     document.title = 'Funis · Experimenta';
-    void load();
-  }, [load]);
+  }, []);
   useEffect(() => {
-    if (!sel) return setReport(null);
-    query<FunnelReport>(`/analytics/funnel/${encodeURIComponent(sel)}`, {
-      days,
-      device: device || undefined,
-    }).then(setReport, (e: Error) => toast('error', e.message));
-  }, [sel, days, device, toast]);
+    if (list) setSel((s) => s ?? list[0]?.id ?? null);
+  }, [list]);
+  const { data: report, reload: reloadReport } = useLoad(
+    () =>
+      sel
+        ? query<FunnelReport>(`/analytics/funnel/${encodeURIComponent(sel)}`, {
+            days,
+            device: device || undefined,
+          })
+        : null,
+    [sel, days, device],
+  );
   const current = list?.find((f) => f.id === sel) ?? null;
   const max = Math.max(1, report?.steps[0]?.visitors ?? 1);
 
@@ -266,8 +260,13 @@ export function FunnelsPage({ user }: { user: Me }) {
         }
       />
       {list === null ? (
-        <div className="grid place-items-center py-24 text-gray-400">
-          <Spinner />
+        <div className="mt-6 grid gap-5 lg:grid-cols-[240px_1fr]">
+          <div className="space-y-1.5">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+          <LoadingBlock stats={3} rows={4} />
         </div>
       ) : !list.length ? (
         <div className="mt-6">
@@ -329,7 +328,7 @@ export function FunnelsPage({ user }: { user: Me }) {
                     onClick={async () => {
                       await entities.remove('funnel', current.id);
                       setSel(null);
-                      void load();
+                      reload();
                     }}
                   >
                     <Trash2 size={14} />
@@ -337,7 +336,9 @@ export function FunnelsPage({ user }: { user: Me }) {
                 </>
               )}
             </div>
-            {report && (
+            {!report ? (
+              sel && <LoadingBlock stats={3} rows={4} />
+            ) : (
               <Card title={report.name}>
                 <div className="mb-5 flex flex-wrap gap-6">
                   <div>
@@ -413,7 +414,11 @@ export function FunnelsPage({ user }: { user: Me }) {
         open={editing !== null}
         initial={editing === 'new' ? null : editing}
         onClose={() => setEditing(null)}
-        onSaved={(id) => void load(id)}
+        onSaved={(id) => {
+          if (id === sel) reloadReport();
+          setSel(id);
+          reload();
+        }}
       />
     </>
   );

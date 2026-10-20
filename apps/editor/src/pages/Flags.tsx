@@ -1,6 +1,6 @@
 import { FlagSchema, type Flag } from '@abtest/shared';
 import { Flag as FlagIcon, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { API_URL, entities, publish, type Entity, type Me } from '../api';
 import {
   Button,
@@ -9,8 +9,9 @@ import {
   inputCls,
   Modal,
   PageHeader,
+  LoadingBlock,
   selectCls,
-  Spinner,
+  useLoad,
   usePending,
   useToast,
 } from '../ui';
@@ -223,21 +224,16 @@ function FlagEditor({
 export function FlagsPage({ user }: { user: Me }) {
   const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<Flag>[] | null>(null);
   const [editing, setEditing] = useState<Entity<Flag> | null | 'new'>(null);
-  const load = useCallback(
-    () => entities.list<Flag>('flag').then(setList, (e: Error) => toast('error', e.message)),
-    [toast],
-  );
+  const { data: list, reload: load } = useLoad(() => entities.list<Flag>('flag'), []);
   useEffect(() => {
     document.title = 'Feature flags · Experimenta';
-    void load();
-  }, [load]);
+  }, []);
   const patch = async (e: Entity<Flag>, p: Partial<Flag>) => {
     try {
       await entities.save('flag', { id: e.id, name: e.name, data: { ...e.data, ...p } });
       await publish();
-      void load();
+      load();
     } catch (err) {
       toast('error', (err as Error).message);
     }
@@ -271,9 +267,7 @@ abt.track('compra', usuario.id, { value: 199.9 });`;
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_380px]">
         <div>
           {list === null ? (
-            <div className="grid place-items-center py-24 text-gray-400">
-              <Spinner />
-            </div>
+            <LoadingBlock rows={4} />
           ) : !list.length ? (
             <EmptyState icon={<FlagIcon size={20} aria-hidden="true" />} title="Nenhuma flag ainda">
               Ex.: <code className="font-mono">novo-checkout</code> ligada para 10% e para o plano pro.
@@ -320,7 +314,7 @@ abt.track('compra', usuario.id, { value: 199.9 });`;
                         onClick={async () => {
                           await entities.remove('flag', e.id);
                           await publish().catch(() => {});
-                          void load();
+                          load();
                         }}
                       >
                         <Trash2 size={14} />
@@ -346,7 +340,7 @@ abt.track('compra', usuario.id, { value: 199.9 });`;
         open={editing !== null}
         initial={editing === 'new' ? null : editing}
         onClose={() => setEditing(null)}
-        onSaved={() => void load()}
+        onSaved={() => load()}
       />
     </>
   );

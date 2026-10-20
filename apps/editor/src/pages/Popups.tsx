@@ -1,7 +1,7 @@
 import { renderPopup } from '@abtest/engage';
 import { PopupSchema, type Popup } from '@abtest/shared';
 import { Megaphone, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { entities, publish, query, type Entity, type Me } from '../api';
 import { EngageFields, TRIGGER_LABEL } from '../components/EngageFields';
 import {
@@ -12,9 +12,10 @@ import {
   Modal,
   PageHeader,
   Segmented,
+  LoadingBlock,
   selectCls,
-  Spinner,
   StatusBadge,
+  useLoad,
   useToast,
 } from '../ui';
 
@@ -254,20 +255,20 @@ function PopupEditor({
 export function PopupsPage({ user }: { user: Me }) {
   const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<Popup>[] | null>(null);
-  const [stats, setStats] = useState<Record<string, EngageStats>>({});
   const [editing, setEditing] = useState<Entity<Popup> | null | 'new'>(null);
-  const load = useCallback(() => {
-    entities.list<Popup>('popup').then(setList, (e: Error) => toast('error', e.message));
-    query<EngageStats[]>('/analytics/engage', { days: 30 }).then(
-      (l) => setStats(Object.fromEntries(l.map((s) => [s.campaignId, s]))),
-      () => {},
-    );
-  }, [toast]);
+  const { data: list, reload: reloadList } = useLoad(() => entities.list<Popup>('popup'), []);
+  const { data: statsList, reload: reloadStats } = useLoad(
+    () => query<EngageStats[]>('/analytics/engage', { days: 30 }).catch(() => []),
+    [],
+  );
+  const stats = Object.fromEntries((statsList ?? []).map((s) => [s.campaignId, s]));
+  const load = () => {
+    reloadList();
+    reloadStats();
+  };
   useEffect(() => {
     document.title = 'Pop-ups · Experimenta';
-    load();
-  }, [load]);
+  }, []);
   const toggle = async (e: Entity<Popup>) => {
     try {
       await entities.save('popup', {
@@ -297,10 +298,8 @@ export function PopupsPage({ user }: { user: Me }) {
         }
       />
       <div className="mt-6">
-        {list === null ? (
-          <div className="grid place-items-center py-24 text-gray-400">
-            <Spinner />
-          </div>
+        {list === null || statsList === null ? (
+          <LoadingBlock rows={4} />
         ) : !list.length ? (
           <EmptyState icon={<Megaphone size={20} aria-hidden="true" />} title="Nenhum pop-up ainda">
             Comece por um cupom na intenção de saída: costuma recuperar parte de quem ia embora.

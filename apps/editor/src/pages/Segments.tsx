@@ -1,6 +1,6 @@
 import type { Segment, SegmentRule } from '@abtest/shared';
 import { Boxes, Download, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { API_URL, downloadFile, entities, query, type Entity, type Me } from '../api';
 import { navigate } from '../nav';
 import {
@@ -9,12 +9,14 @@ import {
   EmptyState,
   fmt,
   inputCls,
+  LoadingBlock,
   Modal,
   PageHeader,
   Segmented,
   selectCls,
-  Spinner,
+  Skeleton,
   timeAgo,
+  useLoad,
   useToast,
 } from '../ui';
 
@@ -267,34 +269,20 @@ interface Members {
 }
 
 export function SegmentsPage({ user }: { user: Me }) {
-  const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<Segment>[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
-  const [members, setMembers] = useState<Members | null>(null);
   const [editing, setEditing] = useState<Entity<Segment> | null | 'new'>(null);
-  const load = useCallback(
-    (select?: string) =>
-      entities.list<Segment>('segment').then(
-        (l) => {
-          setList(l);
-          setSel((s) => select ?? s ?? l[0]?.id ?? null);
-        },
-        (e: Error) => toast('error', e.message),
-      ),
-    [toast],
-  );
+  const { data: list, reload } = useLoad(() => entities.list<Segment>('segment'), []);
   useEffect(() => {
     document.title = 'Segmentos · Experimenta';
-    void load();
-  }, [load]);
+  }, []);
   useEffect(() => {
-    setMembers(null);
-    if (sel)
-      query<Members>(`/profiles/segments/${encodeURIComponent(sel)}`).then(setMembers, (e: Error) =>
-        toast('error', e.message),
-      );
-  }, [sel, toast]);
+    if (list) setSel((s) => s ?? list[0]?.id ?? null);
+  }, [list]);
+  const { data: members, reload: reloadMembers } = useLoad(
+    () => (sel ? query<Members>(`/profiles/segments/${encodeURIComponent(sel)}`) : null),
+    [sel],
+  );
   const current = list?.find((s) => s.id === sel);
   return (
     <>
@@ -311,8 +299,13 @@ export function SegmentsPage({ user }: { user: Me }) {
         }
       />
       {list === null ? (
-        <div className="grid place-items-center py-24 text-gray-400">
-          <Spinner />
+        <div className="mt-6 grid gap-5 lg:grid-cols-[240px_1fr]">
+          <div className="space-y-1.5">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+          <LoadingBlock rows={6} />
         </div>
       ) : !list.length ? (
         <div className="mt-6">
@@ -379,7 +372,7 @@ export function SegmentsPage({ user }: { user: Me }) {
                           onClick={async () => {
                             await entities.remove('segment', current.id);
                             setSel(null);
-                            void load();
+                            reload();
                           }}
                         >
                           <Trash2 size={14} />
@@ -391,9 +384,15 @@ export function SegmentsPage({ user }: { user: Me }) {
                 pad={false}
               >
                 {!members ? (
-                  <div className="grid place-items-center py-10 text-gray-400">
-                    <Spinner />
-                  </div>
+                  <ul role="status" aria-label="Carregando" className="divide-y divide-gray-900/[0.05]">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <li key={i} className="flex items-center gap-3 px-4 py-2.5">
+                        <Skeleton className="h-3.5 w-1/3" />
+                        <Skeleton className="ml-auto h-3 w-16" />
+                        <Skeleton className="h-3 w-20" />
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   <ul className="max-h-[420px] divide-y divide-gray-900/[0.05] overflow-y-auto">
                     {members.profiles.map((p) => (
@@ -445,7 +444,11 @@ Authorization: Bearer <chave de API>
         open={editing !== null}
         initial={editing === 'new' ? null : editing}
         onClose={() => setEditing(null)}
-        onSaved={(id) => void load(id)}
+        onSaved={(id) => {
+          if (id === sel) reloadMembers();
+          setSel(id);
+          reload();
+        }}
       />
     </>
   );

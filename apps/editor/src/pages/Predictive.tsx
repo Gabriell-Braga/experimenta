@@ -1,7 +1,7 @@
 import type { PropensityConfig } from '@abtest/shared';
 import { BrainCircuit } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { entities, getOverview, getPredictive, trainPredictive, type Me, type Predictive } from '../api';
+import { useEffect, useState } from 'react';
+import { entities, getOverview, getPredictive, trainPredictive, type Me } from '../api';
 import { BarList } from '../charts';
 import { navigate } from '../nav';
 import {
@@ -10,11 +10,12 @@ import {
   EmptyState,
   fmt,
   inputCls,
+  LoadingBlock,
   PageHeader,
   selectCls,
-  Spinner,
   Stat,
   timeAgo,
+  useLoad,
   useToast,
 } from '../ui';
 
@@ -24,39 +25,30 @@ const aucLabel = (a: number) => (a >= 0.8 ? 'ótimo' : a >= 0.7 ? 'bom' : a >= 0
 export function PredictivePage({ user }: { user: Me }) {
   const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [data, setData] = useState<Predictive | null>(null);
+  const { data, reload } = useLoad(getPredictive, []);
   const [events, setEvents] = useState<string[]>([]);
   const [cfg, setCfg] = useState<PropensityConfig>({ goal: '', horizonDays: 7, enabled: true });
   const [busy, setBusy] = useState(false);
-  const load = useCallback(
-    () =>
-      getPredictive().then(
-        (d) => {
-          setData(d);
-          if (d.config) setCfg(d.config.data);
-        },
-        (e: Error) => toast('error', e.message),
-      ),
-    [toast],
-  );
+  useEffect(() => {
+    if (data?.config) setCfg(data.config.data);
+  }, [data]);
   useEffect(() => {
     document.title = 'Analytics preditivo · Experimenta';
-    void load();
     getOverview(90).then(
       (o) => setEvents(o.topEvents.map((e) => e.key)),
       () => {},
     );
-  }, [load]);
+  }, []);
   const train = async () => {
     setBusy(true);
     try {
       await entities.save('propensity', { id: data?.config?.id, name: cfg.goal, data: cfg });
       await trainPredictive();
       toast('success', 'Modelo treinado e publicado: o snippet já calcula o score.');
-      void load();
+      reload();
     } catch (e) {
       toast('error', (e as Error).message);
-      void load();
+      reload();
     } finally {
       setBusy(false);
     }
@@ -127,9 +119,7 @@ export function PredictivePage({ user }: { user: Me }) {
         </Card>
         <div className="space-y-5">
           {data === null ? (
-            <div className="grid place-items-center py-24 text-gray-400">
-              <Spinner />
-            </div>
+            <LoadingBlock stats={4} rows={6} />
           ) : !m ? (
             <EmptyState icon={<BrainCircuit size={20} aria-hidden="true" />} title="Nenhum modelo treinado">
               Escolha a meta e treine. É preciso ao menos 20 visitantes que fizeram a meta no período.

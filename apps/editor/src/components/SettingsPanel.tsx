@@ -1,22 +1,26 @@
 import { MousePointerClick, X } from 'lucide-react';
 import type { Audience, Experiment, Goal, UrlRule } from '@abtest/shared';
-import { useEffect, useState, type Dispatch } from 'react';
+import { useState, type Dispatch } from 'react';
 import { entities, type Entity } from '../api';
 import { describeRule } from '../pages/Audiences';
 import { uid, type Action } from '../store';
+import { Skeleton, useLoad } from '../ui';
 
 /** Audiências salvas que o visitante precisa atender (todas), além das páginas e dispositivos. */
 function AudiencePicker({ experiment, onChange }: { experiment: Experiment; onChange(ids: string[]): void }) {
-  const [list, setList] = useState<Entity<Audience>[] | null>(null);
-  useEffect(() => {
-    entities.list<Audience>('audience').then(setList, () => setList([]));
-  }, []);
+  const { data: list } = useLoad(
+    () => entities.list<Audience>('audience').catch((): Entity<Audience>[] => []),
+    [],
+  );
   const chosen = experiment.audiences;
   return (
     <fieldset className="flex flex-col gap-1" data-testid="audiences-picker">
       <legend className="mb-1 text-gray-600">Audiências (todas precisam bater)</legend>
       {list === null ? (
-        <span className="text-xs text-gray-400">Carregando…</span>
+        <div className="space-y-1.5" role="status" aria-label="Carregando">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-32" />
+        </div>
       ) : !list.length ? (
         <span className="text-xs text-gray-500">Nenhuma audiência salva (Dados → Audiências).</span>
       ) : (

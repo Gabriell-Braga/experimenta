@@ -1,8 +1,19 @@
 import { WEBHOOK_EVENTS, type Integrations, type Webhook } from '@abtest/shared';
 import { Copy, KeyRound, Send, Trash2, Webhook as WebhookIcon } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiKeys, entities, publish, testWebhook, type ApiKey, type Entity, type Me } from '../api';
-import { Button, Card, inputCls, PageHeader, selectCls, timeAgo, useCopy, useToast } from '../ui';
+import {
+  Button,
+  Card,
+  inputCls,
+  PageHeader,
+  selectCls,
+  Skeleton,
+  timeAgo,
+  useCopy,
+  useLoad,
+  useToast,
+} from '../ui';
 import { Switch } from './Flags';
 
 const EVENT_LABEL: Record<(typeof WEBHOOK_EVENTS)[number], string> = {
@@ -17,19 +28,17 @@ const EVENT_LABEL: Record<(typeof WEBHOOK_EVENTS)[number], string> = {
 
 function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
   const toast = useToast();
-  const [e, setE] = useState<Entity<Integrations> | null | undefined>(undefined);
-  useEffect(() => {
-    entities.list<Integrations>('integrations').then(
-      (l) => setE(l[0] ?? null),
-      () => setE(null),
-    );
-  }, []);
+  const { data: list, setData } = useLoad(
+    () => entities.list<Integrations>('integrations').catch((): Entity<Integrations>[] => []),
+    [],
+  );
+  const e = list?.[0];
   const data = e?.data ?? { ga4: false, gtm: false };
   const set = async (p: Partial<Integrations>) => {
     try {
       const next = { ...data, ...p };
       const { id } = await entities.save('integrations', { id: e?.id, name: 'integrações', data: next });
-      setE({ ...(e ?? ({} as Entity<Integrations>)), id, name: 'integrações', data: next });
+      setData([{ ...(e ?? ({} as Entity<Integrations>)), id, name: 'integrações', data: next }]);
       await publish();
       toast('success', 'Publicado: o snippet passa a enviar na próxima visita.');
     } catch (err) {
@@ -49,11 +58,11 @@ function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
       <ul className="space-y-3">
         {rows.map(([k, label, how]) => (
           <li key={k} className="flex items-start gap-3">
-            <Switch
-              on={!!data[k]}
-              onChange={(v) => canEdit && e !== undefined && set({ [k]: v })}
-              label={label}
-            />
+            {list ? (
+              <Switch on={!!data[k]} onChange={(v) => canEdit && set({ [k]: v })} label={label} />
+            ) : (
+              <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
+            )}
             <span className="min-w-0">
               <span className="block text-sm font-medium text-ink">{label}</span>
               <code className="block break-all font-mono text-[11px] text-gray-500">{how}</code>
@@ -71,12 +80,13 @@ function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
 function Webhooks({ canEdit }: { canEdit: boolean }) {
   const toast = useToast();
   const copy = useCopy();
-  const [list, setList] = useState<Entity<Webhook>[]>([]);
+  const { data: list, reload } = useLoad(
+    () => entities.list<Webhook>('webhook').catch((): Entity<Webhook>[] => []),
+    [],
+  );
   const [url, setUrl] = useState('');
   const [events, setEvents] = useState<Webhook['events']>(['conversion']);
-  const load = useCallback(() => entities.list<Webhook>('webhook').then(setList, () => {}), []);
-  useEffect(() => void load(), [load]);
-  const run = (p: Promise<unknown>) => p.then(load, (err: Error) => toast('error', err.message));
+  const run = (p: Promise<unknown>) => p.then(reload, (err: Error) => toast('error', err.message));
   const add = () =>
     run(
       entities.save('webhook', {
@@ -87,7 +97,17 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
   return (
     <Card title="Webhooks">
       <ul className="divide-y divide-gray-900/[0.06]" data-testid="webhooks">
-        {list.map((h) => (
+        {!list &&
+          [0, 1].map((i) => (
+            <li key={i} className="flex items-center gap-3 py-2.5" aria-hidden="true">
+              <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
+              <span className="flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-3 w-1/3" />
+              </span>
+            </li>
+          ))}
+        {list?.map((h) => (
           <li key={h.id} className="flex items-center gap-3 py-2.5">
             <Switch
               on={h.data.enabled}
@@ -140,7 +160,7 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
             )}
           </li>
         ))}
-        {!list.length && (
+        {list?.length === 0 && (
           <li className="py-3 text-sm text-gray-500">
             Nenhum webhook. Mande eventos para CRM, Slack, Zapier…
           </li>
@@ -190,17 +210,15 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
 
 function ApiKeys() {
   const toast = useToast();
-  const [list, setList] = useState<ApiKey[]>([]);
+  const { data: list, reload } = useLoad(() => apiKeys.list().catch((): ApiKey[] => []), []);
   const [name, setName] = useState('');
   const [role, setRole] = useState<ApiKey['role']>('viewer');
   const [created, setCreated] = useState<string | null>(null);
-  const load = useCallback(() => apiKeys.list().then(setList, () => {}), []);
-  useEffect(() => void load(), [load]);
   const create = async () => {
     try {
       setCreated((await apiKeys.create(name, role)).key);
       setName('');
-      void load();
+      reload();
     } catch (err) {
       toast('error', (err as Error).message);
     }
@@ -217,7 +235,14 @@ function ApiKeys() {
         </div>
       )}
       <ul className="divide-y divide-gray-900/[0.06]">
-        {list.map((k) => (
+        {!list &&
+          [0, 1].map((i) => (
+            <li key={i} className="flex items-center gap-3 py-2.5" aria-hidden="true">
+              <Skeleton className="h-3.5 w-1/2" />
+              <Skeleton className="ml-auto h-3.5 w-16" />
+            </li>
+          ))}
+        {list?.map((k) => (
           <li key={k.id} className="flex items-center gap-3 py-2.5 text-sm">
             <KeyRound size={14} className="text-gray-400" aria-hidden="true" />
             <span className="flex-1">
@@ -229,7 +254,7 @@ function ApiKeys() {
               size="sm"
               variant="ghost"
               aria-label="Revogar"
-              onClick={() => apiKeys.revoke(k.id).then(load)}
+              onClick={() => apiKeys.revoke(k.id).then(reload)}
             >
               <Trash2 size={14} />
             </Button>

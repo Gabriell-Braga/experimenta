@@ -32,3 +32,48 @@ test('funil: cria pelo construtor e vê passos com conversão', async ({ page, r
   await expect(page.getByTestId('funnel-steps').locator(':scope > li')).toHaveCount(2);
   await expect(page.getByTestId('funnel-conversion')).toContainText('%');
 });
+
+test('trocar de funil: mostra esqueleto, nunca o relatório do funil anterior', async ({ page, request }) => {
+  const { token } = (await (
+    await request.post('http://localhost:4000/auth/login', {
+      headers: { origin: 'http://localhost:5173' },
+      data: { email: 'demo@abtest.dev', password: 'demo1234' },
+    })
+  ).json()) as { token: string };
+  const id = Math.random().toString(36).slice(2, 7);
+  const create = async (name: string, steps: string[]) =>
+    (
+      (await (
+        await request.post('http://localhost:4000/entities/funnel', {
+          headers: { origin: 'http://localhost:5173', authorization: `Bearer ${token}` },
+          data: {
+            name,
+            data: {
+              steps: steps.map((s) => ({ type: 'url', name: s, url: { match: 'contains', value: s } })),
+            },
+          },
+        })
+      ).json()) as { id: string }
+    ).id;
+  await create(`Dois passos ${id}`, ['/a', '/b']);
+  const slow = await create(`Três passos ${id}`, ['/a', '/b', '/c']);
+  // Relatório do segundo funil demora: é a janela em que o dado velho aparecia.
+  await page.route(`http://localhost:4000/analytics/funnel/${slow}*`, async (r) => {
+    await new Promise((ok) => setTimeout(ok, 1500));
+    await r.continue();
+  });
+  await login(page);
+  await nav(page, 'funnels');
+  await page
+    .getByTestId('funnel-item')
+    .filter({ hasText: `Dois passos ${id}` })
+    .click();
+  await expect(page.getByTestId('funnel-steps').locator(':scope > li')).toHaveCount(2);
+  await page
+    .getByTestId('funnel-item')
+    .filter({ hasText: `Três passos ${id}` })
+    .click();
+  await expect(page.getByTestId('loading')).toBeVisible();
+  await expect(page.getByTestId('funnel-steps')).toHaveCount(0);
+  await expect(page.getByTestId('funnel-steps').locator(':scope > li')).toHaveCount(3);
+});

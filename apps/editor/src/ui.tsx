@@ -11,6 +11,96 @@ import {
   type ReactNode,
 } from 'react';
 
+/** Bloco cinza animado no lugar do conteúdo que ainda está carregando. */
+export function Skeleton({ className = 'h-4 w-full' }: { className?: string }) {
+  // span (não div): pode ficar dentro de <p>, como nos números dos cartões.
+  return <span className={`skeleton block ${className}`} aria-hidden="true" />;
+}
+
+/**
+ * Esqueleto de uma área de dados (cartão com título, números e linhas). `rows` = linhas de tabela/lista;
+ * `stats` = quantos números grandes em cima. Anunciado como "Carregando" para leitores de tela.
+ */
+export function LoadingBlock({
+  rows = 5,
+  stats = 0,
+  className = '',
+}: {
+  rows?: number;
+  stats?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-label="Carregando"
+      aria-busy="true"
+      className={`space-y-4 ${className}`}
+      data-testid="loading"
+    >
+      {stats > 0 && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {Array.from({ length: stats }, (_, i) => (
+            <div key={i} className="rounded-lg border border-gray-900/10 bg-white p-4">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="mt-3 h-7 w-24" />
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="overflow-hidden rounded-lg border border-gray-900/10 bg-white">
+        <div className="border-b border-gray-100 px-4 py-3">
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <div className="divide-y divide-gray-100">
+          {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex items-center gap-4 px-4 py-3">
+              <Skeleton className={`h-3.5 ${['w-1/3', 'w-1/2', 'w-2/5', 'w-1/4'][i % 4]}`} />
+              <Skeleton className="ml-auto h-3.5 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Carrega dados que dependem de `deps` (seleção, período, filtros). Ao mudar `deps`, `data` volta a null na
+ * hora (a tela mostra esqueleto, nunca o dado da seleção anterior) e respostas atrasadas de pedidos antigos são
+ * descartadas. `reload()` busca de novo mantendo o dado atual até chegar o novo (depois de salvar algo).
+ * `fn` devolvendo null = nada a carregar (ex.: nada selecionado).
+ */
+export function useLoad<T>(fn: () => Promise<T> | null, deps: unknown[]) {
+  const toast = useToast();
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const seq = useRef(0);
+  const soft = useRef(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = ++seq.current;
+    if (!soft.current) setData(null);
+    soft.current = false;
+    setError(null);
+    const p = fn();
+    if (!p) return;
+    p.then(
+      (d) => id === seq.current && setData(d),
+      (e: Error) => {
+        if (id !== seq.current) return;
+        setError(e);
+        toast('error', e.message);
+      },
+    );
+  }, [...deps, tick]);
+  const reload = useCallback(() => {
+    soft.current = true;
+    setTick((t) => t + 1);
+  }, []);
+  return { data, setData, error, loading: data === null && !error, reload };
+}
+
 export function Spinner({ className = 'h-4 w-4' }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">

@@ -1,7 +1,7 @@
 import { Grid3x3 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { query } from '../api';
-import { Card, EmptyState, fmt, inputCls, PageHeader, Segmented, Spinner, useToast } from '../ui';
+import { Card, EmptyState, fmt, inputCls, LoadingBlock, PageHeader, Segmented, useLoad } from '../ui';
 
 interface Cohorts {
   unit: 'day' | 'week';
@@ -17,27 +17,22 @@ function cellStyle(rate: number) {
 }
 
 export function CohortsPage() {
-  const toast = useToast();
   const [unit, setUnit] = useState<'week' | 'day'>('week');
   const [metric, setMetric] = useState<'retention' | 'event'>('retention');
   const [event, setEvent] = useState('');
-  const [data, setData] = useState<Cohorts | null>(null);
+  const [debounced, setDebounced] = useState('');
   useEffect(() => {
     document.title = 'Coortes · Experimenta';
   }, []);
   useEffect(() => {
-    const t = setTimeout(
-      () =>
-        query<Cohorts>('/analytics/cohorts', {
-          unit,
-          metric,
-          event: metric === 'event' ? event || undefined : undefined,
-          days: unit === 'week' ? 56 : 14,
-        }).then(setData, (e: Error) => toast('error', e.message)),
-      event ? 300 : 0,
-    );
+    const t = setTimeout(() => setDebounced(event), event ? 300 : 0);
     return () => clearTimeout(t);
-  }, [unit, metric, event, toast]);
+  }, [event]);
+  const ev = metric === 'event' ? debounced || undefined : undefined;
+  const { data } = useLoad(
+    () => query<Cohorts>('/analytics/cohorts', { unit, metric, event: ev, days: unit === 'week' ? 56 : 14 }),
+    [unit, metric, ev],
+  );
   const label = unit === 'week' ? 'Semana' : 'Dia';
   return (
     <>
@@ -81,9 +76,7 @@ export function CohortsPage() {
       )}
       <div className="mt-5">
         {!data ? (
-          <div className="grid place-items-center py-24 text-gray-400">
-            <Spinner />
-          </div>
+          <LoadingBlock rows={8} />
         ) : !data.cohorts.length ? (
           <EmptyState icon={<Grid3x3 size={20} aria-hidden="true" />} title="Sem visitantes no período" />
         ) : (
@@ -91,7 +84,7 @@ export function CohortsPage() {
             title={
               metric === 'retention'
                 ? `% que voltou ao site em cada ${label.toLowerCase()} depois da primeira visita`
-                : `% acumulado que converteu${event ? ` (${event})` : ''}`
+                : `% acumulado que converteu${ev ? ` (${ev})` : ''}`
             }
           >
             <div className="overflow-x-auto">

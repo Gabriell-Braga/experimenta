@@ -13,7 +13,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { entities, publish, query, type Entity, type Me } from '../api';
 import { BarList, SERIES } from '../charts';
 import { EngageFields } from '../components/EngageFields';
@@ -27,10 +27,11 @@ import {
   inputCls,
   Modal,
   PageHeader,
+  LoadingBlock,
   selectCls,
-  Spinner,
   Stat,
   StatusBadge,
+  useLoad,
   useToast,
 } from '../ui';
 import type { EngageStats } from './Popups';
@@ -378,20 +379,20 @@ function SurveyEditor({
 export function SurveysPage({ user }: { user: Me }) {
   const toast = useToast();
   const canEdit = user.role !== 'viewer';
-  const [list, setList] = useState<Entity<Survey>[] | null>(null);
-  const [stats, setStats] = useState<Record<string, EngageStats>>({});
   const [editing, setEditing] = useState<Entity<Survey> | null | 'new'>(null);
-  const load = useCallback(() => {
-    entities.list<Survey>('survey').then(setList, (e: Error) => toast('error', e.message));
-    query<EngageStats[]>('/analytics/engage', { days: 30 }).then(
-      (l) => setStats(Object.fromEntries(l.map((s) => [s.campaignId, s]))),
-      () => {},
-    );
-  }, [toast]);
+  const { data: list, reload: reloadList } = useLoad(() => entities.list<Survey>('survey'), []);
+  const { data: statsList, reload: reloadStats } = useLoad(
+    () => query<EngageStats[]>('/analytics/engage', { days: 30 }).catch(() => []),
+    [],
+  );
+  const stats = Object.fromEntries((statsList ?? []).map((s) => [s.campaignId, s]));
+  const load = () => {
+    reloadList();
+    reloadStats();
+  };
   useEffect(() => {
     document.title = 'Pesquisas · Experimenta';
-    load();
-  }, [load]);
+  }, []);
   const toggle = async (e: Entity<Survey>) => {
     try {
       await entities.save('survey', {
@@ -421,10 +422,8 @@ export function SurveysPage({ user }: { user: Me }) {
         }
       />
       <div className="mt-6">
-        {list === null ? (
-          <div className="grid place-items-center py-24 text-gray-400">
-            <Spinner />
-          </div>
+        {list === null || statsList === null ? (
+          <LoadingBlock rows={4} />
         ) : !list.length ? (
           <EmptyState
             icon={<MessageSquareText size={20} aria-hidden="true" />}
@@ -582,19 +581,11 @@ function Distribution({ q }: { q: QReport }) {
 }
 
 export function SurveyReportPage({ id }: { id: string }) {
-  const toast = useToast();
-  const [r, setR] = useState<SurveyReport | null>(null);
-  useEffect(() => {
-    query<SurveyReport>(`/analytics/survey/${encodeURIComponent(id)}`, { days: 90 }).then(setR, (e: Error) =>
-      toast('error', e.message),
-    );
-  }, [id, toast]);
-  if (!r)
-    return (
-      <div className="grid place-items-center py-24 text-gray-400">
-        <Spinner />
-      </div>
-    );
+  const { data: r } = useLoad(
+    () => query<SurveyReport>(`/analytics/survey/${encodeURIComponent(id)}`, { days: 90 }),
+    [id],
+  );
+  if (!r) return <LoadingBlock stats={4} rows={6} />;
   return (
     <>
       <button

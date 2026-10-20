@@ -2,7 +2,17 @@ import { ClipboardList } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { query } from '../api';
 import { BarList, SERIES } from '../charts';
-import { Card, EmptyState, fmt, PageHeader, Segmented, selectCls, Spinner, useToast } from '../ui';
+import {
+  Card,
+  EmptyState,
+  fmt,
+  LoadingBlock,
+  PageHeader,
+  Segmented,
+  selectCls,
+  Skeleton,
+  useLoad,
+} from '../ui';
 import { PERIODS, type Period } from './Events';
 
 interface FieldRow {
@@ -84,20 +94,17 @@ function FormFunnel({ f }: { f: FormRow }) {
 }
 
 export function FormsPage() {
-  const toast = useToast();
   const [days, setDays] = useState<Period>('30');
   const [device, setDevice] = useState('');
-  const [rows, setRows] = useState<FormRow[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>('avgTime');
   useEffect(() => {
     document.title = 'Formulários · Experimenta';
   }, []);
-  useEffect(() => {
-    query<FormRow[]>('/analytics/forms', { days, device: device || undefined }).then(setRows, (e: Error) =>
-      toast('error', e.message),
-    );
-  }, [days, device, toast]);
+  const { data: rows } = useLoad(
+    () => query<FormRow[]>('/analytics/forms', { days, device: device || undefined }),
+    [days, device],
+  );
   const current = rows?.find((r) => `${r.page}|${r.form}` === sel) ?? rows?.[0];
   const pctMetric = metric === 'refillRate' || metric === 'ignoredRate' || metric === 'dropoffRate';
   return (
@@ -124,8 +131,16 @@ export function FormsPage() {
         }
       />
       {rows === null ? (
-        <div className="grid place-items-center py-24 text-gray-400">
-          <Spinner />
+        <div className="mt-6 grid gap-5 lg:grid-cols-[280px_1fr]">
+          <div className="space-y-1.5">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-[74px] w-full" />
+            ))}
+          </div>
+          <div className="space-y-5">
+            <LoadingBlock rows={3} />
+            <LoadingBlock rows={5} />
+          </div>
         </div>
       ) : !rows.length || !current ? (
         <div className="mt-6">

@@ -394,18 +394,19 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
   }, [toast]);
   useEffect(load, [load]);
   useEffect(() => {
-    document.title = 'Experimentos · Experimenta';
-  }, []);
+    document.title = `${type ? CAMPAIGNS[type].label : 'Experimentos'} · Experimenta`;
+  }, [type]);
 
+  // Contagens e lista só do tipo desta tela (Server-side não conta os testes A/B).
+  const ofType = useMemo(() => (items ?? []).filter((e) => !type || e.type === type), [items, type]);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items?.length ?? 0 };
-    for (const e of items ?? []) c[e.status] = (c[e.status] ?? 0) + 1;
+    const c: Record<string, number> = { all: ofType.length };
+    for (const e of ofType) c[e.status] = (c[e.status] ?? 0) + 1;
     return c;
-  }, [items]);
-  const shown = (items ?? []).filter(
+  }, [ofType]);
+  const shown = ofType.filter(
     (e) =>
       (filter === 'all' ? e.status !== 'archived' : e.status === filter) &&
-      (!type || e.type === type) &&
       (!q || `${e.name} ${e.key} ${e.editorUrl}`.toLowerCase().includes(q.toLowerCase())),
   );
 

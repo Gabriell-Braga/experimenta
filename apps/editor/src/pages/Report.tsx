@@ -6,7 +6,6 @@ import {
   rebalance,
   type ArmRow,
   type ArmStats,
-  type ExperimentRecord,
   type ExperimentReport,
   type GoalReport,
   type Verdict,
@@ -18,11 +17,13 @@ import {
   Card,
   EmptyState,
   fmt,
+  LoadingBlock,
   PageHeader,
   Segmented,
   selectCls,
-  Spinner,
+  Skeleton,
   StatusBadge,
+  useLoad,
   useToast,
 } from '../ui';
 import { shortDay } from './Events';
@@ -363,22 +364,19 @@ function toCsv(r: ExperimentReport, names: string[]): string {
 
 export function ReportPage({ id, params }: { id: string; params: URLSearchParams }) {
   const toast = useToast();
-  const [record, setRecord] = useState<ExperimentRecord | null>(null);
-  const [report, setReport] = useState<ExperimentReport | null>(null);
   const [days, setDays] = useState<(typeof PERIODS)[number][0]>((params.get('days') as '30') ?? '30');
   const [device, setDevice] = useState(params.get('device') ?? '');
   const [goalId, setGoalId] = useState<string | null>(params.get('goal'));
   const [compare, setCompare] = useState(false);
 
-  useEffect(() => {
-    getExperiment(id).then(setRecord, (e: Error) => toast('error', e.message));
-  }, [id, toast]);
+  const { data: record } = useLoad(() => getExperiment(id), [id]);
   useEffect(() => {
     setParams({ days, device: device || undefined });
-    getReport(id, { days: Number(days), device: device || undefined }).then(setReport, (e: Error) =>
-      toast('error', e.message),
-    );
-  }, [id, days, device, toast]);
+  }, [days, device]);
+  const { data: report } = useLoad(
+    () => getReport(id, { days: Number(days), device: device || undefined }),
+    [id, days, device],
+  );
   useEffect(() => {
     document.title = `Relatório: ${record?.experiment.name ?? ''} · Experimenta`;
   }, [record]);
@@ -387,10 +385,13 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
   const goal = report?.goals.find((g) => g.goalId === goalId) ?? report?.goals[0];
   const primary = report?.goals[0];
 
-  if (!record || !report)
+  if (!record)
     return (
-      <div className="grid place-items-center py-24 text-gray-500">
-        <Spinner />
+      <div role="status" aria-label="Carregando" data-testid="loading">
+        <Skeleton className="mb-4 h-4 w-24" />
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="mt-3 h-8 w-72" />
+        <LoadingBlock stats={4} rows={4} className="mt-6" />
       </div>
     );
   const exp = record.experiment;
@@ -437,7 +438,9 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
               <Pencil size={14} aria-hidden="true" /> Editar
             </Button>
             <Button
+              disabled={!report}
               onClick={() => {
+                if (!report) return;
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(new Blob([toCsv(report, names)], { type: 'text/csv' }));
                 a.download = `${exp.key}-relatorio.csv`;
@@ -470,194 +473,200 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
         </select>
       </div>
 
-      <div className="mt-5 space-y-5">
-        {report.srm.mismatch && (
-          <div
-            role="alert"
-            className="flex gap-3 rounded-lg border border-signal/30 bg-signal/5 px-4 py-3 text-sm text-gray-800"
-            data-testid="srm-alert"
-          >
-            <TriangleAlert size={18} className="mt-0.5 shrink-0 text-signal" aria-hidden="true" />
-            <span>
-              <b>Divisão de tráfego fora do esperado</b> (SRM, p = {report.srm.pValue.toExponential(1)}). A
-              proporção de visitantes por variação não bate com os pesos configurados. Algo na atribuição ou
-              na coleta está distorcendo o teste. Revise redirecionamentos, cache e o snippet antes de confiar
-              no resultado.
-            </span>
-          </div>
-        )}
+      {!report ? (
+        <LoadingBlock stats={4} rows={4} className="mt-5" />
+      ) : (
+        <div className="mt-5 space-y-5">
+          {report.srm.mismatch && (
+            <div
+              role="alert"
+              className="flex gap-3 rounded-lg border border-signal/30 bg-signal/5 px-4 py-3 text-sm text-gray-800"
+              data-testid="srm-alert"
+            >
+              <TriangleAlert size={18} className="mt-0.5 shrink-0 text-signal" aria-hidden="true" />
+              <span>
+                <b>Divisão de tráfego fora do esperado</b> (SRM, p = {report.srm.pValue.toExponential(1)}). A
+                proporção de visitantes por variação não bate com os pesos configurados. Algo na atribuição ou
+                na coleta está distorcendo o teste. Revise redirecionamentos, cache e o snippet antes de
+                confiar no resultado.
+              </span>
+            </div>
+          )}
 
-        <section className="rounded-lg border border-gray-900/10 bg-white p-5">
-          <div className="flex flex-wrap items-start gap-5">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-ink text-lime">
-              <Trophy size={20} aria-hidden="true" />
+          <section className="rounded-lg border border-gray-900/10 bg-white p-5">
+            <div className="flex flex-wrap items-start gap-5">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-ink text-lime">
+                <Trophy size={20} aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1 font-display text-[22px] leading-snug text-ink">
+                <Headline goal={primary} names={names} visitors={report.visitors} />
+              </div>
             </div>
-            <div className="min-w-0 flex-1 font-display text-[22px] leading-snug text-ink">
-              <Headline goal={primary} names={names} visitors={report.visitors} />
-            </div>
-          </div>
-          <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-gray-900/[0.07] pt-4 sm:grid-cols-4">
-            <div>
-              <dt className="label-mono">Visitantes</dt>
-              <dd className="tabular mt-1 text-xl font-semibold text-ink">{fmt.int(report.visitors)}</dd>
-            </div>
-            <div>
-              <dt className="label-mono">Conversões (primária)</dt>
-              <dd className="tabular mt-1 text-xl font-semibold text-ink">
-                {fmt.int(primary?.arms.reduce((s, a) => s + a.conversions, 0) ?? 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="label-mono">Amostra p/ +{fmt.pct(report.estimate.mde, 0)}</dt>
-              <dd className="tabular mt-1 text-xl font-semibold text-ink">
-                {report.estimate.neededPerVariation ? fmt.int(report.estimate.neededPerVariation) : 'n/d'}
-                <span className="ml-1 text-xs font-normal text-gray-500">por variação</span>
-              </dd>
-            </div>
-            <div>
-              <dt className="label-mono">Duração restante</dt>
-              <dd className="tabular mt-1 text-xl font-semibold text-ink">
-                {primary?.arms.some((a) => a.verdict === 'winner' || a.verdict === 'loser')
-                  ? 'pronto para decidir'
-                  : report.estimate.daysRemaining === null
-                    ? 'n/d'
-                    : report.estimate.daysRemaining === 0
-                      ? 'amostra atingida'
-                      : `~${report.estimate.daysRemaining} dias`}
-              </dd>
-            </div>
-          </dl>
-        </section>
+            <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-gray-900/[0.07] pt-4 sm:grid-cols-4">
+              <div>
+                <dt className="label-mono">Visitantes</dt>
+                <dd className="tabular mt-1 text-xl font-semibold text-ink">{fmt.int(report.visitors)}</dd>
+              </div>
+              <div>
+                <dt className="label-mono">Conversões (primária)</dt>
+                <dd className="tabular mt-1 text-xl font-semibold text-ink">
+                  {fmt.int(primary?.arms.reduce((s, a) => s + a.conversions, 0) ?? 0)}
+                </dd>
+              </div>
+              <div>
+                <dt className="label-mono">Amostra p/ +{fmt.pct(report.estimate.mde, 0)}</dt>
+                <dd className="tabular mt-1 text-xl font-semibold text-ink">
+                  {report.estimate.neededPerVariation ? fmt.int(report.estimate.neededPerVariation) : 'n/d'}
+                  <span className="ml-1 text-xs font-normal text-gray-500">por variação</span>
+                </dd>
+              </div>
+              <div>
+                <dt className="label-mono">Duração restante</dt>
+                <dd className="tabular mt-1 text-xl font-semibold text-ink">
+                  {primary?.arms.some((a) => a.verdict === 'winner' || a.verdict === 'loser')
+                    ? 'pronto para decidir'
+                    : report.estimate.daysRemaining === null
+                      ? 'n/d'
+                      : report.estimate.daysRemaining === 0
+                        ? 'amostra atingida'
+                        : `~${report.estimate.daysRemaining} dias`}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-        {!report.goals.length ? (
-          <EmptyState
-            icon={<Trophy size={20} aria-hidden="true" />}
-            title="Sem metas"
-            action={<Button onClick={() => go(exp.id)}>Abrir editor</Button>}
-          >
-            Defina o que conta como conversão (clique, página, formulário ou evento) em Configurações.
-          </EmptyState>
-        ) : (
-          <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
-            <aside className="no-print space-y-1.5">
-              <p className="label-mono mb-2">Metas</p>
-              {report.goals.map((g) => {
-                const best = Math.max(...g.arms.slice(1).map((a) => a.lift ?? -Infinity));
-                return (
-                  <button
-                    key={g.goalId}
-                    onClick={() => {
-                      setCompare(false);
-                      setGoalId(g.goalId);
-                      setParams({ goal: g.goalId });
-                    }}
-                    className={`block w-full rounded-md border px-3 py-2.5 text-left ${!compare && goal?.goalId === g.goalId ? 'border-ink bg-white' : 'border-gray-900/10 bg-white/50 hover:bg-white'}`}
-                    data-testid="report-goal"
+          {!report.goals.length ? (
+            <EmptyState
+              icon={<Trophy size={20} aria-hidden="true" />}
+              title="Sem metas"
+              action={<Button onClick={() => go(exp.id)}>Abrir editor</Button>}
+            >
+              Defina o que conta como conversão (clique, página, formulário ou evento) em Configurações.
+            </EmptyState>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
+              <aside className="no-print space-y-1.5">
+                <p className="label-mono mb-2">Metas</p>
+                {report.goals.map((g) => {
+                  const best = Math.max(...g.arms.slice(1).map((a) => a.lift ?? -Infinity));
+                  return (
+                    <button
+                      key={g.goalId}
+                      onClick={() => {
+                        setCompare(false);
+                        setGoalId(g.goalId);
+                        setParams({ goal: g.goalId });
+                      }}
+                      className={`block w-full rounded-md border px-3 py-2.5 text-left ${!compare && goal?.goalId === g.goalId ? 'border-ink bg-white' : 'border-gray-900/10 bg-white/50 hover:bg-white'}`}
+                      data-testid="report-goal"
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-medium text-ink">{g.goalKey}</span>
+                        {g.primary && (
+                          <span className="font-mono text-[10px] text-brand-600 uppercase">primária</span>
+                        )}
+                      </span>
+                      <span className="tabular font-mono text-[11px] text-gray-500">
+                        melhor: {Number.isFinite(best) ? signedPct(best) : 'n/d'}
+                        {g.hasRevenue && ' · receita'}
+                      </span>
+                    </button>
+                  );
+                })}
+                {report.goals.length > 1 && (
+                  <Button
+                    size="sm"
+                    variant={compare ? 'primary' : 'ghost'}
+                    className="mt-2 w-full"
+                    onClick={() => setCompare(!compare)}
+                    data-testid="compare-goals"
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-ink">{g.goalKey}</span>
-                      {g.primary && (
-                        <span className="font-mono text-[10px] text-brand-600 uppercase">primária</span>
-                      )}
-                    </span>
-                    <span className="tabular font-mono text-[11px] text-gray-500">
-                      melhor: {Number.isFinite(best) ? signedPct(best) : 'n/d'}
-                      {g.hasRevenue && ' · receita'}
-                    </span>
-                  </button>
-                );
-              })}
-              {report.goals.length > 1 && (
-                <Button
-                  size="sm"
-                  variant={compare ? 'primary' : 'ghost'}
-                  className="mt-2 w-full"
-                  onClick={() => setCompare(!compare)}
-                  data-testid="compare-goals"
-                >
-                  Comparar metas
-                </Button>
-              )}
-            </aside>
+                    Comparar metas
+                  </Button>
+                )}
+              </aside>
 
-            <div className="min-w-0 space-y-5">
-              {compare ? (
-                <Card title="Comparação de metas">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm" data-testid="compare-table">
-                      <thead>
-                        <tr className="label-mono border-b border-gray-900/10">
-                          <th className="py-2 pr-3 font-medium">Meta</th>
-                          {names.map((n, i) => (
-                            <th key={n + i} className="px-3 py-2 font-medium">
-                              <VariationTag index={i} name={n} />
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-900/[0.06]">
-                        {report.goals.map((g) => (
-                          <tr key={g.goalId}>
-                            <td className="py-2.5 pr-3 font-medium text-ink">{g.goalKey}</td>
-                            {g.arms.map((a) => (
-                              <td key={a.variationId} className="tabular px-3 py-2.5 font-mono text-xs">
-                                {fmt.pct(a.rate, 2)}
-                                {a.lift !== null && (
-                                  <span className={`ml-1.5 ${a.lift > 0 ? 'text-brand-700' : 'text-signal'}`}>
-                                    {signedPct(a.lift)}
-                                  </span>
-                                )}
-                                {a.probBeatControl !== null && (
-                                  <span className="block text-[10px] text-gray-400">
-                                    {prob(a.probBeatControl)} chance
-                                  </span>
-                                )}
-                              </td>
+              <div className="min-w-0 space-y-5">
+                {compare ? (
+                  <Card title="Comparação de metas">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm" data-testid="compare-table">
+                        <thead>
+                          <tr className="label-mono border-b border-gray-900/10">
+                            <th className="py-2 pr-3 font-medium">Meta</th>
+                            {names.map((n, i) => (
+                              <th key={n + i} className="px-3 py-2 font-medium">
+                                <VariationTag index={i} name={n} />
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              ) : (
-                goal && (
-                  <>
-                    <Card title={`Conversão · ${goal.goalKey}`}>
-                      <GoalTable goal={goal} names={names} />
-                    </Card>
-                    {goal.sections && <SectionsCard goal={goal} />}
-                    {goal.hasRevenue && (
-                      <Card title="Receita">
-                        <RevenueTable goal={goal} names={names} />
+                        </thead>
+                        <tbody className="divide-y divide-gray-900/[0.06]">
+                          {report.goals.map((g) => (
+                            <tr key={g.goalId}>
+                              <td className="py-2.5 pr-3 font-medium text-ink">{g.goalKey}</td>
+                              {g.arms.map((a) => (
+                                <td key={a.variationId} className="tabular px-3 py-2.5 font-mono text-xs">
+                                  {fmt.pct(a.rate, 2)}
+                                  {a.lift !== null && (
+                                    <span
+                                      className={`ml-1.5 ${a.lift > 0 ? 'text-brand-700' : 'text-signal'}`}
+                                    >
+                                      {signedPct(a.lift)}
+                                    </span>
+                                  )}
+                                  {a.probBeatControl !== null && (
+                                    <span className="block text-[10px] text-gray-400">
+                                      {prob(a.probBeatControl)} chance
+                                    </span>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                ) : (
+                  goal && (
+                    <>
+                      <Card title={`Conversão · ${goal.goalKey}`}>
+                        <GoalTable goal={goal} names={names} />
                       </Card>
-                    )}
-                    {goal.primary && (
-                      <Card title="Taxa de conversão acumulada (meta primária)">
-                        <LineChart
-                          integer={false}
-                          format={(n) => fmt.pct(n, 1)}
-                          labels={(report.series[0]?.points ?? []).map((p) => shortDay(p.day))}
-                          series={report.series.map((s, i) => ({
-                            name: names[i] ?? s.variationId,
-                            color: seriesColor(i),
-                            values: s.points.map((p) => p.rate),
-                          }))}
-                        />
-                      </Card>
-                    )}
-                  </>
-                )
-              )}
-              <p className="text-xs text-gray-500">
-                Estatística bayesiana: “chance de vencer” é a probabilidade de a variação ter taxa maior que o
-                controle, dado o que foi observado. Vencedora a partir de 95% com pelo menos 100 visitantes
-                por variação. p-valor (z-test) ao lado para referência.
-              </p>
+                      {goal.sections && <SectionsCard goal={goal} />}
+                      {goal.hasRevenue && (
+                        <Card title="Receita">
+                          <RevenueTable goal={goal} names={names} />
+                        </Card>
+                      )}
+                      {goal.primary && (
+                        <Card title="Taxa de conversão acumulada (meta primária)">
+                          <LineChart
+                            integer={false}
+                            format={(n) => fmt.pct(n, 1)}
+                            labels={(report.series[0]?.points ?? []).map((p) => shortDay(p.day))}
+                            series={report.series.map((s, i) => ({
+                              name: names[i] ?? s.variationId,
+                              color: seriesColor(i),
+                              values: s.points.map((p) => p.rate),
+                            }))}
+                          />
+                        </Card>
+                      )}
+                    </>
+                  )
+                )}
+                <p className="text-xs text-gray-500">
+                  Estatística bayesiana: “chance de vencer” é a probabilidade de a variação ter taxa maior que
+                  o controle, dado o que foi observado. Vencedora a partir de 95% com pelo menos 100
+                  visitantes por variação. p-valor (z-test) ao lado para referência.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
