@@ -4,6 +4,8 @@ import { claudeIdeas, compatFromEnv, compatIdeas, ruleIdeas } from './ai';
 import type { Dashboard } from './analytics/dashboard';
 import type { Insight } from './analytics/insights';
 import { autopilotWeights } from './bandit';
+import { ideaGoal, ideaPage } from './routes/ai';
+import { DEMO } from './seed';
 import { setupApp } from './test-app';
 
 const insight = (kind: Insight['kind'], extra: Partial<Insight> = {}): Insight => ({
@@ -204,3 +206,121 @@ test('modelo grátis sobrecarregado (503/429) passa para o próximo da lista', a
   await expect(compatIdeas(cfg, d, bad)).rejects.toThrow('401');
   expect(bad).toHaveBeenCalledTimes(1);
 });
+
+test('ideia → teste: página e meta a partir do texto da ideia', () => {
+  const site = 'http://loja.com/';
+  expect(ideaPage('/carrinho', site)).toEqual({
+    url: 'http://loja.com/carrinho',
+    rule: { match: 'exact', value: 'http://loja.com/carrinho', exclude: false },
+  });
+  expect(ideaPage('/produto/* (páginas de produto)', site)).toEqual({
+    url: 'http://loja.com/produto/',
+    rule: { match: 'contains', value: 'http://loja.com/produto/', exclude: false },
+  });
+  expect(ideaPage('http://loja.com/a?b=1', site).rule?.value).toBe('http://loja.com/a?b=1');
+  // Outro site, texto solto: home do projeto, sem regra de URL.
+  expect(ideaPage('http://outro.com/a', site)).toEqual({ url: site });
+  expect(ideaPage('todo o site', site)).toEqual({ url: site });
+  expect(ideaPage('javascript:alert(1)', site)).toEqual({ url: site });
+
+  const goals = [
+    { id: 'g1', key: 'compra', type: 'custom', event: 'purchase' },
+    { id: 'g2', key: 'envio-formulario', type: 'formSubmit', selector: 'form' },
+    { id: 'g3', key: 'clique-cta', type: 'click', selector: '#cta' },
+  ] as const;
+  const g = (m: string) => ideaGoal(m, [...goals]);
+  // Mais específica que casa; id novo (metas são por experimento).
+  expect(g('Envio do formulário de contato')).toMatchObject({
+    created: false,
+    goal: { key: 'envio-formulario', type: 'formSubmit', selector: 'form' },
+  });
+  expect(g('Envio do formulário').goal.id).not.toBe('g2');
+  expect(g('taxa de compra').goal.key).toBe('compra');
+  expect(g('Purchase rate').goal.key).toBe('compra');
+  // Sem meta parecida: evento customizado com o nome do texto.
+  expect(g('Conclusão do funil')).toMatchObject({
+    created: true,
+    goal: { key: 'conclusao-funil', type: 'custom', event: 'conclusao-funil' },
+  });
+  expect(ideaGoal('!!!', []).goal.key).toBe('conversao');
+});
+
+test('rota: criar teste da ideia (dados, vínculo, idempotência, permissões, auditoria)', async () => {
+  const good = fake({
+    stop_reason: 'end_turn',
+    parsed_output: { ideas: [{ ...idea, page: '/loja/', metric: 'Cliques no CTA' }] },
+  });
+  const t = await setupApp({ ai: good.client });
+  const ideaId = (await generateIdeas(t)).ideas[0]!.id;
+  const path = `/ai/ideas/${ideaId}/experiment`;
+  expect((await t.req(path, { method: 'POST', as: 'viewer' })).status).toBe(403);
+  expect((await t.req(path, { method: 'POST', as: 'other' })).status).toBe(404);
+  expect((await t.req('/ai/ideas/idea_x/experiment', { method: 'POST', as: 'editor' })).status).toBe(404);
+
+  // Meta "clique-cta" já usada noutro teste da conta: reaproveitada.
+  const base = (
+    await t.req('/experiments', {
+      method: 'POST',
+      as: 'editor',
+      body: JSON.stringify({
+        projectId: (await t.repo.listProjects(DEMO.accountId))[0]!.id,
+        editorUrl: 'http://localhost:5180/',
+        experiment: {
+          id: 'exp_base',
+          key: 'base',
+          name: 'Base',
+          variations: [{ id: 'v0', key: 'controle', name: 'Controle', weight: 1 }],
+          goals: [{ id: 'gb', key: 'clique-cta', type: 'click', selector: '#cta' }],
+        },
+      }),
+    })
+  ).status;
+  expect(base).toBe(201);
+
+  // Clique duplo simultâneo: um teste só.
+  const [r1, r2] = await Promise.all([
+    t.req(path, { method: 'POST', as: 'editor' }),
+    t.req(path, { method: 'POST', as: 'editor' }),
+  ]);
+  const b1 = (await r1.json()) as { id: string; created: boolean; ai: boolean; goalCreated: boolean };
+  const b2 = (await r2.json()) as { id: string };
+  expect(r1.status).toBe(200);
+  expect(b2.id).toBe(b1.id);
+  expect(b1).toMatchObject({ ai: true, goalCreated: false });
+  const again = (await (await t.req(path, { method: 'POST', as: 'editor' })).json()) as {
+    id: string;
+    created: boolean;
+    ideas: { ideas: { id: string; doneAt?: string; experimentId?: string }[] };
+  };
+  expect(again).toMatchObject({ id: b1.id, created: false });
+  expect(again.ideas.ideas[0]).toMatchObject({ experimentId: b1.id, doneAt: expect.any(String) });
+  expect((await t.repo.listExperiments(DEMO.accountId)).map((e) => e.id).sort()).toEqual(
+    [b1.id, 'exp_base'].sort(),
+  );
+
+  const rec = (await t.repo.getExperiment(DEMO.accountId, b1.id))!;
+  expect(rec.editorUrl).toBe('http://localhost:5180/loja/');
+  expect(rec.experiment).toMatchObject({
+    name: idea.title,
+    hypothesis: idea.hypothesis,
+    status: 'draft',
+    segmentation: { urls: [{ match: 'exact', value: 'http://localhost:5180/loja/' }] },
+    goals: [{ key: 'clique-cta', type: 'click', selector: '#cta' }],
+  });
+  expect(rec.experiment.variations.map((v) => v.key)).toEqual(['controle', 'variacao-1']);
+  const acts = await t.repo.listActivities(DEMO.accountId, {});
+  expect(acts.filter((a) => a.targetId === b1.id && a.action === 'create')).toHaveLength(1);
+
+  // Sem provedor de IA (ideia por regras): cria igual; o editor só sugere o texto da mudança.
+  const t2 = await setupApp();
+  await t2.repo.saveEntity(DEMO.accountId, {
+    kind: 'ai-ideas',
+    name: 'ideias',
+    data: {
+      status: 'done',
+      ideas: [{ ...idea, id: 'idea_r1', createdAt: new Date().toISOString(), source: 'regras' }],
+    },
+  });
+  const r3 = await t2.req('/ai/ideas/idea_r1/experiment', { method: 'POST', as: 'editor' });
+  expect(await r3.json()).toMatchObject({ id: 'exp_idea_r1', created: true, ai: false, goalCreated: true });
+}, 30_000);

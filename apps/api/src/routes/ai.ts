@@ -1,10 +1,19 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type Anthropic from '@anthropic-ai/sdk';
-import { AI_PROMPT_MAX, AiChangeSchema, PAGE_SUMMARY_CHARS, PageSummarySchema } from '@abtest/shared';
+import {
+  AI_PROMPT_MAX,
+  AiChangeSchema,
+  ExperimentSchema,
+  PAGE_SUMMARY_CHARS,
+  PageSummarySchema,
+  type Experiment,
+  type Goal,
+  type UrlRule,
+} from '@abtest/shared';
 import { AI_MODEL, claudeIdeas, compatIdeas, ruleIdeas, type CompatAi, type Idea } from '../ai';
 import { claudeVariation, compatVariation } from '../ai-variation';
 import { forbid, hasRole } from '../auth';
-import { randomToken } from '../crypto';
+import { newId, randomToken } from '../crypto';
 import { errors, json, period, PeriodQuery, security, type Api } from '../http';
 import type { Repo } from '../repo';
 import { loadDashboard } from './data';
@@ -27,6 +36,8 @@ interface SavedIdea extends Idea {
   model?: string;
   /** Marcada como executada (virou teste) pelo usuário. */
   doneAt?: string;
+  /** Teste criado a partir da ideia ("Criar teste"). */
+  experimentId?: string;
 }
 interface IdeasState {
   status: 'idle' | 'running' | 'done' | 'error';
@@ -53,6 +64,7 @@ const IdeaOut = z.object({
   source: z.enum(['claude', 'modelo', 'regras']),
   model: z.string().optional(),
   doneAt: z.string().optional(),
+  experimentId: z.string().optional(),
 });
 const StateOut = z
   .object({
@@ -69,6 +81,113 @@ const StateOut = z
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 
 const norm = (s: string) => s.trim().toLowerCase();
+
+/** Minúsculas sem acento, só letras e números separados por espaço. */
+const fold = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+/** Palavras que não identificam uma meta ("conversão da página" não casa com uma meta "da"). */
+const STOP = new Set([
+  'de',
+  'da',
+  'do',
+  'das',
+  'dos',
+  'no',
+  'na',
+  'em',
+  'e',
+  'o',
+  'a',
+  'os',
+  'as',
+  'por',
+  'para',
+]);
+const words = (s: string) =>
+  fold(s)
+    .split(' ')
+    .filter((w) => w && !STOP.has(w));
+const slug = (s: string) => words(s).join('-').slice(0, 40).replace(/-$/, '');
+
+/**
+ * Meta do teste a partir do texto da ideia ("envio do formulário"): reaproveita a meta já usada em outro teste
+ * da conta cujo nome (chave, ou evento customizado) está todo no texto, a mais específica; senão cria uma meta
+ * de evento customizado com o nome do texto (o site precisa disparar o evento; ajustável em Configurações).
+ */
+export function ideaGoal(metric: string, existing: Goal[]): { goal: Goal; created: boolean } {
+  // Singular simples ("cliques" casa com "clique-cta").
+  const stem = (w: string) => (w.length > 3 ? w.replace(/s$/, '') : w);
+  const text = new Set(words(metric).map(stem));
+  let best: Goal | undefined;
+  let score = 0;
+  for (const g of existing)
+    for (const name of [g.key, g.type === 'custom' ? g.event : '']) {
+      const ws = words(name).map(stem);
+      if (ws.length > score && ws.every((w) => text.has(w))) [best, score] = [g, ws.length];
+    }
+  if (best) return { goal: { ...best, id: newId('goal') }, created: false };
+  const key = slug(metric) || 'conversao';
+  return { goal: { id: newId('goal'), key, type: 'custom', event: key }, created: true };
+}
+
+/**
+ * Página do teste a partir da ideia: caminho ("/carrinho", "/produto/* ...") ou URL do próprio site viram a
+ * página aberta no editor e a regra de URL (com `*`, "contém" o prefixo); texto solto ("todo o site",
+ * "formulário") abre a home do projeto e vale em todo o site (o usuário ajusta a segmentação).
+ */
+export function ideaPage(page: string, siteUrl: string): { url: string; rule?: UrlRule } {
+  const site = new URL(siteUrl);
+  const token = page.trim().split(/\s/)[0] ?? '';
+  const star = token.indexOf('*');
+  try {
+    const raw = star < 0 ? token : token.slice(0, star);
+    const u = raw.startsWith('/') ? new URL(raw, site) : new URL(raw);
+    if (u.origin === site.origin)
+      return {
+        url: u.href,
+        rule: { match: star < 0 ? 'exact' : 'contains', value: u.href, exclude: false },
+      };
+  } catch {
+    // Não é caminho nem URL: cai na home.
+  }
+  return { url: site.href };
+}
+
+/** Teste A/B em rascunho a partir da ideia (id e chave estáveis por ideia: clique duplo não cria dois). */
+export function ideaExperiment(
+  idea: Pick<SavedIdea, 'id' | 'title' | 'hypothesis' | 'page' | 'metric'>,
+  siteUrl: string,
+  others: Experiment[],
+): { experiment: Experiment; editorUrl: string; goalCreated: boolean } {
+  const id = `exp_${idea.id}`;
+  const taken = new Set(others.filter((e) => e.id !== id).map((e) => e.key));
+  let key = `${slug(idea.title) || 'teste'}-${idea.id
+    .replace(/^idea_/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')}`;
+  if (taken.has(key)) key = `${key}-${Math.random().toString(36).slice(2, 6)}`;
+  const { url, rule } = ideaPage(idea.page, siteUrl);
+  const { goal, created } = ideaGoal(
+    idea.metric,
+    others.flatMap((e) => e.goals),
+  );
+  const v = (k: string, name: string) => ({ id: newId('var'), key: k, name, weight: 50 });
+  const experiment = ExperimentSchema.parse({
+    id,
+    key,
+    name: idea.title.trim().slice(0, 200) || 'Teste da ideia',
+    hypothesis: idea.hypothesis.trim().slice(0, 2000) || undefined,
+    segmentation: { urls: rule ? [rule] : [] },
+    variations: [v('controle', 'Controle'), v('variacao-1', 'Variação 1')],
+    goals: [goal],
+  });
+  return { experiment, editorUrl: url, goalCreated: created };
+}
 
 const VariationOut = z
   .object({
@@ -274,6 +393,68 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
       const next = { ...state, ideas };
       await write(user.accountId, id, next);
       return c.json(next, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/ai/ideas/{id}/experiment',
+      tags: ['insights'],
+      security,
+      summary:
+        'Cria o teste A/B da ideia (rascunho com nome, página, hipótese e meta) e marca a ideia como executada com o link; repetir devolve o mesmo teste',
+      request: { params: IdParam },
+      responses: {
+        200: json(
+          z.object({
+            id: z.string(),
+            /** false = o teste já existia (clique duplo, outra aba). */
+            created: z.boolean(),
+            /** A meta não casou com nenhuma da conta e foi criada como evento customizado. */
+            goalCreated: z.boolean(),
+            /** Há provedor de IA para gerar as alterações sugeridas no editor. */
+            ai: z.boolean(),
+            ideas: StateOut,
+          }),
+          'teste da ideia',
+        ),
+        409: json(ErrorOut, 'conta sem projeto'),
+        ...errors,
+      },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const { id: ideaId } = c.req.valid('param');
+      const ai = !!(client || compat);
+      const { id, state } = await read(user.accountId);
+      const idea = state.ideas.find((i) => i.id === ideaId);
+      if (!id || !idea) return c.json({ error: 'ideia não encontrada' }, 404);
+      const link = async (expId: string, created: boolean, goalCreated: boolean) => {
+        // Relê: criar levou algumas consultas e outra escrita das ideias pode ter acontecido no meio.
+        const { state: now } = await read(user.accountId);
+        const ideas = now.ideas.map((i) =>
+          i.id === ideaId ? { ...i, experimentId: expId, doneAt: i.doneAt ?? new Date().toISOString() } : i,
+        );
+        const next = { ...now, ideas };
+        await write(user.accountId, id, next);
+        return c.json({ id: expId, created, goalCreated, ai, ideas: next }, 200);
+      };
+      // Já criado (mesmo que o vínculo tenha se perdido numa escrita concorrente): devolve o mesmo teste.
+      for (const expId of new Set([idea.experimentId, `exp_${idea.id}`]))
+        if (expId && (await repo.getExperiment(user.accountId, expId))) return link(expId, false, false);
+      const [project] = await repo.listProjects(user.accountId);
+      if (!project) return c.json({ error: 'crie um projeto (site) antes de criar testes' }, 409);
+      const others = await repo.loadAllExperiments(user.accountId);
+      const { experiment, editorUrl, goalCreated } = ideaExperiment(idea, project.siteUrl, others);
+      await repo.saveExperiment(user.accountId, {
+        projectId: project.id,
+        editorUrl,
+        experiment,
+        userId: user.id,
+      });
+      return link(experiment.id, true, goalCreated);
     },
   );
 

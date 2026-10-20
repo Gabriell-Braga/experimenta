@@ -238,6 +238,23 @@ export function SettingsPanel({
           />
         </label>
 
+        <label className="flex flex-col gap-1">
+          <span className="text-gray-600">Hipótese</span>
+          <textarea
+            key={experiment.hypothesis ?? ''}
+            defaultValue={experiment.hypothesis ?? ''}
+            maxLength={2000}
+            rows={3}
+            placeholder="Se mudarmos X, então Y, porque Z"
+            className={input}
+            data-testid="hypothesis"
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v !== (experiment.hypothesis ?? '')) patch({ hypothesis: v || undefined });
+            }}
+          />
+        </label>
+
         <label className="flex items-center justify-between gap-2">
           <span className="text-gray-600">Status</span>
           <select

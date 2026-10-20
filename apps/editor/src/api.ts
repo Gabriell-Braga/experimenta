@@ -728,6 +728,8 @@ export interface SavedIdea extends Idea {
   model?: string;
   /** Marcada como executada pelo usuário. */
   doneAt?: string;
+  /** Teste criado pela ideia ("Criar teste"). */
+  experimentId?: string;
 }
 /** Ideias guardadas na conta + estado da última geração (que roda em segundo plano na API). */
 export interface Ideas {
@@ -748,6 +750,12 @@ export const ideas = {
     api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ done }) }),
   remove: (id: string) => api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   clear: () => api<Ideas>('/ai/ideas', { method: 'DELETE' }),
+  /** Cria (ou devolve, se já criado) o teste da ideia e a marca como executada. */
+  createTest: (id: string) =>
+    api<{ id: string; created: boolean; goalCreated: boolean; ai: boolean; ideas: Ideas }>(
+      `/ai/ideas/${encodeURIComponent(id)}/experiment`,
+      { method: 'POST' },
+    ),
 };
 
 /** Variação por texto: alterações propostas pela IA sobre o resumo da página (ainda não aplicadas). */

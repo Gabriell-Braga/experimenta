@@ -47,6 +47,8 @@ export function previewExperiment(exp: Experiment, variationId: string, js: bool
   return {
     ...c,
     id: `preview_${exp.id}`,
+    // Hipótese é da equipe: não vai para o site.
+    hypothesis: undefined,
     status: 'running',
     traffic: 100,
     audiences: [],

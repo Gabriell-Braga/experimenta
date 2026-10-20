@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 18.1 concluída
+**Status:** 18.2 concluída
 **Fase atual:** 18
-**Tarefa atual:** 18.2
-**Última atualização:** 2026-10-20 06:37
-**Próximo passo:** 18.2 ideia → teste em um clique.
+**Tarefa atual:** 18.3
+**Última atualização:** 2026-10-20 10:42
+**Próximo passo:** 18.3 backlog de hipóteses.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -634,3 +634,9 @@
 - Arquivos principais: packages/shared/src/ai-variation.ts, packages/shared/src/rpc.ts (`pageSummary`), packages/agent/src/summary.ts, apps/api/src/ai-variation.ts, apps/api/src/ai.ts (`compatJson`), apps/api/src/routes/ai.ts, apps/editor/src/components/AiPanel.tsx, apps/editor/src/EditorView.tsx, apps/editor/src/store.ts (`addOperations`), e2e/tests/ai-variation.spec.ts
 - Como testar manualmente: com ANTHROPIC_API_KEY (ou AI_BASE_URL/AI_MODEL) na API, abrir um teste no editor → aba IA → "Deixe o botão Comprar agora verde e troque o título por Corra mais leve" → Gerar alterações → ver no site → Aplicar → Ctrl+Z desfaz as duas. `pnpm --filter @abtest/api exec vitest run src/ai-variation.test.ts`; `pnpm --filter @abtest/e2e e2e tests/ai-variation.spec.ts` (provedor falso por rota interceptada).
 - Observações: snippet inalterado. Gerar não entra no histórico de atividades (como as ideias; o que vale é salvar o experimento, que já é auditado). Chamada síncrona (sem segundo plano): no Worker grátis conta só o tempo de CPU, não a espera do modelo. D-081.
+
+### 2026-10-20 10:42 — Tarefa 18.2 concluída (ideia → teste em um clique)
+- O que foi feito: "Criar teste" da ideia chama `POST /ai/ideas/:id/experiment` (editor+), que cria o teste A/B em rascunho com o nome da ideia, a página (caminho ou URL do próprio site vira a página do editor e a regra de URL; texto solto abre a home e vale no site todo), a hipótese (campo novo `hypothesis` do experimento, na coluna JSON `options`, editável em Configurações) e a meta (reaproveita a meta de outro teste da conta cujo nome está no texto da ideia; senão cria um evento customizado com o nome do texto), marca a ideia como executada com o link (`experimentId`, botão "Abrir teste") e entra no histórico de atividades. Idempotente: id do teste derivado da ideia, repetir devolve o mesmo teste, e o botão não pede duas vezes. O editor do teste recém-criado abre na aba IA com a mudança da ideia no pedido: com IA configurada gera sozinho assim que o site conecta e mostra a pré-visualização (aplicar ou descartar, nada entra sem aceite); sem IA, deixa a mudança como sugestão e avisa.
+- Arquivos principais: apps/api/src/routes/ai.ts (`ideaPage`, `ideaGoal`, `ideaExperiment` e a rota), apps/api/src/audit.ts, packages/shared/src/experiment.ts, apps/editor/src/pages/Optimize.tsx, apps/editor/src/components/{AiPanel,SettingsPanel}.tsx, apps/editor/src/EditorView.tsx, e2e/tests/idea-to-test.spec.ts
+- Como testar manualmente: Otimização por IA → Gerar ideias → "Criar teste" numa ideia: abre o editor na página da ideia, aba IA com a mudança (com chave de IA, a pré-visualização aparece sozinha); Configurações mostra nome, hipótese e meta; voltar às ideias: a ideia está em "Executadas" com "Abrir teste". `pnpm --filter @abtest/api exec vitest run src/ai.test.ts`; `pnpm --filter @abtest/e2e e2e tests/idea-to-test.spec.ts`.
+- Observações: sem migração (hipótese em `options`, vínculo no JSON das ideias); a hipótese não vai para o site (removida na publicação e no link de pré-visualização). A sugestão para o editor fica no sessionStorage (só a primeira abertura do teste gera). Snippet inalterado. D-082.

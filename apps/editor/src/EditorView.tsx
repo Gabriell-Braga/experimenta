@@ -30,7 +30,7 @@ import {
 import { go, navigate } from './nav';
 import { Button, Modal, Spinner, useToast } from './ui';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
-import { AiPanel, type AiPreview } from './components/AiPanel';
+import { AiPanel, takeIdeaSeed, type AiPreview, type IdeaSeed } from './components/AiPanel';
 import { ChangesPanel } from './components/ChangesPanel';
 import { HealthPanel } from './components/HealthPanel';
 import { HeatmapPanel, type HeatmapResult } from './components/HeatmapPanel';
@@ -68,7 +68,9 @@ export function EditorView({ record, user }: Props) {
   const [device, setDevice] = useState<Device>('desktop');
   const [selected, setSelected] = useState<ElementInfo | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
-  const [tab, setTab] = useState<Tab>('element');
+  /** Teste recém-criado de uma ideia (18.2): abre na aba IA com a mudança sugerida. */
+  const [ideaSeed, setIdeaSeed] = useState<IdeaSeed | null>(() => takeIdeaSeed(record.experiment.id));
+  const [tab, setTab] = useState<Tab>(ideaSeed ? 'ai' : 'element');
   const [runJS, setRunJS] = useState(false);
   const [prompt, setPrompt] = useState<PromptRequest | null>(null);
   /** Configurações (status, tráfego, páginas, metas) ficam numa janela própria, fora da edição. */
@@ -737,6 +739,8 @@ export function EditorView({ record, user }: Props) {
                   setTab('changes');
                 }}
                 onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
+                seed={ideaSeed}
+                onSeedUsed={() => setIdeaSeed((s) => s && { ...s, used: true })}
               />
             )}
             {tab === 'versions' && (

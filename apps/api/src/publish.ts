@@ -150,7 +150,10 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
     const running = all
       .filter((e) => e.status === 'running')
       // Opções de estatística (17.5) só valem no relatório: não vão para o site.
-      .map(({ stats: _stats, ...e }) => ({ ...compileFunnel(e), group: slotsOf.get(e.id) }));
+      .map(({ stats: _stats, hypothesis: _hypothesis, ...e }) => ({
+        ...compileFunnel(e),
+        group: slotsOf.get(e.id),
+      }));
 
     if (!canPublishJs(user)) {
       const published = jsOf(last?.config.experiments ?? []);

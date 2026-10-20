@@ -1,7 +1,8 @@
-import { Check, Copy, MessageSquare, Plane, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { Check, Copy, ExternalLink, MessageSquare, Plane, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ideas, type Ideas, type Me, type SavedIdea } from '../api';
-import { navigate } from '../nav';
+import { putIdeaSeed } from '../components/AiPanel';
+import { go } from '../nav';
 import {
   Button,
   Card,
@@ -53,7 +54,27 @@ function IdeaCard({
   onChange(p: Promise<Ideas>): Promise<unknown>;
 }) {
   const copy = useCopy();
+  const toast = useToast();
   const done = !!i.doneAt;
+  // Ref além do estado: dois cliques no mesmo instante não podem pedir duas vezes (a API também é idempotente).
+  const creating = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const createTest = async () => {
+    if (creating.current) return;
+    creating.current = true;
+    setBusy(true);
+    try {
+      const r = await ideas.createTest(i.id);
+      // Só no teste recém-criado: o editor abre a aba IA com a mudança da ideia (e gera, se houver IA).
+      if (r.created)
+        putIdeaSeed(r.id, { title: i.title, change: i.change, auto: r.ai, goalCreated: r.goalCreated });
+      go(r.id);
+    } catch (e) {
+      toast('error', `Não foi possível criar o teste: ${(e as Error).message}`);
+      creating.current = false;
+      setBusy(false);
+    }
+  };
   // `?idea=<id>` (link da tela Menções) abre os comentários desta ideia e a traz à vista.
   const [talk, setTalk] = useState(() => new URLSearchParams(location.search).get('idea') === i.id);
   const self = useRef<HTMLLIElement>(null);
@@ -90,10 +111,17 @@ function IdeaCard({
         <dd className="text-gray-500">{i.basedOn}</dd>
       </dl>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {!done && (
-          <Button size="sm" onClick={() => navigate('tests')}>
-            Criar teste
+        {i.experimentId ? (
+          <Button size="sm" onClick={() => go(i.experimentId!)} data-testid="idea-open-test">
+            <ExternalLink size={14} aria-hidden="true" /> Abrir teste
           </Button>
+        ) : (
+          !done &&
+          canEdit && (
+            <Button size="sm" loading={busy} onClick={createTest} data-testid="idea-create-test">
+              Criar teste
+            </Button>
+          )
         )}
         {canEdit && (
           <Button

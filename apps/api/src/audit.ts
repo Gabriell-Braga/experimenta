@@ -89,6 +89,18 @@ const RULES: Rule[] = [
     name: (x) => exp(x)?.name,
     id: (x) => exp(x)?.id,
   },
+  // Ideia → teste (18.2): registra só quando criou (repetir devolve o mesmo teste).
+  {
+    method: 'POST',
+    path: '/ai/ideas/:id/experiment',
+    target: 'experiment',
+    action: 'create',
+    skip: (x) => x.res.created !== true,
+    id: (x) => x.res.id,
+    name: (x) =>
+      ((x.res.ideas as Json | undefined)?.ideas as Json[] | undefined)?.find((i) => i.id === x.p.id)?.title,
+    detail: () => 'a partir de ideia da IA',
+  },
   {
     method: 'PUT',
     path: '/experiments/:id',

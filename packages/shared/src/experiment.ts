@@ -107,6 +107,8 @@ export const ExperimentSchema = z
     id: z.string(),
     key: KeySchema,
     name: NameSchema,
+    /** Hipótese do teste ("se mudarmos X, então Y, porque Z"); só para a equipe, não vai para o site. */
+    hypothesis: z.string().trim().max(2000).optional(),
     status: ExperimentStatusSchema.default('draft'),
     /** Percentual (0–100) de visitantes elegíveis que entram no experimento. */
     traffic: z.number().min(0).max(100).default(100),
@@ -169,6 +171,7 @@ export const EXPERIMENT_OPTION_KEYS = [
   'audiences',
   'pages',
   'stats',
+  'hypothesis',
 ] as const;
 export const VARIATION_EXTRA_KEYS = ['variables', 'combination'] as const;
 export function pickKeys<T extends object, K extends keyof T>(o: T, keys: readonly K[]): Partial<Pick<T, K>> {

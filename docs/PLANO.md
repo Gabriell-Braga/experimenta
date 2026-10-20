@@ -187,7 +187,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 
 ### Fase 18 — IA no estilo Copilot
 - [x] 18.1 Criar variação por texto: "deixe o botão verde e troque o título por X" vira operações no editor visual (sobre o DOM da página no iframe), com pré-visualização antes de aplicar; usa o mesmo provedor das ideias (Claude ou modelo grátis)
-- [ ] 18.2 Ideia → teste em um clique: "Criar teste" da ideia abre o editor já com nome, página, hipótese, meta e alterações sugeridas
+- [x] 18.2 Ideia → teste em um clique: "Criar teste" da ideia abre o editor já com nome, página, hipótese, meta e alterações sugeridas
 - [ ] 18.3 Backlog de hipóteses (gestão do programa): ideias da IA e manuais num quadro (ideia → priorizada → em teste → concluída), priorização por impacto/confiança/esforço, ligação com o experimento e o resultado
 - [ ] 18.4 Resumo por IA de gravações (o que o visitante tentou fazer e onde travou), de mapa de calor de uma página e de respostas abertas de pesquisa (temas e sentimento)
 - [ ] 18.5 Assistente de relatório: explica o resultado do teste em linguagem simples e sugere o próximo passo
