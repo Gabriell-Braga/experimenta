@@ -42,7 +42,10 @@ export async function runPreview(win: Window, token: string): Promise<Runtime | 
     );
     if (res.ok) data = (await res.json()) as PreviewPayload;
   } catch {
-    /* API fora do ar: trata como link inválido */
+    // Sem resposta (saiu da página no meio da busca, rede ou API fora do ar): o link pode valer; a sessão
+    // continua no modo pré-visualização e a próxima página tenta de novo (D-087).
+    af.release();
+    return null;
   }
   if (!data) {
     af.release();

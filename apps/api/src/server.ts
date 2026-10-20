@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
@@ -66,7 +67,7 @@ setInterval(
   3_600_000,
 ).unref();
 
-serve(
+const server = serve(
   {
     fetch: createApp({
       repo,
@@ -82,3 +83,7 @@ serve(
   },
   () => console.log(`[api] ${publicUrl} (cdn: ${cdnDir})`),
 );
+// Conexão ociosa fica aberta mais que o padrão do Node (5 s): cliente com keep-alive (proxy, balanceador, agent
+// do Node/Playwright) que reusa o socket bem quando o servidor o fecha recebe ECONNRESET num POST (D-087).
+(server as Server).keepAliveTimeout = 65_000;
+(server as Server).headersTimeout = 66_000; // maior que o keep-alive (recomendação do Node)

@@ -92,6 +92,8 @@ test('ativa duas etapas, o login pede o código e "sair de todos os outros" derr
   // Sair (encerra a sessão) e entrar de novo: agora pede o código.
   await page.getByTestId('user-menu').click();
   await page.getByRole('menuitem', { name: 'Sair', exact: true }).click();
+  // Sair recarrega a página; esperar o formulário evita o goto do login ser abortado por essa navegação.
+  await expect(page.getByLabel('E-mail')).toBeVisible();
   await login(page, cred);
   await expect(page.getByTestId('totp-form')).toBeVisible();
   await page.getByLabel('Código').fill('111111');

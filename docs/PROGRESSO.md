@@ -671,3 +671,7 @@
 - Entregue: variação por texto com IA e pré-visualização (18.1), ideia → teste em um clique (18.2), backlog de hipóteses com ICE (18.3), resumos por IA de gravação, mapa de calor e pesquisa (18.4), assistente de relatório (18.5) e geração de ideias em passos que sobrevive ao Worker grátis (18.6).
 - Nenhuma migração nova no D1 na fase (tudo em entidades/colunas JSON); o deploy pendente continua sendo o das migrações 0007–0011 da Fase 16, com novo login.
 - Pendências da fase: CPU do Worker grátis ainda derruba o Painel e pode derrubar relatórios grandes (a geração de ideias contorna seguindo sem painel); ler-modificar-gravar sem trava na entidade das ideias (D-083); máscara de PII por regex (D-084).
+
+### 2026-10-20 12:14 — Correção: E2E instável na suíte completa (preview-link, ECONNRESET)
+- Causa: preview.js apagava o token da sessão quando o `fetch` do rascunho era abortado pela navegação (goBack antes da resposta com a API carregada); a página seguinte carregava sem pré-visualização. Agora só resposta não-2xx da API encerra o link (teste em packages/snippet/src/preview.test.ts). Também: keep-alive da API em 65 s (ECONNRESET em POST de login nos testes) e fuzz de robustez pula campo que sumiu num re-render. D-087.
+

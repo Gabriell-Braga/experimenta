@@ -66,6 +66,17 @@ test('link inválido: não aplica, sai do modo pré-visualização e avisa', asy
   expect(document.querySelector('[data-abt-qa]')!.shadowRoot!.textContent).toContain('expirado ou revogado');
 });
 
+test('sem resposta da API (navegou no meio da busca, rede): não sai do modo pré-visualização', async () => {
+  sessionStorage.setItem('_abt_preview', 'pv_1.seg');
+  window.fetch = vi.fn(async () => {
+    throw new DOMException('aborted', 'AbortError');
+  }) as typeof window.fetch;
+  expect(await runPreview(window, 'pv_1.seg')).toBeNull();
+  expect(sessionStorage.getItem('_abt_preview')).toBe('pv_1.seg');
+  expect(document.querySelector('[data-abt-antiflicker]')).toBeNull();
+  expect(document.querySelector('[data-abt-qa]')).toBeNull();
+});
+
 test('parâmetro guardado na sessão sobrevive à navegação; "off" limpa', () => {
   history.replaceState(null, '', '/?abt_preview=tok');
   expect(sessionParam(window, 'abt_preview')).toBe('tok');

@@ -69,7 +69,12 @@ async function fuzzFields(scope: Locator, round: number) {
   const n = Math.min(await fields.count(), 30);
   for (let i = 0; i < n; i++) {
     const f = fields.nth(i);
-    const type = (await f.getAttribute('type')) ?? 'text';
+    // O lixo num campo pode tirar outro da tela (re-render): campo que sumiu é pulado.
+    const type = await f.getAttribute('type', { timeout: 2000 }).then(
+      (t) => t ?? 'text',
+      () => null,
+    );
+    if (!type) continue;
     if (['date', 'datetime-local', 'time', 'month', 'week'].includes(type)) continue;
     const pool = type === 'number' ? NUMBERS : TEXTS;
     await f.fill(pool[(i + round) % pool.length]!, { timeout: 2000 }).catch(() => {});
