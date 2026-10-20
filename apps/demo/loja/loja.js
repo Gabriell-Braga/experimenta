@@ -214,10 +214,10 @@ function add(id) {
   openCart();
 }
 renderCart();
+// O checkout (checkout.html) lê o carrinho daqui e envia a compra ao pagar.
 document.getElementById('checkout').addEventListener('click', () => {
-  const items = [...cart.values()];
-  if (items.length)
-    abq.push(['purchase', items.map(({ p }) => p.id), items.reduce((s, { p, qty }) => s + p.price * qty, 0)]);
+  const items = [...cart.values()].map(({ p, qty }) => ({ id: p.id, name: p.name, price: p.price, qty }));
+  sessionStorage.setItem('pf-cart', JSON.stringify(items));
 });
 document.getElementById('cart-open').addEventListener('click', openCart);
 drawer.addEventListener('click', (e) => e.target.closest('[data-close-cart]') && closeCart());

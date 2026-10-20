@@ -204,7 +204,7 @@ export function Comments({ targetType, targetId, user, bare }: Props) {
             id={listboxId}
             role="listbox"
             aria-label="Membros da conta"
-            className="absolute z-20 mt-1 w-64 overflow-hidden rounded-md border border-gray-900/10 bg-white py-1 shadow-lg"
+            className="absolute bottom-full z-20 mb-1 w-64 overflow-hidden rounded-md border border-gray-900/10 bg-white py-1 shadow-lg"
           >
             {options.map((m, i) => (
               <li

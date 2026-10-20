@@ -773,3 +773,72 @@ a {
   display: grid;
   place-items: center;
 }
+
+/* ---------- Checkout e obrigado ---------- */
+.checkout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  padding-block: 40px 80px;
+  align-items: start;
+}
+.checkout fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 12px;
+}
+.checkout legend {
+  font-weight: 700;
+  padding-inline: 6px;
+}
+.checkout label {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.checkout input:not([type='checkbox']) {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+}
+.checkout .checkout__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.checkout__summary {
+  background: var(--soft);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: sticky;
+  top: 88px;
+}
+.checkout__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.checkout-secure {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--muted);
+}
+.checkout--done {
+  display: block;
+  text-align: center;
+  max-width: 560px;
+}
+@media (max-width: 800px) {
+  .checkout {
+    grid-template-columns: 1fr;
+  }
+  .checkout__summary {
+    position: static;
+  }
+}

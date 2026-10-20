@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Snippet A/B: primeiro script do head (ver docs/DECISOES.md D-008) -->
+    <script src="%VITE_API_URL%/cdn/demo.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Criar conta · Fluxo</title>
+    <link rel="stylesheet" href="./saas.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap top__row">
+        <a href="./" class="logo"><span class="logo__dot"></span>fluxo</a>
+      </div>
+    </header>
+    <main class="wrap signup">
+      <form id="signup-form" class="signup__form" data-testid="signup-form">
+        <h1 id="signup-title">Crie sua conta grátis</h1>
+        <p class="hero__note" id="signup-plan"></p>
+        <label>Seu nome <input name="nome" autocomplete="name" required /></label>
+        <label>E-mail de trabalho <input name="email" type="email" autocomplete="email" required /></label>
+        <label
+          >CNPJ <input name="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" required
+        /></label>
+        <label
+          >Faturamento mensal
+          <select name="faturamento">
+            <option>Até R$ 30 mil</option>
+            <option>R$ 30 a 100 mil</option>
+            <option>Acima de R$ 100 mil</option>
+          </select>
+        </label>
+        <label
+          >Senha <input name="senha" type="password" autocomplete="new-password" minlength="8" required
+        /></label>
+        <button class="btn btn--block" data-testid="signup-submit">Criar conta</button>
+        <p class="hero__note">Ao criar a conta você aceita os termos de uso.</p>
+      </form>
+    </main>
+    <script type="module">
+      const plano = new URLSearchParams(location.search).get('plano') || 'pro';
+      document.getElementById('signup-plan').textContent = `Plano ${plano} · 14 dias grátis`;
+      document.getElementById('signup-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const abq = (window.abq = window.abq || []);
+        const prices = { essencial: 49, pro: 99, empresa: 249 };
+        abq.push(['identify', e.currentTarget.email.value.trim(), { plano }]);
+        abq.push(['track', 'signup', prices[plano] ?? 99, { plano }]);
+        setTimeout(() => (location.href = './bem-vindo.html'), 300); // dá tempo do envio do evento
+      });
+    </script>
+  </body>
+</html>

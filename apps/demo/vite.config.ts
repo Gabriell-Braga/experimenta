@@ -32,17 +32,19 @@ export default defineConfig({
   appType: 'mpa',
   // Também em 127.0.0.1: é outro "site" em relação ao editor em localhost (testes de SameSite).
   server: { host: true },
+  // Produção só leva a loja, o SaaS e o /bloqueado (extensão). As páginas simples da raiz (index, produto,
+  // obrigado, cookie) e a SPA são fixtures dos testes E2E: existem só no servidor de dev.
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        produto: resolve(__dirname, 'produto.html'),
-        obrigado: resolve(__dirname, 'obrigado.html'),
-        spa: resolve(__dirname, 'spa/index.html'),
+        loja: resolve(__dirname, 'loja/index.html'),
+        lojaCheckout: resolve(__dirname, 'loja/checkout.html'),
+        lojaObrigado: resolve(__dirname, 'loja/obrigado.html'),
+        saas: resolve(__dirname, 'saas/index.html'),
+        saasCadastro: resolve(__dirname, 'saas/cadastro.html'),
+        saasBemVindo: resolve(__dirname, 'saas/bem-vindo.html'),
         bloqueadoComSnippet: resolve(__dirname, 'bloqueado/com-snippet.html'),
         bloqueadoSemSnippet: resolve(__dirname, 'bloqueado/sem-snippet.html'),
-        cookie: resolve(__dirname, 'cookie.html'),
-        loja: resolve(__dirname, 'loja/index.html'),
       },
     },
   },

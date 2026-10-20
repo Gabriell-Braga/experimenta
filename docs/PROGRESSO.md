@@ -722,3 +722,9 @@
 - O que foi feito: `pnpm seed:data` agora preenche as fases 16–19 (ver D-093) e rodou em produção (1.500 visitantes, 13,5 mil eventos). App mudou para https://experimenta.gabrielbraga.app (API `experimenta-api`, demo `experimenta-demo`); URLs do demo migradas no D1. Painel geral mais leve (estourava a CPU do Worker com 6 testes no ar). Smoke de produção atualizado (botão de configurações mudou) e novo `e2e/prod/tour.spec.ts`: todas as telas e relatórios com owner, editor e viewer, sem erro de JS, 5xx ou aviso de erro.
 - Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (120 passaram), SDK Python (9), produção: smoke + tour (4 passaram).
 - Pendência: painel de 30/90 dias ainda pode dar "Limite da versão de testes" no plano grátis (Workers Paid resolve).
+
+### 2026-10-20 17:47 — Demo só com a loja + site SaaS; migração dos dados simulados; menção nos comentários
+- O que foi feito: site simples fora do build de produção (raiz → `/loja/`); loja ganhou checkout e obrigado próprios; novo site SaaS em `/saas/`; script de migração dos dados simulados do site simples para a loja (gerado e testado numa cópia local do D1, **ainda não aplicado em produção**); seed gera na loja; lista de @menção abre para cima. docs/PENDENCIAS.md lista o que espera o Workers Paid e a IA paga. D-094.
+- Arquivos principais: apps/demo/{vite.config.ts,public/_redirects,loja/*,saas/*}, scripts/{migrar-demo-loja,seed-data}.ts, apps/editor/src/pages/Comments.tsx, docs/PENDENCIAS.md
+- Como testar manualmente: `pnpm --filter @abtest/demo dev` e abrir /loja/ (adicionar ao carrinho → Finalizar compra → Pagar) e /saas/; num relatório, comentar com @ no fim da página.
+- Testes: `pnpm lint`, `pnpm test`, E2E comments/loja/recos passaram.

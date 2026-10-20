@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Snippet A/B: primeiro script do head (ver docs/DECISOES.md D-008) -->
+    <script src="%VITE_API_URL%/cdn/demo.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Checkout · Passo Firme</title>
+    <link rel="stylesheet" href="./loja.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container site-header__row">
+        <a href="./" class="brand"><span class="brand__mark">PF</span> Passo Firme</a>
+        <span class="checkout-secure">Compra 100% segura</span>
+      </div>
+    </header>
+    <main class="container checkout">
+      <!-- Campos com nome: o snippet mede tempo, hesitação e abandono por campo (análise de formulários). -->
+      <form class="checkout__form" id="checkout" data-testid="checkout-form">
+        <h1 id="checkout-title">Finalize seu pedido</h1>
+        <fieldset>
+          <legend>Seus dados</legend>
+          <label>Nome completo <input name="nome" autocomplete="name" required /></label>
+          <label>E-mail <input name="email" type="email" autocomplete="email" required /></label>
+        </fieldset>
+        <fieldset>
+          <legend>Entrega</legend>
+          <label
+            >CEP <input name="cep" inputmode="numeric" maxlength="9" placeholder="00000-000" required
+          /></label>
+          <p class="checkout__hint" id="frete-msg">Informe o CEP para calcular o frete.</p>
+        </fieldset>
+        <fieldset>
+          <legend>Pagamento</legend>
+          <label
+            >Número do cartão <input name="cartao" inputmode="numeric" autocomplete="cc-number" required
+          /></label>
+          <label class="checkout__check"
+            ><input name="presente" type="checkbox" /> Embalar para presente</label
+          >
+        </fieldset>
+        <button class="btn btn--primary btn--block" id="pay" data-testid="pay">Pagar agora</button>
+      </form>
+      <aside class="checkout__summary">
+        <h2>Resumo</h2>
+        <ul class="drawer__items" id="summary-items"></ul>
+        <p class="drawer__total">Total <b id="summary-total">R$ 0,00</b></p>
+        <p class="checkout__hint">Troca grátis em 30 dias · Envio em 24 h</p>
+      </aside>
+    </main>
+    <script type="module">
+      const brl = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      let items = [];
+      try {
+        items = JSON.parse(sessionStorage.getItem('pf-cart') || '[]');
+      } catch {}
+      const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+      document.getElementById('summary-items').innerHTML =
+        items
+          .map(
+            (i) =>
+              `<li class="drawer__item"><span>${i.name}<small>${i.qty} × ${brl(i.price)}</small></span></li>`,
+          )
+          .join('') || '<li class="drawer__empty">Carrinho vazio. <a href="./#produtos">Ver tênis</a></li>';
+      document.getElementById('summary-total').textContent = brl(total);
+      const form = document.getElementById('checkout');
+      form.cep.addEventListener('change', () => {
+        document.getElementById('frete-msg').textContent =
+          total >= 299 ? 'Frete grátis para o seu CEP.' : 'Frete: R$ 24,90 (grátis acima de R$ 299).';
+      });
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const abq = (window.abq = window.abq || []);
+        // purchase: receita e recomendações; compra: meta customizada dos testes do checkout.
+        if (items.length) {
+          abq.push(['purchase', items.map((i) => i.id), total]);
+          abq.push(['track', 'compra', total]);
+        }
+        sessionStorage.removeItem('pf-cart');
+        setTimeout(() => (location.href = './obrigado.html'), 300); // dá tempo do envio do evento
+      });
+    </script>
+  </body>
+</html>

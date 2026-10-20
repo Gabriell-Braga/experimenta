@@ -94,9 +94,9 @@ const op = (id: string, selector: string, value: string) => ({
 // 1) Home: chamada nova ganha com folga no clique para comprar.
 const EXP_HOME = await experiment({
   key: 'home-cta-demo',
-  name: 'Home: chamada "Corra mais"',
-  page: '/',
-  segmentation: { urls: [url('exact', `${SITE}/`)] },
+  name: 'Loja: chamada "Corra mais"',
+  page: '/loja/',
+  segmentation: { urls: [url('exact', `${SITE}/loja/`)] },
   variations: [
     { id: 'seed_v0', key: 'controle', name: 'Controle', weight: 50 },
     {
@@ -104,21 +104,23 @@ const EXP_HOME = await experiment({
       key: 'corra-mais',
       name: 'Corra mais',
       weight: 50,
-      operations: [op('seed_op1', '#hero-title', 'Corra mais, canse menos')],
+      operations: [
+        op('seed_op1', '#hero-track > article:first-child .hero__text', 'Corra mais, canse menos'),
+      ],
     },
   ],
   goals: [
-    { id: 'seed_g_cta', key: 'clique-comprar', type: 'click', selector: '[data-testid=cta-comprar]' },
+    { id: 'seed_g_cta', key: 'clique-comprar', type: 'click', selector: '[data-testid=hero-cta]' },
     { id: 'seed_g_buy', key: 'compra', type: 'custom', event: 'compra' },
-    { id: 'seed_g_thanks', key: 'obrigado', type: 'pageview', url: url('contains', '/obrigado') },
+    { id: 'seed_g_thanks', key: 'obrigado', type: 'pageview', url: url('contains', '/loja/obrigado') },
   ],
 });
-// 2) Produto: selo de frete grátis ajuda pouco (ainda inconclusivo).
+// 2) Checkout: selo de frete grátis ajuda pouco (ainda inconclusivo).
 const EXP_FRETE = await experiment({
   key: 'produto-frete-gratis',
-  name: 'Produto: selo de frete grátis',
-  page: '/produto.html',
-  segmentation: { urls: [url('contains', '/produto')] },
+  name: 'Checkout: selo de frete grátis',
+  page: '/loja/checkout.html',
+  segmentation: { urls: [url('contains', '/loja/checkout')] },
   variations: [
     { id: 'seed_fr0', key: 'controle', name: 'Controle', weight: 50 },
     {
@@ -126,7 +128,7 @@ const EXP_FRETE = await experiment({
       key: 'selo-frete',
       name: 'Selo frete grátis',
       weight: 50,
-      operations: [op('seed_op_fr', '#add-to-cart', 'Adicionar ao carrinho (frete grátis)')],
+      operations: [op('seed_op_fr', '#pay', 'Pagar agora (frete grátis)')],
     },
   ],
   goals: [{ id: 'seed_g_fr_buy', key: 'compra', type: 'custom', event: 'compra' }],
@@ -150,13 +152,13 @@ const EXP_LOJA = await experiment({
   goals: [{ id: 'seed_g_lj_buy', key: 'compra-loja', type: 'custom', event: 'purchase' }],
 });
 
-await entity('funnel', 'Compra pela home', {
+await entity('funnel', 'Compra pela vitrine', {
   windowDays: 7,
   steps: [
-    { type: 'url', name: 'Home', url: url('exact', `${SITE}/`) },
-    { type: 'url', name: 'Produto', url: url('contains', '/produto') },
+    { type: 'url', name: 'Vitrine', url: url('exact', `${SITE}/loja/`) },
+    { type: 'url', name: 'Checkout', url: url('contains', '/loja/checkout') },
     { type: 'event', name: 'Compra', event: 'compra' },
-    { type: 'url', name: 'Obrigado', url: url('contains', '/obrigado') },
+    { type: 'url', name: 'Obrigado', url: url('contains', '/loja/obrigado') },
   ],
 });
 await entity('funnel', 'Loja: vitrine até a compra', {
@@ -171,12 +173,12 @@ const POPUP = await entity('popup', 'Cupom CORRA10 na saída', {
   status: 'running',
   format: 'modal',
   trigger: { type: 'exit' },
-  targeting: { urls: [url('contains', '/produto')], devices: [], audiences: [] },
+  targeting: { urls: [url('contains', '/loja/checkout')], devices: [], audiences: [] },
   frequency: 'once',
   title: 'Antes de ir: 10% OFF',
   body: 'Use o cupom no checkout e ganhe 10% de desconto na primeira compra.',
   code: 'CORRA10',
-  cta: { label: 'Usar cupom', url: '/produto.html#checkout' },
+  cta: { label: 'Usar cupom', url: '/loja/checkout.html#checkout' },
   theme: 'brand',
   accent: '#16a34a',
 });
@@ -199,7 +201,7 @@ const SURVEY = await entity('survey', 'NPS pós-compra', {
   status: 'running',
   format: 'slide-in',
   trigger: { type: 'delay', seconds: 3 },
-  targeting: { urls: [url('contains', '/obrigado')], devices: [], audiences: [] },
+  targeting: { urls: [url('contains', '/loja/obrigado')], devices: [], audiences: [] },
   frequency: 'once',
   questions: [
     { id: NPS_Q, type: 'nps', text: 'De 0 a 10, quanto você recomendaria a Passo Firme a um amigo?' },
@@ -268,10 +270,10 @@ await entity('flag', 'frete-expresso', {
 // 17.1: dois testes da home num grupo mutuamente exclusivo (o visitante cai em no máximo um).
 const EXP_GRP_CTA = await experiment({
   key: 'home-botao-urgencia',
-  name: 'Home: botão com urgência',
+  name: 'Loja: botão com urgência',
   hypothesis: 'Se o botão disser que o estoque é limitado, mais gente clica, porque cria urgência.',
-  page: '/',
-  segmentation: { urls: [url('exact', `${SITE}/`)] },
+  page: '/loja/',
+  segmentation: { urls: [url('exact', `${SITE}/loja/`)] },
   variations: [
     { id: 'seed_gc0', key: 'controle', name: 'Controle', weight: 50 },
     {
@@ -279,16 +281,16 @@ const EXP_GRP_CTA = await experiment({
       key: 'urgencia',
       name: 'Últimas unidades',
       weight: 50,
-      operations: [op('seed_op_gc', '[data-testid=cta-comprar]', 'Comprar: últimas unidades')],
+      operations: [op('seed_op_gc', '[data-testid=hero-cta]', 'Comprar: últimas unidades')],
     },
   ],
-  goals: [{ id: 'seed_g_gc', key: 'clique-comprar', type: 'click', selector: '[data-testid=cta-comprar]' }],
+  goals: [{ id: 'seed_g_gc', key: 'clique-comprar', type: 'click', selector: '[data-testid=hero-cta]' }],
 });
 const EXP_GRP_NEWS = await experiment({
   key: 'home-newsletter-cupom',
-  name: 'Home: newsletter com cupom',
-  page: '/',
-  segmentation: { urls: [url('exact', `${SITE}/`)] },
+  name: 'Loja: newsletter com cupom',
+  page: '/loja/',
+  segmentation: { urls: [url('exact', `${SITE}/loja/`)] },
   variations: [
     { id: 'seed_gn0', key: 'controle', name: 'Controle', weight: 50 },
     {
@@ -301,7 +303,7 @@ const EXP_GRP_NEWS = await experiment({
   ],
   goals: [{ id: 'seed_g_gn', key: 'newsletter', type: 'click', selector: '#newsletter-form > button' }],
 });
-await entity('group', 'Testes da home', {
+await entity('group', 'Testes do topo da loja', {
   description: 'Os dois testes mexem na home: cada visitante vê no máximo um.',
   experiments: [
     { id: EXP_GRP_CTA, percent: 50 },
@@ -311,12 +313,22 @@ await entity('group', 'Testes da home', {
 // 17.2 + 17.5: teste multipágina (produto → obrigado) com sequencial, CUPED e meta de guarda.
 const EXP_FUNIL = await experiment({
   key: 'funil-produto-obrigado',
-  name: 'Funil: confiança do produto ao obrigado',
+  name: 'Funil: confiança do checkout ao obrigado',
   hypothesis: 'Reforçar troca grátis no produto e no pós-compra aumenta compras sem derrubar o NPS.',
-  page: '/produto.html',
+  page: '/loja/checkout.html',
   pages: [
-    { id: 'pg_prod', name: 'Produto', url: `${SITE}/produto.html`, match: url('contains', '/produto') },
-    { id: 'pg_obg', name: 'Obrigado', url: `${SITE}/obrigado.html`, match: url('contains', '/obrigado') },
+    {
+      id: 'pg_prod',
+      name: 'Produto',
+      url: `${SITE}/loja/checkout.html`,
+      match: url('contains', '/loja/checkout'),
+    },
+    {
+      id: 'pg_obg',
+      name: 'Obrigado',
+      url: `${SITE}/loja/obrigado.html`,
+      match: url('contains', '/loja/obrigado'),
+    },
   ],
   stats: { sequential: true, cuped: true, guardrails: ['seed_g_fn_nl'] },
   variations: [
@@ -328,16 +340,19 @@ const EXP_FUNIL = await experiment({
       weight: 50,
       operations: [
         {
-          ...op('seed_op_fn1', 'h1.product-title', 'Tênis Runner X · troca grátis em 30 dias'),
+          ...op('seed_op_fn1', '#checkout-title', 'Finalize seu pedido · troca grátis em 30 dias'),
           page: 'pg_prod',
         },
-        { ...op('seed_op_fn2', 'main > h1', 'Pedido confirmado! Troca grátis em 30 dias.'), page: 'pg_obg' },
+        {
+          ...op('seed_op_fn2', '#thanks-title', 'Pedido confirmado! Troca grátis em 30 dias.'),
+          page: 'pg_obg',
+        },
       ],
     },
   ],
   goals: [
     { id: 'seed_g_fn_buy', key: 'compra', type: 'custom', event: 'compra' },
-    { id: 'seed_g_fn_nl', key: 'obrigado', type: 'pageview', url: url('contains', '/obrigado') },
+    { id: 'seed_g_fn_nl', key: 'obrigado', type: 'pageview', url: url('contains', '/loja/obrigado') },
   ],
 });
 // 17.4: rascunho com início agendado e o teste do frete com pausa agendada.
@@ -394,7 +409,7 @@ if (!DRY) {
       title: 'Tabela de medidas no produto',
       hypothesis: 'Quem não acha a tabela de medidas desiste; mostrá-la ao lado do preço reduz a dúvida.',
       change: 'Link "Qual meu número?" abaixo do preço abrindo a tabela.',
-      page: '/produto.html',
+      page: '/loja/checkout.html',
       metric: 'compra',
     },
     {
@@ -409,7 +424,7 @@ if (!DRY) {
       title: 'CEP antes do cartão no checkout',
       hypothesis: 'O campo CEP é onde mais gente trava; calcular o frete antes evita surpresa no fim.',
       change: 'Mover o CEP para o primeiro campo e mostrar o frete na hora.',
-      page: '/produto.html',
+      page: '/loja/checkout.html',
       metric: 'compra',
       ice: { impact: 9, confidence: 7, ease: 5 },
     },
@@ -417,7 +432,7 @@ if (!DRY) {
       title: 'Troca grátis no funil',
       hypothesis: 'Reforçar a troca grátis no produto e no pós-compra aumenta compras sem derrubar o NPS.',
       change: 'Texto de troca grátis no título do produto e na página de obrigado.',
-      page: '/produto.html',
+      page: '/loja/checkout.html',
       metric: 'compra',
       ice: { impact: 6, confidence: 6, ease: 9 },
       link: EXP_FUNIL,
@@ -426,7 +441,7 @@ if (!DRY) {
       title: 'Chamada "Corra mais" na home',
       hypothesis: 'Um título com benefício direto aumenta o clique para comprar.',
       change: 'Trocar o título do herói por "Corra mais, canse menos".',
-      page: '/',
+      page: '/loja/',
       metric: 'clique-comprar',
       ice: { impact: 6, confidence: 8, ease: 10 },
       link: EXP_HOME,
@@ -590,11 +605,11 @@ const DEVICES = [
 ] as const;
 /** Alvos de clique na home (seletor, tipo). A imagem do herói não é clicável: gera dead/rage clicks. */
 const CLICK_TARGETS = [
-  ['[data-testid=cta-comprar]', 'cta'],
-  ['[data-testid=cta-comprar]', 'cta'],
-  ['#hero > img', 'img'],
-  ['#hero-title', 'text'],
-  ['body > header > nav > a:nth-of-type(2)', 'nav'],
+  ['[data-testid=hero-cta]', 'cta'],
+  ['[data-testid=hero-cta]', 'cta'],
+  ['#hero-headline', 'img'],
+  ['#hero-track > article:first-child .hero__text', 'text'],
+  ['.mainnav__item:nth-of-type(2) > a', 'nav'],
   ['#newsletter-form > button', 'form'],
 ] as const;
 /** Catálogo da loja demo (apps/demo/loja/loja.js). */
@@ -736,13 +751,13 @@ for (let i = 0; i < VISITORS; i++) {
       // ----- Home → produto → checkout → obrigado -----
       const hv = `seed_v${armHome}`;
       const hk = armHome ? 'corra-mais' : 'controle';
-      pv(`/${q}`, 'Loja Demo', firstRef);
-      expose(EXP_HOME, 'home-cta-demo', hv, hk, '/');
+      pv(`/loja/${q}`, 'Passo Firme · Tênis e acessórios para correr', firstRef);
+      expose(EXP_HOME, 'home-cta-demo', hv, hk, '/loja/');
       if (sampled) {
         for (let c = 0; c < between(0, 3); c++) {
           const [sel, w] = pick(CLICK_TARGETS);
           events.push({
-            ...hb('/', { [EXP_HOME]: hv }),
+            ...hb('/loja/', { [EXP_HOME]: hv }),
             type: 'click',
             selector: sel,
             rx: +(0.2 + rand() * 0.6).toFixed(3),
@@ -754,7 +769,7 @@ for (let i = 0; i < VISITORS; i++) {
           });
           if (w === 'img' && chance(0.65))
             events.push({
-              ...hb('/', { [EXP_HOME]: hv }),
+              ...hb('/loja/', { [EXP_HOME]: hv }),
               type: 'frustration',
               kind: chance(0.45) ? 'rage' : 'dead',
               selector: sel,
@@ -765,7 +780,7 @@ for (let i = 0; i < VISITORS; i++) {
         }
         if (chance(0.35))
           events.push({
-            ...hb('/', { [EXP_HOME]: hv }),
+            ...hb('/loja/', { [EXP_HOME]: hv }),
             type: 'move',
             vw,
             points: Array.from({ length: 30 }, () => [
@@ -774,9 +789,9 @@ for (let i = 0; i < VISITORS; i++) {
             ]),
           });
       }
-      scroll('/', 35 + rand() ** 0.7 * 70, { [EXP_HOME]: hv });
+      scroll('/loja/', 35 + rand() ** 0.7 * 70, { [EXP_HOME]: hv });
       if (!chance(armHome ? 0.45 : 0.31)) continue; // saiu da home
-      convert(EXP_HOME, 'home-cta-demo', hv, hk, '/', 'seed_g_cta', 'clique-comprar');
+      convert(EXP_HOME, 'home-cta-demo', hv, hk, '/loja/', 'seed_g_cta', 'clique-comprar');
     } else if (entry < 0.88) {
       // ----- Loja completa (vitrine, produtos, compra) -----
       const lv = `seed_lj${armLoja}`;
@@ -827,9 +842,13 @@ for (let i = 0; i < VISITORS; i++) {
     // ----- Produto + checkout -----
     const fv = `seed_fr${armFrete}`;
     const fk = armFrete ? 'selo-frete' : 'controle';
-    pv(`/produto.html${entry >= 0.88 ? q : ''}`, 'Produto · Loja Demo', entry < 0.38 ? `${SITE}/` : firstRef);
-    expose(EXP_FRETE, 'produto-frete-gratis', fv, fk, '/produto.html');
-    scroll('/produto.html', 40 + rand() ** 0.6 * 60, { [EXP_FRETE]: fv });
+    pv(
+      `/loja/checkout.html${entry >= 0.88 ? q : ''}`,
+      'Checkout · Passo Firme',
+      entry < 0.38 ? `${SITE}/loja/` : firstRef,
+    );
+    expose(EXP_FRETE, 'produto-frete-gratis', fv, fk, '/loja/checkout.html');
+    scroll('/loja/checkout.html', 40 + rand() ** 0.6 * 60, { [EXP_FRETE]: fv });
     const pBuy = (mobile ? 0.21 : 0.31) * (armFrete ? 1.02 : 1);
     const buys = chance(pBuy);
     // Checkout: quem compra envia; quem desiste para no CEP ou no cartão (mais no celular).
@@ -838,7 +857,7 @@ for (let i = 0; i < VISITORS; i++) {
     const names = ['nome', 'email', 'cep', 'cartao', 'presente'];
     if (sampled || buys)
       events.push({
-        ...hb('/produto.html', { [EXP_FRETE]: fv }),
+        ...hb('/loja/checkout.html', { [EXP_FRETE]: fv }),
         type: 'form',
         form: '#checkout',
         interacted,
@@ -862,14 +881,14 @@ for (let i = 0; i < VISITORS; i++) {
       // Intenção de saída no produto: pop-up de cupom (uma vez por visitante, só no desktop dispara de verdade).
       if (s === 0 && chance(mobile ? 0.25 : 0.6)) {
         events.push({
-          ...base('/produto.html'),
+          ...base('/loja/checkout.html'),
           type: 'engage',
           campaignId: POPUP,
           kind: 'popup',
           action: 'view',
         });
         events.push({
-          ...base('/produto.html'),
+          ...base('/loja/checkout.html'),
           type: 'engage',
           campaignId: POPUP,
           kind: 'popup',
@@ -881,25 +900,34 @@ for (let i = 0; i < VISITORS; i++) {
     }
     const value = pick([249.9, 299.9, 399.9, 599.9, 599.9, 689.9, 999.9]);
     events.push({
-      ...base('/produto.html'),
+      ...base('/loja/checkout.html'),
       type: 'event',
       name: 'compra',
       value,
       props: { sku: pick(['TN-1', 'TN-2', 'TN-3']) },
     });
-    convert(EXP_FRETE, 'produto-frete-gratis', fv, fk, '/produto.html', 'seed_g_fr_buy', 'compra', value);
+    convert(
+      EXP_FRETE,
+      'produto-frete-gratis',
+      fv,
+      fk,
+      '/loja/checkout.html',
+      'seed_g_fr_buy',
+      'compra',
+      value,
+    );
     if (entry < 0.38) {
       const hv = `seed_v${armHome}`;
       const hk = armHome ? 'corra-mais' : 'controle';
-      convert(EXP_HOME, 'home-cta-demo', hv, hk, '/produto.html', 'seed_g_buy', 'compra', value);
-      convert(EXP_HOME, 'home-cta-demo', hv, hk, '/obrigado.html', 'seed_g_thanks', 'obrigado');
+      convert(EXP_HOME, 'home-cta-demo', hv, hk, '/loja/checkout.html', 'seed_g_buy', 'compra', value);
+      convert(EXP_HOME, 'home-cta-demo', hv, hk, '/loja/obrigado.html', 'seed_g_thanks', 'obrigado');
     }
-    pv('/obrigado.html', 'Obrigado · Loja Demo', `${SITE}/produto.html`);
+    pv('/loja/obrigado.html', 'Pedido confirmado · Passo Firme', `${SITE}/loja/checkout.html`);
     bought = true;
     // NPS pós-compra: a maioria vê, boa parte responde.
     if (chance(0.85)) {
       events.push({
-        ...base('/obrigado.html'),
+        ...base('/loja/obrigado.html'),
         type: 'engage',
         campaignId: SURVEY,
         kind: 'survey',
@@ -917,14 +945,14 @@ for (let i = 0; i < VISITORS; i++) {
         ];
         if (chance(0.3)) answers.push({ questionId: TEXT_Q, value: pick(COMMENTS) });
         events.push({
-          ...base('/obrigado.html'),
+          ...base('/loja/obrigado.html'),
           type: 'survey',
           surveyId: SURVEY,
           answers,
           completed: true,
         });
         events.push({
-          ...base('/obrigado.html'),
+          ...base('/loja/obrigado.html'),
           type: 'engage',
           campaignId: SURVEY,
           kind: 'survey',
@@ -932,7 +960,7 @@ for (let i = 0; i < VISITORS; i++) {
         });
       } else
         events.push({
-          ...base('/obrigado.html'),
+          ...base('/loja/obrigado.html'),
           type: 'engage',
           campaignId: SURVEY,
           kind: 'survey',
@@ -943,7 +971,7 @@ for (let i = 0; i < VISITORS; i++) {
     if (!identified && chance(0.6)) {
       identified = `cliente-${1000 + i}`;
       events.push({
-        ...base('/obrigado.html'),
+        ...base('/loja/obrigado.html'),
         type: 'identify',
         userId: identified,
         attrs: {
@@ -966,7 +994,7 @@ for (let i = 0; i < VISITORS; i++) {
             accountId: ACCOUNT,
             visitorId: randomUUID(),
             sessionId: randomUUID(),
-            url: `${SITE}/`,
+            url: `${SITE}/loja/`,
           };
           events.push({
             ...b2,
@@ -974,7 +1002,7 @@ for (let i = 0; i < VISITORS; i++) {
             ts: later,
             type: 'pageview',
             device: other,
-            title: 'Loja Demo',
+            title: 'Passo Firme · Tênis e acessórios para correr',
             vw: other === 'mobile' ? 390 : 1440,
           });
           events.push({
@@ -1036,12 +1064,17 @@ for (let i = 0; i < Math.round(VISITORS / 2); i++) {
           'newsletter',
           arm ? 0.11 : 0.06,
         ];
-    events.push({ ...pair(exp, key, prefix, vkey, '/'), type: 'exposure' });
+    events.push({ ...pair(exp, key, prefix, vkey, '/loja/'), type: 'exposure' });
     if (chance(p))
-      events.push({ ...pair(exp, key, prefix, vkey, '/'), type: 'conversion', goalId: goal, goalKey: gkey });
+      events.push({
+        ...pair(exp, key, prefix, vkey, '/loja/'),
+        type: 'conversion',
+        goalId: goal,
+        goalKey: gkey,
+      });
   } else {
     events.push({
-      ...pair(EXP_FUNIL, 'funil-produto-obrigado', 'seed_fn', 'troca-gratis', '/produto.html'),
+      ...pair(EXP_FUNIL, 'funil-produto-obrigado', 'seed_fn', 'troca-gratis', '/loja/checkout.html'),
       type: 'exposure',
     });
     if (chance(arm ? 0.3 : 0.26)) {
@@ -1054,8 +1087,8 @@ for (let i = 0; i < Math.round(VISITORS / 2); i++) {
           goalKey,
           ...(v ? { value: v } : {}),
         });
-      c('/produto.html', 'seed_g_fn_buy', 'compra', value);
-      c('/obrigado.html', 'seed_g_fn_nl', 'obrigado');
+      c('/loja/checkout.html', 'seed_g_fn_buy', 'compra', value);
+      c('/loja/obrigado.html', 'seed_g_fn_nl', 'obrigado');
     }
   }
 }

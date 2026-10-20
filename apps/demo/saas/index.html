@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Snippet A/B: primeiro script do head (ver docs/DECISOES.md D-008) -->
+    <script src="%VITE_API_URL%/cdn/demo.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fluxo · Gestão financeira para pequenas empresas</title>
+    <link rel="stylesheet" href="./saas.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap top__row">
+        <a href="./" class="logo"><span class="logo__dot"></span>fluxo</a>
+        <nav class="top__nav" aria-label="Principal">
+          <a href="#recursos">Recursos</a>
+          <a href="#precos">Preços</a>
+          <a href="#clientes">Clientes</a>
+          <a href="#duvidas">Dúvidas</a>
+        </nav>
+        <a href="./cadastro.html" class="btn btn--sm" data-testid="nav-trial">Testar grátis</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <div>
+          <p class="eyebrow">Para MEI, ME e EPP</p>
+          <h1 id="hero-title">O financeiro da sua empresa em ordem, sem planilha</h1>
+          <p class="hero__lead" id="hero-lead">
+            Contas a pagar e receber, boletos, Pix e conciliação bancária automática num só lugar. Feche o mês
+            em minutos.
+          </p>
+          <div class="hero__ctas">
+            <a href="./cadastro.html" class="btn" data-testid="hero-cta">Começar 14 dias grátis</a>
+            <a href="#precos" class="btn btn--ghost">Ver planos</a>
+          </div>
+          <p class="hero__note">Sem cartão de crédito · Cancele quando quiser</p>
+        </div>
+        <div class="mock" aria-hidden="true">
+          <div class="mock__bar"><span></span><span></span><span></span></div>
+          <div class="mock__kpis">
+            <div><small>Saldo</small><b>R$ 48.210</b></div>
+            <div><small>A receber</small><b class="up">R$ 12.940</b></div>
+            <div><small>A pagar</small><b class="down">R$ 7.385</b></div>
+          </div>
+          <div class="mock__chart">
+            <i style="height: 40%"></i><i style="height: 55%"></i><i style="height: 48%"></i
+            ><i style="height: 70%"></i><i style="height: 62%"></i><i style="height: 84%"></i
+            ><i style="height: 78%"></i><i style="height: 92%"></i>
+          </div>
+        </div>
+      </section>
+
+      <section class="logos wrap" aria-label="Empresas que usam">
+        <p>Mais de 12 mil empresas fecham o mês com o Fluxo</p>
+        <div class="logos__row">
+          <b>Padaria Trigo</b><b>Studio Lume</b><b>Oficina 47</b><b>Clínica Viva</b><b>Rede Pet+</b>
+        </div>
+      </section>
+
+      <section class="section wrap" id="recursos">
+        <h2>Tudo o que o seu financeiro precisa</h2>
+        <div class="features">
+          <article class="feature" data-feature="conciliacao">
+            <h3>Conciliação automática</h3>
+            <p>Conecte seu banco e o Fluxo casa cada lançamento com o extrato. Sem digitar nada.</p>
+          </article>
+          <article class="feature" data-feature="cobranca">
+            <h3>Boleto e Pix</h3>
+            <p>Emita cobranças com lembrete automático por WhatsApp e e-mail. Baixa sozinha quando paga.</p>
+          </article>
+          <article class="feature" data-feature="relatorios">
+            <h3>DRE e fluxo de caixa</h3>
+            <p>Relatórios prontos para você e para o contador, atualizados em tempo real.</p>
+          </article>
+          <article class="feature" data-feature="nota">
+            <h3>Nota fiscal</h3>
+            <p>NFS-e e NF-e em poucos cliques, integradas às suas vendas e cobranças.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section section--soft" id="precos">
+        <div class="wrap">
+          <h2>Planos simples, sem surpresa</h2>
+          <!-- Alternar mensal/anual reescreve os preços pelo JS (testa conteúdo que muda depois do load). -->
+          <div class="billing" role="radiogroup" aria-label="Cobrança">
+            <button role="radio" aria-checked="true" data-billing="mensal" class="is-on">Mensal</button>
+            <button role="radio" aria-checked="false" data-billing="anual">Anual <em>-20%</em></button>
+          </div>
+          <div class="plans">
+            <article class="plan" data-plan="essencial">
+              <h3>Essencial</h3>
+              <p class="plan__price"><b data-price="49">R$ 49</b>/mês</p>
+              <ul>
+                <li>1 conta bancária</li>
+                <li>Boletos e Pix</li>
+                <li>Relatórios básicos</li>
+              </ul>
+              <a
+                href="./cadastro.html?plano=essencial"
+                class="btn btn--ghost btn--block"
+                data-testid="plan-essencial"
+                >Escolher</a
+              >
+            </article>
+            <article class="plan plan--featured" data-plan="pro">
+              <span class="plan__tag" id="plan-tag">Mais escolhido</span>
+              <h3>Pro</h3>
+              <p class="plan__price"><b data-price="99">R$ 99</b>/mês</p>
+              <ul>
+                <li>Contas ilimitadas</li>
+                <li>Conciliação automática</li>
+                <li>Nota fiscal</li>
+                <li>Acesso do contador</li>
+              </ul>
+              <a href="./cadastro.html?plano=pro" class="btn btn--block" data-testid="plan-pro">Escolher</a>
+            </article>
+            <article class="plan" data-plan="empresa">
+              <h3>Empresa</h3>
+              <p class="plan__price"><b data-price="249">R$ 249</b>/mês</p>
+              <ul>
+                <li>Tudo do Pro</li>
+                <li>Várias empresas</li>
+                <li>Aprovação de pagamentos</li>
+                <li>Gerente de conta</li>
+              </ul>
+              <a
+                href="./cadastro.html?plano=empresa"
+                class="btn btn--ghost btn--block"
+                data-testid="plan-empresa"
+                >Escolher</a
+              >
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section wrap" id="clientes">
+        <h2>Quem usa, recomenda</h2>
+        <div class="quotes">
+          <blockquote>
+            “Fechava o mês em três dias. Hoje leva uma tarde.”<cite>Ana Ribeiro, Studio Lume</cite>
+          </blockquote>
+          <blockquote>
+            “O lembrete de cobrança por WhatsApp reduziu a inadimplência pela metade.”<cite
+              >Carlos Mota, Oficina 47</cite
+            >
+          </blockquote>
+          <blockquote>
+            “Meu contador acessa tudo sozinho. Acabou o vai e vem de planilha.”<cite
+              >Júlia Prado, Clínica Viva</cite
+            >
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="section section--soft" id="duvidas">
+        <div class="wrap faq">
+          <h2>Dúvidas frequentes</h2>
+          <details>
+            <summary>Preciso de cartão para testar?</summary>
+            <p>Não. São 14 dias grátis, sem cartão.</p>
+          </details>
+          <details>
+            <summary>Funciona com o meu banco?</summary>
+            <p>Conectamos com os principais bancos e fintechs pelo Open Finance.</p>
+          </details>
+          <details>
+            <summary>Posso trocar de plano depois?</summary>
+            <p>Sim, a qualquer momento; a diferença é proporcional.</p>
+          </details>
+          <details>
+            <summary>Meus dados estão seguros?</summary>
+            <p>Criptografia de ponta a ponta e servidores no Brasil, conforme a LGPD.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="cta wrap">
+        <h2 id="cta-title">Comece hoje e feche este mês sem planilha</h2>
+        <a href="./cadastro.html" class="btn btn--light" data-testid="footer-cta">Criar conta grátis</a>
+      </section>
+    </main>
+
+    <footer class="foot wrap">© Fluxo: site de demonstração para testes A/B.</footer>
+
+    <script type="module">
+      document.querySelector('.billing').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-billing]');
+        if (!b) return;
+        const anual = b.dataset.billing === 'anual';
+        document.querySelectorAll('[data-billing]').forEach((x) => {
+          x.classList.toggle('is-on', x === b);
+          x.setAttribute('aria-checked', String(x === b));
+        });
+        document.querySelectorAll('[data-price]').forEach((el) => {
+          el.textContent = `R$ ${Math.round(Number(el.dataset.price) * (anual ? 0.8 : 1))}`;
+        });
+        (window.abq = window.abq || []).push(['event', 'billing_toggle', { anual }]);
+      });
+    </script>
+  </body>
+</html>

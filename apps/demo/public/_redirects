@@ -1,3 +1,7 @@
-# Rotas da SPA de teste (sem curinga: /spa/* criaria loop com o tratamento de index.html).
-/spa/planos /spa/ 200
-/spa/sobre /spa/ 200
+# O site simples saiu de produção (só existe no dev, para os testes E2E): a raiz e os links antigos vão para a loja.
+/ /loja/ 302
+/index.html /loja/ 301
+/produto.html /loja/checkout.html 301
+/obrigado.html /loja/obrigado.html 301
+/cookie.html /loja/ 301
+/spa/* /loja/ 301

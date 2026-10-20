@@ -31,7 +31,7 @@ pnpm 9 (instalado via `npm i -g pnpm@9`). Turborepo orquestra os scripts dos wor
 - `pnpm test` — Vitest em todos os workspaces. Um pacote: `pnpm --filter @abtest/shared test`. Um teste: `pnpm --filter @abtest/shared exec vitest run src/arquivo.test.ts -t "nome"`.
 - `pnpm lint` — ESLint (flat config na raiz) + `prettier --check`. `pnpm format` corrige formatação.
 - `pnpm typecheck` — `tsc --noEmit` por workspace.
-- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: editor 5173, API 4000 (serve também `/cdn/:arquivo` da pasta `cdn/`, recompilando as configs com o runtime atual ao subir), demo 5180 (`/` HTML estático, `/spa/*` SPA React com emotion).
+- `pnpm dev` — `scripts/dev.mjs`: sobe Postgres via `docker compose` se houver Docker (senão API usa PGlite em `.data/pglite`, ver D-001) e roda `turbo dev`. Portas: editor 5173, API 4000 (serve também `/cdn/:arquivo` da pasta `cdn/`, recompilando as configs com o runtime atual ao subir), demo 5180 (produção: loja `/loja/` e SaaS `/saas/`; só no dev: páginas simples da raiz e `/spa/*` SPA React com emotion, fixtures do E2E).
 - `pnpm build`. Snippet: `pnpm --filter @abtest/snippet build` → `packages/snippet/dist/abt.js` (imprime tamanho gzip).
 - `pnpm e2e` — Playwright (`e2e/`); sobe API (PGlite em memória, CDN em `e2e/.cdn`) e demo, compilando snippet e agent antes. Páginas "host" de teste são servidas por `page.route` (Chrome roda com `LocalNetworkAccessChecks` desligado). Um teste: `pnpm --filter @abtest/e2e e2e tests/antiflicker.spec.ts -g "nome"`. Chromium: `pnpm --filter @abtest/e2e exec playwright install chromium`.
 

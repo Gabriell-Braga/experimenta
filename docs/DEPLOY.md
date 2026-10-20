@@ -6,7 +6,7 @@ Tudo roda em Workers na conta Cloudflare do projeto, com domínio próprio (zona
 |---|---|---|
 | Editor | https://experimenta.gabrielbraga.app | app React (arquivos estáticos) |
 | API + CDN | https://experimenta-api.gabrielbraga.app | Worker Hono (`apps/api/src/worker.ts`), D1 `abtest-db`, KV `abtest-cdn`; Swagger em `/docs` |
-| Site demo | https://experimenta-demo.gabrielbraga.app | site de teste com o snippet instalado; `/bloqueado/*` envia XFO/CSP |
+| Site demo | https://experimenta-demo.gabrielbraga.app | loja `/loja/` (raiz redireciona) e SaaS `/saas/` com o snippet instalado; `/bloqueado/*` envia XFO/CSP |
 | Extensão | https://experimenta.gabrielbraga.app/abtest-extension.zip | MV3 com a ponte para o editor publicado |
 
 API e demo ficam em `experimenta-api` / `experimenta-demo` (irmãos, não `api.experimenta`): o certificado universal da Cloudflare só cobre um nível (`*.gabrielbraga.app`).

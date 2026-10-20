@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Snippet A/B: primeiro script do head (ver docs/DECISOES.md D-008) -->
+    <script src="%VITE_API_URL%/cdn/demo.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pedido confirmado · Passo Firme</title>
+    <link rel="stylesheet" href="./loja.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container site-header__row">
+        <a href="./" class="brand"><span class="brand__mark">PF</span> Passo Firme</a>
+      </div>
+    </header>
+    <main class="container checkout checkout--done">
+      <h1 id="thanks-title">Pedido confirmado!</h1>
+      <p id="thanks-text">
+        Enviamos os detalhes para o seu e-mail. Seu tênis sai do nosso estoque em até 24 h.
+      </p>
+      <a href="./" class="btn btn--primary">Continuar comprando</a>
+    </main>
+  </body>
+</html>
