@@ -24,5 +24,6 @@
     "EVENTS_RETENTION_DAYS": "90"
   },
   // Expurgo diário dos eventos crus (retenção).
-  "triggers": { "crons": ["0 4 * * *", "0 * * * *"] }
+  // Um cron só: o plano grátis tem 5 por conta inteira. O expurgo diário roda na execução das 4h (UTC).
+  "triggers": { "crons": ["0 * * * *"] }
 }

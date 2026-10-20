@@ -91,10 +91,10 @@ export default {
     return app.fetch(req, env, ctx);
   },
   /** Crons (wrangler.jsonc → triggers): de hora em hora bandits e recomendações; às 04:00 UTC, retenção. */
-  async scheduled(event: { cron: string }, env: Env) {
+  async scheduled(event: { scheduledTime: number }, env: Env) {
     const { repo, cdn, publish } = core(env);
     await hourlyJobs(repo, cdn, publish);
-    if (event.cron !== '0 4 * * *') return;
+    if (new Date(event.scheduledTime).getUTCHours() !== 4) return;
     const cutoff = retentionCutoff(Number(env.EVENTS_RETENTION_DAYS ?? 90));
     if (cutoff) await repo.purgeEventsBefore(cutoff);
   },
