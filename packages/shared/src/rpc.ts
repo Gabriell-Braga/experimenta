@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PageSnapshotSchema } from './ai-variation';
 import { OperationSchema, TargetSchema } from './operations';
 
 /**
@@ -98,6 +99,8 @@ export const agentMethods = {
   /** Desenha o mapa de calor sobre a página real; devolve quantos seletores foram achados nesta página. */
   showHeatmap: method(HeatmapDataSchema, z.object({ resolved: z.number(), missing: z.number() })),
   hideHeatmap: method(z.object({}), z.object({})),
+  /** Resumo do DOM visível para a variação por texto (IA). */
+  pageSummary: method(z.object({}), PageSnapshotSchema),
 };
 
 /** Métodos que o APP expõe (o agent chama). */

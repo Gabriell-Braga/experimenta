@@ -198,6 +198,36 @@ export async function compatIdeas(
   /** Tempo total para tentar a lista toda (o Worker só segura ~30 s de trabalho em segundo plano). */
   budgetMs = 75_000,
 ): Promise<{ model: string; ideas: Idea[] }> {
+  const { model, result } = await compatJson(
+    cfg,
+    `${SYSTEM}
+Responda só com um objeto JSON neste JSON Schema (sem texto fora dele):
+${JSON.stringify(IDEAS_JSON_SCHEMA)}`,
+    `Painel da conta:
+${JSON.stringify(ideaContext(d))}`,
+    (json) => {
+      const parsed = z.object({ ideas: z.array(IdeaSchema).min(1) }).safeParse(json);
+      if (!parsed.success) throw new Error('resposta fora do formato');
+      return noDash(parsed.data.ideas.slice(0, 6));
+    },
+    f,
+    budgetMs,
+  );
+  return { model, ideas: result };
+}
+
+/**
+ * Pede um objeto JSON ao provedor compatível com OpenAI, tentando os modelos da lista em ordem (sobrecarga ou
+ * tempo esgotado passa para o próximo) dentro de `budgetMs`. `parse` valida o JSON (lança se fora do formato).
+ */
+export async function compatJson<T>(
+  cfg: CompatAi,
+  system: string,
+  user: string,
+  parse: (json: unknown) => T,
+  f: typeof fetch = fetch,
+  budgetMs = 75_000,
+): Promise<{ model: string; result: T }> {
   const deadline = Date.now() + budgetMs;
   const models = cfg.model
     .split(',')
@@ -207,7 +237,8 @@ export async function compatIdeas(
     try {
       const left = deadline - Date.now();
       if (left < 3_000) throw new Error('sem tempo para tentar outro modelo');
-      return { model, ideas: await askModel(cfg, model, d, f, Math.min(12_000, left)) };
+      const json = await askModel(cfg, model, system, user, f, Math.min(12_000, left));
+      return { model, result: parse(json) };
     } catch (e) {
       const busy = e instanceof Busy || (e as Error).name === 'TimeoutError';
       if (!busy || i === models.length - 1 || deadline - Date.now() < 3_000) throw e;
@@ -221,10 +252,11 @@ class Busy extends Error {}
 async function askModel(
   cfg: CompatAi,
   model: string,
-  d: Dashboard,
+  system: string,
+  user: string,
   f: typeof fetch,
   timeoutMs: number,
-): Promise<Idea[]> {
+): Promise<unknown> {
   const res = await f(`${cfg.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -240,11 +272,8 @@ async function askModel(
       // json_object é o modo JSON que todos esses provedores aceitam; o formato vai no prompt e o zod valida.
       response_format: { type: 'json_object' },
       messages: [
-        {
-          role: 'system',
-          content: `${SYSTEM}\nResponda só com um objeto JSON neste JSON Schema (sem texto fora dele):\n${JSON.stringify(IDEAS_JSON_SCHEMA)}`,
-        },
-        { role: 'user', content: `Painel da conta:\n${JSON.stringify(ideaContext(d))}` },
+        { role: 'system', content: system },
+        { role: 'user', content: user },
       ],
     }),
   });
@@ -254,13 +283,9 @@ async function askModel(
   }
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = (body.choices?.[0]?.message?.content ?? '').replace(/^\s*```(?:json)?|```\s*$/g, '');
-  let json: unknown;
   try {
-    json = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new Error('resposta não é JSON');
   }
-  const parsed = z.object({ ideas: z.array(IdeaSchema).min(1) }).safeParse(json);
-  if (!parsed.success) throw new Error('resposta fora do formato');
-  return noDash(parsed.data.ideas.slice(0, 6));
 }

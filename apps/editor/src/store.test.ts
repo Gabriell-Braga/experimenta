@@ -69,6 +69,19 @@ describe('store do editor', () => {
     expect(reducer({ ...s, past: [] }, { type: 'undo' }).experiment).toBe(s.experiment);
   });
 
+  test('várias operações de uma vez (IA): numeradas em sequência e um passo só no desfazer', () => {
+    let s = run(start(), { type: 'addOperation', draft: draft('a') });
+    s = reducer(s, { type: 'addOperations', drafts: [draft('b'), draft('c')] });
+    expect(activeVariation(s).operations.map((o) => [o.order, (o as { value: string }).value])).toEqual([
+      [0, 'a'],
+      [1, 'b'],
+      [2, 'c'],
+    ]);
+    s = reducer(s, { type: 'undo' });
+    expect(activeVariation(s).operations).toHaveLength(1);
+    expect(reducer(s, { type: 'addOperations', drafts: [] })).toBe(s);
+  });
+
   test('operações vão só para a variação ativa', () => {
     let s = start();
     const control = s.experiment.variations[0]!.id;

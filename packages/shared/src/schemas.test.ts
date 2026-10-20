@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
+  AiChangeSchema,
+  changeToDraft,
   ExperimentSchema,
   OPERATION_TYPES,
   OperationSchema,
@@ -117,4 +119,23 @@ test('TrackingEventSchema valida selector_healed', () => {
   };
   expect(TrackingEventSchema.parse(ev).type).toBe('selector_healed');
   expect(TrackingEventSchema.safeParse({ ...ev, via: 'magia' }).success).toBe(false);
+});
+
+test('variação por IA: ref vira o alvo do agent; ref desconhecido (ou âncora) não vira alteração', () => {
+  const t = (selector: string) => ({ selector, alternates: [] });
+  const targets = { e1: t('#titulo'), e2: t('a.btn') };
+  expect(changeToDraft({ type: 'setText', ref: 'e1', value: 'Oi' }, targets)).toEqual({
+    type: 'setText',
+    target: targets.e1,
+    value: 'Oi',
+  });
+  expect(
+    changeToDraft({ type: 'move', ref: 'e2', value: { position: 'before', anchor: 'e1' } }, targets),
+  ).toEqual({ type: 'move', target: targets.e2, value: { position: 'before', anchor: targets.e1 } });
+  expect(changeToDraft({ type: 'hide', ref: 'e9' }, targets)).toBeNull();
+  expect(
+    changeToDraft({ type: 'move', ref: 'e2', value: { position: 'after', anchor: 'e9' } }, targets),
+  ).toBeNull();
+  // Só tipos declarativos passam pelo schema.
+  expect(AiChangeSchema.safeParse({ type: 'setHTML', ref: 'e1', value: '<b>' }).success).toBe(false);
 });

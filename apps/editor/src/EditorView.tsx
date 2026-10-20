@@ -30,6 +30,7 @@ import {
 import { go, navigate } from './nav';
 import { Button, Modal, Spinner, useToast } from './ui';
 import { endExtensionSession, extCall, startExtensionSession } from './extension';
+import { AiPanel, type AiPreview } from './components/AiPanel';
 import { ChangesPanel } from './components/ChangesPanel';
 import { HealthPanel } from './components/HealthPanel';
 import { HeatmapPanel, type HeatmapResult } from './components/HeatmapPanel';
@@ -45,7 +46,7 @@ import { activeVariation, currentPage, initialState, onPage, reducer } from './s
 
 // Monaco é pesado: só carrega quando a aba de código é aberta.
 const CodePanel = lazy(() => import('./components/CodePanel'));
-type Tab = 'element' | 'changes' | 'code' | 'health' | 'versions';
+type Tab = 'element' | 'changes' | 'ai' | 'code' | 'health' | 'versions';
 
 interface Props {
   record: ExperimentRecord;
@@ -151,17 +152,22 @@ export function EditorView({ record, user }: Props) {
       .catch(() => {});
   }, [connected, readyCount, mode, offFunnel]);
 
+  /** Variação por texto (IA): propostas aplicadas no iframe por cima da variação até aplicar ou descartar. */
+  const [aiPreview, setAiPreview] = useState<AiPreview | null>(null);
+  // Outra página, variação ou modo: as propostas valiam para o DOM de antes.
+  useEffect(() => setAiPreview(null), [readyCount, state.activeVariationId, page?.id, mode]);
+
   useEffect(() => {
     if (!connected) return;
     peer.current
       ?.call('applyVariation', {
-        operations: ops,
+        operations: aiPreview ? [...ops, ...aiPreview.ops] : ops,
         customCSS: variation.customCSS,
         customJS: variation.customJS,
         runJS,
       })
       .then(setApplyResult, () => {});
-  }, [connected, readyCount, variation, ops, runJS]);
+  }, [connected, readyCount, variation, ops, runJS, aiPreview]);
 
   // Mapa de calor: filtros, dados da API e quantos seletores não existem na página atual.
   const [heatFilters, setHeatFilters] = useState<HeatmapFilters>({});
@@ -632,6 +638,7 @@ export function EditorView({ record, user }: Props) {
                 [
                   ['element', 'Elemento'],
                   ['changes', `Alterações (${ops.length})`],
+                  ['ai', 'IA'],
                   ['code', 'CSS/JS'],
                   ['health', 'Saúde'],
                   ['versions', 'Versões'],
@@ -693,6 +700,43 @@ export function EditorView({ record, user }: Props) {
                   ops[to] &&
                   dispatch({ type: 'moveOperation', id, to: variation.operations.indexOf(ops[to]) })
                 }
+              />
+            )}
+            {tab === 'ai' && (
+              <AiPanel
+                blocked={
+                  user.role === 'viewer'
+                    ? 'Seu papel é só leitura: não cria alterações.'
+                    : !connected
+                      ? 'Esperando o site conectar.'
+                      : offFunnel
+                        ? 'Esta página não faz parte do funil.'
+                        : variation.redirect
+                          ? 'Esta variação redireciona: alterações visuais não valem para ela.'
+                          : undefined
+                }
+                preview={aiPreview}
+                base={ops.length}
+                snapshot={() =>
+                  peer.current
+                    ? peer.current.call('pageSummary', {})
+                    : Promise.reject(new Error('Site desconectado.'))
+                }
+                onPreview={setAiPreview}
+                onApply={() => {
+                  if (!aiPreview) return;
+                  dispatch({
+                    type: 'addOperations',
+                    drafts: aiPreview.ops.map(({ id: _id, order: _order, ...d }) => d),
+                  });
+                  toast(
+                    'success',
+                    `${aiPreview.ops.length} alteraç${aiPreview.ops.length === 1 ? 'ão adicionada' : 'ões adicionadas'} à variação (Ctrl+Z desfaz).`,
+                  );
+                  setAiPreview(null);
+                  setTab('changes');
+                }}
+                onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
               />
             )}
             {tab === 'versions' && (

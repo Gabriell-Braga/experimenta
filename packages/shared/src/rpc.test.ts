@@ -59,6 +59,7 @@ function connect() {
       highlight: ({ selector }) => ({ found: selector === '#ok' }),
       showHeatmap: ({ clicks }) => ({ resolved: clicks.elements.length, missing: 0 }),
       hideHeatmap: () => ({}),
+      pageSummary: () => ({ url: 'https://loja.com/', title: 'Loja', elements: [], targets: {} }),
     },
   });
   return { app, site, appPeer, agentPeer };

@@ -7,6 +7,7 @@ import { createEditing } from './editing';
 import { createHeatmapLayer } from './heatmap';
 import { elementInfo } from './inspect';
 import { createOverlay } from './overlay';
+import { pageSnapshot } from './summary';
 
 export const AGENT_VERSION = '0.1.0';
 
@@ -148,6 +149,7 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
         return el ? elementInfo(el) : null;
       },
       showHeatmap: (data) => heatmap.show(data),
+      pageSummary: () => pageSnapshot(doc),
       hideHeatmap: () => {
         heatmap.hide();
         return {};

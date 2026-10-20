@@ -316,3 +316,33 @@ describe('agent: mapa de calor', () => {
     await call('hideHeatmap', {});
   });
 });
+
+describe('agent: resumo da página para a IA', () => {
+  test('elementos visíveis com ref, texto e atributos; alvos à parte; escondidos e o overlay ficam fora', async () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `<p>Frete grátis</p><div style="display:none"><span>oculto</span></div><div><span></span></div>`,
+    );
+    const r = (await call('pageSummary', {})) as {
+      ok: boolean;
+      result: {
+        elements: { ref: string; tag: string; text: string; attrs: Record<string, string> }[];
+        targets: Record<string, { selector: string }>;
+      };
+    };
+    expect(r.ok).toBe(true);
+    const { elements, targets } = r.result;
+    expect(elements.map((e) => `${e.ref}:${e.tag}:${e.text}`)).toEqual([
+      'e1:main:Título Ir',
+      'e2:section:Título Ir',
+      'e3:h1:Título',
+      'e4:a:Ir',
+      'e5:p:Frete grátis',
+    ]);
+    expect(elements[3]!.attrs).toEqual({ href: '/x', class: 'btn' });
+    expect(targets.e3!.selector).toBe('#t');
+    expect(document.querySelector(targets.e5!.selector)!.textContent).toBe('Frete grátis');
+    // Nada de seletor no que vai para o modelo.
+    expect(JSON.stringify(elements)).not.toContain('#t');
+  });
+});

@@ -1,4 +1,4 @@
-import { ExperimentSchema, type Experiment } from '@abtest/shared';
+import { ExperimentSchema, type AiChange, type Experiment, type PageSummary } from '@abtest/shared';
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -749,3 +749,14 @@ export const ideas = {
   remove: (id: string) => api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   clear: () => api<Ideas>('/ai/ideas', { method: 'DELETE' }),
 };
+
+/** Variação por texto: alterações propostas pela IA sobre o resumo da página (ainda não aplicadas). */
+export interface AiVariation {
+  changes: AiChange[];
+  skipped: number;
+  message: string;
+  source: 'claude' | 'modelo';
+  model: string;
+}
+export const aiVariation = (prompt: string, page: PageSummary) =>
+  api<AiVariation>('/ai/variation', { method: 'POST', body: JSON.stringify({ prompt, page }) });

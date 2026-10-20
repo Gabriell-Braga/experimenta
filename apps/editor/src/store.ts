@@ -31,6 +31,8 @@ export type Action =
   | { type: 'addVariation' }
   | { type: 'renameVariation'; id: string; name: string }
   | { type: 'addOperation'; draft: OperationDraft }
+  /** Várias de uma vez (variação por IA): um passo só no desfazer. */
+  | { type: 'addOperations'; drafts: OperationDraft[] }
   /** Cria ou atualiza a operação equivalente (mesmo alvo + tipo [+ atributo]); setStyle faz merge das propriedades. */
   | { type: 'upsertOperation'; draft: OperationDraft; coalesceKey?: string }
   | { type: 'updateOperation'; id: string; draft: OperationDraft }
@@ -295,17 +297,21 @@ export function reducer(s: EditorState, a: Action): EditorState {
         ...s.experiment,
         variations: s.experiment.variations.map((v) => (v.id === a.id ? { ...v, name: a.name } : v)),
       });
-    case 'addOperation': {
+    case 'addOperation':
+      return reducer(s, { type: 'addOperations', drafts: [a.draft] });
+    case 'addOperations': {
       const page = currentPage(s)?.id;
       // Multipágina fora de qualquer página do funil: a alteração não teria onde valer.
-      if (s.experiment.pages?.length && !page) return s;
+      if ((s.experiment.pages?.length && !page) || !a.drafts.length) return s;
       return commit(
         s,
         editVariation(s, (v) => ({
           ...v,
           operations: renumber([
             ...v.operations,
-            { ...a.draft, id: uid('op'), order: v.operations.length, ...(page ? { page } : {}) } as Operation,
+            ...a.drafts.map(
+              (d) => ({ ...d, id: uid('op'), order: 0, ...(page ? { page } : {}) }) as Operation,
+            ),
           ]),
         })),
       );

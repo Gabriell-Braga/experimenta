@@ -1,6 +1,8 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type Anthropic from '@anthropic-ai/sdk';
+import { AI_PROMPT_MAX, AiChangeSchema, PAGE_SUMMARY_CHARS, PageSummarySchema } from '@abtest/shared';
 import { AI_MODEL, claudeIdeas, compatIdeas, ruleIdeas, type CompatAi, type Idea } from '../ai';
+import { claudeVariation, compatVariation } from '../ai-variation';
 import { forbid, hasRole } from '../auth';
 import { randomToken } from '../crypto';
 import { errors, json, period, PeriodQuery, security, type Api } from '../http';
@@ -67,6 +69,18 @@ const StateOut = z
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 
 const norm = (s: string) => s.trim().toLowerCase();
+
+const VariationOut = z
+  .object({
+    changes: z.array(AiChangeSchema),
+    /** Alterações da resposta descartadas na validação (ref inexistente, tipo/valor não permitido). */
+    skipped: z.number(),
+    message: z.string(),
+    source: z.enum(['claude', 'modelo']),
+    model: z.string(),
+  })
+  .openapi('AiVariation');
+const ErrorOut = z.object({ error: z.string() });
 
 /** Otimização por IA: ideias de teste a partir do painel, geradas em segundo plano e guardadas na conta. */
 export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: CompatAi) {
@@ -142,6 +156,57 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
       await write(accountId, id, { ...state, status: 'error', error: (e as Error).message });
     }
   }
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/ai/variation',
+      tags: ['insights'],
+      security,
+      summary:
+        'Variação por texto: pedido + resumo da página (do agent) → alterações declarativas (texto, estilo, atributo, esconder, imagem, mover) que citam elementos pelo ref do resumo. Nunca HTML nem JS.',
+      request: {
+        body: json(
+          z.object({ prompt: z.string().trim().min(1).max(AI_PROMPT_MAX), page: PageSummarySchema }),
+          'pedido e resumo da página',
+        ),
+      },
+      responses: {
+        200: json(VariationOut, 'alterações propostas (ainda não aplicadas)'),
+        413: json(ErrorOut, 'resumo da página grande demais'),
+        502: json(ErrorOut, 'provedor de IA falhou'),
+        409: json(ErrorOut, 'IA não configurada nesta instalação'),
+        ...errors,
+      },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const { prompt, page } = c.req.valid('json');
+      if (!client && !compat)
+        return c.json(
+          {
+            error:
+              'IA não configurada nesta instalação: defina ANTHROPIC_API_KEY (Claude) ou AI_BASE_URL e AI_MODEL (modelo compatível com OpenAI) na API.',
+          },
+          409,
+        );
+      if (JSON.stringify(page.elements).length > PAGE_SUMMARY_CHARS)
+        return c.json({ error: 'A página é grande demais para a IA.' }, 413);
+      try {
+        const r = client
+          ? { ...(await claudeVariation(client, prompt, page)), source: 'claude' as const }
+          : { ...(await compatVariation(compat!, prompt, page)), source: 'modelo' as const };
+        return c.json(r, 200);
+      } catch (e) {
+        console.error('[api] variação por IA falhou', e);
+        return c.json(
+          { error: `A IA não respondeu agora (${(e as Error).message.slice(0, 120)}). Tente de novo.` },
+          502,
+        );
+      }
+    },
+  );
 
   app.openapi(
     createRoute({

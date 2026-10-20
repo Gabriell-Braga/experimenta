@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 17.6 concluída (fase 17 concluída)
+**Status:** 18.1 concluída
 **Fase atual:** 18
-**Tarefa atual:** 18.1
-**Última atualização:** 2026-10-20 06:23
-**Próximo passo:** 18.1 criar variação por texto (IA gera operações no editor visual).
+**Tarefa atual:** 18.2
+**Última atualização:** 2026-10-20 06:37
+**Próximo passo:** 18.2 ideia → teste em um clique.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -628,3 +628,9 @@
 - Entregue: grupos mutuamente exclusivos (17.1), teste multipágina/funil (17.2), link de pré-visualização do rascunho (17.3), agendamento de iniciar/pausar (17.4), teste sequencial, CUPED e metas de guarda (17.5) e receita por canal com primeiro/último toque (17.6).
 - Nenhuma migração nova no D1 na fase (tudo em colunas JSON/entidades existentes).
 - Pendências da fase: snippet a 7 B do limite (D-069 continua aberto); CPU do Worker grátis no Painel (ver "Bloqueios"; a receita por canal já tem rota própria); entidades (pop-ups/pesquisas) sem agendamento; atribuição sem modelos fracionados (linear, decaimento) nem janela configurável.
+
+### 2026-10-20 06:37 — Tarefa 18.1 concluída (variação por texto com IA)
+- O que foi feito: aba "IA" no painel do editor: o usuário descreve a variação ("deixe o botão verde e troque o título por X"), o agent resume o DOM visível da página no iframe (até 200 elementos/60 mil caracteres, cada um com `ref` curto, tag, texto, alguns atributos e estilos; seletores e impressão digital ficam no app), o app manda pedido + resumo para `POST /ai/variation` (editor+) e o modelo (Claude com saída estruturada, ou o modelo compatível com OpenAI com JSON validado, o mesmo provedor das ideias) devolve alterações que citam os elementos só pelo `ref`. A API valida tudo (ref existe no resumo, só texto, estilo, alguns atributos, esconder, trocar imagem e mover; CSS sem `url()`/`!important`/escape de declaração; URLs só do pedido ou da página) e descarta o resto. O editor troca `ref` pelo alvo do agent, aplica no iframe como pré-visualização (fora da variação, com a lista das mudanças e quantas foram ignoradas) e só em "Aplicar" adiciona à variação como um passo único do desfazer. Sem chave de IA, mensagem clara (409); provedor falhando, 502 com o motivo.
+- Arquivos principais: packages/shared/src/ai-variation.ts, packages/shared/src/rpc.ts (`pageSummary`), packages/agent/src/summary.ts, apps/api/src/ai-variation.ts, apps/api/src/ai.ts (`compatJson`), apps/api/src/routes/ai.ts, apps/editor/src/components/AiPanel.tsx, apps/editor/src/EditorView.tsx, apps/editor/src/store.ts (`addOperations`), e2e/tests/ai-variation.spec.ts
+- Como testar manualmente: com ANTHROPIC_API_KEY (ou AI_BASE_URL/AI_MODEL) na API, abrir um teste no editor → aba IA → "Deixe o botão Comprar agora verde e troque o título por Corra mais leve" → Gerar alterações → ver no site → Aplicar → Ctrl+Z desfaz as duas. `pnpm --filter @abtest/api exec vitest run src/ai-variation.test.ts`; `pnpm --filter @abtest/e2e e2e tests/ai-variation.spec.ts` (provedor falso por rota interceptada).
+- Observações: snippet inalterado. Gerar não entra no histórico de atividades (como as ideias; o que vale é salvar o experimento, que já é auditado). Chamada síncrona (sem segundo plano): no Worker grátis conta só o tempo de CPU, não a espera do modelo. D-081.

@@ -186,7 +186,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 - [x] 17.6 Receita por canal: atribuição de receita/conversões por origem, UTM e campanha (first e last touch) no painel e no relatório do experimento
 
 ### Fase 18 — IA no estilo Copilot
-- [ ] 18.1 Criar variação por texto: "deixe o botão verde e troque o título por X" vira operações no editor visual (sobre o DOM da página no iframe), com pré-visualização antes de aplicar; usa o mesmo provedor das ideias (Claude ou modelo grátis)
+- [x] 18.1 Criar variação por texto: "deixe o botão verde e troque o título por X" vira operações no editor visual (sobre o DOM da página no iframe), com pré-visualização antes de aplicar; usa o mesmo provedor das ideias (Claude ou modelo grátis)
 - [ ] 18.2 Ideia → teste em um clique: "Criar teste" da ideia abre o editor já com nome, página, hipótese, meta e alterações sugeridas
 - [ ] 18.3 Backlog de hipóteses (gestão do programa): ideias da IA e manuais num quadro (ideia → priorizada → em teste → concluída), priorização por impacto/confiança/esforço, ligação com o experimento e o resultado
 - [ ] 18.4 Resumo por IA de gravações (o que o visitante tentou fazer e onde travou), de mapa de calor de uma página e de respostas abertas de pesquisa (temas e sentimento)
