@@ -170,6 +170,7 @@ export async function claudeIdeas(client: Anthropic, d: Dashboard): Promise<Idea
 /**
  * Modelo gratuito por API compatível com OpenAI (`/chat/completions`): Gemini (camada grátis), Groq, OpenRouter
  * (modelos `:free`) ou Ollama local. Liga com AI_BASE_URL + AI_MODEL (+ AI_API_KEY quando o provedor pede).
+ * AI_MODEL aceita uma lista separada por vírgula: modelo grátis sobrecarregado (429/5xx) passa para o próximo.
  */
 export interface CompatAi {
   baseUrl: string;
@@ -182,17 +183,39 @@ export function compatFromEnv(env: Record<string, string | undefined>): CompatAi
   return { baseUrl: env.AI_BASE_URL.replace(/\/+$/, ''), model: env.AI_MODEL, apiKey: env.AI_API_KEY };
 }
 
-export async function compatIdeas(cfg: CompatAi, d: Dashboard, f: typeof fetch = fetch): Promise<Idea[]> {
+export async function compatIdeas(
+  cfg: CompatAi,
+  d: Dashboard,
+  f: typeof fetch = fetch,
+): Promise<{ model: string; ideas: Idea[] }> {
+  const models = cfg.model
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  for (const [i, model] of models.entries()) {
+    try {
+      return { model, ideas: await askModel(cfg, model, d, f) };
+    } catch (e) {
+      const busy = e instanceof Busy || (e as Error).name === 'TimeoutError';
+      if (!busy || i === models.length - 1) throw e;
+    }
+  }
+  throw new Error('nenhum modelo configurado');
+}
+
+class Busy extends Error {}
+
+async function askModel(cfg: CompatAi, model: string, d: Dashboard, f: typeof fetch): Promise<Idea[]> {
   const res = await f(`${cfg.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
     },
-    // Modelos grátis enfileiram; acima disso o usuário recebe as regras.
-    signal: AbortSignal.timeout(60_000),
+    // Modelo grátis sob carga às vezes não responde: passa para o próximo da lista (ou as regras).
+    signal: AbortSignal.timeout(25_000),
     body: JSON.stringify({
-      model: cfg.model,
+      model,
       temperature: 0.4,
       // json_object é o modo JSON que todos esses provedores aceitam; o formato vai no prompt e o zod valida.
       response_format: { type: 'json_object' },
@@ -205,7 +228,10 @@ export async function compatIdeas(cfg: CompatAi, d: Dashboard, f: typeof fetch =
       ],
     }),
   });
-  if (!res.ok) throw new Error(`modelo respondeu ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) {
+    const msg = `${model} respondeu ${res.status}: ${(await res.text()).slice(0, 200)}`;
+    throw res.status === 429 || res.status >= 500 ? new Busy(msg) : new Error(msg);
+  }
   const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = (body.choices?.[0]?.message?.content ?? '').replace(/^\s*```(?:json)?|```\s*$/g, '');
   let json: unknown;

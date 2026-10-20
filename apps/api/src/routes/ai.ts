@@ -46,10 +46,7 @@ export function aiRoutes(app: Api, repo: Repo, client?: Anthropic, compat?: Comp
         }
       else if (compat)
         try {
-          return c.json(
-            { source: 'modelo' as const, model: compat.model, ideas: await compatIdeas(compat, d) },
-            200,
-          );
+          return c.json({ source: 'modelo' as const, ...(await compatIdeas(compat, d)) }, 200);
         } catch (e) {
           console.error(`[api] ideias com ${compat.model} falharam; usando regras`, e);
         }

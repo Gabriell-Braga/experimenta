@@ -121,7 +121,7 @@ test('modelo grátis (API compatível com OpenAI): liga por env, manda o painel 
       ) as unknown as typeof fetch;
 
   const f = reply('```json\n' + JSON.stringify({ ideas: [idea] }) + '\n```');
-  expect(await compatIdeas(cfg, d, f)).toEqual([idea]);
+  expect(await compatIdeas(cfg, d, f)).toEqual({ model: 'gemini-2.5-flash', ideas: [idea] });
   const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
   expect(url).toBe('https://x.ai/v1/chat/completions');
   expect(init.headers.authorization).toBe('Bearer k');
@@ -143,5 +143,23 @@ test('modelo grátis: travessão na resposta vira vírgula', async () => {
     .mockResolvedValue(
       new Response(JSON.stringify({ choices: [{ message: { content } }] })),
     ) as unknown as typeof fetch;
-  expect((await compatIdeas(cfg, d, f))[0]!.title).toBe('CTA no topo, agora');
+  expect((await compatIdeas(cfg, d, f)).ideas[0]!.title).toBe('CTA no topo, agora');
+});
+
+test('modelo grátis sobrecarregado (503/429) passa para o próximo da lista', async () => {
+  const cfg = compatFromEnv({ AI_BASE_URL: 'https://x.ai/v1', AI_MODEL: 'a, b ,c' })!;
+  const d = { insights: [], traffic: { series: [] } } as unknown as Dashboard;
+  const ok = new Response(
+    JSON.stringify({ choices: [{ message: { content: JSON.stringify({ ideas: [idea] }) } }] }),
+  );
+  const f = vi
+    .fn()
+    .mockResolvedValueOnce(new Response('ocupado', { status: 503 }))
+    .mockResolvedValueOnce(new Response('cota', { status: 429 }))
+    .mockResolvedValueOnce(ok) as unknown as typeof fetch;
+  expect((await compatIdeas(cfg, d, f)).model).toBe('c');
+  // Erro que não é de sobrecarga (chave inválida) não tenta os outros.
+  const bad = vi.fn().mockResolvedValue(new Response('chave', { status: 401 })) as unknown as typeof fetch;
+  await expect(compatIdeas(cfg, d, bad)).rejects.toThrow('401');
+  expect(bad).toHaveBeenCalledTimes(1);
 });
