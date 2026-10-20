@@ -1,12 +1,13 @@
 # Progresso
-**Status:** fase 16 concluída
+**Status:** 17.1 concluída
 **Fase atual:** 17
-**Tarefa atual:** 17.1
-**Última atualização:** 2026-10-20 05:05
-**Próximo passo:** fase 17 (ver docs/PLANO.md).
+**Tarefa atual:** 17.2
+**Última atualização:** 2026-10-20 05:18
+**Próximo passo:** 17.2 teste multipágina (funil).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
+- Snippet a 4 B do limite de 10 KB gzip (10.236 B depois da 17.1): a próxima mudança no runtime (ex.: 17.2) vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar código. Decidir.
 - Perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
@@ -586,3 +587,9 @@
 - Entregue: consentimento LGPD/GDPR no snippet com CMPs prontos (16.1), multi-conta com papel por conta, convites por link e conta nova (16.2), histórico de atividades por middleware (16.3), aprovação opcional de publicação (16.4), login em duas etapas, sessões revogáveis e base de SSO (16.5), comentários com @menções (16.6).
 - Migrações novas no D1 (0007–0011) entram no próximo `pnpm deploy:cf`.
 - Pendências da fase: SSO só configurado (falta OIDC/SAML, D-073); sem serviço de e-mail (convites copiados à mão, avisos só na tela e por webhook); snippet a 58 B do limite de 10 KB gzip (alvo es2020 libera ~440 B, D-069).
+
+### 2026-10-20 05:18 — Tarefa 17.1 concluída (grupos mutuamente exclusivos)
+- O que foi feito: entidade `group` (genérica, sem tabela nova nem migração): experimentos do grupo e a fatia de cada um (% do tráfego do grupo, soma até 100). A API valida (experimento existe na conta, não está em outro grupo, sem repetidos) e calcula a alocação em 100 fatias mexendo o mínimo na anterior (`allocateSlots`); ao publicar, cada experimento leva `group: { id, slots }` na config do site e no `sdk.json`. Snippet, SDK server-side e decisão do CDP usam a mesma regra (`inGroup` dentro de `chooseVariation`): fatia = `bucketOf(visitante, idDoGrupo) % 100`; fora da fatia não entra e a atribuição antiga é esquecida (não conta conversão). Tela Testes → Grupos exclusivos (barra de alocação, "Dividir igualmente", avisos de tráfego livre e de teste fora do ar, exclusão com confirmação) e etiqueta do grupo com a fatia na lista de experimentos. Criar/editar/excluir grupo entram nas atividades (regra genérica de entidades).
+- Arquivos principais: packages/shared/src/entities.ts (GroupSchema, allocateSlots), packages/shared/src/experiment.ts, packages/snippet/src/bucket.ts, packages/snippet/src/runtime.ts, apps/api/src/routes/entities.ts, apps/api/src/publish.ts, apps/editor/src/pages/Groups.tsx, apps/editor/src/pages/Experiments.tsx, e2e/tests/groups.spec.ts
+- Como testar manualmente: criar dois testes na mesma página com textos diferentes, iniciar; Testes → Grupos exclusivos → Novo grupo → adicionar os dois → Salvar e publicar; abrir o site demo em janelas anônimas: cada visitante vê só um dos testes, sempre o mesmo. `pnpm --filter @abtest/api exec vitest run src/routes/groups.test.ts`; `pnpm --filter @abtest/e2e e2e tests/groups.spec.ts`.
+- Observações: snippet 10.236 B gzip (limite 10.240 B; coube sem mudar o alvo, ver "Bloqueios"). Tráfego efetivo de um teste no grupo = fatia × tráfego do próprio teste. Teste pausado mantém a fatia (fica sem teste) até sair do grupo (D-075).

@@ -1,5 +1,5 @@
 import { ExperimentSchema, FlagSchema, type SdkConfig } from '@abtest/shared';
-import { chooseVariation } from '@abtest/snippet/bucket';
+import { assign, chooseVariation } from '@abtest/snippet/bucket';
 import { expect, test, vi } from 'vitest';
 import { createClient } from './index';
 
@@ -83,5 +83,26 @@ test('carrega a config da CDN', async () => {
   });
   expect(fetch).toHaveBeenCalledWith('https://cdn.test/acc.sdk.json');
   expect(c.version).toBe(3);
+  await c.close();
+});
+
+test('grupo exclusivo: mesma decisão do snippet; fora da fatia não expõe nem converte', async () => {
+  const grouped = { ...exp, group: { id: 'grp', slots: [...Array(30).keys()] } };
+  const c = await createClient({
+    accountId: 'acc',
+    cdnUrl: '',
+    config: { ...config, experiments: [grouped] },
+    refreshMs: 0,
+    fetch: vi.fn() as never,
+    flushMs: 60_000,
+  });
+  let inside = 0;
+  for (let i = 0; i < 2000; i++) {
+    const d = c.getVariation('checkout', `u${i}`);
+    expect(d?.key ?? null).toBe(assign(`u${i}`, grouped, {})?.key ?? null);
+    if (d) inside++;
+  }
+  expect(inside / 2000).toBeGreaterThan(0.26);
+  expect(inside / 2000).toBeLessThan(0.34);
   await c.close();
 });

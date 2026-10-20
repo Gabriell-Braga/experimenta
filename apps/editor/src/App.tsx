@@ -39,6 +39,7 @@ import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { RecosPage } from './pages/Recos';
 import { SecurityPage, TotpGate } from './pages/Security';
 import { SegmentsPage } from './pages/Segments';
+import { GroupsPage } from './pages/Groups';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
 import { TeamPage } from './pages/Team';
@@ -65,6 +66,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   approvals: (user) => <ApprovalsPage user={user} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
+  groups: (user) => <GroupsPage user={user} />,
   optimize: (user) => <OptimizePage user={user} />,
   popups: (user) => <PopupsPage user={user} />,
   profiles: () => <ProfilesPage />,

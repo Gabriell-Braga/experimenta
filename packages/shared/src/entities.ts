@@ -297,6 +297,54 @@ export const PropensityConfigSchema = z.object({
 });
 export type PropensityConfig = z.infer<typeof PropensityConfigSchema>;
 
+/** Fatias de tráfego de um grupo mutuamente exclusivo (1 fatia = 1% dos visitantes). */
+export const GROUP_SLOTS = 100;
+
+/**
+ * Grupo mutuamente exclusivo (fase 17.1): os experimentos dividem o tráfego do grupo e o visitante cai em no
+ * máximo um. `percent` = fatia do grupo de cada experimento; `slots` (dono de cada fatia, '' = livre) é
+ * calculado pela API ao salvar (`allocateSlots`), nunca vem do cliente.
+ */
+export const GroupSchema = z.object({
+  description: z.string().trim().max(500).default(''),
+  experiments: z
+    .array(z.object({ id: z.string().min(1).max(100), percent: z.number().int().min(1).max(GROUP_SLOTS) }))
+    .max(GROUP_SLOTS)
+    .default([])
+    .superRefine((list, ctx) => {
+      if (new Set(list.map((e) => e.id)).size !== list.length)
+        ctx.addIssue({ code: 'custom', message: 'experimento repetido no grupo' });
+      if (list.reduce((s, e) => s + e.percent, 0) > GROUP_SLOTS)
+        ctx.addIssue({ code: 'custom', message: 'a soma das fatias passa de 100%' });
+    }),
+  slots: z.array(z.string()).length(GROUP_SLOTS).optional(),
+});
+export type Group = z.infer<typeof GroupSchema>;
+
+/**
+ * Distribui as fatias do grupo mexendo o mínimo na alocação anterior: cada experimento mantém as fatias que já
+ * tinha (se diminuiu, perde as do fim), quem saiu libera as suas e quem cresceu ou entrou pega as livres de
+ * menor índice. Assim só muda de experimento quem estava na diferença.
+ */
+export function allocateSlots(prev: readonly string[] | undefined, exps: Group['experiments']): string[] {
+  const want = new Map(exps.map((e) => [e.id, e.percent]));
+  const have = new Map<string, number>();
+  const slots = Array.from({ length: GROUP_SLOTS }, (_, i) => {
+    const id = prev?.[i] ?? '';
+    const n = have.get(id) ?? 0;
+    if (!id || n >= (want.get(id) ?? 0)) return '';
+    have.set(id, n + 1);
+    return id;
+  });
+  for (const e of exps)
+    for (let i = 0, n = have.get(e.id) ?? 0; i < GROUP_SLOTS && n < e.percent; i++)
+      if (!slots[i]) {
+        slots[i] = e.id;
+        n++;
+      }
+  return slots;
+}
+
 export const ENTITY_SCHEMAS = {
   funnel: FunnelSchema,
   audience: AudienceSchema,
@@ -309,5 +357,6 @@ export const ENTITY_SCHEMAS = {
   integrations: IntegrationsSchema,
   consent: ConsentSchema,
   propensity: PropensityConfigSchema,
+  group: GroupSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;

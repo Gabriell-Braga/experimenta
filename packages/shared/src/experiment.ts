@@ -111,6 +111,11 @@ export const ExperimentSchema = z
     allocation: z.enum(['manual', 'bandit', 'autopilot']).default('manual'),
     /** Audiências salvas que o visitante precisa satisfazer (todas), além da segmentação. */
     audiences: z.array(z.string()).default([]),
+    /**
+     * Grupo mutuamente exclusivo: só na config publicada (a API preenche ao compilar, nunca é gravado). O
+     * visitante entra se a fatia `bucketOf(visitante, id) % 100` estiver em `slots`.
+     */
+    group: z.object({ id: z.string(), slots: z.array(z.number().int().min(0).max(99)) }).optional(),
   })
   .superRefine((exp, ctx) => {
     const keys = exp.variations.map((v) => v.key);

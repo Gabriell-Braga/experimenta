@@ -50,13 +50,21 @@ export function bucketOf(visitorId: string, experimentId: string): number {
 }
 
 /**
+ * Grupo mutuamente exclusivo: a fatia do visitante no grupo (0–99, hash do visitante com o id do GRUPO, igual
+ * para todos os experimentos dele) precisa ser deste experimento. Sem grupo, sempre entra.
+ */
+export const inGroup = (visitorId: string, exp: Pick<Experiment, 'group'>): boolean =>
+  !exp.group || exp.group.slots.includes(bucketOf(visitorId, exp.group.id) % 100);
+
+/**
  * Atribuição determinística. bucket < traffic% entra no experimento; dentro dessa faixa,
  * a posição relativa escolhe a variação proporcionalmente aos pesos. null = fora do tráfego.
  */
 export function chooseVariation(
   visitorId: string,
-  exp: Pick<Experiment, 'id' | 'traffic' | 'variations'>,
+  exp: Pick<Experiment, 'id' | 'traffic' | 'variations' | 'group'>,
 ): Variation | null {
+  if (!inGroup(visitorId, exp)) return null;
   const b = bucketOf(visitorId, exp.id);
   const included = Math.round(exp.traffic * (BUCKETS / 100));
   if (b >= included) return null;
@@ -89,12 +97,16 @@ export function saveAssignments(storage: Storage | undefined, a: Record<string, 
   }
 }
 
-/** Variação persistida (se ainda existir) ou nova escolha determinística, que é então persistida. */
+/**
+ * Variação persistida (se ainda existir) ou nova escolha determinística, que é então persistida. Fora da fatia
+ * do grupo exclusivo a atribuição antiga é esquecida (o grupo vale mais que a persistência).
+ */
 export function assign(
   visitorId: string,
-  exp: Pick<Experiment, 'id' | 'traffic' | 'variations'>,
+  exp: Pick<Experiment, 'id' | 'traffic' | 'variations' | 'group'>,
   stored: Record<string, string>,
 ): Variation | null {
+  if (!inGroup(visitorId, exp)) return (delete stored[exp.id], null);
   const prev = stored[exp.id] && exp.variations.find((v) => v.id === stored[exp.id]);
   if (prev) return prev;
   const v = chooseVariation(visitorId, exp);

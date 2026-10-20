@@ -8,7 +8,7 @@ export interface SdkConfig {
   publishedAt: string;
   trackingUrl?: string;
   flags: Flag[];
-  experiments: Pick<Experiment, 'id' | 'key' | 'traffic' | 'variations' | 'goals'>[];
+  experiments: Pick<Experiment, 'id' | 'key' | 'traffic' | 'variations' | 'goals' | 'group'>[];
 }
 
 type Attrs = Record<string, string | number | boolean | undefined>;

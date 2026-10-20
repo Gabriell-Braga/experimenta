@@ -93,3 +93,35 @@ describe('bucketing', () => {
     expect(stored['exp-1']).toMatch(/^v[01]$/);
   });
 });
+
+describe('grupo mutuamente exclusivo', () => {
+  const inGroup = (id: string, slots: number[]) => ({ ...exp(), id, group: { id: 'grp', slots } });
+  const a = inGroup('exp-a', [...Array(60).keys()]);
+  const b = inGroup(
+    'exp-b',
+    [...Array(40).keys()].map((i) => i + 60),
+  );
+
+  test('cada visitante entra em exatamente um (fatias somam 100%), na proporção das fatias', () => {
+    let inA = 0;
+    for (const id of visitors) {
+      const va = chooseVariation(id, a);
+      const vb = chooseVariation(id, b);
+      expect(!!va !== !!vb).toBe(true);
+      if (va) inA++;
+    }
+    expect(inA / visitors.length).toBeGreaterThan(0.57);
+    expect(inA / visitors.length).toBeLessThan(0.63);
+  });
+
+  test('a fatia depende do grupo, não do experimento; fora dela a atribuição antiga é esquecida', () => {
+    const id = visitors.find((v) => !chooseVariation(v, a))!;
+    const stored: Record<string, string> = { 'exp-a': 'v0' };
+    expect(assign(id, a, stored)).toBeNull();
+    expect(stored).toEqual({});
+    // Mesmo visitante, mesmas fatias com outro experimento no lugar → mesma decisão de entrada.
+    expect(!!chooseVariation(id, { ...a, id: 'outro' })).toBe(false);
+    // Sem grupo continua como antes.
+    expect(assign(id, exp(), stored)).not.toBeNull();
+  });
+});

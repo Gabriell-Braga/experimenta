@@ -1,8 +1,9 @@
-import { BarChart3, Ellipsis, FlaskConical, Plus } from 'lucide-react';
+import { BarChart3, Ellipsis, FlaskConical, Layers, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   deleteExperiment,
   duplicateExperiment,
+  entities,
   listExperiments,
   listProjects,
   saveExperiment,
@@ -11,7 +12,7 @@ import {
   type Me,
   type Project,
 } from '../api';
-import type { CampaignType } from '@abtest/shared';
+import type { CampaignType, Group } from '@abtest/shared';
 import { CAMPAIGN_ORDER, CAMPAIGNS } from '../campaigns';
 import { go, navigate } from '../nav';
 import { newExperiment } from '../store';
@@ -389,8 +390,19 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
   const canEdit = user.role !== 'viewer';
+  // Grupo exclusivo de cada experimento (aviso na lista); falha ao carregar só esconde o aviso.
+  const [groupOf, setGroupOf] = useState(new Map<string, { name: string; percent: number }>());
   const load = useCallback(() => {
     listExperiments().then(setItems, (e: Error) => toast('error', `Não foi possível carregar: ${e.message}`));
+    entities.list<Group>('group').then(
+      (gs) =>
+        setGroupOf(
+          new Map(
+            gs.flatMap((g) => g.data.experiments.map((e) => [e.id, { name: g.name, percent: e.percent }])),
+          ),
+        ),
+      () => {},
+    );
   }, [toast]);
   useEffect(load, [load]);
   useEffect(() => {
@@ -498,6 +510,20 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                     {e.name}
                   </button>
                   <div className="font-mono text-[11px] text-gray-400">{e.key}</div>
+                  {groupOf.get(e.id) && (
+                    <button
+                      className="mt-0.5 inline-flex items-center gap-1 rounded-sm bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 hover:bg-gray-200"
+                      title={`Grupo exclusivo: quem entra neste teste não entra nos outros do grupo "${groupOf.get(e.id)!.name}". Fatia de ${groupOf.get(e.id)!.percent}% do tráfego.`}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        navigate('groups');
+                      }}
+                      data-testid="row-group"
+                    >
+                      <Layers size={11} aria-hidden="true" /> {groupOf.get(e.id)!.name} ·{' '}
+                      {groupOf.get(e.id)!.percent}%
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={e.status} />

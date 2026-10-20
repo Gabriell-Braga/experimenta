@@ -1,5 +1,6 @@
 import {
   Activity,
+  Layers,
   AtSign,
   Boxes,
   ChevronDown,
@@ -82,6 +83,7 @@ export const NAV: NavGroup[] = [
       { view: 'tests:rollout', label: 'Rollouts', icon: Rocket },
       { view: 'tests:server', label: 'Server-side', icon: Server },
       { view: 'flags', label: 'Feature flags', icon: ToggleRight },
+      { view: 'groups', label: 'Grupos exclusivos', icon: Layers },
       { view: 'optimize', label: 'Otimização por IA', icon: Sparkles },
     ],
   },

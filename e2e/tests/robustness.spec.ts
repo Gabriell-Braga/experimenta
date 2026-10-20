@@ -169,6 +169,7 @@ const VIEWS = [
   'tests:rollout',
   'tests:server',
   'flags',
+  'groups',
   'optimize',
   'heatmaps',
   'recordings',

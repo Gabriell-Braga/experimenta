@@ -4,6 +4,7 @@ import {
   type Consent,
   type Experiment,
   type Flag,
+  type Group,
   type Integrations,
   type PropensityConfig,
   type SdkConfig,
@@ -112,6 +113,7 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       predCfg,
       pred,
       cons,
+      groups,
     ] = await Promise.all([
       repo.loadAllExperiments(accountId),
       repo.lastPublication(accountId),
@@ -125,13 +127,27 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       repo.listEntities<PropensityConfig>(accountId, 'propensity'),
       repo.listEntities<TrainedModel>(accountId, MODEL_KIND),
       repo.listEntities<Consent>(accountId, 'consent'),
+      repo.listEntities<Group>(accountId, 'group'),
     ]);
     const consent = cons[0]?.data;
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');
     const popups = popupList.filter((p) => p.data.status === 'running');
     const sampleRate = settings.heatmapSampleRate ?? heatmapSampleRate;
-    const running = all.filter((e) => e.status === 'running');
+    // Grupos exclusivos (17.1): cada experimento leva o id do grupo e as fatias dele. Sobrescreve sempre, então
+    // um `group` vindo do cliente no experimento nunca chega ao site.
+    const slotsOf = new Map<string, Experiment['group']>();
+    for (const g of groups)
+      g.data.slots?.forEach((owner, i) => {
+        const cur = slotsOf.get(owner) ?? { id: g.id, slots: [] };
+        // Em dois grupos (gravações simultâneas passaram a checagem): vale o primeiro.
+        if (!owner || cur.id !== g.id) return;
+        cur.slots.push(i);
+        slotsOf.set(owner, cur);
+      });
+    const running = all
+      .filter((e) => e.status === 'running')
+      .map((e) => ({ ...e, group: slotsOf.get(e.id) }));
 
     if (!canPublishJs(user)) {
       const published = jsOf(last?.config.experiments ?? []);
@@ -183,7 +199,14 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       flags: flags.map((f) => f.data),
       experiments: running
         .filter((e) => e.type === 'server')
-        .map(({ id, key, traffic, variations, goals }) => ({ id, key, traffic, variations, goals })),
+        .map(({ id, key, traffic, variations, goals, group }) => ({
+          id,
+          key,
+          traffic,
+          variations,
+          goals,
+          group,
+        })),
     };
     // Aprovação (fase 16.4): quem não pode aprovar só republica o que já foi aprovado (D-072).
     if (settings.requireApproval && !canPublishJs(user)) {

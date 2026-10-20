@@ -1,6 +1,6 @@
 import type { Experiment, PublishedConfig, TrackingEvent, Variation } from '@abtest/shared';
 import { hide } from './antiflicker';
-import { assign, loadAssignments, saveAssignments } from './bucket';
+import { assign, inGroup, loadAssignments, saveAssignments } from './bucket';
 import { propensity } from '@abtest/shared/predict';
 import { matchAudience, type AudienceContext } from './audience';
 import { loadProfile, notePage, saveProfile, type Profile } from './data';
@@ -242,8 +242,11 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     assigned: () =>
       config.experiments.flatMap((experiment) => {
         if (experiment.status !== 'running') return [];
+        // Fora da fatia do grupo exclusivo não conta (atribuição antiga, de antes do grupo).
         const variation =
-          forcedOf(experiment) ?? experiment.variations.find((v) => v.id === stored[experiment.id]);
+          forcedOf(experiment) ??
+          (inGroup(visitor.id, experiment) &&
+            experiment.variations.find((v) => v.id === stored[experiment.id]));
         return variation ? [{ experiment, variation }] : [];
       }),
     stop: () => {
