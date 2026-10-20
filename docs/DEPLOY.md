@@ -19,6 +19,7 @@ Tudo roda em Workers (conta Cloudflare do projeto, subdomínio `hub-villa-deli.w
 - KV `abtest-cdn` (binding `CDN`): `abt.js`, `agent.js`, `<conta>.js`, `<conta>.json`.
 - Segredos do Worker: `JWT_SECRET`, `SEED_PASSWORD` (senha dos usuários da conta demo, criados no primeiro acesso). Trocar com `wrangler secret put`.
 - Opcional: `ANTHROPIC_API_KEY` (`wrangler secret put ANTHROPIC_API_KEY`) liga as ideias de teste com Claude em Testes → Otimização por IA; sem ela, as ideias vêm das regras dos insights. No Node, a mesma variável de ambiente.
+- Opcional, grátis: modelo compatível com OpenAI no lugar do Claude — `AI_BASE_URL`, `AI_MODEL` e `AI_API_KEY` (quando o provedor pede). Ex.: Gemini (camada grátis, chave em aistudio.google.com) `AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai AI_MODEL=gemini-2.5-flash`; Groq `https://api.groq.com/openai/v1` + `llama-3.3-70b-versatile`; Ollama local `http://localhost:11434/v1` + `qwen2.5:7b` (sem chave). Se o modelo falhar ou responder fora do formato, valem as regras.
 - Variáveis em `apps/api/wrangler.jsonc`: `PUBLIC_URL`, `EDITOR_ORIGINS`, `DEMO_SITE_URL`, `HEATMAP_SAMPLE_RATE`.
 
 ## Para instalar num site real

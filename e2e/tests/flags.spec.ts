@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('feature flag: cria com rollout, publica e o sdk.json da conta traz a flag', async ({
   page,
@@ -7,7 +7,7 @@ test('feature flag: cria com rollout, publica e o sdk.json da conta traz a flag'
 }) => {
   const key = `flag-${Math.random().toString(36).slice(2, 7)}`;
   await login(page);
-  await page.getByTestId('nav-flags').click();
+  await nav(page, 'flags');
   await page.getByTestId('new-flag').click();
   await page.getByTestId('flag-key').fill(key);
   await page.getByTestId('flag-editor').getByRole('switch').click();

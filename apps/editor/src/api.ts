@@ -395,7 +395,7 @@ export interface Idea {
   basedOn: string;
 }
 export interface Ideas {
-  source: 'claude' | 'regras';
+  source: 'claude' | 'modelo' | 'regras';
   model?: string;
   ideas: Idea[];
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('funil: cria pelo construtor e vê passos com conversão', async ({ page, request }) => {
   const v = `fn-${Math.random().toString(36).slice(2, 8)}`;
@@ -19,7 +19,7 @@ test('funil: cria pelo construtor e vê passos com conversão', async ({ page, r
     }),
   });
   await login(page);
-  await page.getByTestId('nav-funnels').click();
+  await nav(page, 'funnels');
   await page.getByTestId('new-funnel').click();
   const name = `Funil ${v}`;
   await page.getByTestId('funnel-name').fill(name);

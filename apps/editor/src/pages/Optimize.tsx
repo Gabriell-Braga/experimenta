@@ -2,7 +2,7 @@ import { Copy, Plane, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getIdeas, type Ideas, type Me } from '../api';
 import { navigate } from '../nav';
-import { Button, Card, EmptyState, PageHeader, Segmented, useToast } from '../ui';
+import { Button, Card, EmptyState, PageHeader, Segmented, useCopy, useToast } from '../ui';
 import { PERIODS, type Period } from './Events';
 
 const LEVEL: Record<string, string> = {
@@ -23,6 +23,7 @@ function Tag({ label, value }: { label: string; value: string }) {
 
 export function OptimizePage({ user }: { user: Me }) {
   const toast = useToast();
+  const copy = useCopy();
   const [days, setDays] = useState<Period>('30');
   const [data, setData] = useState<Ideas | null>(null);
   const [busy, setBusy] = useState(false);
@@ -52,7 +53,7 @@ export function OptimizePage({ user }: { user: Me }) {
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             {canEdit && (
-              <Button variant="primary" loading={busy} onClick={() => void run()} data-testid="ideas-run">
+              <Button variant="primary" loading={busy} onClick={() => run()} data-testid="ideas-run">
                 <Sparkles size={16} aria-hidden="true" /> {data ? 'Gerar de novo' : 'Gerar ideias'}
               </Button>
             )}
@@ -60,7 +61,9 @@ export function OptimizePage({ user }: { user: Me }) {
               <span className="label-mono" data-testid="ideas-source">
                 {data.source === 'claude'
                   ? `por Claude (${data.model})`
-                  : 'por regras · sem chave da API do Claude'}
+                  : data.source === 'modelo'
+                    ? `por IA (${data.model})`
+                    : 'por regras · sem modelo de IA configurado'}
               </span>
             )}
           </div>
@@ -103,11 +106,10 @@ export function OptimizePage({ user }: { user: Me }) {
                       size="sm"
                       variant="ghost"
                       onClick={() =>
-                        void navigator.clipboard
-                          .writeText(
-                            `${i.title}\nHipótese: ${i.hypothesis}\nMudança: ${i.change}\nMeta: ${i.metric}`,
-                          )
-                          .then(() => toast('success', 'Ideia copiada.'))
+                        copy(
+                          `${i.title}\nHipótese: ${i.hypothesis}\nMudança: ${i.change}\nMeta: ${i.metric}`,
+                          'Ideia copiada.',
+                        )
                       }
                     >
                       <Copy size={14} aria-hidden="true" /> Copiar

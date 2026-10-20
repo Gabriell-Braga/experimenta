@@ -58,7 +58,10 @@ export function integrationRoutes(app: Api, repo: Repo) {
       summary: 'Cria uma chave de API (mostrada UMA vez). Use em `Authorization: Bearer <chave>`',
       request: {
         body: json(
-          z.object({ name: z.string().min(1).max(80), role: z.enum(['viewer', 'editor']).default('viewer') }),
+          z.object({
+            name: z.string().trim().min(1).max(80),
+            role: z.enum(['viewer', 'editor']).default('viewer'),
+          }),
           'chave',
         ),
       },

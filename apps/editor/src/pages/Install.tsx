@@ -1,10 +1,11 @@
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { API_URL, type Me } from '../api';
-import { Button, Card, PageHeader } from '../ui';
+import { Button, Card, PageHeader, useCopy } from '../ui';
 
 function CodeBlock({ code, testId }: { code: string; testId?: string }) {
   const [copied, setCopied] = useState(false);
+  const copy = useCopy();
   return (
     <div className="relative">
       <pre
@@ -18,7 +19,8 @@ function CodeBlock({ code, testId }: { code: string; testId?: string }) {
         variant="inverseOutline"
         className="absolute top-2.5 right-2.5"
         onClick={() =>
-          navigator.clipboard?.writeText(code).then(() => {
+          copy(code).then((ok) => {
+            if (!ok) return;
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           })

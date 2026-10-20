@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('pesquisa NPS: cria, publica, visitante responde e o relatório mostra o NPS', async ({
   page,
   browser,
 }) => {
   await login(page);
-  await page.getByTestId('nav-surveys').click();
+  await nav(page, 'surveys');
   await page.getByTestId('new-survey').click();
   const name = `NPS ${Date.now()}`;
   await page.getByTestId('survey-name').fill(name);
@@ -35,7 +35,7 @@ test('pesquisa NPS: cria, publica, visitante responde e o relatório mostra o NP
   await expect(page.getByTestId('nps-score')).toHaveText('100', { timeout: 10_000 });
   await expect(page.getByTestId('survey-report')).toContainText('Entrega muito rápida');
 
-  await page.getByTestId('nav-surveys').click();
+  await nav(page, 'surveys');
   await page
     .getByTestId('survey-row')
     .filter({ hasText: name })

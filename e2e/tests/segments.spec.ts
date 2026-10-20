@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('segmento do CDP: cria por regras do perfil, lista membros e exporta CSV', async ({ page, request }) => {
   const u = `seg-${Math.random().toString(36).slice(2, 7)}`;
@@ -28,7 +28,7 @@ test('segmento do CDP: cria por regras do perfil, lista membros e exporta CSV', 
     }),
   });
   await login(page);
-  await page.getByTestId('nav-segments').click();
+  await nav(page, 'segments');
   await page.getByTestId('new-segment').click();
   await page.getByTestId('segment-name').fill(`Plano ${u}`);
   const editor = page.getByTestId('segment-editor');

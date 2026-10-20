@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 const API = 'http://localhost:4000';
 
@@ -35,7 +35,7 @@ test('módulo Mapas de calor: lista de páginas e visualizador sobre o site real
     }),
   });
   await login(page, { email: 'viewer@abtest.dev', password: 'demo1234' });
-  await page.getByTestId('nav-heatmaps').click();
+  await nav(page, 'heatmaps');
   await page.getByTestId('page-row').filter({ hasText: 'produto.html' }).click();
   await expect(page.getByTestId('viewer-url')).toHaveText('localhost:5180/produto.html');
   await page.getByTestId('heatmap-mode-frustration').click();

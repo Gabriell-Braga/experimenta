@@ -2,7 +2,7 @@ import { WEBHOOK_EVENTS, type Integrations, type Webhook } from '@abtest/shared'
 import { Copy, KeyRound, Send, Trash2, Webhook as WebhookIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { apiKeys, entities, publish, testWebhook, type ApiKey, type Entity, type Me } from '../api';
-import { Button, Card, inputCls, PageHeader, selectCls, timeAgo, useToast } from '../ui';
+import { Button, Card, inputCls, PageHeader, selectCls, timeAgo, useCopy, useToast } from '../ui';
 import { Switch } from './Flags';
 
 const EVENT_LABEL: Record<(typeof WEBHOOK_EVENTS)[number], string> = {
@@ -51,7 +51,7 @@ function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
           <li key={k} className="flex items-start gap-3">
             <Switch
               on={!!data[k]}
-              onChange={(v) => canEdit && e !== undefined && void set({ [k]: v })}
+              onChange={(v) => canEdit && e !== undefined && set({ [k]: v })}
               label={label}
             />
             <span className="min-w-0">
@@ -70,6 +70,7 @@ function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
 
 function Webhooks({ canEdit }: { canEdit: boolean }) {
   const toast = useToast();
+  const copy = useCopy();
   const [list, setList] = useState<Entity<Webhook>[]>([]);
   const [url, setUrl] = useState('');
   const [events, setEvents] = useState<Webhook['events']>(['conversion']);
@@ -107,11 +108,7 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
               variant="ghost"
               aria-label="Copiar segredo"
               title="Copiar segredo de assinatura"
-              onClick={() =>
-                void navigator.clipboard
-                  .writeText(h.data.secret)
-                  .then(() => toast('success', 'Segredo copiado.'))
-              }
+              onClick={() => copy(h.data.secret, 'Segredo copiado.')}
             >
               <Copy size={14} />
             </Button>
@@ -135,7 +132,7 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
                   size="sm"
                   variant="ghost"
                   aria-label="Excluir"
-                  onClick={() => void run(entities.remove('webhook', h.id))}
+                  onClick={() => run(entities.remove('webhook', h.id))}
                 >
                   <Trash2 size={14} />
                 </Button>
@@ -177,7 +174,7 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
             variant="primary"
             size="sm"
             disabled={!url || !events.length}
-            onClick={() => void add()}
+            onClick={() => add()}
             data-testid="webhook-add"
           >
             <WebhookIcon size={14} aria-hidden="true" /> Adicionar webhook
@@ -232,7 +229,7 @@ function ApiKeys() {
               size="sm"
               variant="ghost"
               aria-label="Revogar"
-              onClick={() => void apiKeys.revoke(k.id).then(load)}
+              onClick={() => apiKeys.revoke(k.id).then(load)}
             >
               <Trash2 size={14} />
             </Button>
@@ -254,7 +251,7 @@ function ApiKeys() {
           <option value="viewer">Leitura</option>
           <option value="editor">Escrita</option>
         </select>
-        <Button variant="primary" disabled={!name} data-testid="api-key-create" onClick={() => void create()}>
+        <Button variant="primary" disabled={!name} data-testid="api-key-create" onClick={() => create()}>
           Criar
         </Button>
       </div>

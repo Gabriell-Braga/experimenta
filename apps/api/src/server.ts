@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
+import { compatFromEnv } from './ai';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
 import { hourlyJobs } from './bandit';
@@ -76,6 +77,7 @@ serve(
       publish,
       // Ideias de teste com Claude só quando há chave (sem ela, as regras dos insights).
       ai: process.env.ANTHROPIC_API_KEY ? new Anthropic() : undefined,
+      aiCompat: compatFromEnv(process.env),
     }).fetch,
     port,
   },

@@ -12,7 +12,7 @@ const Kind = z
   .enum(Object.keys(ENTITY_SCHEMAS) as [EntityKind, ...EntityKind[]])
   .openapi({ param: { name: 'kind', in: 'path' } });
 const Id = z.string().openapi({ param: { name: 'id', in: 'path' } });
-const Body = z.object({ name: z.string().min(1).max(120), data: z.unknown() });
+const Body = z.object({ name: z.string().trim().min(1).max(120), data: z.unknown() });
 
 /** Valida `data` pelo schema do tipo; devolve o dado normalizado ou a mensagem de erro. */
 function validate(

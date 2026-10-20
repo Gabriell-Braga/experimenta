@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('pop-up: cria com pré-visualização, publica, aparece no site e registra exibição', async ({
   page,
   browser,
 }) => {
   await login(page);
-  await page.getByTestId('nav-popups').click();
+  await nav(page, 'popups');
   await page.getByTestId('new-popup').click();
   const title = `Oferta ${Date.now()}`;
   await page.getByTestId('popup-name').fill(title);

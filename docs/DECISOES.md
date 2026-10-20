@@ -357,3 +357,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - `POST /ai/ideas`: o painel do período (D-064/D-065) reduzido a agregados — nenhum dado de visitante — vai para o Claude (`claude-opus-5-5`, esforço médio, saída estruturada por JSON Schema, `fallbacks: "default"` para recusas) e volta como até 6 ideias (hipótese, mudança, página, meta, impacto, esforço, dado que motivou). A resposta é validada com zod; recusa, corte ou erro caem nas regras. Sem `ANTHROPIC_API_KEY`, as ideias vêm de regras sobre os insights (uma por achado acionável), então a tela funciona em qualquer instalação.
 - Helper `zodOutputFormat` do SDK exige zod ≥ 3.25 (o repo usa 3.24): usamos `betaJSONSchemaOutputFormat` com o schema escrito à mão e validamos com o nosso zod.
 - Piloto automático = `allocation: 'autopilot'`: o bandit da fase 12.3, mais duas regras no rebalanceamento de hora em hora — variação com veredito "perdendo" vai a peso 0 e não volta; com vencedora declarada, só as vencedoras ficam com peso. Nunca zera todas. Quem já foi atribuído continua na sua variação (atribuição persistida).
+
+## D-068 — Robustez: trava de clique na base e fuzz guiado pela especificação
+- Clique duplo: a trava fica em `Button`/`Switch` (`usePending`): se o onClick devolve Promise, novos cliques são ignorados até ela terminar. Corrige todas as telas de uma vez; handler que quer a trava não pode descartar a Promise com `void`.
+- Fuzz da API percorre `/openapi.json` (rotas novas entram sozinhas) e gera os dados de entidade/experimento a partir dos schemas zod; regra é "nunca 5xx" e o que foi aceito não pode quebrar leituras nem publicação.
+- Byte nulo é recusado num middleware único (Postgres não aceita byte nulo em texto).
+- IA: além do Claude, qualquer API compatível com OpenAI (`AI_BASE_URL`/`AI_MODEL`), para testes grátis; resposta validada pelo mesmo schema, falha cai nas regras.
+- E2E: API sempre nova (`reuseExistingServer: false`) — robustez grava lixo e não pode atingir o banco de dev.

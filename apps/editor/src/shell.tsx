@@ -1,6 +1,7 @@
 import {
   Activity,
   Boxes,
+  ChevronDown,
   ClipboardList,
   Code2,
   Flame,
@@ -231,7 +232,12 @@ function UserMenu({ user }: { user: Me }) {
 /** Moldura das telas (exceto o editor visual): menu lateral escuro + conteúdo sobre papel. */
 export function AppShell({ user, view, children }: { user: Me; view: string; children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  useEffect(() => setMobileOpen(false), [view]);
+  const activeGroup = NAV.find((g) => g.items.some((i) => i.view === view))?.label ?? null;
+  const [openGroup, setOpenGroup] = useState(activeGroup);
+  useEffect(() => {
+    setMobileOpen(false);
+    setOpenGroup(activeGroup);
+  }, [view, activeGroup]);
   const sidebar = (
     <nav className="flex h-full flex-col bg-ink text-white" aria-label="Módulos">
       <div className="flex h-16 items-center justify-between px-4">
@@ -242,42 +248,58 @@ export function AppShell({ user, view, children }: { user: Me; view: string; chi
           <X size={18} />
         </button>
       </div>
-      <div className="flex-1 space-y-5 overflow-y-auto px-2.5 py-3">
-        {NAV.map((g) => (
-          <div key={g.label}>
-            <p className="mb-1.5 px-2 font-mono text-[10px] tracking-[0.12em] text-white/35 uppercase">
-              {g.label}
-            </p>
-            <ul className="space-y-0.5">
-              {g.items.map(({ view: v, label, icon: Icon }) => {
-                const active = v === view;
-                return (
-                  <li key={v}>
-                    <button
-                      onClick={() => {
-                        const [screen, type] = v.split(':');
-                        navigate(screen!, type ? { type } : {});
-                      }}
-                      aria-current={active ? 'page' : undefined}
-                      data-testid={`nav-${v}`}
-                      className={`group relative flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13.5px] ${active ? 'bg-white/[0.08] text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}
-                    >
-                      {active && (
-                        <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r bg-lime" />
-                      )}
-                      <Icon
-                        size={16}
-                        aria-hidden="true"
-                        className={active ? 'text-lime' : 'text-white/45 group-hover:text-white/80'}
-                      />
-                      {label}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      <div className="flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
+        {NAV.map((g) => {
+          // Um grupo aberto por vez (o da tela atual): o menu cabe na tela sem rolar.
+          const open = g.items.length === 1 || g.label === openGroup;
+          const hasActive = g.items.some((i) => i.view === view);
+          return (
+            <div key={g.label} data-nav-group={g.label}>
+              {g.items.length > 1 && (
+                <button
+                  onClick={() => setOpenGroup(open ? null : g.label)}
+                  aria-expanded={open}
+                  className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 font-mono text-[10px] tracking-[0.12em] uppercase hover:text-white/70 ${hasActive && !open ? 'text-lime' : 'text-white/35'}`}
+                >
+                  {g.label}
+                  <ChevronDown
+                    size={12}
+                    aria-hidden="true"
+                    className={`transition-transform ${open ? '' : '-rotate-90'}`}
+                  />
+                </button>
+              )}
+              <ul className="space-y-0.5 pb-1" hidden={!open}>
+                {g.items.map(({ view: v, label, icon: Icon }) => {
+                  const active = v === view;
+                  return (
+                    <li key={v}>
+                      <button
+                        onClick={() => {
+                          const [screen, type] = v.split(':');
+                          navigate(screen!, type ? { type } : {});
+                        }}
+                        aria-current={active ? 'page' : undefined}
+                        data-testid={`nav-${v}`}
+                        className={`group relative flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13.5px] ${active ? 'bg-white/[0.08] text-white' : 'text-white/60 hover:bg-white/[0.04] hover:text-white'}`}
+                      >
+                        {active && (
+                          <span className="absolute top-1.5 bottom-1.5 left-0 w-[3px] rounded-r bg-lime" />
+                        )}
+                        <Icon
+                          size={16}
+                          aria-hidden="true"
+                          className={active ? 'text-lime' : 'text-white/45 group-hover:text-white/80'}
+                        />
+                        {label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </div>
       <div className="border-t border-white/[0.08] p-2.5">
         <UserMenu user={user} />

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('recomendações: vitrine "quem viu também viu" aparece na loja depois do produto visto', async ({
   page,
@@ -32,7 +32,7 @@ test('recomendações: vitrine "quem viu também viu" aparece na loja depois do 
   await request.post('http://localhost:4000/collect', { data: JSON.stringify({ events }) });
 
   await login(page);
-  await page.getByTestId('nav-recos').click();
+  await nav(page, 'recos');
   await page.getByTestId('new-reco').click();
   const name = `Vitrine ${n}`;
   await page.getByTestId('reco-name').fill(name);

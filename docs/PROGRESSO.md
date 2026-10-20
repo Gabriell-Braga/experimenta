@@ -509,3 +509,10 @@
 - Testes: Vitest em todos os workspaces + E2E Playwright 53/53 (três execuções seguidas sem falha). Snippet 9,6 KB gzip (< 10 KB).
 - Pendências conhecidas (ver DECISOES): retry/fila de webhooks; fila de publicação vale só por processo/isolate; ideias com Claude dependem da chave no ambiente.
 
+
+### 2026-10-19 21:44 — Robustez, menu lateral e IA grátis
+- O que foi feito: menu lateral em sanfona (um grupo aberto por vez, o da tela atual; cabe sem rolar); ideias de teste com modelo grátis compatível com OpenAI (Gemini/Groq/OpenRouter/Ollama) além do Claude; testes automáticos de robustez na API (fuzz de todas as rotas do OpenAPI e dos dados de cada entidade/experimento) e na interface (todas as telas: campos com lixo, clique duplo em botões e janelas, XSS).
+- Bugs achados e corrigidos: byte nulo em id/query/corpo derrubava o Postgres (500) → 400 na entrada; `/collect` com corpo `null` → 500; nomes só com espaços ou de 200 mil caracteres aceitos → trim + limite; clique duplo em Ativar/Ligar/GA4/Salvar mandava o envio duas vezes (criava segmento e integração duplicados) → `Button` e `Switch` travam enquanto a ação anterior não termina; Copiar sem permissão de área de transferência estourava erro → aviso.
+- Arquivos principais: apps/api/src/fuzz.test.ts, e2e/tests/robustness.spec.ts, apps/editor/src/ui.tsx (usePending, useCopy), apps/editor/src/shell.tsx, apps/api/src/ai.ts
+- Como testar manualmente: `pnpm --filter @abtest/api exec vitest run src/fuzz.test.ts`; `pnpm e2e` (robustez roda por último, projeto "robustez"; só ela: `pnpm --filter @abtest/e2e e2e --project robustez --no-deps`). IA grátis: ver docs/DEPLOY.md.
+- Observações: E2E não reaproveita mais a API do `pnpm dev` (sujaria o banco de dev); pare o dev antes do `pnpm e2e`.

@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { expect, test, vi } from 'vitest';
-import { claudeIdeas, ruleIdeas } from './ai';
+import { claudeIdeas, compatFromEnv, compatIdeas, ruleIdeas } from './ai';
 import type { Dashboard } from './analytics/dashboard';
 import type { Insight } from './analytics/insights';
 import { autopilotWeights } from './bandit';
@@ -102,4 +102,34 @@ test('piloto automático: perdedora sai e não volta; com vencedora, só ela rec
   ]);
   // Nunca zera tudo.
   expect(autopilotWeights([500, 500], v('baseline', 'loser'), exp([0, 1]))).toEqual([500, 500]);
+});
+
+test('modelo grátis (API compatível com OpenAI): liga por env, manda o painel e valida a resposta', async () => {
+  expect(compatFromEnv({})).toBeUndefined();
+  const cfg = compatFromEnv({
+    AI_BASE_URL: 'https://x.ai/v1/',
+    AI_MODEL: 'gemini-2.5-flash',
+    AI_API_KEY: 'k',
+  })!;
+  expect(cfg.baseUrl).toBe('https://x.ai/v1');
+  const d = { insights: [insight('low-scroll')], traffic: { series: [] } } as unknown as Dashboard;
+  const reply = (content: string, status = 200) =>
+    vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status }),
+      ) as unknown as typeof fetch;
+
+  const f = reply('```json\n' + JSON.stringify({ ideas: [idea] }) + '\n```');
+  expect(await compatIdeas(cfg, d, f)).toEqual([idea]);
+  const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
+  expect(url).toBe('https://x.ai/v1/chat/completions');
+  expect(init.headers.authorization).toBe('Bearer k');
+  const body = JSON.parse(init.body);
+  expect(body.model).toBe('gemini-2.5-flash');
+  expect(body.messages[1].content).toContain('achado low-scroll');
+
+  await expect(compatIdeas(cfg, d, reply('não sei'))).rejects.toThrow('não é JSON');
+  await expect(compatIdeas(cfg, d, reply('{"ideas":[{"title":1}]}'))).rejects.toThrow('formato');
+  await expect(compatIdeas(cfg, d, reply('', 429))).rejects.toThrow('429');
 });

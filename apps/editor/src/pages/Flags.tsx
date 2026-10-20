@@ -2,7 +2,18 @@ import { FlagSchema, type Flag } from '@abtest/shared';
 import { Flag as FlagIcon, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { API_URL, entities, publish, type Entity, type Me } from '../api';
-import { Button, Card, EmptyState, inputCls, Modal, PageHeader, selectCls, Spinner, useToast } from '../ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  inputCls,
+  Modal,
+  PageHeader,
+  selectCls,
+  Spinner,
+  usePending,
+  useToast,
+} from '../ui';
 
 const OPS: [Flag['rules'][number]['op'], string][] = [
   ['eq', '='],
@@ -13,13 +24,24 @@ const OPS: [Flag['rules'][number]['op'], string][] = [
   ['lte', '≤'],
 ];
 
-export function Switch({ on, onChange, label }: { on: boolean; onChange(v: boolean): void; label: string }) {
+export function Switch({
+  on,
+  onChange,
+  label,
+}: {
+  on: boolean;
+  onChange(v: boolean): unknown;
+  label: string;
+}) {
+  const pending = usePending();
   return (
     <button
       role="switch"
       aria-checked={on}
       aria-label={label}
-      onClick={() => onChange(!on)}
+      aria-busy={pending.on || undefined}
+      disabled={pending.on}
+      onClick={() => pending.run(() => onChange(!on))}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${on ? 'bg-brand-500' : 'bg-gray-300'}`}
       data-testid="flag-switch"
     >

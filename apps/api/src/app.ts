@@ -1,7 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import type { CompatAi } from './ai';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
-import { ExperimentSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
+import { ExperimentSchema, NameSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
 import { cors } from 'hono/cors';
 import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
 import { serveCdn, type CdnStore } from './cdn';
@@ -36,6 +37,8 @@ export interface AppDeps {
   ) => Promise<{ version: number } | { error: string; status: 403 | 400 }>;
   /** Cliente da API do Claude (só com ANTHROPIC_API_KEY); sem ele as ideias vêm das regras. */
   ai?: Anthropic;
+  /** Modelo grátis compatível com OpenAI (AI_BASE_URL/AI_MODEL), usado quando não há chave do Claude. */
+  aiCompat?: CompatAi;
 }
 
 const UserOut = z
@@ -90,6 +93,21 @@ export function createApp(deps: AppDeps) {
     bearerFormat: 'JWT',
   });
 
+  // Byte NUL não é texto válido no Postgres (a consulta estoura 500); recusa logo na entrada, em URL ou corpo
+  // (cru ou escapado em JSON).
+  const hasNul = (s: string) => s.includes('\u0000') || /\\u0000/i.test(s);
+  app.use(async (c, next) => {
+    let url = c.req.url;
+    try {
+      url = decodeURIComponent(url);
+    } catch {
+      return c.json({ error: 'URL inválida' }, 400);
+    }
+    const body = ['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) ? '' : await c.req.text();
+    if (hasNul(url) || hasNul(body)) return c.json({ error: 'caractere nulo não é permitido' }, 400);
+    await next();
+  });
+
   // ---------- Públicas (site do cliente) ----------
   app.get('/health', async (c) => c.json({ ok: await repo.ping() }));
   app.get('/cdn/:file', serveCdn(deps.cdn));
@@ -108,13 +126,13 @@ export function createApp(deps: AppDeps) {
   app.post('/collect', async (c) => {
     const raw = await c.req.text();
     if (raw.length > 64 * 1024) return c.json({ error: 'lote grande demais' }, 413);
-    let body: { events?: unknown[] };
+    let body: { events?: unknown[] } | null;
     try {
       body = JSON.parse(raw);
     } catch {
       return c.json({ error: 'JSON inválido' }, 400);
     }
-    const valid = (Array.isArray(body.events) ? body.events.slice(0, 200) : [])
+    const valid = (Array.isArray(body?.events) ? body.events.slice(0, 200) : [])
       .map((e) => TrackingEventSchema.safeParse(e))
       .flatMap((r) => (r.success ? [r.data] : []));
     const byAccount = new Map<string, TrackingEvent[]>();
@@ -213,7 +231,7 @@ export function createApp(deps: AppDeps) {
       tags: ['projects'],
       security,
       request: {
-        body: json(z.object({ name: z.string().min(1), siteUrl: z.string().url() }), 'novo projeto'),
+        body: json(z.object({ name: NameSchema, siteUrl: z.string().url().max(2000) }), 'novo projeto'),
       },
       responses: { 201: json(ProjectOut, 'criado'), 401: errors[401], 403: errors[403] },
     }),
@@ -735,7 +753,7 @@ export function createApp(deps: AppDeps) {
   cdpRoutes(app, repo, deps.cdn);
   integrationRoutes(app, repo);
   predictiveRoutes(app, repo, deps.publish);
-  aiRoutes(app, repo, deps.ai);
+  aiRoutes(app, repo, deps.ai, deps.aiCompat);
 
   app.openapi(
     createRoute({

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from '../editor';
+import { login, nav } from '../editor';
 
 test('tipos de campanha: URL dividida, rollout no menu e server-side com variáveis', async ({ page }) => {
   await login(page);
@@ -16,7 +16,7 @@ test('tipos de campanha: URL dividida, rollout no menu e server-side com variáv
 
   // Rollout aparece filtrado no menu.
   const name = `Rollout ${Date.now()}`;
-  await page.getByTestId('nav-tests:rollout').click();
+  await nav(page, 'tests:rollout');
   await page.getByTestId('new-experiment').click();
   await expect(page.getByTestId('type-rollout')).toHaveAttribute('aria-checked', 'true');
   await page.getByTestId('create-name').fill(name);
@@ -24,11 +24,11 @@ test('tipos de campanha: URL dividida, rollout no menu e server-side com variáv
   await expect(page).toHaveURL(/\?exp=/);
   await expect(page.getByTestId('add-variation')).toHaveCount(0);
   await page.getByTestId('back').click();
-  await page.getByTestId('nav-tests:rollout').click();
+  await nav(page, 'tests:rollout');
   await expect(page.getByTestId('experiment-row').filter({ hasText: name })).toBeVisible();
 
   // Server-side: página própria com variáveis JSON.
-  await page.getByTestId('nav-tests:server').click();
+  await nav(page, 'tests:server');
   await page.getByTestId('new-experiment').click();
   await page.getByTestId('create-name').fill(`Server ${Date.now()}`);
   await page.getByTestId('create-submit').click();

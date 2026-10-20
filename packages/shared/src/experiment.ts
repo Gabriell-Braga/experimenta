@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { OperationSchema } from './operations';
 
 /** Chave legível usada em URLs (ex.: ?ab_force=experimento:variacao). */
-export const KeySchema = z.string().regex(/^[a-z0-9][a-z0-9-_]*$/, 'use minúsculas, números, - e _');
+export const KeySchema = z
+  .string()
+  .max(100)
+  .regex(/^[a-z0-9][a-z0-9-_]*$/, 'use minúsculas, números, - e _');
+/** Nome digitado pelo usuário: sem espaços nas pontas, não vazio, tamanho de título. */
+export const NameSchema = z.string().trim().min(1, 'obrigatório').max(200);
 
 export const UrlRuleSchema = z.object({
   match: z.enum(['exact', 'contains', 'regex']),
@@ -37,7 +42,7 @@ export type Goal = z.infer<typeof GoalSchema>;
 export const VariationSchema = z.object({
   id: z.string(),
   key: KeySchema,
-  name: z.string().min(1),
+  name: NameSchema,
   /** Peso relativo (inteiro). A distribuição é weight / soma dos pesos. */
   weight: z.number().int().nonnegative(),
   operations: z.array(OperationSchema).default([]),
@@ -54,12 +59,12 @@ export const VariationSchema = z.object({
 /** MVT: seção da página com opções alternativas; a opção 0 é o original (sem alterações). */
 export const MvtSectionSchema = z.object({
   id: z.string(),
-  name: z.string().min(1),
+  name: NameSchema,
   options: z
     .array(
       z.object({
         id: z.string(),
-        name: z.string().min(1),
+        name: NameSchema,
         operations: z.array(OperationSchema).default([]),
         customCSS: z.string().default(''),
       }),
@@ -89,7 +94,7 @@ export const ExperimentSchema = z
   .object({
     id: z.string(),
     key: KeySchema,
-    name: z.string().min(1),
+    name: NameSchema,
     status: ExperimentStatusSchema.default('draft'),
     /** Percentual (0–100) de visitantes elegíveis que entram no experimento. */
     traffic: z.number().min(0).max(100).default(100),

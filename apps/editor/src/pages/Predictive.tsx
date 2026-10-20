@@ -112,7 +112,7 @@ export function PredictivePage({ user }: { user: Me }) {
                 variant="primary"
                 loading={busy}
                 disabled={!cfg.goal}
-                onClick={() => void train()}
+                onClick={() => train()}
                 data-testid="pred-train"
               >
                 {m ? 'Salvar e retreinar' : 'Treinar modelo'}

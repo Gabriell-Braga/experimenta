@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { createExperiment, login } from '../editor';
+import { createExperiment, login, nav } from '../editor';
 
 test('audiência: só quem atende às regras entra no experimento', async ({ page, browser }) => {
   await login(page);
   // Audiência "voltou": 2+ páginas vistas.
-  await page.getByTestId('nav-audiences').click();
+  await nav(page, 'audiences');
   await page.getByTestId('new-audience').click();
   const name = `Voltou ${Date.now()}`;
   await page.getByTestId('audience-name').fill(name);
@@ -13,7 +13,7 @@ test('audiência: só quem atende às regras entra no experimento', async ({ pag
   await expect(page.getByTestId('audiences')).toContainText(name);
 
   // Experimento com texto novo no título, restrito à audiência, em execução.
-  await page.getByTestId('nav-tests').click();
+  await nav(page, 'tests');
   await createExperiment(page);
   await expect(page.getByTestId('status')).toHaveAttribute('data-connected', 'true');
   const site = page.frameLocator('[data-testid=site-frame]');

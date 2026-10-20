@@ -25,3 +25,11 @@ export async function createExperiment(page: Page, name = `Teste ${Math.random()
   await page.getByTestId('create-submit').click();
   await expect(page).toHaveURL(/\?exp=/);
 }
+
+/** Clica num item do menu lateral, abrindo o grupo dele antes se estiver recolhido. */
+export async function nav(page: Page, view: string) {
+  const item = page.getByTestId(`nav-${view}`);
+  if (!(await item.isVisible()))
+    await page.locator(`[data-nav-group]:has([data-testid="nav-${view}"]) > button`).click();
+  await item.click();
+}

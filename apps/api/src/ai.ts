@@ -159,3 +159,55 @@ export async function claudeIdeas(client: Anthropic, d: Dashboard): Promise<Idea
   if (!parsed.success) throw new Error('resposta fora do formato');
   return parsed.data.ideas.slice(0, 6);
 }
+
+/**
+ * Modelo gratuito por API compatível com OpenAI (`/chat/completions`): Gemini (camada grátis), Groq, OpenRouter
+ * (modelos `:free`) ou Ollama local. Liga com AI_BASE_URL + AI_MODEL (+ AI_API_KEY quando o provedor pede).
+ */
+export interface CompatAi {
+  baseUrl: string;
+  model: string;
+  apiKey?: string;
+}
+
+export function compatFromEnv(env: Record<string, string | undefined>): CompatAi | undefined {
+  if (!env.AI_BASE_URL || !env.AI_MODEL) return undefined;
+  return { baseUrl: env.AI_BASE_URL.replace(/\/+$/, ''), model: env.AI_MODEL, apiKey: env.AI_API_KEY };
+}
+
+export async function compatIdeas(cfg: CompatAi, d: Dashboard, f: typeof fetch = fetch): Promise<Idea[]> {
+  const res = await f(`${cfg.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
+    },
+    // Modelos grátis enfileiram; acima disso o usuário recebe as regras.
+    signal: AbortSignal.timeout(60_000),
+    body: JSON.stringify({
+      model: cfg.model,
+      temperature: 0.4,
+      // json_object é o modo JSON que todos esses provedores aceitam; o formato vai no prompt e o zod valida.
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: `${SYSTEM}\nResponda só com um objeto JSON neste JSON Schema (sem texto fora dele):\n${JSON.stringify(IDEAS_JSON_SCHEMA)}`,
+        },
+        { role: 'user', content: `Painel da conta:\n${JSON.stringify(ideaContext(d))}` },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`modelo respondeu ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = (body.choices?.[0]?.message?.content ?? '').replace(/^\s*```(?:json)?|```\s*$/g, '');
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error('resposta não é JSON');
+  }
+  const parsed = z.object({ ideas: z.array(IdeaSchema).min(1) }).safeParse(json);
+  if (!parsed.success) throw new Error('resposta fora do formato');
+  return parsed.data.ideas.slice(0, 6);
+}

@@ -31,6 +31,45 @@ const VARIANTS = {
   inverseOutline: 'border border-white/20 text-white hover:border-white/40 hover:bg-white/10',
 } as const;
 
+/**
+ * Trava cliques enquanto a ação anterior (que devolveu Promise) não terminou: clique duplo ou impaciente não
+ * manda o mesmo envio duas vezes. Ref além do estado: o segundo clique pode chegar antes de re-renderizar.
+ */
+export function usePending() {
+  const busy = useRef(false);
+  const [on, setOn] = useState(false);
+  const run = (fn: () => unknown) => {
+    if (busy.current) return;
+    const r = fn();
+    if (!(r instanceof Promise)) return;
+    busy.current = true;
+    setOn(true);
+    void r
+      .catch(() => {})
+      .finally(() => {
+        busy.current = false;
+        setOn(false);
+      });
+  };
+  return { on, run };
+}
+
+/** Copia para a área de transferência; sem permissão (ou http), avisa em vez de estourar erro. */
+export function useCopy() {
+  const toast = useToast();
+  return (text: string, ok?: string) =>
+    (navigator.clipboard?.writeText(text) ?? Promise.reject(new Error())).then(
+      () => {
+        if (ok) toast('success', ok);
+        return true;
+      },
+      () => {
+        toast('error', 'Não foi possível copiar. Selecione o texto e copie manualmente.');
+        return false;
+      },
+    );
+}
+
 export function Button({
   variant = 'secondary',
   size = 'md',
@@ -38,15 +77,19 @@ export function Button({
   children,
   className = '',
   disabled,
+  onClick,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: keyof typeof VARIANTS;
   size?: 'sm' | 'md';
   loading?: boolean;
 }) {
+  const pending = usePending();
+  loading ||= pending.on;
   return (
     <button
       {...rest}
+      onClick={(e) => pending.run(() => onClick?.(e))}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
