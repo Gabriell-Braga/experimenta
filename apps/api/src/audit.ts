@@ -3,6 +3,7 @@ import type { AuthVars } from './auth';
 import type { ActivityInput, Repo, User } from './repo';
 import { REQUEST_KIND, type PublishRequestData } from './routes/approvals';
 import { PREVIEW_KIND } from './routes/previews';
+import { SCHEDULE_KIND, type ScheduleData } from './routes/schedules';
 
 // Histórico de atividades (auditoria, fase 16.3), registrado num ponto só: um middleware olha cada escrita bem
 // sucedida (2xx) das rotas abaixo e grava uma linha. Rotas novas que mudam configuração entram nesta tabela.
@@ -159,6 +160,41 @@ const RULES: Rule[] = [
       return e && { ...e, detail: link?.name };
     },
     action: 'preview_revoke',
+    name: beforeName,
+    detail: (x) => x.before?.detail,
+  },
+  // Agendamento (17.4): detalhe `ação@ISO` (o editor mostra a data no fuso de quem lê). A execução é registrada
+  // pelo próprio job (routes/schedules.ts), como "Agendamento".
+  {
+    method: 'POST',
+    path: '/experiments/:id/schedules',
+    target: 'experiment',
+    before: experimentBefore,
+    action: 'schedule',
+    name: beforeName,
+    detail: (x) => `${str(x.body.action)}@${str(x.res.at)}`,
+  },
+  {
+    method: 'PUT',
+    path: '/experiments/:id/schedules/:sid',
+    target: 'experiment',
+    before: experimentBefore,
+    action: 'schedule_edit',
+    name: beforeName,
+    detail: (x) => `${str(x.body.action)}@${str(x.res.at)}`,
+  },
+  {
+    method: 'DELETE',
+    path: '/experiments/:id/schedules/:sid',
+    target: 'experiment',
+    before: async (repo, acc, p) => {
+      const [e, s] = await Promise.all([
+        experimentBefore(repo, acc, p),
+        repo.getEntity<ScheduleData>(acc, SCHEDULE_KIND, p.sid!),
+      ]);
+      return e && { ...e, detail: s ? `${s.data.action}@${s.data.at}` : undefined };
+    },
+    action: 'schedule_cancel',
     name: beforeName,
     detail: (x) => x.before?.detail,
   },

@@ -401,6 +401,30 @@ export const previews = {
     api<void>(`${previewPath(id)}/${encodeURIComponent(pid)}`, { method: 'DELETE' }),
 };
 
+/** Agendamento de iniciar/pausar (17.4). `at` em ISO UTC; a tela mostra no fuso do navegador. */
+export interface Schedule {
+  id: string;
+  experimentId: string;
+  experimentName: string;
+  action: 'start' | 'pause';
+  at: string;
+  createdBy: string;
+}
+const schedulePath = (id: string) => `/experiments/${encodeURIComponent(id)}/schedules`;
+export const schedules = {
+  list: (experimentId?: string) =>
+    api<Schedule[]>(`/schedules${experimentId ? `?experimentId=${encodeURIComponent(experimentId)}` : ''}`),
+  create: (id: string, action: Schedule['action'], at: string) =>
+    api<{ id: string }>(schedulePath(id), { method: 'POST', body: JSON.stringify({ action, at }) }),
+  update: (id: string, sid: string, action: Schedule['action'], at: string) =>
+    api<{ id: string }>(`${schedulePath(id)}/${encodeURIComponent(sid)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ action, at }),
+    }),
+  remove: (id: string, sid: string) =>
+    api<void>(`${schedulePath(id)}/${encodeURIComponent(sid)}`, { method: 'DELETE' }),
+};
+
 export interface HeatmapFilters {
   experimentId?: string;
   variationId?: string;

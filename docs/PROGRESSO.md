@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 17.3 concluída
+**Status:** 17.4 concluída
 **Fase atual:** 17
-**Tarefa atual:** 17.4
-**Última atualização:** 2026-10-20 05:47
-**Próximo passo:** 17.4 agendamento de início/pausa.
+**Tarefa atual:** 17.5
+**Última atualização:** 2026-10-20 05:57
+**Próximo passo:** 17.5 estatística sequencial, CUPED e métricas de guarda.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -605,3 +605,9 @@
 - Arquivos principais: apps/api/src/routes/previews.ts, apps/api/src/audit.ts, packages/snippet/src/{preview,qa,main,editor}.ts, packages/snippet/build.mjs, apps/editor/src/components/PreviewLinks.tsx, apps/editor/src/components/TopBar.tsx, e2e/tests/preview-link.spec.ts
 - Como testar manualmente: abrir um teste no editor, alterar o título, "Link de pré-visualização" → Criar link; abrir o link numa janela anônima (vê a alteração sem publicar, navega pelo site mantendo o modo); Revogar e recarregar a janela (volta ao original com aviso). `pnpm --filter @abtest/api exec vitest run src/routes/previews.test.ts`; `pnpm --filter @abtest/e2e e2e tests/preview-link.spec.ts`.
 - Observações: snippet 10.233 B gzip (+41 B; para caber, `sessionParam` passou a servir QA, edição e pré-visualização: chave do QA na sessão virou `_ab_force`); preview.js 7,7 KB gzip só para quem abre o link. Alvo es2019 mantido. Link expirado é coberto no teste da API (o E2E cobre revogado e token adulterado). D-077.
+
+### 2026-10-20 05:57 — Tarefa 17.4 concluída (agendamento de iniciar/pausar)
+- O que foi feito: agendamento de "iniciar" ou "pausar" em data/hora para qualquer experimento ou campanha (todos os tipos, inclusive server-side). Entidade interna `schedule` (sem tabela nem migração, fora das rotas genéricas) com experimento, ação, data em UTC e quem agendou; rotas `GET /schedules` (conta ou `?experimentId=`), `POST/PUT/DELETE /experiments/:id/schedules[/:sid]` (editor; data no futuro e até 1 ano; até 10 por teste; arquivado não agenda). Execução no job de hora em hora que já existia (`hourlyJobs`: cron único do Worker e `setInterval` do Node; nenhum cron novo): muda o status (nova versão com o autor do agendamento), apaga o agendamento, publica uma vez por conta e dispara o webhook `publish`. Aprovação (D-072): vale como aprovado se todos que agendaram aquela rodada ainda podem aprovar; senão a conta com aprovação recebe um pedido de "Agendamento" com o recado do que mudou (webhook `approval`). Atividades: criar/editar/cancelar com a pessoa; a execução como "Agendamento" (detalhe "agendado por Fulano · publicado na versão N"/"aguardando aprovação"). Editor: modal com ação + data/hora no fuso do navegador (passo de 1 h, aviso "até 1 h depois" e do fuso), lista com Editar/Cancelar; abre pelo menu da linha ("Agendar…"), pela etiqueta na lista, pelo botão na barra do editor (mostra o próximo) e na página server-side.
+- Arquivos principais: apps/api/src/routes/schedules.ts, apps/api/src/bandit.ts, apps/api/src/audit.ts, apps/api/src/app.ts, apps/editor/src/components/Schedules.tsx, apps/editor/src/pages/Experiments.tsx, apps/editor/src/components/TopBar.tsx, apps/editor/src/pages/Activity.tsx, e2e/tests/schedule.spec.ts
+- Como testar manualmente: Testes → menu "…" de um teste pausado → Agendar… → Iniciar na próxima hora; a etiqueta aparece na lista e no editor. No Node o job roda 1 h depois de a API subir e depois a cada hora (a execução com relógio controlado está no teste da API). `pnpm --filter @abtest/api exec vitest run src/routes/schedules.test.ts`; `pnpm --filter @abtest/e2e e2e tests/schedule.spec.ts`.
+- Observações: precisão de hora em hora (cron `0 * * * *`; no Node o intervalo conta a partir de quando a API subiu). Editor aberto com o teste desde antes da execução pode sobrescrever o status ao salvar (mesmo caso dos pesos do bandit). Pop-ups e pesquisas não têm agendamento (D-078).

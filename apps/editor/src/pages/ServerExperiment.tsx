@@ -9,6 +9,7 @@ import {
   saveExperiment,
   type ExperimentRecord,
 } from '../api';
+import { ScheduleButton } from '../components/Schedules';
 import { navigate } from '../nav';
 import { uid } from '../store';
 import { Button, Card, inputCls, LoadingBlock, PageHeader, selectCls, StatusBadge, useToast } from '../ui';
@@ -104,6 +105,7 @@ abt.track('${exp.goals.find((g): g is Extract<Goal, { type: 'custom' }> => g.typ
         }
         actions={
           <>
+            <ScheduleButton experimentId={exp.id} name={exp.name} />
             <Button onClick={() => navigate('report', { id: exp.id })}>
               <BarChart3 size={14} aria-hidden="true" /> Relatório
             </Button>

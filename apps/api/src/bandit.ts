@@ -4,6 +4,7 @@ import { experimentReport } from './analytics/report';
 import type { AppDeps } from './app';
 import type { CdnStore } from './cdn';
 import { rebuildReco } from './reco';
+import { runSchedules } from './routes/schedules';
 import type { Repo, User } from './repo';
 
 const DAY = 86_400_000;
@@ -88,8 +89,10 @@ export async function rebalanceAll(repo: Repo, publish: AppDeps['publish']) {
   return [...touched];
 }
 
-/** Ciclo de hora em hora: bandits e modelos de recomendação das contas com vitrine. */
+/** Ciclo de hora em hora: agendamentos, bandits e modelos de recomendação das contas com vitrine. */
 export async function hourlyJobs(repo: Repo, cdn: CdnStore, publish: AppDeps['publish']) {
+  // Primeiro os agendamentos (17.4): teste que acabou de entrar no ar já é rebalanceado neste ciclo.
+  await runSchedules(repo, publish);
   await rebalanceAll(repo, publish);
   for (const accountId of await repo.listAccountsWithEntity('reco'))
     await rebuildReco(repo, cdn, accountId).catch(() => undefined);

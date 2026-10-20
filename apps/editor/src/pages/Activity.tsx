@@ -116,6 +116,22 @@ export function sentence(a: ActivityItem): ReactNode {
       </>
     );
   }
+  // Agendamento (17.4): detalhe `start@ISO`, mostrado no fuso de quem lê.
+  if (a.action.startsWith('schedule')) {
+    const [act, at] = (a.detail ?? '').split('@');
+    const verb =
+      a.action === 'schedule_cancel'
+        ? 'cancelou o agendamento de'
+        : a.action === 'schedule_edit'
+          ? 'mudou o agendamento para'
+          : 'agendou';
+    return (
+      <>
+        {who} {verb} {act === 'pause' ? 'pausar' : 'iniciar'} o teste {what}
+        {at && ` em ${new Date(at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}`}
+      </>
+    );
+  }
   const noun = TARGET_LABEL[a.targetType]?.[1] ?? a.targetType;
   const verb = a.action === 'draft' ? 'voltou' : (VERB[a.action] ?? a.action);
   const extra =
@@ -123,6 +139,8 @@ export function sentence(a: ActivityItem): ReactNode {
       ? ' para rascunho'
       : a.detail &&
           (a.action === 'restore' ||
+            // Execução do agendamento: "(agendado por Fulano · publicado na versão 7)".
+            ((a.action === 'start' || a.action === 'pause') && !a.userId) ||
             a.action.startsWith('preview') ||
             a.targetType === 'invite' ||
             a.targetType === 'settings')

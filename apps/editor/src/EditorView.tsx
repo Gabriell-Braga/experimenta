@@ -39,6 +39,7 @@ import { EMPTY_GOAL, SettingsPanel, type GoalDraft } from './components/Settings
 import { VersionsPanel } from './components/VersionsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { PreviewLinks } from './components/PreviewLinks';
+import { ScheduleButton } from './components/Schedules';
 import { connectAgent, type AgentPeer } from './connection';
 import { activeVariation, currentPage, initialState, onPage, reducer } from './store';
 
@@ -391,6 +392,14 @@ export function EditorView({ record, user }: Props) {
         onPublish={doPublish}
         onSettings={() => setSettingsOpen(true)}
         onPreviewLink={() => setPreviewLinks(true)}
+        schedule={
+          <ScheduleButton
+            experimentId={state.experiment.id}
+            name={state.experiment.name}
+            canEdit={user.role !== 'viewer'}
+            variant="inverseOutline"
+          />
+        }
         onReport={() => (state.dirty ? setLeaving(true) : navigate('report', { id: state.experiment.id }))}
         onUrl={(url) => {
           openUrl(url);

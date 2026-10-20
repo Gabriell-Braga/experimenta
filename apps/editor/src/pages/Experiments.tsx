@@ -1,4 +1,4 @@
-import { BarChart3, Ellipsis, FlaskConical, Layers, Plus } from 'lucide-react';
+import { BarChart3, CalendarClock, Ellipsis, FlaskConical, Layers, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   deleteExperiment,
@@ -7,13 +7,16 @@ import {
   listExperiments,
   listProjects,
   saveExperiment,
+  schedules,
   setStatus,
+  type Schedule,
   type ExperimentSummary,
   type Me,
   type Project,
 } from '../api';
 import type { CampaignType, Group } from '@abtest/shared';
 import { CAMPAIGN_ORDER, CAMPAIGNS } from '../campaigns';
+import { scheduleLabel, ScheduleModal } from '../components/Schedules';
 import { go, navigate } from '../nav';
 import { newExperiment } from '../store';
 import {
@@ -220,10 +223,12 @@ function RowActions({
   e,
   canEdit,
   onChanged,
+  onSchedule,
 }: {
   e: ExperimentSummary;
   canEdit: boolean;
   onChanged(): void;
+  onSchedule(): void;
 }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -276,6 +281,16 @@ function RowActions({
               }
             >
               Pausar
+            </MenuItem>
+          )}
+          {e.status !== 'archived' && (
+            <MenuItem
+              onClick={() => {
+                setOpen(false);
+                onSchedule();
+              }}
+            >
+              Agendar…
             </MenuItem>
           )}
           <MenuItem onClick={() => act('Cópia criada como rascunho.', () => duplicateExperiment(e.id))}>
@@ -392,8 +407,19 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
   const canEdit = user.role !== 'viewer';
   // Grupo exclusivo de cada experimento (aviso na lista); falha ao carregar só esconde o aviso.
   const [groupOf, setGroupOf] = useState(new Map<string, { name: string; percent: number }>());
+  // Agendamentos pendentes por experimento (o 1º é o próximo); falha só esconde o aviso.
+  const [scheduled, setScheduled] = useState(new Map<string, Schedule[]>());
+  const [scheduling, setScheduling] = useState<ExperimentSummary | null>(null);
   const load = useCallback(() => {
     listExperiments().then(setItems, (e: Error) => toast('error', `Não foi possível carregar: ${e.message}`));
+    schedules.list().then(
+      (ss) => {
+        const m = new Map<string, Schedule[]>();
+        for (const s of ss) m.set(s.experimentId, [...(m.get(s.experimentId) ?? []), s]);
+        setScheduled(m);
+      },
+      () => {},
+    );
     entities.list<Group>('group').then(
       (gs) =>
         setGroupOf(
@@ -524,6 +550,23 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                       {groupOf.get(e.id)!.percent}%
                     </button>
                   )}
+                  {scheduled.get(e.id) && (
+                    <button
+                      className="mt-0.5 ml-1 inline-flex items-center gap-1 rounded-sm bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800 hover:bg-amber-100"
+                      title={[
+                        ...scheduled.get(e.id)!.map(scheduleLabel),
+                        'Executa até 1 h depois do horário (verificação de hora em hora).',
+                      ].join('\n')}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setScheduling(e);
+                      }}
+                      data-testid="row-schedule"
+                    >
+                      <CalendarClock size={11} aria-hidden="true" /> {scheduleLabel(scheduled.get(e.id)![0]!)}
+                      {scheduled.get(e.id)!.length > 1 && ` +${scheduled.get(e.id)!.length - 1}`}
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={e.status} />
@@ -567,7 +610,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                   >
                     <BarChart3 size={15} />
                   </Button>
-                  <RowActions e={e} canEdit={canEdit} onChanged={load} />
+                  <RowActions e={e} canEdit={canEdit} onChanged={load} onSchedule={() => setScheduling(e)} />
                 </td>
               </tr>
             ))}
@@ -593,6 +636,15 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
         )}
       </div>
       <CreateModal open={creating} onClose={() => setCreating(false)} initialType={type} />
+      {scheduling && (
+        <ScheduleModal
+          experimentId={scheduling.id}
+          name={scheduling.name}
+          canEdit={canEdit}
+          onClose={() => setScheduling(null)}
+          onChanged={load}
+        />
+      )}
     </>
   );
 }

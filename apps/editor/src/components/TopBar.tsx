@@ -17,7 +17,7 @@ import {
 import type { CampaignType, MvtSection, Variation } from '@abtest/shared';
 import type { Action } from '../store';
 import { CAMPAIGNS } from '../campaigns';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button, Spinner, StatusBadge, timeAgo } from '../ui';
 
 export type Mode = 'edit' | 'browse' | 'preview' | 'heatmap';
@@ -58,6 +58,8 @@ interface Props {
   onReport(): void;
   /** Link de pré-visualização do rascunho da variação (17.3). */
   onPreviewLink(): void;
+  /** Botão de agendamento (17.4), com o próximo agendado. */
+  schedule?: ReactNode;
   onUrl(url: string): void;
 }
 
@@ -278,6 +280,7 @@ export function TopBar(p: Props) {
           <Link2 size={15} aria-hidden="true" />{' '}
           <span className="hidden xl:inline">Link de pré-visualização</span>
         </Button>
+        {p.schedule}
         <Button
           variant="inverseOutline"
           onClick={p.onSettings}
