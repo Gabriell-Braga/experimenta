@@ -13,12 +13,15 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   gte,
   inArray,
   lt,
   lte,
   max,
   ne,
+  notInArray,
+  or,
   sql,
   type SQL,
 } from 'drizzle-orm';
@@ -40,6 +43,7 @@ import {
   users,
   userSessions,
   variations,
+  webhookDeliveries,
   type Mfa,
 } from './schema';
 
@@ -219,6 +223,42 @@ export interface Comment extends CommentInput {
 /** Máximo de comentários devolvidos por alvo (os mais antigos ficam de fora). */
 export const COMMENTS_PER_TARGET = 500;
 
+/** Entrega de webhook na fila de reenvio (fase 19.4, D-092). */
+export type DeliveryStatus = 'pending' | 'delivered' | 'failed';
+export interface WebhookDelivery {
+  id: string;
+  webhookId: string;
+  type: string;
+  /** JSON exato enviado (a assinatura é sobre ele). */
+  body: string;
+  status: DeliveryStatus;
+  attempts: number;
+  nextAt: string | null;
+  /** Status HTTP da última tentativa (0 = sem resposta). */
+  lastStatus: number | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export type NewDelivery = Omit<WebhookDelivery, 'createdAt' | 'updatedAt'>;
+export type DeliveryUpdate = Pick<
+  WebhookDelivery,
+  'status' | 'attempts' | 'nextAt' | 'lastStatus' | 'lastError'
+>;
+
+/** Posição na lista de eventos em ordem (ts, id): o último exportado (exportação incremental, 19.4). */
+export type EventCursor = [number, string];
+export interface EventPage {
+  /** Depois deste evento (exclusivo); null = desde o começo. */
+  after: EventCursor | null;
+  /** Até este evento (inclusivo). */
+  through?: EventCursor;
+  /** Só eventos com ts anterior a este instante. */
+  before?: Date;
+  excludeTypes?: string[];
+  limit: number;
+}
+
 /** Primeira/última marca de tempo e páginas (eventos Meta do rrweb, tipo 4) de um bloco. */
 export function chunkSummary(list: RecordingChunkInput['events']) {
   let first = Infinity;
@@ -289,6 +329,20 @@ const toComment = (r: typeof comments.$inferSelect): Comment => ({
   body: r.body,
   mentions: r.mentions,
   createdAt: r.createdAt.toISOString(),
+});
+
+const toDelivery = (r: typeof webhookDeliveries.$inferSelect): WebhookDelivery => ({
+  id: r.id,
+  webhookId: r.webhookId,
+  type: r.type,
+  body: r.body,
+  status: r.status as DeliveryStatus,
+  attempts: r.attempts,
+  nextAt: r.nextAt?.toISOString() ?? null,
+  lastStatus: r.lastStatus,
+  lastError: r.lastError,
+  createdAt: r.createdAt.toISOString(),
+  updatedAt: r.updatedAt.toISOString(),
 });
 
 export function createRepo(db: Db) {
@@ -1191,6 +1245,127 @@ export function createRepo(db: Db) {
         .where(and(eq(comments.accountId, accountId), eq(comments.id, id)))
         .returning({ id: comments.id });
       return r.length > 0;
+    },
+
+    /** Eventos em ordem (ts, id) a partir de um cursor (exportação incremental). */
+    async listEventsPage(accountId: string, f: EventPage): Promise<TrackingEvent[]> {
+      const conds: SQL[] = [eq(events.accountId, accountId)];
+      if (f.after) {
+        const at = new Date(f.after[0]);
+        conds.push(or(gt(events.ts, at), and(eq(events.ts, at), gt(events.id, f.after[1])))!);
+      }
+      if (f.through) {
+        const at = new Date(f.through[0]);
+        conds.push(or(lt(events.ts, at), and(eq(events.ts, at), lte(events.id, f.through[1])))!);
+      }
+      if (f.before) conds.push(lt(events.ts, f.before));
+      if (f.excludeTypes?.length) conds.push(notInArray(events.type, f.excludeTypes));
+      const rows = await db
+        .select({ payload: events.payload })
+        .from(events)
+        .where(and(...conds))
+        .orderBy(asc(events.ts), asc(events.id))
+        .limit(f.limit);
+      return rows.map((r) => r.payload as TrackingEvent);
+    },
+
+    async addWebhookDelivery(accountId: string, d: NewDelivery): Promise<void> {
+      const now = new Date();
+      await db.insert(webhookDeliveries).values({
+        ...d,
+        accountId,
+        nextAt: d.nextAt ? new Date(d.nextAt) : null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    },
+
+    /**
+     * Atualiza uma entrega. Com `ifNextAt`, só se ainda estiver pendente com esse `next_at` (pegar a vez:
+     * duas drenagens simultâneas não entregam a mesma). Devolve se gravou.
+     */
+    async updateWebhookDelivery(
+      accountId: string,
+      id: string,
+      u: DeliveryUpdate,
+      ifNextAt?: string,
+    ): Promise<boolean> {
+      const conds = [eq(webhookDeliveries.accountId, accountId), eq(webhookDeliveries.id, id)];
+      if (ifNextAt !== undefined)
+        conds.push(eq(webhookDeliveries.status, 'pending'), eq(webhookDeliveries.nextAt, new Date(ifNextAt)));
+      const r = await db
+        .update(webhookDeliveries)
+        .set({
+          status: u.status,
+          attempts: u.attempts,
+          nextAt: u.nextAt ? new Date(u.nextAt) : null,
+          lastStatus: u.lastStatus,
+          lastError: u.lastError,
+          updatedAt: new Date(),
+        })
+        .where(and(...conds))
+        .returning({ id: webhookDeliveries.id });
+      return r.length > 0;
+    },
+
+    async getWebhookDelivery(accountId: string, id: string): Promise<WebhookDelivery | null> {
+      const [r] = await db
+        .select()
+        .from(webhookDeliveries)
+        .where(and(eq(webhookDeliveries.accountId, accountId), eq(webhookDeliveries.id, id)));
+      return r ? toDelivery(r) : null;
+    },
+
+    /** Últimas entregas de um webhook (mais novas primeiro). */
+    async listWebhookDeliveries(
+      accountId: string,
+      webhookId: string,
+      limit = 20,
+    ): Promise<WebhookDelivery[]> {
+      const rows = await db
+        .select()
+        .from(webhookDeliveries)
+        .where(and(eq(webhookDeliveries.accountId, accountId), eq(webhookDeliveries.webhookId, webhookId)))
+        .orderBy(desc(webhookDeliveries.createdAt))
+        .limit(limit);
+      return rows.map(toDelivery);
+    },
+
+    async countWebhookDeliveries(accountId: string, webhookId: string) {
+      const rows = await db
+        .select({ status: webhookDeliveries.status, n: sql<number>`count(*)::int` })
+        .from(webhookDeliveries)
+        .where(and(eq(webhookDeliveries.accountId, accountId), eq(webhookDeliveries.webhookId, webhookId)))
+        .groupBy(webhookDeliveries.status);
+      const n = (s: string) => Number(rows.find((r) => r.status === s)?.n ?? 0);
+      return { pending: n('pending'), failed: n('failed') };
+    },
+
+    /**
+     * Entregas pendentes vencidas, das mais atrasadas para as mais novas. Sem `accountId` = todas as contas
+     * (manutenção do sistema, só no job; não exposta em rota).
+     */
+    async dueWebhookDeliveries(
+      now: Date,
+      limit: number,
+      accountId?: string,
+    ): Promise<(WebhookDelivery & { accountId: string })[]> {
+      const conds = [eq(webhookDeliveries.status, 'pending'), lte(webhookDeliveries.nextAt, now)];
+      if (accountId) conds.push(eq(webhookDeliveries.accountId, accountId));
+      const rows = await db
+        .select()
+        .from(webhookDeliveries)
+        .where(and(...conds))
+        .orderBy(asc(webhookDeliveries.nextAt))
+        .limit(limit);
+      return rows.map((r) => ({ ...toDelivery(r), accountId: r.accountId }));
+    },
+
+    /** Apaga entregas encerradas (entregues ou falhas) antes de `cutoff` — manutenção, todas as contas. */
+    async purgeWebhookDeliveries(cutoff: Date): Promise<void> {
+      await db
+        .delete(webhookDeliveries)
+        .where(and(ne(webhookDeliveries.status, 'pending'), lt(webhookDeliveries.updatedAt, cutoff)));
     },
 
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {

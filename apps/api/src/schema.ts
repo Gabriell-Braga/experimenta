@@ -352,3 +352,30 @@ export const comments = pgTable(
   },
   (t) => [index('comments_target_idx').on(t.accountId, t.targetId, t.createdAt)],
 );
+
+/**
+ * Fila de reenvio dos webhooks (fase 19.4, D-092). Só entra aqui a entrega que falhou na primeira tentativa:
+ * `pending` (aguardando `next_at`), `delivered` (deu certo num reenvio) ou `failed` (desistiu ou 4xx).
+ * `body` é o JSON exato da primeira tentativa: mesma assinatura e mesmo `X-Abt-Delivery` (= id) em todas.
+ */
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: text('id').primaryKey(),
+    accountId: accountId(),
+    webhookId: text('webhook_id').notNull(),
+    type: text('type').notNull(),
+    body: text('body').notNull(),
+    status: text('status').notNull(),
+    attempts: integer('attempts').notNull(),
+    nextAt: timestamp('next_at', { withTimezone: true }),
+    lastStatus: integer('last_status'),
+    lastError: text('last_error'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('webhook_deliveries_hook_idx').on(t.accountId, t.webhookId, t.createdAt),
+    index('webhook_deliveries_due_idx').on(t.status, t.nextAt),
+  ],
+);

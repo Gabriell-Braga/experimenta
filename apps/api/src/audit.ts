@@ -482,6 +482,39 @@ const RULES: Rule[] = [
     id: () => null,
     detail: (x) => `${str(x.res.sent)} perfis enviados`,
   },
+  // Webhooks (19.4): reenvio manual de uma entrega.
+  {
+    method: 'POST',
+    path: '/webhooks/:id/deliveries/:deliveryId/retry',
+    target: 'webhook',
+    action: 'resend',
+    before: async (repo, acc, p) => {
+      const h = await repo.getEntity(acc, 'webhook', p.id!);
+      return h ? { name: h.name } : null;
+    },
+    name: (x) => x.before?.name,
+    detail: (x) => (x.res.status === 'delivered' ? 'entregue' : `falhou: ${str(x.res.lastError)}`),
+  },
+  // Exportação agendada (19.4): configuração (nunca as credenciais) e "Exportar agora" que começou uma execução.
+  {
+    method: 'PUT',
+    path: '/exports',
+    target: 'integrations',
+    action: 'update',
+    name: () => 'Exportação de dados',
+    id: () => null,
+    detail: (x) => `${str(x.body.destination)} ${x.body.enabled ? 'ligada' : 'desligada'}`,
+  },
+  {
+    method: 'POST',
+    path: '/exports/run',
+    target: 'integrations',
+    action: 'export',
+    name: () => 'Exportação de dados',
+    id: () => null,
+    skip: (x) => !x.res.started,
+    detail: (x) => str((x.res.config as Json | undefined)?.destination),
+  },
   {
     method: 'POST',
     path: '/auth/invites/:token/accept',

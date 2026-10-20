@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 19.3 concluída
+**Status:** 19.4 concluída — Fase 19 e plano concluídos
 **Fase atual:** 19
-**Tarefa atual:** 19.4
-**Última atualização:** 2026-10-20 13:58
-**Próximo passo:** 19.4 Retry e fila de webhooks e exportação agendada de dados (CSV/S3/BigQuery).
+**Tarefa atual:** —
+**Última atualização:** 2026-10-20 15:26
+**Próximo passo:** deploy das fases 19.2–19.4 (migrações 0012) e os bloqueios abaixo; o plano não tem tarefas abertas.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -11,6 +11,7 @@
 - Integrações da 19.1 (HubSpot, Salesforce, Shopify, WordPress) não foram validadas com contas reais (o plugin do WordPress passou no `php -l` do PHP 8.3 em 2026-10-20 13:42): testar numa conta de cada antes de anunciar.
 - SDKs de PHP, Go e Java (19.2) rodam no CI (.github/workflows/sdks.yml) e não na máquina de desenvolvimento (só Python 3.11 instalado). Na entrega foram validados uma vez com PHP 8.3, Go 1.22 e JDK 11 + Maven portáteis baixados num diretório temporário; o primeiro push confirma o workflow (matrizes PHP 8.1/8.4, Go 1.21/1.24, Java 11/21, Python 3.10/3.13). Os SDKs não estão publicados em PyPI/Packagist/Maven Central: instalação pelo repositório (decidir se e onde publicar).
 - SDK React Native (19.3) testado só no Node (Vitest com stub do react-native), não num app RN real (iOS/Android); o ajuste do SDK Java para Android (HttpURLConnection) não foi rodado num Android real. Validar num app de exemplo antes de anunciar. Pacote não publicado no npm.
+- Exportação agendada (19.4) para S3/R2/GCS e BigQuery não foi validada com contas reais (só servidores falsos; SigV4 conferido com os vetores oficiais da AWS): testar com um bucket e um dataset de verdade antes de anunciar. Webhooks: reenvios de minutos dependem de tráfego da conta; sem tráfego, até 1 h (job de hora em hora).
 - Perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
@@ -538,13 +539,14 @@
 - "Conversion Rate Optimization.pdf" (pedido original das fases 9–15) está coberto. Parciais: Mobile (só web no celular, sem app nativo → 19.3) e Revenue Attribution (receita por variação, sem atribuição por canal → 17.6).
 - O que a VWO tem e o app não (fontes de 2026, de terceiros; conferir em vwo.com): Copilot (variação por texto, resumos de gravação/heatmap/pesquisa), testes em app nativo, gestão de hipóteses, auditoria/aprovação/SSO/2FA/multi-conta, grupos mutuamente exclusivos, teste multipágina, integrações prontas (Shopify, WordPress, Segment, Mixpanel, Amplitude, CRMs), consentimento LGPD. Viraram as fases 16–19 do PLANO.md.
 
-### Contexto para retomar (estado em 2026-10-20, atualizado às 11:51)
-- Fases 16, 17 e 18 concluídas no código; **produção ainda está na versão de antes da Fase 16** (deploy pendente). Próxima: Fase 19.
-- Produção (Cloudflare, plano grátis): editor https://abtest-editor.hub-villa-deli.workers.dev, API https://abtest-api.hub-villa-deli.workers.dev, demo https://abtest-demo.hub-villa-deli.workers.dev. Deploy: `pnpm deploy:cf` (precisa `wrangler login`); aplica as migrações D1 0007–0011 da Fase 16. Depois do deploy todos precisam entrar de novo (token com conta/sessão da 16.2/16.5). Conta demo com dados de demonstração (`pnpm seed:data`, ver entrada de 01:30).
+### Contexto para retomar (estado em 2026-10-20, atualizado às 15:26)
+- **Plano concluído**: fases 0–19 feitas no código. Fases 16, 17, 18 e a 19.1 estão em produção (deploy de 12:33 e o seguinte da 19.1); **19.2, 19.3 e 19.4 não foram para produção**.
+- Deploy pendente: `pnpm deploy:cf` (precisa `wrangler login`) aplica a migração D1 nova `0012_webhook_deliveries.sql` (no Postgres, drizzle `0012_secret_amphibian.sql`, aplicada sozinha no `createDb`). Exportar backup do D1 antes, como nas outras.
+- Produção (Cloudflare, plano grátis): editor https://abtest-editor.hub-villa-deli.workers.dev, API https://abtest-api.hub-villa-deli.workers.dev, demo https://abtest-demo.hub-villa-deli.workers.dev. Conta demo com dados de demonstração (`pnpm seed:data`).
 - IA: Gemini grátis (vars AI_BASE_URL/AI_MODEL/AI_REASONING no apps/api/wrangler.jsonc, chave no secret AI_API_KEY). A chave atual foi colada no chat: trocar por uma nova no AI Studio.
-- Limites do plano grátis que já apareceram: CPU 10 ms por invocação (o Painel estoura, ver 02:53; a geração de ideias já sobrevive a isso, D-086); D1 100 mil linhas escritas/dia (cada evento = 7 linhas); KV 1.000 escritas/dia; 5 cron triggers por conta (a API usa 1); waitUntil ~30 s.
-- Bloqueios em aberto (ver topo): CPU do Worker grátis no Painel/relatórios (Workers Paid ou agregados diários) e snippet no limite de 10 KB gzip (alvo es2020, D-069).
-- Pendências: E2E não pode rodar com `pnpm dev` ligado (portas 4000/5173/5180 e o E2E não reaproveita a API); SSO só configurado (D-073); sem serviço de e-mail.
+- Limites do plano grátis: CPU 10 ms por invocação (Painel estoura; ideias, CRM e exportação andam em passos), D1 100 mil linhas escritas/dia (cada evento = 7 linhas; webhooks só gravam falhas), KV 1.000 escritas/dia (exportação CSV não usa KV), 1 cron (de hora em hora) de 5, waitUntil ~30 s.
+- Bloqueios em aberto (ver topo): CPU do Worker grátis no Painel/relatórios; snippet a 9 B do limite de 10 KB gzip (D-069); integrações da 19.1, SDKs da 19.2/19.3 e destinos da 19.4 sem validação com contas/aparelhos reais; SDKs não publicados.
+- Pendências: E2E não pode rodar com `pnpm dev` ligado; SSO só configurado (D-073); sem serviço de e-mail.
 - Testes: `pnpm test` (API com fuzz de todas as rotas, contra Postgres e D1), `pnpm e2e` (funcional + robustez de todas as telas).
 
 ### 2026-10-20 02:53 — "Failed to fetch" no Painel (produção)
@@ -702,3 +704,15 @@
 - Arquivos principais: packages/react-native/{package.json,build.mjs,vitest.config.ts,test/react-native-stub.ts}, packages/react-native/src/{client,react,index}.ts(x) e testes (client, react, index, vectors), packages/sdk/src/index.ts, apps/api/src/repo.ts, sdks/java/src/main/java/com/experimenta/sdk/Client.java, sdks/java/src/test/.../VectorsTest.java, sdks/java/README.md, docs/SDK-MOBILE.md, .github/workflows/sdks.yml, package.json (pnpm.overrides), apps/editor/src/components/SdkSnippets.tsx, apps/editor/src/pages/{Flags,ServerExperiment}.tsx, e2e/tests/{flags,campaign-types}.spec.ts
 - Como testar manualmente: Feature flags → cartão "SDKs: servidor e app" → aba React Native; campanha server-side → "Como usar no backend ou no app" → React Native. `pnpm --filter @abtest/react-native test`; `pnpm --filter @abtest/react-native build` (dist/index.js ~15 KB); `cd sdks/java && mvn -B -DskipTests package && java -cp target/classes:target/test-classes com.experimenta.sdk.VectorsTest`; `pnpm --filter @abtest/e2e e2e tests/flags.spec.ts tests/campaign-types.spec.ts`.
 - Observações: react-native e AsyncStorage são só peers; `pnpm.overrides` na raiz impede o pnpm de instalar o react-native no monorepo (D-091). Java compilado e testado com o JDK 11 portátil (6.462 verificações, 0 falhas). Snippet inalterado. D-091.
+
+### 2026-10-20 15:26 — Tarefa 19.4 concluída (fila de reenvio de webhooks e exportação agendada)
+- O que foi feito: **Webhooks** — entrega continua imediata; só a falha vai para a tabela nova `webhook_deliveries` (Postgres e D1): sem resposta/timeout de 10 s/5xx/408/429 entram na fila com recuo exponencial e jitter (6 tentativas em ~26 h: 1 min, 6 min, 36 min, 3,6 h, 21,6 h), outro 4xx fica como falha na hora. Mesmo `X-Abt-Delivery`, corpo e `X-Abt-Signature` em todas as tentativas, `X-Abt-Attempt` conta. Drenagem pelo job de hora em hora e pelo tráfego da conta (cada despacho drena até 10 vencidas em `waitUntil`, no máximo 1×/min), com UPDATE condicional para duas drenagens não entregarem a mesma; teto de 1000 pendentes por webhook; encerradas somem em 7 dias. Tela: ícone "Entregas" em cada webhook (situação, tentativa n de 6, próxima, erro) e "Reenviar" (auditado). **Exportação agendada** — cartão "Exportação de dados" em Configurar → Integrações: eventos brutos (incrementais por cursor (ts, id), até 15 min atrás, sem QA, mapa de calor opcional) e/ou relatórios dos testes em execução, diária ou semanal (hora UTC), para CSV (baixado no editor, gerado de novo no download: zero escrita na KV), S3 e compatíveis (R2/GCS/MinIO, SigV4 próprio com Web Crypto) ou BigQuery (`insertAll` com `insertId`, token por JWT RS256 da conta de serviço). Em passos com vez no estado (job: até 5 por conta/hora; "Exportar agora": um por requisição, a tela repete); erro no destino tenta de novo em 1 h do mesmo ponto. Credenciais só escrita; configurar = owner, exportar = editor; configuração e "Exportar agora" no histórico de atividades.
+- Arquivos principais: apps/api/src/{webhooks,exports,sigv4,google,schema,repo,repo-d1,audit,bandit,app}.ts, apps/api/src/routes/integrations.ts, apps/api/drizzle/0012_secret_amphibian.sql, apps/api/migrations-d1/0012_webhook_deliveries.sql, packages/shared/src/exports.ts, apps/editor/src/{api.ts,components/DataExport.tsx,pages/Integrations.tsx,pages/Activity.tsx}, testes apps/api/src/{webhooks,exports,sigv4}.test.ts e routes/integrations.test.ts, e2e/tests/integrations.spec.ts
+- Como testar manualmente: Integrações → Webhooks → adicionar `http://127.0.0.1:9/x` com "Publicação", publicar, abrir "Entregas" (Na fila, tentativa 1 de 6) e "Reenviar". Exportação de dados → ligar, CSV, Salvar, "Exportar agora" e baixar o arquivo. `pnpm --filter @abtest/api exec vitest run src/webhooks.test.ts src/exports.test.ts src/sigv4.test.ts src/routes/integrations.test.ts`; `pnpm --filter @abtest/e2e e2e tests/integrations.spec.ts`.
+- Observações: **não validado com contas reais** de AWS/R2/GCS/BigQuery (servidores HTTP falsos; SigV4 conferido com os vetores oficiais da AWS). Migração nova 0012 pendente de deploy. Snippet inalterado. D-092.
+
+### Resumo da Fase 19 (ecossistema e mobile)
+- Entregue: integrações prontas (Segment, Mixpanel, Amplitude, Shopify, WordPress, HubSpot, Salesforce; 19.1), SDKs server-side em Python, PHP, Go e Java/Kotlin com vetores de compatibilidade (19.2), SDK React Native e base para Android/iOS (19.3), fila de reenvio dos webhooks e exportação agendada para CSV, S3 e BigQuery (19.4).
+- Produção: só a 19.1 foi publicada; 19.2–19.4 aguardam deploy (a 19.4 traz a migração D1 0012).
+- Pendências da fase: nada validado com contas/aparelhos reais (CRMs, Shopify, WordPress, SDKs nativos, S3/BigQuery); SDKs não publicados em registries; sem Swift para iOS; reenvio de webhook depende de tráfego para ser de minutos.
+

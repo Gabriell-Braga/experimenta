@@ -4,6 +4,7 @@ import {
   type CrmConfig,
   type CrmProvider,
   type CrmStatus,
+  type ExportConfig,
   type Experiment,
   type Ice,
   type IdeaStage,
@@ -724,6 +725,62 @@ export const apiKeys = {
 };
 export const testWebhook = (id: string) =>
   api<{ status: number }>(`/webhooks/${encodeURIComponent(id)}/test`, { method: 'POST' });
+
+/** Entrega de webhook que falhou ao menos uma vez (19.4). */
+export interface WebhookDelivery {
+  id: string;
+  type: string;
+  status: 'pending' | 'delivered' | 'failed';
+  attempts: number;
+  nextAt: string | null;
+  lastStatus: number | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+  size: number;
+}
+export const webhookDeliveries = {
+  list: (id: string) =>
+    api<{ deliveries: WebhookDelivery[]; pending: number; failed: number; maxAttempts: number }>(
+      `/webhooks/${encodeURIComponent(id)}/deliveries`,
+    ),
+  retry: (id: string, deliveryId: string) =>
+    api<WebhookDelivery>(
+      `/webhooks/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(deliveryId)}/retry`,
+      { method: 'POST' },
+    ),
+};
+
+/** Exportação agendada (19.4): configuração sem as credenciais, situação e CSVs para baixar. */
+export interface ExportView {
+  config: ExportConfig;
+  configured: boolean;
+  hasS3Secret: boolean;
+  serviceAccountEmail: string | null;
+  status: {
+    running: { startedAt: string; phase: 'events' | 'reports'; events: number; manual: boolean } | null;
+    last: {
+      startedAt: string;
+      finishedAt: string;
+      ok: boolean;
+      events: number;
+      reports: number;
+      error: string | null;
+      manual: boolean;
+    } | null;
+    nextAt: string | null;
+    exportedUntil: string | null;
+  };
+  files: { id: string; name: string; kind: 'events' | 'reports'; rows: number; createdAt: string }[];
+  started?: boolean;
+}
+export const dataExport = {
+  get: () => api<ExportView>('/exports'),
+  save: (config: ExportConfig) =>
+    api<ExportView>('/exports', { method: 'PUT', body: JSON.stringify(config) }),
+  /** Um passo; `status.running` = chamar de novo. */
+  run: () => api<ExportView>('/exports/run', { method: 'POST' }),
+};
 
 /** HubSpot/Salesforce (19.1): configuração sem os segredos e situação da última sincronização. */
 export interface CrmView {

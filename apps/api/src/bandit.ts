@@ -4,6 +4,8 @@ import { experimentReport } from './analytics/report';
 import type { AppDeps } from './app';
 import type { CdnStore } from './cdn';
 import { syncAllCrm } from './crm';
+import { exportAll } from './exports';
+import { webhookJobs } from './webhooks';
 import { rebuildReco } from './reco';
 import { runSchedules } from './routes/schedules';
 import type { Repo, User } from './repo';
@@ -105,4 +107,7 @@ export async function hourlyJobs(repo: Repo, cdn: CdnStore, publish: AppDeps['pu
   }
   // Perfis do CDP → HubSpot/Salesforce (19.1).
   await syncAllCrm(repo);
+  // Fila de reenvio dos webhooks e exportação agendada (19.4). Cada um isolado: erro num não para o outro.
+  await webhookJobs(repo).catch((e) => console.error('[webhooks]', e));
+  await exportAll(repo).catch((e) => console.error('[exports]', e));
 }

@@ -135,6 +135,20 @@ export function sentence(a: ActivityItem): ReactNode {
       </>
     );
   }
+  // 19.4: reenvio manual de webhook e "Exportar agora".
+  if (a.action === 'resend')
+    return (
+      <>
+        {who} reenviou uma entrega do webhook {what}
+        {a.detail && ` (${a.detail})`}
+      </>
+    );
+  if (a.targetType === 'integrations' && a.action === 'export')
+    return (
+      <>
+        {who} exportou os dados agora{a.detail && ` (destino ${a.detail.toUpperCase()})`}
+      </>
+    );
   // CRM (19.1): sincronização manual com HubSpot/Salesforce.
   if (a.targetType === 'integrations' && a.action === 'sync')
     return (

@@ -148,3 +148,71 @@ test('tela do CRM: token do HubSpot só escrita, campos sugeridos e ligar exige 
   await hs.getByTestId('crm-hubspot-save').click();
   await expect(hs).toContainText('Desligado');
 });
+
+test('webhook fora do ar: entrega vai para a fila, aparece no histórico e "Reenviar" tenta de novo', async ({
+  page,
+  request,
+}) => {
+  await login(page);
+  await nav(page, 'integrations');
+  await page.getByTestId('webhook-url').fill('http://127.0.0.1:9/fora-do-ar');
+  await page.getByText('Publicação', { exact: true }).click();
+  await page.getByTestId('webhook-add').click();
+  const row = page.getByTestId('webhooks').locator('li', { hasText: '127.0.0.1:9/fora-do-ar' });
+  await expect(row).toBeVisible();
+
+  const { token } = (await (
+    await request.post(`${API}/auth/login`, {
+      data: { email: 'demo@abtest.dev', password: 'demo1234' },
+      headers: { origin: 'http://localhost:5173' },
+    })
+  ).json()) as { token: string };
+  expect(
+    (
+      await request.post(`${API}/publish`, {
+        data: {},
+        headers: { authorization: `Bearer ${token}`, origin: 'http://localhost:5173' },
+      })
+    ).status(),
+  ).toBe(200);
+
+  await row.getByTestId('webhook-deliveries-toggle').click();
+  const list = row.getByTestId('webhook-deliveries');
+  await expect(async () => {
+    await row.getByTestId('webhook-deliveries-toggle').click();
+    await row.getByTestId('webhook-deliveries-toggle').click();
+    await expect(list).toContainText('Na fila', { timeout: 1000 });
+  }).toPass();
+  await expect(list).toContainText('tentativa 1 de 6');
+  await expect(list).toContainText('sem conexão com o destino');
+  await list.getByTestId('webhook-retry').first().click();
+  await expect(page.getByText(/Falhou de novo/)).toBeVisible();
+  await expect(list).toContainText('Falhou');
+  await expect(list).toContainText('tentativa 2 de 6');
+
+  await row.getByRole('button', { name: 'Excluir' }).click();
+  await expect(row).toHaveCount(0);
+});
+
+test('exportação: ligar S3 exige bucket; CSV com "Exportar agora" mostra a última execução', async ({
+  page,
+}) => {
+  await login(page);
+  await nav(page, 'integrations');
+  const box = page.getByTestId('data-export');
+  await box.getByRole('switch', { name: 'Ligar exportação' }).click();
+  await box.getByRole('tab', { name: 'S3 / R2 / GCS' }).click();
+  await box.getByTestId('export-save').click();
+  await expect(page.getByText('Exportação: informe o bucket antes de ligar.')).toBeVisible();
+
+  await box.getByRole('tab', { name: 'CSV (baixar aqui)' }).click();
+  await box.getByTestId('export-save').click();
+  await expect(box).toContainText('Ligada');
+  await expect(box.getByTestId('export-status')).toContainText('Próxima:');
+  await box.getByTestId('export-run').click();
+  await expect(box.getByTestId('export-status')).toContainText(/Última exportação .*\(manual\)/);
+
+  await box.getByRole('switch', { name: 'Ligar exportação' }).click();
+  await box.getByTestId('export-save').click();
+  await expect(box).toContainText('Desligada');
+});

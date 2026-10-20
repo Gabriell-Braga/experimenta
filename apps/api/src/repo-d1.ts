@@ -32,6 +32,8 @@ import {
   type Repo,
   type Role,
   type User,
+  type DeliveryStatus,
+  type WebhookDelivery,
 } from './repo';
 import { newSession, type EditSession, type SessionStore } from './sessions';
 
@@ -104,6 +106,20 @@ const toEntity = <T>(r: Row): Entity<T> => ({
   name: r.name as string,
   data: json<T>(r.data),
   createdBy: (r.created_by as string | null) ?? null,
+  createdAt: date(r.created_at).toISOString(),
+  updatedAt: date(r.updated_at).toISOString(),
+});
+
+const toDelivery = (r: Row): WebhookDelivery => ({
+  id: r.id as string,
+  webhookId: r.webhook_id as string,
+  type: r.type as string,
+  body: r.body as string,
+  status: r.status as DeliveryStatus,
+  attempts: Number(r.attempts),
+  nextAt: r.next_at == null ? null : date(r.next_at).toISOString(),
+  lastStatus: r.last_status == null ? null : Number(r.last_status),
+  lastError: (r.last_error as string | null) ?? null,
   createdAt: date(r.created_at).toISOString(),
   updatedAt: date(r.updated_at).toISOString(),
 });
@@ -1069,6 +1085,115 @@ export function createD1Repo(d1: D1Like): Repo {
         id,
       );
       return !!r;
+    },
+
+    async listEventsPage(accountId, f) {
+      const conds = ['account_id = ?'];
+      const args: unknown[] = [accountId];
+      if (f.after) {
+        conds.push('(ts > ? OR (ts = ? AND id > ?))');
+        args.push(f.after[0], f.after[0], f.after[1]);
+      }
+      if (f.through) {
+        conds.push('(ts < ? OR (ts = ? AND id <= ?))');
+        args.push(f.through[0], f.through[0], f.through[1]);
+      }
+      if (f.before) {
+        conds.push('ts < ?');
+        args.push(f.before.getTime());
+      }
+      if (f.excludeTypes?.length) {
+        conds.push(`type NOT IN (${f.excludeTypes.map(() => '?').join(', ')})`);
+        args.push(...f.excludeTypes);
+      }
+      const rows = await all<{ payload: string }>(
+        `SELECT payload FROM events WHERE ${conds.join(' AND ')} ORDER BY ts, id LIMIT ?`,
+        ...args,
+        f.limit,
+      );
+      return rows.map((r) => json<TrackingEvent>(r.payload));
+    },
+
+    async addWebhookDelivery(accountId, d) {
+      const now = Date.now();
+      await q(
+        'INSERT INTO webhook_deliveries (id, account_id, webhook_id, type, body, status, attempts, next_at, last_status, last_error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        d.id,
+        accountId,
+        d.webhookId,
+        d.type,
+        d.body,
+        d.status,
+        d.attempts,
+        d.nextAt ? Date.parse(d.nextAt) : null,
+        d.lastStatus,
+        d.lastError,
+        now,
+        now,
+      ).run();
+    },
+
+    async updateWebhookDelivery(accountId, id, u, ifNextAt) {
+      const guard = ifNextAt === undefined ? '' : " AND status = 'pending' AND next_at = ?";
+      const r = await first<{ id: string }>(
+        `UPDATE webhook_deliveries SET status = ?, attempts = ?, next_at = ?, last_status = ?, last_error = ?, updated_at = ? WHERE account_id = ? AND id = ?${guard} RETURNING id`,
+        u.status,
+        u.attempts,
+        u.nextAt ? Date.parse(u.nextAt) : null,
+        u.lastStatus,
+        u.lastError,
+        Date.now(),
+        accountId,
+        id,
+        ...(ifNextAt === undefined ? [] : [Date.parse(ifNextAt)]),
+      );
+      return !!r;
+    },
+
+    async getWebhookDelivery(accountId, id) {
+      const r = await first(
+        'SELECT * FROM webhook_deliveries WHERE account_id = ? AND id = ?',
+        accountId,
+        id,
+      );
+      return r ? toDelivery(r) : null;
+    },
+
+    async listWebhookDeliveries(accountId, webhookId, limit = 20) {
+      const rows = await all(
+        'SELECT * FROM webhook_deliveries WHERE account_id = ? AND webhook_id = ? ORDER BY created_at DESC LIMIT ?',
+        accountId,
+        webhookId,
+        limit,
+      );
+      return rows.map(toDelivery);
+    },
+
+    async countWebhookDeliveries(accountId, webhookId) {
+      const rows = await all<{ status: string; n: number }>(
+        'SELECT status, count(*) AS n FROM webhook_deliveries WHERE account_id = ? AND webhook_id = ? GROUP BY status',
+        accountId,
+        webhookId,
+      );
+      const n = (s: string) => Number(rows.find((r) => r.status === s)?.n ?? 0);
+      return { pending: n('pending'), failed: n('failed') };
+    },
+
+    async dueWebhookDeliveries(now, limit, accountId) {
+      const rows = await all(
+        `SELECT * FROM webhook_deliveries WHERE status = 'pending' AND next_at <= ?${accountId ? ' AND account_id = ?' : ''} ORDER BY next_at LIMIT ?`,
+        now.getTime(),
+        ...(accountId ? [accountId] : []),
+        limit,
+      );
+      return rows.map((r) => ({ ...toDelivery(r), accountId: r.account_id as string }));
+    },
+
+    async purgeWebhookDeliveries(cutoff) {
+      await q(
+        "DELETE FROM webhook_deliveries WHERE status != 'pending' AND updated_at < ?",
+        cutoff.getTime(),
+      ).run();
     },
 
     async insertPublication(accountId, config, userId) {

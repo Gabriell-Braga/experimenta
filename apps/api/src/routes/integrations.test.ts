@@ -170,3 +170,55 @@ test('Segment/Mixpanel/Amplitude ligados viram destinos; config antiga ({ ga4, g
     '"integrations":[["dataLayer","abt_exposure","abt_conversion","abt_experiment","abt_variation","abt_goal"]]',
   );
 });
+
+test('entregas do webhook: falha vai para o histórico; reenviar (editor) com o mesmo id e auditoria', async () => {
+  const calls: { delivery: string; attempt: string }[] = [];
+  let status = 500;
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    const h = new Headers(init.headers);
+    calls.push({ delivery: h.get('x-abt-delivery')!, attempt: h.get('x-abt-attempt')! });
+    return new Response(null, { status });
+  });
+  const r = await post(
+    '/entities/webhook',
+    { name: 'erp', data: { url: 'https://erp.test/in', events: ['publish'] } },
+    'editor',
+  );
+  const { id } = (await r.json()) as { id: string };
+  expect((await post('/publish', {})).status).toBe(200);
+  type List = {
+    deliveries: { id: string; status: string; attempts: number; size: number }[];
+    pending: number;
+  };
+  await vi.waitFor(async () =>
+    expect((await t.get<List>(`/webhooks/${id}/deliveries`, 'viewer')).pending).toBe(1),
+  );
+  const list = await t.get<List>(`/webhooks/${id}/deliveries`, 'viewer');
+  const d = list.deliveries[0]!;
+  expect(d).toMatchObject({ status: 'pending', attempts: 1 });
+  expect(d.size).toBeGreaterThan(0);
+  expect(JSON.stringify(list)).not.toContain('"body"');
+
+  const path = `/webhooks/${id}/deliveries/${d.id}/retry`;
+  expect((await post(path, {}, 'viewer')).status).toBe(403);
+  expect((await post(path, {}, 'other')).status).toBe(404);
+  expect((await post(`/webhooks/nao-existe/deliveries/${d.id}/retry`, {}, 'editor')).status).toBe(404);
+  // Manual que falha de novo: fica como falha (sai da fila automática).
+  const again = await (await post(path, {}, 'editor')).json();
+  expect(again).toMatchObject({ status: 'failed', attempts: 2, lastStatus: 500 });
+  status = 200;
+  const ok = await (await post(path, {}, 'editor')).json();
+  expect(ok).toMatchObject({ status: 'delivered', attempts: 3 });
+  const mine = calls.filter((c) => c.delivery === d.id);
+  expect(mine.map((c) => c.attempt)).toEqual(['1', '2', '3']);
+
+  const { items: acts } = await t.get<{
+    items: { action: string; targetType: string; targetName: string; detail: string }[];
+  }>('/activities?type=webhook');
+  expect(acts.find((a) => a.action === 'resend')).toMatchObject({
+    targetType: 'webhook',
+    targetName: 'erp',
+    detail: 'entregue',
+  });
+  await t.req(`/entities/webhook/${id}`, { method: 'DELETE', as: 'editor' });
+});

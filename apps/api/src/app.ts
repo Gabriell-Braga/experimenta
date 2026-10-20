@@ -18,6 +18,7 @@ import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
 import { CRM_PATHS, crmRoutes, type CrmBase } from './crm';
+import { EXPORT_PATHS, exportRoutes, type ExportBase } from './exports';
 import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
 import { ACTIVITY_PATHS, activityRoutes } from './routes/activities';
 import { COMMENT_PATHS, commentRoutes } from './routes/comments';
@@ -59,6 +60,8 @@ export interface AppDeps {
   sso?: SsoProviders;
   /** Endereços das APIs dos CRMs (só nos testes, servidor falso). */
   crmBase?: CrmBase;
+  /** Endereços de S3/BigQuery/token do Google (só nos testes, servidores falsos). */
+  exportBase?: ExportBase;
 }
 
 const ProjectOut = z.object({ id: z.string(), name: z.string(), siteUrl: z.string() }).openapi('Project');
@@ -182,6 +185,7 @@ export function createApp(deps: AppDeps) {
     ...CDP_PATHS,
     ...INTEGRATION_PATHS,
     ...CRM_PATHS,
+    ...EXPORT_PATHS,
     ...PREDICTIVE_PATHS,
     ...AI_PATHS,
     ...ACTIVITY_PATHS,
@@ -771,6 +775,7 @@ export function createApp(deps: AppDeps) {
   cdpRoutes(app, repo, deps.cdn);
   integrationRoutes(app, repo);
   crmRoutes(app, repo, deps.crmBase);
+  exportRoutes(app, repo, deps.exportBase);
   predictiveRoutes(app, repo, deps.publish);
   aiRoutes(app, repo, deps.ai, deps.aiCompat);
   aiSummaryRoutes(app, repo, deps.ai, deps.aiCompat);

@@ -16,6 +16,7 @@ import {
 import {
   Copy,
   Download,
+  History,
   KeyRound,
   Plus,
   RefreshCw,
@@ -36,7 +37,10 @@ import {
   publish,
   publishedText,
   testWebhook,
+  webhookDeliveries,
+  type WebhookDelivery,
 } from '../api';
+import { DataExport } from '../components/DataExport';
 import { downloadWordpressPlugin, scriptUrl, shopifyPixel, shopifyTheme } from '../platforms';
 import {
   Button,
@@ -631,6 +635,83 @@ function Crm({ user }: { user: Me }) {
   );
 }
 
+const DELIVERY_LABEL: Record<WebhookDelivery['status'], [string, string]> = {
+  pending: ['Na fila', 'bg-amber-50 text-amber-800'],
+  delivered: ['Entregue no reenvio', 'bg-brand-50 text-brand-700'],
+  failed: ['Falhou', 'bg-red-50 text-red-700'],
+};
+const when = (iso: string) =>
+  new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+/** Entregas que falharam ao menos uma vez (as certas de primeira não ficam guardadas). */
+function Deliveries({ hookId, canEdit }: { hookId: string; canEdit: boolean }) {
+  const toast = useToast();
+  const { data, reload } = useLoad(() => webhookDeliveries.list(hookId), [hookId]);
+  const retry = async (d: WebhookDelivery) => {
+    try {
+      const r = await webhookDeliveries.retry(hookId, d.id);
+      toast(
+        r.status === 'delivered' ? 'success' : 'error',
+        r.status === 'delivered' ? 'Entregue.' : `Falhou de novo: ${r.lastError ?? 'erro'}.`,
+      );
+    } catch (err) {
+      toast('error', (err as Error).message);
+    }
+    reload();
+  };
+  if (!data)
+    return (
+      <div className="mt-2 space-y-1.5" aria-hidden="true">
+        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    );
+  return (
+    <div className="mt-2 rounded-md bg-gray-50 p-2.5 text-xs" data-testid="webhook-deliveries">
+      <p className="text-gray-600">
+        {data.pending} na fila · {data.failed} com falha. Entregas certas de primeira não aparecem aqui.
+      </p>
+      {data.deliveries.length === 0 ? (
+        <p className="mt-1 text-gray-500">Nenhuma falha recente.</p>
+      ) : (
+        <ul className="mt-1.5 divide-y divide-gray-900/[0.06]">
+          {data.deliveries.map((d) => (
+            <li key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
+              <span className={`rounded px-1.5 py-0.5 font-medium ${DELIVERY_LABEL[d.status][1]}`}>
+                {DELIVERY_LABEL[d.status][0]}
+              </span>
+              <span className="font-mono text-gray-700">{d.type}</span>
+              <span className="text-gray-500" title={when(d.createdAt)}>
+                {timeAgo(d.createdAt)}
+              </span>
+              <span className="text-gray-600">
+                tentativa {d.attempts} de {data.maxAttempts}
+              </span>
+              {d.status !== 'delivered' && d.lastError && (
+                <span className="break-all text-red-700">{d.lastError}</span>
+              )}
+              {d.status === 'pending' && d.nextAt && (
+                <span className="text-gray-600">próxima {when(d.nextAt)}</span>
+              )}
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto"
+                  onClick={() => retry(d)}
+                  data-testid="webhook-retry"
+                >
+                  <RefreshCw size={12} aria-hidden="true" /> Reenviar
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Webhooks({ canEdit }: { canEdit: boolean }) {
   const toast = useToast();
   const copy = useCopy();
@@ -640,6 +721,7 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
   );
   const [url, setUrl] = useState('');
   const [events, setEvents] = useState<Webhook['events']>(['conversion']);
+  const [open, setOpen] = useState<string | null>(null);
   const run = (p: Promise<unknown>) => p.then(reload, (err: Error) => toast('error', err.message));
   const add = () =>
     run(
@@ -662,56 +744,70 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
             </li>
           ))}
         {list?.map((h) => (
-          <li key={h.id} className="flex items-center gap-3 py-2.5">
-            <Switch
-              on={h.data.enabled}
-              onChange={(enabled) =>
-                canEdit &&
-                run(entities.save('webhook', { id: h.id, name: h.name, data: { ...h.data, enabled } }))
-              }
-              label={`Ativar ${h.data.url}`}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-mono text-xs text-ink">{h.data.url}</span>
-              <span className="block truncate text-xs text-gray-500">
-                {h.data.events.map((x) => EVENT_LABEL[x]).join(' · ')}
+          <li key={h.id} className="py-2.5">
+            <div className="flex items-center gap-3">
+              <Switch
+                on={h.data.enabled}
+                onChange={(enabled) =>
+                  canEdit &&
+                  run(entities.save('webhook', { id: h.id, name: h.name, data: { ...h.data, enabled } }))
+                }
+                label={`Ativar ${h.data.url}`}
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-xs text-ink">{h.data.url}</span>
+                <span className="block truncate text-xs text-gray-500">
+                  {h.data.events.map((x) => EVENT_LABEL[x]).join(' · ')}
+                </span>
               </span>
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="Copiar segredo"
-              title="Copiar segredo de assinatura"
-              onClick={() => copy(h.data.secret, 'Segredo copiado.')}
-            >
-              <Copy size={14} />
-            </Button>
-            {canEdit && (
-              <>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Enviar teste"
-                  onClick={async () => {
-                    const { status } = await testWebhook(h.id);
-                    toast(
-                      status >= 200 && status < 300 ? 'success' : 'error',
-                      `Destino respondeu ${status || 'sem conexão'}.`,
-                    );
-                  }}
-                >
-                  <Send size={14} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  aria-label="Excluir"
-                  onClick={() => run(entities.remove('webhook', h.id))}
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </>
-            )}
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Copiar segredo"
+                title="Copiar segredo de assinatura"
+                onClick={() => copy(h.data.secret, 'Segredo copiado.')}
+              >
+                <Copy size={14} />
+              </Button>
+              {canEdit && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Enviar teste"
+                    onClick={async () => {
+                      const { status } = await testWebhook(h.id);
+                      toast(
+                        status >= 200 && status < 300 ? 'success' : 'error',
+                        `Destino respondeu ${status || 'sem conexão'}.`,
+                      );
+                    }}
+                  >
+                    <Send size={14} />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label="Excluir"
+                    onClick={() => run(entities.remove('webhook', h.id))}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Entregas"
+                aria-expanded={open === h.id}
+                title="Entregas com falha e reenvios"
+                onClick={() => setOpen(open === h.id ? null : h.id)}
+                data-testid="webhook-deliveries-toggle"
+              >
+                <History size={14} />
+              </Button>
+            </div>
+            {open === h.id && <Deliveries hookId={h.id} canEdit={canEdit} />}
           </li>
         ))}
         {list?.length === 0 && (
@@ -756,7 +852,10 @@ function Webhooks({ canEdit }: { canEdit: boolean }) {
         </div>
       )}
       <p className="mt-3 text-xs text-gray-500">
-        POST JSON com <code className="font-mono">X-Abt-Signature: sha256=HMAC(segredo, corpo)</code>.
+        POST JSON com <code className="font-mono">X-Abt-Signature: sha256=HMAC(segredo, corpo)</code>,{' '}
+        <code className="font-mono">X-Abt-Delivery</code> (mesmo id em todas as tentativas: use para não
+        processar duas vezes) e <code className="font-mono">X-Abt-Attempt</code>. Sem resposta, 5xx, 408 ou
+        429: tenta de novo em 1 min, 6 min, 36 min, 3,6 h e 21,6 h; outro 4xx não reenvia.
       </p>
     </Card>
   );
@@ -852,7 +951,7 @@ export function IntegrationsPage({ user }: { user: Me }) {
       <PageHeader
         eyebrow="Configurar"
         title="Integrações"
-        description="Leve exposições e conversões para GA4, GTM, Segment, Mixpanel e Amplitude, instale no Shopify e no WordPress, sincronize perfis com HubSpot e Salesforce, receba eventos por webhook e acesse a API com chaves da conta."
+        description="Leve exposições e conversões para GA4, GTM, Segment, Mixpanel e Amplitude, instale no Shopify e no WordPress, sincronize perfis com HubSpot e Salesforce, receba eventos por webhook, exporte dados para CSV, S3 ou BigQuery e acesse a API com chaves da conta."
       />
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <div className="space-y-5">
@@ -863,6 +962,7 @@ export function IntegrationsPage({ user }: { user: Me }) {
         <div className="space-y-5">
           <Crm user={user} />
           <Webhooks canEdit={canEdit} />
+          <DataExport user={user} />
         </div>
       </div>
     </>

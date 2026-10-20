@@ -5,7 +5,7 @@ import { API_KEY_PREFIX, forbid, hasRole, type ApiKeyData } from '../auth';
 import { randomToken, sha256hex } from '../crypto';
 import { errors, json, Report, security, type Api } from '../http';
 import type { Repo } from '../repo';
-import { deliver } from '../webhooks';
+import { deliver, MAX_ATTEMPTS, retryDelivery } from '../webhooks';
 
 export const INTEGRATION_PATHS = ['/account/api-keys', '/account/api-keys/*', '/webhooks/*'];
 
@@ -122,6 +122,65 @@ export function integrationRoutes(app: Api, repo: Repo) {
         events: [],
       });
       return c.json({ status }, 200);
+    },
+  );
+
+  const DeliveryParams = z.object({
+    id: z.string().openapi({ param: { name: 'id', in: 'path' } }),
+    deliveryId: z.string().openapi({ param: { name: 'deliveryId', in: 'path' } }),
+  });
+  /** Entrega sem o corpo (pode ser grande; o receptor já tem pelo id). */
+  const view = ({ body, ...d }: Awaited<ReturnType<Repo['getWebhookDelivery']>> & object) => ({
+    ...d,
+    size: body.length,
+  });
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/webhooks/{id}/deliveries',
+      tags: ['integrações'],
+      security,
+      summary:
+        'Últimas entregas que falharam pelo menos uma vez (na fila, entregues num reenvio ou com falha) e contagens. Entrega certa de primeira não aparece',
+      request: { params: Id },
+      responses: { 200: json(Report, '{ deliveries, pending, failed, maxAttempts }'), ...errors },
+    }),
+    async (c) => {
+      const { accountId } = c.get('user');
+      const id = c.req.valid('param').id;
+      if (!(await repo.getEntity(accountId, 'webhook', id)))
+        return c.json({ error: 'webhook não encontrado' }, 404);
+      const [list, counts] = await Promise.all([
+        repo.listWebhookDeliveries(accountId, id, 20),
+        repo.countWebhookDeliveries(accountId, id),
+      ]);
+      return c.json({ deliveries: list.map(view), ...counts, maxAttempts: MAX_ATTEMPTS }, 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/webhooks/{id}/deliveries/{deliveryId}/retry',
+      tags: ['integrações'],
+      security,
+      summary:
+        'Reenvia agora uma entrega (editor+), com o mesmo X-Abt-Delivery e a mesma assinatura. Falhando de novo, fica como falha',
+      request: { params: DeliveryParams },
+      responses: { 200: json(Report, 'entrega atualizada'), ...errors },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const { id, deliveryId } = c.req.valid('param');
+      const [hook, d] = await Promise.all([
+        repo.getEntity<Webhook>(user.accountId, 'webhook', id),
+        repo.getWebhookDelivery(user.accountId, deliveryId),
+      ]);
+      if (!hook || !d || d.webhookId !== id) return c.json({ error: 'entrega não encontrada' }, 404);
+      const u = await retryDelivery(repo, user.accountId, d, hook, { manual: true });
+      return c.json(view({ ...d, ...u, updatedAt: new Date().toISOString() }), 200);
     },
   );
 }
