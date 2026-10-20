@@ -261,14 +261,97 @@ export const WebhookSchema = z.object({
 });
 export type Webhook = z.infer<typeof WebhookSchema>;
 
-/** Integrações nativas no navegador (publicadas na config). */
+/** Ferramenta de analytics com `window.<global>.track(nome, props)` (Segment, Mixpanel, Amplitude). */
+const TrackToolSchema = z.object({
+  enabled: z.boolean().default(false),
+  /** Nome do evento de exposição ('' = padrão da ferramenta, ver `TRACK_TOOLS`). */
+  exposureEvent: z.string().trim().max(80).default(''),
+  /** Também envia as conversões das metas (evento `conversionEvent`, '' = padrão). */
+  conversions: z.boolean().default(true),
+  conversionEvent: z.string().trim().max(80).default(''),
+});
+export type TrackTool = z.infer<typeof TrackToolSchema>;
+
+/** Integrações nativas no navegador (compiladas para a config publicada por `compileIntegrations`). */
 export const IntegrationsSchema = z.object({
   /** Envia `experiment_impression` para o GA4 (gtag) a cada exposição. */
   ga4: z.boolean().default(false),
   /** Empurra `abt_exposure` / `abt_conversion` no dataLayer do Google Tag Manager. */
   gtm: z.boolean().default(false),
+  segment: TrackToolSchema.default({}),
+  mixpanel: TrackToolSchema.default({}),
+  amplitude: TrackToolSchema.default({}),
 });
 export type Integrations = z.infer<typeof IntegrationsSchema>;
+
+/**
+ * Padrões de cada ferramenta: objeto global do site, eventos e nomes das propriedades. Segment segue a
+ * especificação "Experiment Viewed"; Mixpanel usa `$experiment_started` com "Experiment name"/"Variant name"
+ * (relatório de experimentos dele); Amplitude usa o mesmo formato do Segment.
+ */
+export const TRACK_TOOLS = {
+  segment: {
+    label: 'Segment',
+    global: 'analytics',
+    exposure: 'Experiment Viewed',
+    conversion: 'Experiment Converted',
+    keys: ['experiment_id', 'variation_id', 'goal'],
+  },
+  mixpanel: {
+    label: 'Mixpanel',
+    global: 'mixpanel',
+    exposure: '$experiment_started',
+    conversion: 'Experiment Converted',
+    keys: ['Experiment name', 'Variant name', 'Goal'],
+  },
+  amplitude: {
+    label: 'Amplitude',
+    global: 'amplitude',
+    exposure: 'Experiment Viewed',
+    conversion: 'Experiment Converted',
+    keys: ['experiment_id', 'variation_id', 'goal'],
+  },
+} as const;
+export type TrackToolName = keyof typeof TRACK_TOOLS;
+
+/**
+ * Destino publicado no snippet: `[global, evento de exposição, evento de conversão ('' = não envia), chave do
+ * experimento, da variação, da meta]`. `gtag` chama `gtag('event', nome, props)`, `dataLayer` faz
+ * `dataLayer.push({ event: nome, ...props })` e o resto `window[global].track(nome, props)`. O runtime só
+ * despacha: nomes e formatos ficam na config (D-089).
+ */
+export const IntegrationTargetSchema = z.tuple([
+  z.string(),
+  z.string(),
+  z.string(),
+  z.string(),
+  z.string(),
+  z.string(),
+]);
+export type IntegrationTarget = z.infer<typeof IntegrationTargetSchema>;
+
+/** Integrações ligadas → destinos do snippet. Aceita o formato antigo (`{ ga4, gtm }`) das configs já publicadas. */
+export function compileIntegrations(raw: unknown): IntegrationTarget[] {
+  const r = IntegrationsSchema.safeParse(raw);
+  if (!r.success) return [];
+  const ig = r.data;
+  const out: IntegrationTarget[] = [];
+  if (ig.ga4) out.push(['gtag', 'experiment_impression', '', 'experiment_id', 'variant_id', 'goal']);
+  if (ig.gtm)
+    out.push(['dataLayer', 'abt_exposure', 'abt_conversion', 'abt_experiment', 'abt_variation', 'abt_goal']);
+  for (const name of Object.keys(TRACK_TOOLS) as TrackToolName[]) {
+    const t = ig[name];
+    const d = TRACK_TOOLS[name];
+    if (t.enabled)
+      out.push([
+        d.global,
+        t.exposureEvent || d.exposure,
+        t.conversions ? t.conversionEvent || d.conversion : '',
+        ...d.keys,
+      ]);
+  }
+  return out;
+}
 
 /** Banners de consentimento (CMP) que o snippet sabe ler sozinho. */
 export const CONSENT_CMPS = ['onetrust', 'cookiebot', 'gcm'] as const;

@@ -457,6 +457,31 @@ const RULES: Rule[] = [
     detail: (x) =>
       `${String(x.body.protocol ?? '').toUpperCase()} ${x.body.enabled ? 'ligado' : 'desligado'}`,
   },
+  // CRMs (19.1): configuração (nunca o token/segredo) e sincronização manual (dados saem da conta).
+  {
+    method: 'PUT',
+    path: '/integrations/crm',
+    target: 'integrations',
+    action: 'update',
+    name: () => 'CRM (HubSpot e Salesforce)',
+    id: () => null,
+    detail: (x) =>
+      (['hubspot', 'salesforce'] as const)
+        .map(
+          (p) =>
+            `${p === 'hubspot' ? 'HubSpot' : 'Salesforce'} ${(x.body[p] as Json | undefined)?.enabled ? 'ligado' : 'desligado'}`,
+        )
+        .join(' · '),
+  },
+  {
+    method: 'POST',
+    path: '/integrations/crm/:provider/sync',
+    target: 'integrations',
+    action: 'sync',
+    name: (x) => (x.p.provider === 'hubspot' ? 'HubSpot' : 'Salesforce'),
+    id: () => null,
+    detail: (x) => `${str(x.res.sent)} perfis enviados`,
+  },
   {
     method: 'POST',
     path: '/auth/invites/:token/accept',

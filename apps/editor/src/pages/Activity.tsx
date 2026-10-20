@@ -135,6 +135,14 @@ export function sentence(a: ActivityItem): ReactNode {
       </>
     );
   }
+  // CRM (19.1): sincronização manual com HubSpot/Salesforce.
+  if (a.targetType === 'integrations' && a.action === 'sync')
+    return (
+      <>
+        {who} sincronizou os perfis com o {what}
+        {a.detail && ` (${a.detail})`}
+      </>
+    );
   // Agendamento (17.4): detalhe `start@ISO`, mostrado no fuso de quem lê.
   if (a.action.startsWith('schedule')) {
     const [act, at] = (a.detail ?? '').split('@');
@@ -162,6 +170,7 @@ export function sentence(a: ActivityItem): ReactNode {
             ((a.action === 'start' || a.action === 'pause') && !a.userId) ||
             a.action.startsWith('preview') ||
             a.targetType === 'invite' ||
+            a.targetType === 'integrations' ||
             a.targetType === 'settings')
         ? ` (${role(a.detail)})`
         : '';

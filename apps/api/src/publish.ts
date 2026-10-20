@@ -1,4 +1,5 @@
 import {
+  compileIntegrations,
   compileFunnel,
   PublishedConfigSchema,
   type Audience,
@@ -131,6 +132,7 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       repo.listEntities<Group>(accountId, 'group'),
     ]);
     const consent = cons[0]?.data;
+    const targets = compileIntegrations(integ[0]?.data);
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');
     const popups = popupList.filter((p) => p.data.status === 'running');
@@ -182,7 +184,7 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       ...(popups.length ? { popups: popups.map((p) => ({ id: p.id, name: p.name, ...p.data })) } : {}),
       ...(surveys.length ? { surveys: surveys.map((s) => ({ id: s.id, name: s.name, ...s.data })) } : {}),
       ...(recos.length ? { recos: recos.map((r) => ({ id: r.id, name: r.name, ...r.data })) } : {}),
-      ...(integ[0] && (integ[0].data.ga4 || integ[0].data.gtm) ? { integrations: integ[0].data } : {}),
+      ...(targets.length ? { integrations: targets } : {}),
       ...(consent?.required
         ? {
             consent: {

@@ -17,6 +17,7 @@ import { normalizePage, NotFoundError, type Repo, type User } from './repo';
 import { CDP_PATHS, cdpRoutes } from './routes/cdp';
 import { DATA_PATHS, dataRoutes } from './routes/data';
 import { background, INTEGRATION_PATHS, integrationRoutes } from './routes/integrations';
+import { CRM_PATHS, crmRoutes, type CrmBase } from './crm';
 import { PREDICTIVE_PATHS, predictiveRoutes } from './routes/predictive';
 import { ACTIVITY_PATHS, activityRoutes } from './routes/activities';
 import { COMMENT_PATHS, commentRoutes } from './routes/comments';
@@ -56,6 +57,8 @@ export interface AppDeps {
   aiCompat?: CompatAi;
   /** Protocolos de SSO disponíveis (ponto de extensão, D-073); nenhum vem implementado. */
   sso?: SsoProviders;
+  /** Endereços das APIs dos CRMs (só nos testes, servidor falso). */
+  crmBase?: CrmBase;
 }
 
 const ProjectOut = z.object({ id: z.string(), name: z.string(), siteUrl: z.string() }).openapi('Project');
@@ -178,6 +181,7 @@ export function createApp(deps: AppDeps) {
     ...ENTITY_PATHS,
     ...CDP_PATHS,
     ...INTEGRATION_PATHS,
+    ...CRM_PATHS,
     ...PREDICTIVE_PATHS,
     ...AI_PATHS,
     ...ACTIVITY_PATHS,
@@ -766,6 +770,7 @@ export function createApp(deps: AppDeps) {
   entityRoutes(app, repo);
   cdpRoutes(app, repo, deps.cdn);
   integrationRoutes(app, repo);
+  crmRoutes(app, repo, deps.crmBase);
   predictiveRoutes(app, repo, deps.publish);
   aiRoutes(app, repo, deps.ai, deps.aiCompat);
   aiSummaryRoutes(app, repo, deps.ai, deps.aiCompat);

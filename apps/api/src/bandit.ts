@@ -3,6 +3,7 @@ import { retrainPropensity } from './predict';
 import { experimentReport } from './analytics/report';
 import type { AppDeps } from './app';
 import type { CdnStore } from './cdn';
+import { syncAllCrm } from './crm';
 import { rebuildReco } from './reco';
 import { runSchedules } from './routes/schedules';
 import type { Repo, User } from './repo';
@@ -102,4 +103,6 @@ export async function hourlyJobs(repo: Repo, cdn: CdnStore, publish: AppDeps['pu
     const r = await retrainPropensity(repo, accountId).catch(() => null);
     if (r && !('error' in r)) await publish?.(accountId, banditUser(accountId)).catch(() => undefined);
   }
+  // Perfis do CDP → HubSpot/Salesforce (19.1).
+  await syncAllCrm(repo);
 }

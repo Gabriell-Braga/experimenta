@@ -1,6 +1,9 @@
 import {
   ExperimentSchema,
   type AiChange,
+  type CrmConfig,
+  type CrmProvider,
+  type CrmStatus,
   type Experiment,
   type Ice,
   type IdeaStage,
@@ -721,6 +724,21 @@ export const apiKeys = {
 };
 export const testWebhook = (id: string) =>
   api<{ status: number }>(`/webhooks/${encodeURIComponent(id)}/test`, { method: 'POST' });
+
+/** HubSpot/Salesforce (19.1): configuração sem os segredos e situação da última sincronização. */
+export interface CrmView {
+  config: CrmConfig;
+  hasHubspotToken: boolean;
+  hasSalesforceSecret: boolean;
+  status: Record<CrmProvider, CrmStatus | null>;
+}
+export const crm = {
+  get: () => api<CrmView>('/integrations/crm'),
+  save: (config: CrmConfig) =>
+    api<CrmView>('/integrations/crm', { method: 'PUT', body: JSON.stringify(config) }),
+  /** Um lote; `remaining` > 0 = chamar de novo. */
+  sync: (p: CrmProvider) => api<CrmStatus>(`/integrations/crm/${p}/sync`, { method: 'POST' }),
+};
 
 export interface Predictive {
   config: Entity<import('@abtest/shared').PropensityConfig> | null;

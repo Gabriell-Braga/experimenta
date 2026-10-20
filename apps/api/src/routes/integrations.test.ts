@@ -1,4 +1,6 @@
 import { afterEach, beforeAll, expect, test, vi } from 'vitest';
+import type { PublishedConfig } from '@abtest/shared';
+import { compileAccountScript } from '../cdn';
 import { hmacHex } from '../crypto';
 import { DEMO } from '../seed';
 import { ev, setupApp } from '../test-app';
@@ -108,7 +110,9 @@ test('webhook: segredo gerado; eventos assinados só dos tipos assinados; teste 
 test('GA4/GTM ligados vão para a config publicada; desligados ficam de fora', async () => {
   await post('/entities/integrations', { name: 'integrações', data: { ga4: true, gtm: false } });
   expect((await post('/publish', {})).status).toBe(200);
-  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).integrations).toEqual({ ga4: true, gtm: false });
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).integrations).toEqual([
+    ['gtag', 'experiment_impression', '', 'experiment_id', 'variant_id', 'goal'],
+  ]);
 });
 
 test('consentimento: só vai para a config quando exigido; categoria inválida é recusada', async () => {
@@ -141,4 +145,28 @@ test('consentimento: só vai para a config quando exigido; categoria inválida �
   });
   expect((await post('/publish', {})).status).toBe(200);
   expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).consent).toEqual({});
+});
+
+test('Segment/Mixpanel/Amplitude ligados viram destinos; config antiga ({ ga4, gtm }) é convertida ao recompilar', async () => {
+  const [e] = await t.get<{ id: string }[]>('/entities/integrations');
+  await t.req(`/entities/integrations/${e!.id}`, {
+    method: 'PUT',
+    as: 'editor',
+    body: JSON.stringify({
+      name: 'integrações',
+      data: {
+        mixpanel: { enabled: true, conversions: false },
+        segment: { enabled: true, exposureEvent: 'Viu' },
+      },
+    }),
+  });
+  expect((await post('/publish', {})).status).toBe(200);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).integrations).toEqual([
+    ['analytics', 'Viu', 'Experiment Converted', 'experiment_id', 'variation_id', 'goal'],
+    ['mixpanel', '$experiment_started', '', 'Experiment name', 'Variant name', 'Goal'],
+  ]);
+  const legacy = { integrations: { ga4: false, gtm: true } } as unknown as PublishedConfig;
+  expect(compileAccountScript(legacy, '')).toContain(
+    '"integrations":[["dataLayer","abt_exposure","abt_conversion","abt_experiment","abt_variation","abt_goal"]]',
+  );
 });

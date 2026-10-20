@@ -157,6 +157,9 @@ importers:
       '@rrweb/replay':
         specifier: 2.1.7
         version: 2.1.7
+      fflate:
+        specifier: '0.8'
+        version: 0.8.3
       lucide-react:
         specifier: '0.468'
         version: 0.468.0(react@18.3.1)

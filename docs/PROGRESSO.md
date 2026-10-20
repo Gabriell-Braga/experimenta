@@ -1,13 +1,14 @@
 # Progresso
-**Status:** 18.6 concluída — Fase 18 concluída
-**Fase atual:** 18
-**Tarefa atual:** 19.1
-**Última atualização:** 2026-10-20 11:51
-**Próximo passo:** 19.1 integrações prontas (Shopify, WordPress, Segment, Mixpanel, Amplitude, CRMs). Antes, se for publicar: `pnpm deploy:cf` (migrações D1 0007–0011) e novo login.
+**Status:** 19.1 concluída
+**Fase atual:** 19
+**Tarefa atual:** 19.2
+**Última atualização:** 2026-10-20 12:57
+**Próximo passo:** 19.2 SDKs server-side em mais linguagens (Python, PHP, Go, Java/Kotlin).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
-- Snippet a 7 B do limite de 10 KB gzip (10.233 B depois da 17.3; a lógica do link de pré-visualização ficou no preview.js sob demanda e o snippet só detecta o parâmetro): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
+- Snippet a 9 B do limite de 10 KB gzip (10.231 B depois da 19.1; a lógica do link de pré-visualização ficou no preview.js sob demanda e o snippet só detecta o parâmetro): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
+- Integrações da 19.1 (HubSpot, Salesforce, Shopify, WordPress) não foram validadas com contas reais e o plugin do WordPress não passou por `php -l` (sem PHP na máquina): testar numa conta de cada antes de anunciar.
 - Perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
@@ -681,3 +682,9 @@
 - Arquivos principais: apps/editor/src/api.ts, apps/editor/src/ui.tsx, apps/api/src/app.ts, e2e/tests/limits.spec.ts
 - Como testar manualmente: em produção, Painel com 90 dias (estoura CPU) mostra o aviso âmbar; local: `pnpm --filter @abtest/e2e e2e tests/limits.spec.ts`.
 - Deploy feito (2026-10-20 12:33): `pnpm deploy:cf` com as migrações D1 0007–0011 (3 usuários → 3 vínculos, 1 owner). Backup do D1 exportado antes. Todos precisam entrar de novo uma vez (sessões novas da 16.5).
+
+### 2026-10-20 12:57 — Tarefa 19.1 concluída (integrações prontas)
+- O que foi feito: **Segment, Mixpanel e Amplitude** no navegador (como GA4/GTM: usam o `analytics`/`mixpanel`/`amplitude` que o site já tem, nada é carregado por nós): exposição (`Experiment Viewed` no Segment/Amplitude, `$experiment_started` com "Experiment name"/"Variant name" no Mixpanel) e, opcional, conversão (`Experiment Converted` com meta e valor), nomes dos eventos editáveis. O adapter do snippet virou um despacho genérico: a publicação compila as integrações ligadas numa lista `[global, exposição, conversão, chaves]` e o runtime só chama `gtag`/`dataLayer.push`/`window[global].track` (configs antigas `{ ga4, gtm }` são convertidas ao recompilar). **Shopify**: código para `theme.liquid` (snippet, cliente logado identificado com e-mail, produto visto) e pixel personalizado do checkout (Eventos do cliente) que lê `_abt_vid`/`_abt_a` do domínio da loja, busca a config publicada e manda a compra como evento `purchase` com valor e como conversão das metas "evento customizado purchase" (ids por pedido, sem duplicar). **WordPress**: plugin de um arquivo (`integrations/wordpress/experimenta/experimenta.php`: URL do script, posição no `<head>`, identificar usuário logado, compra do WooCommerce como `purchase`), baixado em .zip pelo editor já com o script da conta. **HubSpot e Salesforce**: perfis do CDP com e-mail (atributo `email` ou usuário identificado por e-mail) vão por upsert (HubSpot CRM v3 `contacts/batch/upsert` por `email`; Salesforce client credentials + `composite/sobjects/<objeto>/<id externo>`), com mapa de campos (segmentos, testes, sessões, conversões, receita, datas, atributos do site), em lotes de 100 a partir de um cursor (só quem mudou desde a última vez), no job de hora em hora (até 10 lotes) e no botão "Sincronizar agora" (um lote por requisição; a tela continua enquanto houver pendentes). Token/segredo só escrita (nunca voltam na API); configurar = owner, sincronizar = editor; configuração e sincronização manual entram no histórico de atividades. Tela: Configurar → Integrações com cartões "Analytics no navegador", "Plataformas" (Shopify/WordPress) e "CRM" (HubSpot/Salesforce, situação da última sincronização e erros do CRM).
+- Arquivos principais: packages/shared/src/{entities,config,crm}.ts, packages/snippet/src/integrations.ts, apps/api/src/{crm,publish,cdn,bandit,audit,app}.ts, apps/editor/src/{platforms,api}.ts, apps/editor/src/pages/{Integrations,Activity}.tsx, integrations/wordpress/experimenta/experimenta.php, e2e/tests/integrations.spec.ts
+- Como testar manualmente: Configurar → Integrações → ligar Mixpanel/Segment/Amplitude (publica) e abrir o demo com `window.mixpanel = { track: console.log }` definido antes do snippet; Plataformas → copiar o código do Shopify / "Baixar plugin (.zip)"; CRM → HubSpot: token, "Usar sugeridos", ligar, Salvar, "Sincronizar agora". `pnpm --filter @abtest/api exec vitest run src/crm.test.ts src/routes/integrations.test.ts`; `pnpm --filter @abtest/editor exec vitest run src/platforms.test.ts`; `pnpm --filter @abtest/e2e e2e tests/integrations.spec.ts`.
+- Observações: snippet 10.231 B gzip (antes 10.233; o despacho genérico ficou menor que o código só de GA4/GTM). Sem migração (entidades `crm` e `crm-state`). **Não validado com contas reais** de HubSpot, Salesforce, Shopify e WordPress: implementado pela documentação das APIs e testado com servidor HTTP falso e stubs. Sem PHP na máquina: o plugin não passou por `php -l`. D-089.

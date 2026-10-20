@@ -2,7 +2,7 @@ import { z } from 'zod';
 import {
   AudienceSchema,
   CONSENT_CMPS,
-  IntegrationsSchema,
+  IntegrationTargetSchema,
   PopupSchema,
   RecoWidgetSchema,
   SurveySchema,
@@ -26,8 +26,8 @@ export const PublishedConfigSchema = z.object({
   surveys: z.array(SurveySchema.extend({ id: z.string(), name: z.string() })).optional(),
   /** Vitrines de recomendação (modelo em `<conta>.reco.json` na mesma pasta). */
   recos: z.array(RecoWidgetSchema.extend({ id: z.string(), name: z.string() })).optional(),
-  /** GA4 / GTM no navegador. */
-  integrations: IntegrationsSchema.optional(),
+  /** GA4, GTM, Segment, Mixpanel, Amplitude no navegador (`compileIntegrations`). */
+  integrations: z.array(IntegrationTargetSchema).optional(),
   /**
    * Consentimento (LGPD/GDPR): presente = esperar `abq.push(['consent', true])` (ou o CMP) antes de gravar
    * cookies, aplicar testes e coletar dados. Ausente = roda direto (o visitante ainda pode recusar).

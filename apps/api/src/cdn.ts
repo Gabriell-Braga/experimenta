@@ -1,4 +1,4 @@
-import type { PublishedConfig } from '@abtest/shared';
+import { compileIntegrations, type PublishedConfig } from '@abtest/shared';
 import type { Context } from 'hono';
 import { sha1 } from './crypto';
 
@@ -10,6 +10,9 @@ export interface CdnStore {
 
 /** Arquivo publicado por conta: config embutida + runtime (ver docs/DECISOES.md D-008). */
 export function compileAccountScript(config: PublishedConfig, runtimeJs: string): string {
+  // Configs publicadas antes da 19.1 têm `integrations: { ga4, gtm }`; o runtime atual só entende a lista.
+  const ig: unknown = config.integrations;
+  if (ig && !Array.isArray(ig)) config = { ...config, integrations: compileIntegrations(ig) };
   // `<` escapado: o JSON pode conter HTML de operações e não deve fechar <script> se for inline.
   const json = JSON.stringify(config).replace(/</g, '\\u003c');
   return `window.__ABT_CONFIG__=${json};\n${runtimeJs}`;

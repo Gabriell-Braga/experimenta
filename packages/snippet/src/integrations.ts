@@ -1,25 +1,27 @@
-// GA4 e Google Tag Manager no navegador: as exposições (e conversões, no GTM) vão para as ferramentas do site.
-import type { Integrations, TrackingEvent } from '@abtest/shared';
+// Integrações no navegador (GA4, GTM, Segment, Mixpanel, Amplitude): exposições e conversões vão para as
+// ferramentas que o site já tem. Despacho genérico: nomes e formatos vêm da config (`compileIntegrations`).
+import type { IntegrationTarget, TrackingEvent } from '@abtest/shared';
 import type { Adapter } from './tracker';
 
-type W = Window & { gtag?: (...a: unknown[]) => void; dataLayer?: unknown[] };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type W = Record<string, any>;
 
-export function integrationsAdapter(win: Window, ig: Integrations): Adapter {
-  const w = win as W;
+export function integrationsAdapter(win: Window, targets: IntegrationTarget[]): Adapter {
+  const w = win as unknown as W;
   return (events: TrackingEvent[]) => {
-    for (const e of events) {
-      if (e.qa || (e.type !== 'exposure' && e.type !== 'conversion')) continue;
-      const ctx = { abt_experiment: e.experimentKey, abt_variation: e.variationKey };
-      if (e.type === 'exposure') {
-        // Evento recomendado do GA4 para testes A/B.
-        if (ig.ga4)
-          w.gtag?.('event', 'experiment_impression', {
-            experiment_id: e.experimentKey,
-            variant_id: e.variationKey,
-          });
-        if (ig.gtm) (w.dataLayer ??= []).push({ event: 'abt_exposure', ...ctx });
-      } else if (ig.gtm)
-        (w.dataLayer ??= []).push({ event: 'abt_conversion', ...ctx, abt_goal: e.goalKey, value: e.value });
-    }
+    for (const e of events)
+      if (!e.qa && (e.type === 'exposure' || e.type === 'conversion'))
+        for (const [o, exposure, conversion, x, v, g] of targets) {
+          const name = e.type === 'exposure' ? exposure : conversion;
+          if (!name) continue;
+          const p: W = { [x]: e.experimentKey, [v]: e.variationKey };
+          if (e.type === 'conversion') {
+            p[g] = e.goalKey;
+            p.value = e.value;
+          }
+          if (o === 'gtag') w.gtag?.('event', name, p);
+          else if (o === 'dataLayer') (w.dataLayer ??= []).push({ event: name, ...p });
+          else w[o]?.track?.(name, p);
+        }
   };
 }
