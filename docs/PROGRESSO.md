@@ -516,3 +516,9 @@
 - Arquivos principais: apps/api/src/fuzz.test.ts, e2e/tests/robustness.spec.ts, apps/editor/src/ui.tsx (usePending, useCopy), apps/editor/src/shell.tsx, apps/api/src/ai.ts
 - Como testar manualmente: `pnpm --filter @abtest/api exec vitest run src/fuzz.test.ts`; `pnpm e2e` (robustez roda por último, projeto "robustez"; só ela: `pnpm --filter @abtest/e2e e2e --project robustez --no-deps`). IA grátis: ver docs/DEPLOY.md.
 - Observações: E2E não reaproveita mais a API do `pnpm dev` (sujaria o banco de dev); pare o dev antes do `pnpm e2e`.
+
+### 2026-10-20 01:30 — Dados de demonstração em produção
+- O que foi feito: `pnpm seed:data` reescrito: 60 dias de tráfego com crescimento e fim de semana mais fraco, origens com UTM, três experimentos (home vence, produto inconclusivo, loja ganha no celular e perde no desktop), funis, pop-up de cupom, barra de frete, NPS pós-compra com comentários, recomendações, audiências, segmentos, flags e perfis cross-device. Rodado em produção na conta demo (somado aos rascunhos existentes).
+- Arquivos principais: scripts/seed-data.ts
+- Como testar manualmente: abrir o Painel em produção; local: `pnpm seed:data`. Produção: `API_URL=... SITE_URL=... EDITOR_ORIGIN=... SEED_PASSWORD=... pnpm seed:data`.
+- Observações: cada evento grava 7 linhas no D1 (tabela + índices); 1500 visitantes ≈ 12,9 mil eventos ≈ 90 mil linhas, perto do limite grátis de 100 mil por dia. Rodar de novo soma tráfego (não duplica campanhas).

@@ -49,7 +49,7 @@ Recebe o painel de uma conta (métricas agregadas e achados automáticos do per�
 em português do Brasil, priorizadas por impacto esperado / esforço. Cada ideia nasce de um dado do painel (cite qual
 em "basedOn"), tem hipótese falsificável e uma mudança concreta que um editor visual consegue fazer (texto, layout,
 ordem, visibilidade, CTA, campos de formulário, pop-up). Não invente números que não estão no painel. Se um teste em
-execução já tem vencedora, a primeira ideia é implementá-la e testar o próximo passo. Não use travessão nem meia-risca
+execução já tem vencedora, a primeira ideia é implementá-la e testar o próximo passo. Cite experimentos e campanhas pelo nome. Não use travessão nem meia-risca
 no texto; use vírgula, dois-pontos ou ponto.`;
 
 /** Tira travessão/meia-risca que o modelo usar mesmo assim (o app não usa esses traços). */
@@ -141,7 +141,8 @@ export function ideaContext(d: Dashboard) {
   return {
     period: { from: d.from, to: d.to },
     traffic: { ...d.traffic, series: undefined },
-    experiments: d.experiments,
+    // Sem ids: o modelo cita o experimento pelo nome.
+    experiments: d.experiments.map(({ id: _id, ...e }) => e),
     behavior: d.behavior,
     forms: d.forms,
     engage: d.engage,
