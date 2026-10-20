@@ -45,7 +45,8 @@ for (const { name } of keys.filter((k) => k.name.endsWith('.json'))) {
 }
 
 // 2) API.
-wrangler('d1 migrations apply abtest-db --remote');
+// SKIP_D1=1: pula as migrações (ex.: cota diária do D1 grátis estourada e nenhuma migração nova).
+if (!process.env.SKIP_D1) wrangler('d1 migrations apply abtest-db --remote');
 wrangler('deploy');
 
 // 3) Extensão (ponte injetada só no editor publicado) → zip baixável pelo editor.
