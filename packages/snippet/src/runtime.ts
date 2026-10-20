@@ -6,7 +6,7 @@ import { matchAudience, type AudienceContext } from './audience';
 import { loadProfile, notePage, saveProfile, type Profile } from './data';
 import { renderOperations } from './dynamic';
 import { applyOperations, type ApplyHandle } from './engine/apply';
-import { detectDevice, getVisitor, isBot, randomId, type Visitor } from './env';
+import { detectDevice, getVisitor, isBot, local, randomId, type Visitor } from './env';
 import { matchSegmentation } from './segment';
 import { watchLocation } from './spa';
 
@@ -71,13 +71,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
   if (isBot(nav.userAgent)) return null;
   const doc = win.document;
   const visitor = getVisitor(win);
-  const storage = (() => {
-    try {
-      return win.localStorage;
-    } catch {
-      return undefined;
-    }
-  })();
+  const storage = local(win);
   const stored = loadAssignments(storage);
   const profile = loadProfile(storage);
   notePage(profile, win.location.href, doc.referrer, visitor.newSession);

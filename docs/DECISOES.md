@@ -364,3 +364,11 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Byte nulo é recusado num middleware único (Postgres não aceita byte nulo em texto).
 - IA: além do Claude, qualquer API compatível com OpenAI (`AI_BASE_URL`/`AI_MODEL`), para testes grátis; resposta validada pelo mesmo schema, falha cai nas regras.
 - E2E: API sempre nova (`reuseExistingServer: false`) — robustez grava lixo e não pode atingir o banco de dev.
+
+## D-069 — Consentimento LGPD/GDPR no snippet (fase 16.1)
+- **Portão único** (`packages/snippet/src/consent.ts#consentGate`): o snippet inteiro (`boot` em main.ts) só liga com consentimento. Antes do aceite, nada de cookie de visitante, storage, testes, pop-ups, insights ou eventos. Não existe modo "testes sem cookie": sem id persistente o visitante trocaria de variação a cada página. Custo: na primeira página, o teste só entra depois do aceite (sem anti-flicker, a página aparece original e muda). Da segunda página em diante, a decisão salva liga o snippet na hora.
+- **Decisão no cookie `_abt_c`** (1/0, 1 ano): único cookie gravado sem consentimento, pois guardar a recusa é necessário para respeitá-la. Recusa vale em qualquer conta (com ou sem espera): desliga na página (`rt.stop`, eventos descartados, gravação para de enviar via `InsightsBoot.stopped`) e apaga cookies e storage `_abt*`. Testes já aplicados na página são revertidos.
+- **CMPs**: OneTrust (`OptanonActiveGroups` + `OneTrustGroupsUpdated`, padrão `C0002`), Cookiebot (`Cookiebot.consent[categoria]` + `CookiebotOnConsentReady`, padrão `statistics`), Google Consent Mode v2 (lê o `dataLayer` e embrulha `dataLayer.push`, padrão `analytics_storage`). No GCM, `default` negado é ignorado (só `update` decide; `default` concedido liga), senão quem já aceitou seria desligado e religado (perdendo o id) a cada página. O CMP só é lido com "esperar consentimento" ligado; sem espera, o site pode recusar por `abq`.
+- **Config**: entidade `consent` (`ConsentSchema`); a config publicada ganha `consent: { cmp?, category? }` só quando exigido (ausente = roda direto).
+- **Tamanho**: snippet 10.182 B gzip de 10.240 B. Trocar o alvo do esbuild de es2019 para es2020 (Safari 13.1+/Chrome 80+) liberaria ~440 B (`?.`/`??` deixam de ser transpilados); não feito aqui por mudar o suporte a navegadores antigos, fica para quando o espaço faltar.
+

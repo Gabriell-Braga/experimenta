@@ -1,6 +1,7 @@
 import {
   PublishedConfigSchema,
   type Audience,
+  type Consent,
   type Experiment,
   type Flag,
   type Integrations,
@@ -59,20 +60,34 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
     accountId: string,
     user: User,
   ): Promise<{ version: number } | { error: string; status: 403 | 400 }> => {
-    const [all, last, settings, audiences, popupList, surveyList, recoList, flags, integ, predCfg, pred] =
-      await Promise.all([
-        repo.loadAllExperiments(accountId),
-        repo.lastPublication(accountId),
-        repo.getAccountSettings(accountId),
-        repo.listEntities<Audience>(accountId, 'audience'),
-        repo.listEntities<Popup>(accountId, 'popup'),
-        repo.listEntities<Survey>(accountId, 'survey'),
-        repo.listEntities<RecoWidget>(accountId, 'reco'),
-        repo.listEntities<Flag>(accountId, 'flag'),
-        repo.listEntities<Integrations>(accountId, 'integrations'),
-        repo.listEntities<PropensityConfig>(accountId, 'propensity'),
-        repo.listEntities<TrainedModel>(accountId, MODEL_KIND),
-      ]);
+    const [
+      all,
+      last,
+      settings,
+      audiences,
+      popupList,
+      surveyList,
+      recoList,
+      flags,
+      integ,
+      predCfg,
+      pred,
+      cons,
+    ] = await Promise.all([
+      repo.loadAllExperiments(accountId),
+      repo.lastPublication(accountId),
+      repo.getAccountSettings(accountId),
+      repo.listEntities<Audience>(accountId, 'audience'),
+      repo.listEntities<Popup>(accountId, 'popup'),
+      repo.listEntities<Survey>(accountId, 'survey'),
+      repo.listEntities<RecoWidget>(accountId, 'reco'),
+      repo.listEntities<Flag>(accountId, 'flag'),
+      repo.listEntities<Integrations>(accountId, 'integrations'),
+      repo.listEntities<PropensityConfig>(accountId, 'propensity'),
+      repo.listEntities<TrainedModel>(accountId, MODEL_KIND),
+      repo.listEntities<Consent>(accountId, 'consent'),
+    ]);
+    const consent = cons[0]?.data;
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');
     const popups = popupList.filter((p) => p.data.status === 'running');
@@ -107,6 +122,14 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       ...(surveys.length ? { surveys: surveys.map((s) => ({ id: s.id, name: s.name, ...s.data })) } : {}),
       ...(recos.length ? { recos: recos.map((r) => ({ id: r.id, name: r.name, ...r.data })) } : {}),
       ...(integ[0] && (integ[0].data.ga4 || integ[0].data.gtm) ? { integrations: integ[0].data } : {}),
+      ...(consent?.required
+        ? {
+            consent: {
+              ...(consent.cmp !== 'none' ? { cmp: consent.cmp } : {}),
+              ...(consent.category ? { category: consent.category } : {}),
+            },
+          }
+        : {}),
       ...(predCfg[0]?.data.enabled && pred[0]
         ? { propensity: { goal: pred[0].data.goal, w: pred[0].data.w, b: pred[0].data.b } }
         : {}),

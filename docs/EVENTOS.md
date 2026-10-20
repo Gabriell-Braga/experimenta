@@ -133,6 +133,15 @@ diária, páginas e eventos mais frequentes, dispositivos e origens externas. `G
 - `window.abt.assignments()` — `{ chaveExperimento: chaveVariacao }` do visitante; `window.abt.visitorId`;
   `window.abt.sessionId`; `window.abt.flush()` força o envio.
 
+## Consentimento (LGPD/GDPR)
+
+- `window.abq.push(['consent', true])` aceita; `['consent', false]` recusa: desliga o snippet na página, apaga os
+  cookies e o storage `_abt*` e não liga nas próximas páginas. A decisão fica no cookie `_abt_c` (1/0).
+- Conta com "esperar consentimento" (Configurar → Privacidade): nada roda nem é gravado até o aceite (pelo
+  comando ou pelo banner configurado: OneTrust, Cookiebot ou Google Consent Mode v2). Comandos da fila esperam o
+  aceite (até 100). Sem a exigência, o snippet roda direto e o visitante ainda pode recusar.
+- `?abt_optout=1` em qualquer página do site = recusa (link para a política de privacidade).
+
 ## Exemplo
 
 ```json

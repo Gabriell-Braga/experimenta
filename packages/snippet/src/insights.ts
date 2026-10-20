@@ -25,6 +25,8 @@ export interface InsightsBoot {
   /** Variações ativas na página (experimentId → variationId). */
   variations(): Record<string, string>;
   onNavigate: ((url: string) => void)[];
+  /** Visitante recusou o consentimento: a gravação descarta o que tiver e para de enviar. */
+  stopped?: boolean;
 }
 
 declare global {

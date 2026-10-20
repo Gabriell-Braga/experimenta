@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { AudienceSchema, IntegrationsSchema, PopupSchema, RecoWidgetSchema, SurveySchema } from './entities';
+import {
+  AudienceSchema,
+  CONSENT_CMPS,
+  IntegrationsSchema,
+  PopupSchema,
+  RecoWidgetSchema,
+  SurveySchema,
+} from './entities';
 import { ExperimentSchema } from './experiment';
 
 /** JSON publicado na CDN por conta (`/cdn/<accountId>.json`). Só experimentos em execução. */
@@ -21,6 +28,13 @@ export const PublishedConfigSchema = z.object({
   recos: z.array(RecoWidgetSchema.extend({ id: z.string(), name: z.string() })).optional(),
   /** GA4 / GTM no navegador. */
   integrations: IntegrationsSchema.optional(),
+  /**
+   * Consentimento (LGPD/GDPR): presente = esperar `abq.push(['consent', true])` (ou o CMP) antes de gravar
+   * cookies, aplicar testes e coletar dados. Ausente = roda direto (o visitante ainda pode recusar).
+   */
+  consent: z
+    .object({ cmp: z.enum(CONSENT_CMPS).optional(), category: z.string().max(60).optional() })
+    .optional(),
   /** Modelo de propensão (score 0..1 avaliado no navegador para a regra de audiência `score`). */
   propensity: z.object({ goal: z.string(), w: z.array(z.number()), b: z.number() }).optional(),
   /** Mapa de calor: fração de visitantes amostrados (0 = desligado). */

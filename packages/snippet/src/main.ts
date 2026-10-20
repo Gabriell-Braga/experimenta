@@ -1,8 +1,10 @@
 // Entrada do bundle publicado (dist/abt.js). Precisa rodar de forma síncrona no <head>.
-import type { Props } from '@abtest/shared';
+import type { Props, PublishedConfig, TrackingEvent } from '@abtest/shared';
 import { readConfig } from './config';
+import { consentGate, type App } from './consent';
 import { installData } from './data';
 import { bootEditor, editToken } from './editor';
+import { local } from './env';
 import { installGoals } from './goals';
 import { engageBoot, loadBundle } from './engage';
 import { insightsBoot, sampled } from './insights';
@@ -21,7 +23,9 @@ type Command =
   | ['product', Props & { id: string | number }]
   | ['cart', string | number]
   | ['purchase', (string | number)[], number?]
-  | ['adapter', Adapter];
+  | ['adapter', Adapter]
+  /** LGPD/GDPR: aceita (true) ou recusa (false, apaga cookies e desliga o snippet). */
+  | ['consent', boolean];
 
 declare global {
   interface Window {
@@ -46,67 +50,70 @@ if (config && token) {
   document.documentElement.dataset.abtEditor = 'snippet';
   bootEditor(window, config, token, new URL('agent.js', script?.src || location.href).href);
 } else if (config) {
+  const pending = Array.isArray(window.abq) ? window.abq : [];
+  const run = consentGate(window, config.consent, () => boot(config));
+  // Processa o que o site enfileirou antes do snippet e troca a fila por um executor imediato.
+  window.abq = { push: run as (c: Command) => void };
+  pending.forEach(run);
+}
+
+/** Liga testes, coleta e bundles sob demanda. Só roda com consentimento (ou sem exigência na conta). */
+function boot(config: PublishedConfig): App | undefined {
   const forced = readForce(window);
   const tracker = createTracker(window, config.trackingUrl);
+  // Desligado (recusa): nada mais sai, nem do que já estiver carregado (insights.js, engage.js).
+  let live = true;
+  const send = (e: TrackingEvent) => live && tracker.send(e);
+  const sink = { send, flush: tracker.flush };
   if (config.integrations) tracker.addAdapter(integrationsAdapter(window, config.integrations));
-  const rt = start(window, config, { forced, sink: tracker.send });
-  if (rt) {
-    const goal = installGoals(window, rt);
-    const storage = (() => {
-      try {
-        return window.localStorage;
-      } catch {
-        return undefined;
-      }
-    })();
-    const data = installData(window, rt, tracker.send, storage);
-    const track = (name: string, value?: number, props?: Props) => {
-      goal(name, value);
-      data.track(name, value, props);
-    };
-    // Insights (mapa de calor, frustração, formulários, gravação): só amostrados e nunca em QA.
-    const hm = config.heatmap;
-    if (hm?.sampleRate && !forced && sampled(rt.visitor.id, hm.sampleRate))
-      loadBundle(
-        window,
-        sibling('insights.js'),
-        '__ABT_INSIGHTS__',
-        insightsBoot(window, rt, tracker, config),
-      );
-    // Engajamento: só quando há pop-up/pesquisa publicado.
-    if ((config.popups?.length || config.surveys?.length || config.recos?.length) && !forced)
-      loadBundle(
-        window,
-        sibling('engage.js'),
-        '__ABT_ENGAGE__',
-        engageBoot(window, rt, tracker, sibling('./')),
-      );
-    const run = (c: Command) => {
-      if (c[0] === 'track') track(c[1], c[2], c[3]);
-      else if (c[0] === 'event') track(c[1], typeof c[2]?.value === 'number' ? c[2].value : undefined, c[2]);
-      else if (c[0] === 'identify') data.identify(c[1], c[2]);
-      else if (c[0] === 'set') data.identify(null, c[1]);
-      else if (c[0] === 'product') {
-        data.viewed(String(c[1].id));
-        track('product_view', undefined, { ...c[1], id: String(c[1].id) });
-      } else if (c[0] === 'cart') track('add_to_cart', undefined, { id: String(c[1]) });
-      else if (c[0] === 'purchase') track('purchase', c[2], { ids: c[1].map(String).join(',') });
-      else if (c[0] === 'adapter') tracker.addAdapter(c[1]);
-    };
-    // Processa o que o site enfileirou antes do snippet e troca a fila por um executor imediato.
-    const pending = Array.isArray(window.abq) ? window.abq : [];
-    window.abq = { push: run };
-    pending.forEach(run);
-    window.abt = {
-      visitorId: rt.visitor.id,
-      sessionId: rt.visitor.sessionId,
-      assignments: () => Object.fromEntries(rt.assigned().map((a) => [a.experiment.key, a.variation.key])),
-      flush: tracker.flush,
-    };
-    if (forced)
-      showBadge(
-        document,
-        [...rt.active.values()].map((a) => ({ experiment: a.experiment.name, variation: a.variation.name })),
-      );
-  }
+  const rt = start(window, config, { forced, sink: send });
+  if (!rt) return;
+  const goal = installGoals(window, rt);
+  const storage = local(window);
+  const data = installData(window, rt, send, storage);
+  const track = (name: string, value?: number, props?: Props) => {
+    goal(name, value);
+    data.track(name, value, props);
+  };
+  // Insights (mapa de calor, frustração, formulários, gravação): só amostrados e nunca em QA.
+  const hm = config.heatmap;
+  const insights = insightsBoot(window, rt, sink, config);
+  if (hm?.sampleRate && !forced && sampled(rt.visitor.id, hm.sampleRate))
+    loadBundle(window, sibling('insights.js'), '__ABT_INSIGHTS__', insights);
+  // Engajamento: só quando há pop-up/pesquisa publicado.
+  if ((config.popups?.length || config.surveys?.length || config.recos?.length) && !forced)
+    loadBundle(window, sibling('engage.js'), '__ABT_ENGAGE__', engageBoot(window, rt, sink, sibling('./')));
+  window.abt = {
+    visitorId: rt.visitor.id,
+    sessionId: rt.visitor.sessionId,
+    assignments: () => Object.fromEntries(rt.assigned().map((a) => [a.experiment.key, a.variation.key])),
+    flush: tracker.flush,
+  };
+  if (forced)
+    showBadge(
+      document,
+      [...rt.active.values()].map((a) => ({ experiment: a.experiment.name, variation: a.variation.name })),
+    );
+  return {
+    run(c) {
+      const k = c as Command;
+      if (k[0] === 'track') track(k[1], k[2], k[3]);
+      else if (k[0] === 'event') track(k[1], typeof k[2]?.value === 'number' ? k[2].value : undefined, k[2]);
+      else if (k[0] === 'identify') data.identify(k[1], k[2]);
+      else if (k[0] === 'set') data.identify(null, k[1]);
+      else if (k[0] === 'product') {
+        data.viewed(String(k[1].id));
+        track('product_view', undefined, { ...k[1], id: String(k[1].id) });
+      } else if (k[0] === 'cart') track('add_to_cart', undefined, { id: String(k[1]) });
+      else if (k[0] === 'purchase') track('purchase', k[2], { ids: k[1].map(String).join(',') });
+      else if (k[0] === 'adapter') tracker.addAdapter(k[1]);
+    },
+    stop() {
+      tracker.flush();
+      live = false;
+      insights.stopped = true;
+      rt.stop();
+      delete window.abt;
+    },
+  };
 }

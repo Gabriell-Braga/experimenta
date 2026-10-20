@@ -19,6 +19,7 @@ import { Login } from './pages/Login';
 import { OptimizePage } from './pages/Optimize';
 import { PopupsPage } from './pages/Popups';
 import { PredictivePage } from './pages/Predictive';
+import { PrivacyPage } from './pages/Privacy';
 import { ProfilePage, ProfilesPage } from './pages/Profiles';
 import { SurveyReportPage, SurveysPage } from './pages/Surveys';
 import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
@@ -41,6 +42,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   home: () => <DashboardPage />,
   install: (user) => <InstallPage user={user} />,
   integrations: (user) => <IntegrationsPage user={user} />,
+  privacy: (user) => <PrivacyPage user={user} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
   optimize: (user) => <OptimizePage user={user} />,

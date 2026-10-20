@@ -1,9 +1,9 @@
 # Progresso
-**Status:** concluído (fases 0–15)
-**Fase atual:** concluído
-**Tarefa atual:** —
-**Última atualização:** 2026-10-19 19:39
-**Próximo passo:** revisão humana; ver "Resumo final das fases 9–15" no fim do histórico.
+**Status:** em andamento (fase 16)
+**Fase atual:** 16
+**Tarefa atual:** 16.2 Multi-conta/workspaces
+**Última atualização:** 2026-10-20 03:03
+**Próximo passo:** 16.2 (multi-conta/workspaces).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -545,3 +545,9 @@
 - Causa: `GET /analytics/dashboard` gasta ~46 ms de CPU (lê e agrega os eventos do período atual + anterior); o plano grátis do Workers permite 10 ms. A Cloudflare encerra o Worker (`exceededCpu`, visto com `wrangler tail`) e responde 503 sem cabeçalho CORS, então o navegador só vê "Failed to fetch". Outras telas que leem muitos eventos podem cair no mesmo limite conforme o tráfego cresce.
 - Feito: o editor troca o "Failed to fetch" cru por uma mensagem clara (apps/editor/src/api.ts). Repositório publicado em https://github.com/Gabriell-Braga/experimenta (remote `origin`).
 - Correção de verdade (decisão humana, ver "Bloqueios / perguntas"): plano Workers Paid (US$ 5/mês, 30 s de CPU por requisição) ou agregados diários pré-calculados no D1 para os relatórios.
+
+### 2026-10-20 03:03 — Tarefa 16.1 concluída (consentimento LGPD/GDPR)
+- O que foi feito: modo "esperar consentimento" por conta (Configurar → Privacidade): até o aceite o snippet não grava cookies nem storage, não aplica testes, não carrega insights.js/engage.js e não envia eventos; comandos da fila esperam. `abq.push(['consent', true|false])` aceita/recusa a qualquer momento; recusar desliga o que estiver rodando (testes, coleta, gravação), apaga cookies e storage `_abt*` e vale nas próximas páginas (cookie `_abt_c`). Link `?abt_optout=1`. Leitura automática de OneTrust, Cookiebot e Google Consent Mode v2 com categoria configurável. Entidade `consent` na API vai para a config publicada só quando exigido.
+- Arquivos principais: packages/snippet/src/consent.ts, packages/snippet/src/main.ts, packages/shared/src/entities.ts (ConsentSchema), packages/shared/src/config.ts, apps/api/src/publish.ts, apps/editor/src/pages/Privacy.tsx, e2e/tests/consent.spec.ts
+- Como testar manualmente: Configurar → Privacidade → ligar "Esperar consentimento" → Salvar e publicar; abrir o site demo (nada muda, sem cookies `_abt`), no console `abq.push(['consent', true])` (teste aplicado), depois `abq.push(['consent', false])` (cookies somem, só `_abt_c=0`). `pnpm --filter @abtest/e2e e2e tests/consent.spec.ts`.
+- Observações: snippet 10.182 B gzip (limite 10.240 B): sobra pouco; ver D-069 sobre o alvo es2020. Com espera de consentimento, a primeira página só recebe o teste depois do aceite (sem anti-flicker antes disso).

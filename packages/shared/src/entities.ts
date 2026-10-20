@@ -268,6 +268,25 @@ export const IntegrationsSchema = z.object({
 });
 export type Integrations = z.infer<typeof IntegrationsSchema>;
 
+/** Banners de consentimento (CMP) que o snippet sabe ler sozinho. */
+export const CONSENT_CMPS = ['onetrust', 'cookiebot', 'gcm'] as const;
+
+/** Consentimento LGPD/GDPR (publicado na config quando `required`). */
+export const ConsentSchema = z.object({
+  /** Esperar consentimento: nada de cookies, testes nem coleta até `abq.push(['consent', true])` ou o CMP. */
+  required: z.boolean().default(false),
+  /** CMP lido automaticamente (`none` = o site chama `abq.push(['consent', …])`). */
+  cmp: z.enum(['none', ...CONSENT_CMPS]).default('none'),
+  /** Categoria do CMP (vazio = padrão: OneTrust `C0002`, Cookiebot `statistics`, Google `analytics_storage`). */
+  category: z
+    .string()
+    .trim()
+    .max(60)
+    .regex(/^[\w-]*$/, 'categoria: só letras, números, _ e -')
+    .default(''),
+});
+export type Consent = z.infer<typeof ConsentSchema>;
+
 /** Analytics preditivo: qual evento prever e em quantos dias. O modelo treinado fica em `propensity-model`. */
 export const PropensityConfigSchema = z.object({
   goal: z.string().min(1).max(100),
@@ -286,6 +305,7 @@ export const ENTITY_SCHEMAS = {
   flag: FlagSchema,
   webhook: WebhookSchema,
   integrations: IntegrationsSchema,
+  consent: ConsentSchema,
   propensity: PropensityConfigSchema,
 } as const satisfies Record<string, z.ZodTypeAny>;
 export type EntityKind = keyof typeof ENTITY_SCHEMAS;

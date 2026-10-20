@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { API_URL, type Me } from '../api';
 import { Button, Card, PageHeader, useCopy } from '../ui';
 
-function CodeBlock({ code, testId }: { code: string; testId?: string }) {
+export function CodeBlock({ code, testId }: { code: string; testId?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = useCopy();
   return (
@@ -46,6 +46,10 @@ export const COMMANDS: [string, string][] = [
   ],
   ["abq.push(['set', { segmento: 'b2b' }])", 'Só atributos do visitante (segmentação e perfis).'],
   ["abq.push(['adapter', (eventos) => { … }])", 'Recebe os lotes de eventos (envie para outro analytics).'],
+  [
+    "abq.push(['consent', true | false])",
+    'LGPD/GDPR: aceita ou recusa (recusar apaga os cookies do snippet). Ver Configurar → Privacidade.',
+  ],
 ];
 
 export function InstallPage({ user }: { user: Me }) {

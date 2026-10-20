@@ -25,12 +25,15 @@ function safe<T>(fn: () => T): T | undefined {
   }
 }
 
+/** localStorage, ou undefined se bloqueado (modo privado antigo, iframe sandbox). */
+export const local = (win: Window) => safe(() => win.localStorage);
+
 export function readCookie(doc: Document, name: string): string | undefined {
   const m = doc.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return m ? decodeURIComponent(m[1]!) : undefined;
 }
 
-function writeCookie(doc: Document, name: string, value: string, maxAge = ONE_YEAR): void {
+export function writeCookie(doc: Document, name: string, value: string, maxAge = ONE_YEAR): void {
   const secure = doc.location?.protocol === 'https:' ? '; Secure' : '';
   doc.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax${secure}`;
 }

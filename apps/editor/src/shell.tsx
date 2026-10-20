@@ -18,6 +18,7 @@ import {
   Server,
   ShoppingBag,
   Settings2,
+  ShieldCheck,
   ToggleRight,
   UserRoundCog,
   Users,
@@ -92,6 +93,7 @@ export const NAV: NavGroup[] = [
     items: [
       { view: 'install', label: 'Instalação', icon: Code2 },
       { view: 'integrations', label: 'Integrações', icon: Plug },
+      { view: 'privacy', label: 'Privacidade', icon: ShieldCheck },
     ],
   },
 ];

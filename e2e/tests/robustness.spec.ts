@@ -185,6 +185,7 @@ const VIEWS = [
   'segments',
   'install',
   'integrations',
+  'privacy',
 ];
 
 test('a lista de telas cobre o menu inteiro', async ({ page }) => {

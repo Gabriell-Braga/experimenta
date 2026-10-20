@@ -57,7 +57,7 @@ export function startRecorder(win: Window, boot: InsightsBoot, o: RecorderOption
     const events = buf;
     buf = [];
     bytes = 0;
-    send(events, keepalive);
+    if (!boot.stopped) send(events, keepalive);
   };
 
   const rec =

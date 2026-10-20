@@ -110,3 +110,35 @@ test('GA4/GTM ligados vão para a config publicada; desligados ficam de fora', a
   expect((await post('/publish', {})).status).toBe(200);
   expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).integrations).toEqual({ ga4: true, gtm: false });
 });
+
+test('consentimento: só vai para a config quando exigido; categoria inválida é recusada', async () => {
+  const consent = await t.get<{ id: string }[]>('/entities/consent');
+  expect(consent).toEqual([]);
+  expect(
+    (await post('/entities/consent', { name: 'c', data: { required: true, category: 'a b"<' } })).status,
+  ).toBe(400);
+  const r = await post('/entities/consent', { name: 'c', data: { required: false, cmp: 'onetrust' } });
+  expect(r.status).toBeLessThan(300);
+  const { id } = (await r.json()) as { id: string };
+  expect((await post('/publish', {})).status).toBe(200);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).consent).toBeUndefined();
+
+  await t.req(`/entities/consent/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name: 'c', data: { required: true, cmp: 'cookiebot', category: 'marketing' } }),
+    as: 'owner',
+  });
+  expect((await post('/publish', {})).status).toBe(200);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).consent).toEqual({
+    cmp: 'cookiebot',
+    category: 'marketing',
+  });
+  // Sem CMP: o site chama abq.push(['consent', true]).
+  await t.req(`/entities/consent/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name: 'c', data: { required: true } }),
+    as: 'owner',
+  });
+  expect((await post('/publish', {})).status).toBe(200);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).consent).toEqual({});
+});
