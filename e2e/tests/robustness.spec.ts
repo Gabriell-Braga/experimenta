@@ -119,7 +119,6 @@ const open = (page: Page, view: string) => {
   return page.goto(`${EDITOR}?view=${screen}${type ? `&type=${type}` : ''}`);
 };
 
-
 test('login: campos vazios, e-mail inválido, senha errada e clique duplo', async ({ page }) => {
   const p = watch(page);
   await page.goto(EDITOR);
