@@ -27,7 +27,7 @@ export function ServerExperimentPage({ id }: { id: string }) {
             r.experiment.variations.map((v) => [v.id, JSON.stringify(v.variables ?? {}, null, 2)]),
           ),
         );
-        document.title = `${r.experiment.name} | Experimenta`;
+        document.title = `${r.experiment.name} · Experimenta`;
       },
       (e: Error) => toast('error', e.message),
     );

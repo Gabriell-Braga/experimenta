@@ -47,7 +47,7 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
   const visitorId = params.get('visitor') ?? undefined;
   const [rows, setRows] = useState<RecordingRow[] | null>(null);
   useEffect(() => {
-    document.title = 'Gravações | Experimenta';
+    document.title = 'Gravações · Experimenta';
   }, []);
   useEffect(() => {
     const t = setTimeout(
@@ -233,7 +233,7 @@ export function RecordingPlayer({ id }: { id: string }) {
   const [box, setBox] = useState({ w: 800, h: 500 });
 
   useEffect(() => {
-    document.title = 'Gravação | Experimenta';
+    document.title = 'Gravação · Experimenta';
     let alive = true;
     let r: import('@rrweb/replay').Replayer | null = null;
     Promise.all([getRecording(id), import('@rrweb/replay'), import('@rrweb/replay/dist/style.css')])

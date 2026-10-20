@@ -91,7 +91,7 @@ export function FormsPage() {
   const [sel, setSel] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>('avgTime');
   useEffect(() => {
-    document.title = 'Formulários | Experimenta';
+    document.title = 'Formulários · Experimenta';
   }, []);
   useEffect(() => {
     query<FormRow[]>('/analytics/forms', { days, device: device || undefined }).then(setRows, (e: Error) =>

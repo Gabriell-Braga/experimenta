@@ -40,7 +40,7 @@ export function PredictivePage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Analytics preditivo | Experimenta';
+    document.title = 'Analytics preditivo · Experimenta';
     void load();
     getOverview(90).then(
       (o) => setEvents(o.topEvents.map((e) => e.key)),

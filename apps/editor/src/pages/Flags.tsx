@@ -230,7 +230,7 @@ export function FlagsPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Feature flags | Experimenta';
+    document.title = 'Feature flags · Experimenta';
     void load();
   }, [load]);
   const patch = async (e: Entity<Flag>, p: Partial<Flag>) => {

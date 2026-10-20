@@ -380,7 +380,7 @@ export function ReportPage({ id, params }: { id: string; params: URLSearchParams
     );
   }, [id, days, device, toast]);
   useEffect(() => {
-    document.title = `Relatório: ${record?.experiment.name ?? ''} | Experimenta`;
+    document.title = `Relatório: ${record?.experiment.name ?? ''} · Experimenta`;
   }, [record]);
 
   const names = useMemo(() => report?.variations.map((v) => v.name) ?? [], [report]);

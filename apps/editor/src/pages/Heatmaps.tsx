@@ -27,7 +27,7 @@ export function HeatmapsPage() {
   const [days, setDays] = useState<Period>('30');
   const [rows, setRows] = useState<PageRow[] | null>(null);
   useEffect(() => {
-    document.title = 'Mapas de calor | Experimenta';
+    document.title = 'Mapas de calor · Experimenta';
   }, []);
   useEffect(() => {
     query<PageRow[]>('/analytics/pages', { days }).then(setRows, (e: Error) => toast('error', e.message));
@@ -137,7 +137,7 @@ export function HeatmapViewer({ url }: { url: string }) {
   const siteOrigin = new URL(url).origin;
 
   useEffect(() => {
-    document.title = 'Mapa de calor | Experimenta';
+    document.title = 'Mapa de calor · Experimenta';
     createEditSession().then(setToken, (e: Error) => toast('error', e.message));
   }, [toast]);
   useEffect(() => {

@@ -305,7 +305,7 @@ export function EditorView({ record, user }: Props) {
   })();
 
   useEffect(() => {
-    document.title = `${state.dirty ? '● ' : ''}${state.experiment.name} | Experimenta`;
+    document.title = `${state.dirty ? '● ' : ''}${state.experiment.name} · Experimenta`;
   }, [state.dirty, state.experiment.name]);
 
   useEffect(() => {

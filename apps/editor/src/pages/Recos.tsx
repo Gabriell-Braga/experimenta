@@ -230,7 +230,7 @@ export function RecosPage({ user }: { user: Me }) {
     );
   }, [toast]);
   useEffect(() => {
-    document.title = 'Recomendações | Experimenta';
+    document.title = 'Recomendações · Experimenta';
     load();
   }, [load]);
   const toggle = async (e: Entity<RecoWidget>) => {

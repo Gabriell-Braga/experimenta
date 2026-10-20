@@ -389,7 +389,7 @@ export function SurveysPage({ user }: { user: Me }) {
     );
   }, [toast]);
   useEffect(() => {
-    document.title = 'Pesquisas | Experimenta';
+    document.title = 'Pesquisas · Experimenta';
     load();
   }, [load]);
   const toggle = async (e: Entity<Survey>) => {

@@ -109,7 +109,7 @@ export function DashboardPage() {
   const [days, setDays] = useState<Period>('30');
   const [d, setD] = useState<Dashboard | null>(null);
   useEffect(() => {
-    document.title = 'Painel | Experimenta';
+    document.title = 'Painel · Experimenta';
   }, []);
   useEffect(() => {
     getDashboard(Number(days)).then(setD, (e: Error) => toast('error', e.message));

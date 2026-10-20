@@ -265,7 +265,7 @@ function ApiKeys() {
 
 export function IntegrationsPage({ user }: { user: Me }) {
   useEffect(() => {
-    document.title = 'Integrações | Experimenta';
+    document.title = 'Integrações · Experimenta';
   }, []);
   const canEdit = user.role !== 'viewer';
   return (

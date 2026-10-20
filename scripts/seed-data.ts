@@ -462,7 +462,7 @@ for (let i = 0; i < VISITORS; i++) {
       // ----- Loja completa (vitrine, produtos, compra) -----
       const lv = `seed_lj${armLoja}`;
       const lk = armLoja ? 'beneficio' : 'controle';
-      pv(`/loja/${q}`, 'Passo Firme | Tênis e acessórios para correr', firstRef);
+      pv(`/loja/${q}`, 'Passo Firme · Tênis e acessórios para correr', firstRef);
       expose(EXP_LOJA, 'loja-titulo-beneficio', lv, lk, '/loja/');
       if (s === 0)
         events.push({ ...base('/loja/'), type: 'engage', campaignId: BAR, kind: 'popup', action: 'view' });
@@ -508,7 +508,7 @@ for (let i = 0; i < VISITORS; i++) {
     // ----- Produto + checkout -----
     const fv = `seed_fr${armFrete}`;
     const fk = armFrete ? 'selo-frete' : 'controle';
-    pv(`/produto.html${entry >= 0.88 ? q : ''}`, 'Produto | Loja Demo', entry < 0.38 ? `${SITE}/` : firstRef);
+    pv(`/produto.html${entry >= 0.88 ? q : ''}`, 'Produto · Loja Demo', entry < 0.38 ? `${SITE}/` : firstRef);
     expose(EXP_FRETE, 'produto-frete-gratis', fv, fk, '/produto.html');
     scroll('/produto.html', 40 + rand() ** 0.6 * 60, { [EXP_FRETE]: fv });
     const pBuy = (mobile ? 0.21 : 0.31) * (armFrete ? 1.02 : 1);
@@ -575,7 +575,7 @@ for (let i = 0; i < VISITORS; i++) {
       convert(EXP_HOME, 'home-cta-demo', hv, hk, '/produto.html', 'seed_g_buy', 'compra', value);
       convert(EXP_HOME, 'home-cta-demo', hv, hk, '/obrigado.html', 'seed_g_thanks', 'obrigado');
     }
-    pv('/obrigado.html', 'Obrigado | Loja Demo', `${SITE}/produto.html`);
+    pv('/obrigado.html', 'Obrigado · Loja Demo', `${SITE}/produto.html`);
     bought = true;
     // NPS pós-compra: a maioria vê, boa parte responde.
     if (chance(0.85)) {

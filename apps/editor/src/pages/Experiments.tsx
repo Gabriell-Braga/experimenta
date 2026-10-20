@@ -394,7 +394,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
   }, [toast]);
   useEffect(load, [load]);
   useEffect(() => {
-    document.title = 'Experimentos | Experimenta';
+    document.title = 'Experimentos · Experimenta';
   }, []);
 
   const counts = useMemo(() => {

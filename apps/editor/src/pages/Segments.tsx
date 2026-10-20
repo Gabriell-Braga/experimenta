@@ -285,7 +285,7 @@ export function SegmentsPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Segmentos | Experimenta';
+    document.title = 'Segmentos · Experimenta';
     void load();
   }, [load]);
   useEffect(() => {

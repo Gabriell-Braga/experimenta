@@ -67,7 +67,7 @@ export function ProfilesPage() {
   const [kind, setKind] = useState<'all' | 'user' | 'anon'>('all');
   const [data, setData] = useState<ProfilesResponse | null>(null);
   useEffect(() => {
-    document.title = 'Perfis | Experimenta';
+    document.title = 'Perfis · Experimenta';
   }, []);
   useEffect(() => {
     const t = setTimeout(

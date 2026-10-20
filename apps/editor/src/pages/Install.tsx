@@ -50,7 +50,7 @@ export const COMMANDS: [string, string][] = [
 
 export function InstallPage({ user }: { user: Me }) {
   useEffect(() => {
-    document.title = 'Instalação | Experimenta';
+    document.title = 'Instalação · Experimenta';
   }, []);
   const tag = `<script src="${API_URL}/cdn/${user.accountId}.js"></script>`;
   return (

@@ -41,7 +41,7 @@ export function JourneysPage() {
   const [focus, setFocus] = useState<string | null>(null);
   const [data, setData] = useState<Journeys | null>(null);
   useEffect(() => {
-    document.title = 'Jornadas | Experimenta';
+    document.title = 'Jornadas · Experimenta';
   }, []);
   useEffect(() => {
     query<Journeys>('/analytics/journeys', {

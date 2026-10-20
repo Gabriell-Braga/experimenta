@@ -124,7 +124,7 @@ export function EventsPage() {
   const [days, setDays] = useState<Period>('30');
   const [data, setData] = useState<Overview | null>(null);
   useEffect(() => {
-    document.title = 'Eventos | Experimenta';
+    document.title = 'Eventos · Experimenta';
   }, []);
   useEffect(() => {
     getOverview(Number(days)).then(setData, (e: Error) => toast('error', e.message));

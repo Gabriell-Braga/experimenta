@@ -113,7 +113,7 @@ export function StatusBadge({ status }: { status: string }) {
   const [label, cls] = STATUS[status] ?? [status, STATUS.draft![1]];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 font-mono text-[10.5px] font-medium tracking-wide uppercase ring-1 ring-inset ${cls}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 font-mono text-[10.5px] whitespace-nowrap font-medium tracking-wide uppercase ring-1 ring-inset ${cls}`}
     >
       {status === 'running' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-500" />}
       {label}

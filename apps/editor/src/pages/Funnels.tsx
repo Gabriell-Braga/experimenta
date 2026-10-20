@@ -238,7 +238,7 @@ export function FunnelsPage({ user }: { user: Me }) {
     [toast],
   );
   useEffect(() => {
-    document.title = 'Funis | Experimenta';
+    document.title = 'Funis · Experimenta';
     void load();
   }, [load]);
   useEffect(() => {
