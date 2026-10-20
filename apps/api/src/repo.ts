@@ -7,7 +7,7 @@ import {
   type PublishedConfig,
   type TrackingEvent,
 } from '@abtest/shared';
-import { and, asc, desc, eq, gte, inArray, lt, lte, max, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, gte, inArray, lt, lte, max, sql, type SQL } from 'drizzle-orm';
 import type { Db } from './db';
 import {
   accounts,
@@ -15,6 +15,7 @@ import {
   experiments,
   experimentVersions,
   goals,
+  memberships,
   projects,
   entities,
   publications,
@@ -29,7 +30,20 @@ import { hashPassword, newId } from './crypto';
 export { hashPassword, newId, verifyPassword } from './crypto';
 
 export type Role = 'owner' | 'editor' | 'viewer';
-export type User = typeof users.$inferSelect;
+/** Pessoa (login). `accountId` = conta padrão ao entrar. */
+export type Person = typeof users.$inferSelect;
+/** Pessoa dentro de uma conta: `accountId` = conta ativa; papel e permissão vêm da membership dessa conta. */
+export type User = Person & { role: Role; canPublishJs: boolean };
+/** Conta de que a pessoa é membro (troca de conta no menu do usuário). */
+export interface AccountRef {
+  id: string;
+  name: string;
+  role: Role;
+}
+export interface MemberAccess {
+  role: Role;
+  canPublishJs: boolean;
+}
 
 export interface ExperimentRecord {
   experiment: Experiment;
@@ -219,37 +233,108 @@ export function createRepo(db: Db) {
       return { id, name };
     },
 
+    /** Cria a pessoa já como membro de `accountId` (conta padrão dela). E-mail é único no sistema. */
     async createUser(
       accountId: string,
       u: { email: string; name: string; password: string; role?: Role; canPublishJs?: boolean },
     ): Promise<User> {
-      const [row] = await db
-        .insert(users)
-        .values({
-          id: newId('usr'),
-          accountId,
-          email: u.email.toLowerCase(),
-          name: u.name,
-          role: u.role ?? 'editor',
-          canPublishJs: u.canPublishJs ?? false,
-          passwordHash: await hashPassword(u.password),
-        })
-        .returning();
-      return row!;
+      const access = { role: u.role ?? 'editor', canPublishJs: u.canPublishJs ?? false };
+      const person = await db.transaction(async (tx) => {
+        const [row] = await tx
+          .insert(users)
+          .values({
+            id: newId('usr'),
+            accountId,
+            email: u.email.toLowerCase(),
+            name: u.name,
+            passwordHash: await hashPassword(u.password),
+          })
+          .returning();
+        await tx.insert(memberships).values({ accountId, userId: row!.id, ...access });
+        return row!;
+      });
+      return { ...person, ...access };
     },
 
     /** Login é o único acesso sem conta conhecida: o e-mail é único no sistema. */
-    async findUserByEmail(email: string): Promise<User | undefined> {
+    async findUserByEmail(email: string): Promise<Person | undefined> {
       const [row] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
       return row;
     },
 
+    /** A pessoa como membro da conta (undefined se não for membro). */
     async getUser(accountId: string, id: string): Promise<User | undefined> {
       const [row] = await db
-        .select()
-        .from(users)
-        .where(and(eq(users.accountId, accountId), eq(users.id, id)));
-      return row;
+        .select({ ...getTableColumns(users), role: memberships.role, canPublishJs: memberships.canPublishJs })
+        .from(memberships)
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(and(eq(memberships.accountId, accountId), eq(memberships.userId, id)));
+      return row && { ...row, accountId };
+    },
+
+    /** Contas da pessoa (por ordem de entrada). Filtra pela pessoa, não por conta: é a lista dela. */
+    async listAccountsOf(userId: string): Promise<AccountRef[]> {
+      return db
+        .select({ id: accounts.id, name: accounts.name, role: memberships.role })
+        .from(memberships)
+        .innerJoin(accounts, eq(accounts.id, memberships.accountId))
+        .where(eq(memberships.userId, userId))
+        .orderBy(asc(memberships.createdAt), asc(accounts.name));
+    },
+
+    async listMembers(accountId: string): Promise<User[]> {
+      const rows = await db
+        .select({ ...getTableColumns(users), role: memberships.role, canPublishJs: memberships.canPublishJs })
+        .from(memberships)
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(eq(memberships.accountId, accountId))
+        .orderBy(asc(memberships.createdAt));
+      return rows.map((r) => ({ ...r, accountId }));
+    },
+
+    /** Põe a pessoa na conta com o papel dado (ou troca o papel, se já for membro). */
+    async addMember(accountId: string, userId: string, access: MemberAccess): Promise<void> {
+      await db
+        .insert(memberships)
+        .values({ accountId, userId, ...access })
+        .onConflictDoUpdate({ target: [memberships.accountId, memberships.userId], set: access });
+    },
+
+    /** Muda o papel de quem já é membro. false = não é membro desta conta. */
+    async updateMember(accountId: string, userId: string, access: MemberAccess): Promise<boolean> {
+      const rows = await db
+        .update(memberships)
+        .set(access)
+        .where(and(eq(memberships.accountId, accountId), eq(memberships.userId, userId)))
+        .returning({ id: memberships.userId });
+      return rows.length > 0;
+    },
+
+    /**
+     * Tira a pessoa da conta. Sem nenhuma outra conta, a pessoa é apagada (não sobra login que não entra em nada);
+     * se era a conta padrão dela, a padrão passa a ser outra conta de que é membro.
+     */
+    async removeMember(accountId: string, userId: string): Promise<boolean> {
+      return db.transaction(async (tx) => {
+        const del = await tx
+          .delete(memberships)
+          .where(and(eq(memberships.accountId, accountId), eq(memberships.userId, userId)))
+          .returning({ id: memberships.userId });
+        if (!del.length) return false;
+        const [rest] = await tx
+          .select({ accountId: memberships.accountId })
+          .from(memberships)
+          .where(eq(memberships.userId, userId))
+          .orderBy(asc(memberships.createdAt))
+          .limit(1);
+        if (!rest) await tx.delete(users).where(eq(users.id, userId));
+        else
+          await tx
+            .update(users)
+            .set({ accountId: rest.accountId })
+            .where(and(eq(users.id, userId), eq(users.accountId, accountId)));
+        return true;
+      });
     },
 
     async createProject(accountId: string, p: { name: string; siteUrl: string }) {
@@ -460,6 +545,11 @@ export function createRepo(db: Db) {
     async accountExists(id: string): Promise<boolean> {
       const [row] = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, id));
       return !!row;
+    },
+
+    async getAccountName(id: string): Promise<string | undefined> {
+      const [row] = await db.select({ name: accounts.name }).from(accounts).where(eq(accounts.id, id));
+      return row?.name;
     },
 
     async getAccountSettings(accountId: string): Promise<AccountSettings> {

@@ -1,9 +1,9 @@
 # Progresso
 **Status:** em andamento (fase 16)
 **Fase atual:** 16
-**Tarefa atual:** 16.2 Multi-conta/workspaces
-**Última atualização:** 2026-10-20 03:03
-**Próximo passo:** 16.2 (multi-conta/workspaces).
+**Tarefa atual:** 16.3 Histórico de atividades (auditoria)
+**Última atualização:** 2026-10-20 03:18
+**Próximo passo:** 16.3 (histórico de atividades).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -551,3 +551,10 @@
 - Arquivos principais: packages/snippet/src/consent.ts, packages/snippet/src/main.ts, packages/shared/src/entities.ts (ConsentSchema), packages/shared/src/config.ts, apps/api/src/publish.ts, apps/editor/src/pages/Privacy.tsx, e2e/tests/consent.spec.ts
 - Como testar manualmente: Configurar → Privacidade → ligar "Esperar consentimento" → Salvar e publicar; abrir o site demo (nada muda, sem cookies `_abt`), no console `abq.push(['consent', true])` (teste aplicado), depois `abq.push(['consent', false])` (cookies somem, só `_abt_c=0`). `pnpm --filter @abtest/e2e e2e tests/consent.spec.ts`.
 - Observações: snippet 10.182 B gzip (limite 10.240 B): sobra pouco; ver D-069 sobre o alvo es2020. Com espera de consentimento, a primeira página só recebe o teste depois do aceite (sem anti-flicker antes disso).
+
+### 2026-10-20 03:18 — Tarefa 16.2 concluída (multi-conta, convites, conta nova)
+- O que foi feito: `users` passa a ser a pessoa (login) e o papel fica por conta em `memberships` (migração leva o papel de cada usuário existente). O JWT carrega a conta ativa; o middleware carrega a pessoa como membro dessa conta, então todas as rotas seguem iguais e filtrando por account_id. Menu do usuário lista as contas (troca recarrega a página) e cria conta nova (quem cria vira owner, com o primeiro projeto). Configurar → Equipe: membros (papel, "publica JS", remover, sair da conta; a conta nunca fica sem owner) e convites por link de uso único (7 dias), que o owner copia e manda. O link abre a tela de aceite: quem já tem login confirma a senha; e-mail novo cria nome e senha. Login volta para a última conta usada (ou a padrão).
+- Arquivos principais: apps/api/src/routes/team.ts, apps/api/src/repo.ts, apps/api/src/repo-d1.ts, apps/api/src/schema.ts, apps/api/drizzle/0007_optimal_mandroid.sql, apps/api/migrations-d1/0007_memberships.sql, apps/editor/src/pages/Team.tsx, apps/editor/src/pages/Invite.tsx, apps/editor/src/shell.tsx, e2e/tests/team.spec.ts
+- Como testar manualmente: entrar como demo@abtest.dev → Configurar → Equipe → convidar um e-mail → abrir o link em janela anônima, criar o acesso → menu do usuário → Nova conta → trocar entre as contas pelo menu. `pnpm --filter @abtest/api exec vitest run src/routes/team.test.ts`; `pnpm --filter @abtest/e2e e2e tests/team.spec.ts`.
+- Observações: sem serviço de e-mail, o convite não é enviado: o owner copia o link (D-070). Em produção, o próximo `pnpm deploy:cf` aplica a migração 0007 no D1. Sem cadastro público (só quem já tem login cria conta) e sem limite de contas por pessoa.
+

@@ -14,6 +14,7 @@ import { FunnelsPage } from './pages/Funnels';
 import { JourneysPage } from './pages/Journeys';
 import { HeatmapsPage, HeatmapViewer } from './pages/Heatmaps';
 import { InstallPage } from './pages/Install';
+import { AcceptInvite } from './pages/Invite';
 import { IntegrationsPage } from './pages/Integrations';
 import { Login } from './pages/Login';
 import { OptimizePage } from './pages/Optimize';
@@ -27,6 +28,7 @@ import { RecosPage } from './pages/Recos';
 import { SegmentsPage } from './pages/Segments';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
+import { TeamPage } from './pages/Team';
 import { AppShell } from './shell';
 import { Button, Spinner } from './ui';
 
@@ -43,6 +45,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   install: (user) => <InstallPage user={user} />,
   integrations: (user) => <IntegrationsPage user={user} />,
   privacy: (user) => <PrivacyPage user={user} />,
+  team: (user) => <TeamPage user={user} />,
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
   optimize: (user) => <OptimizePage user={user} />,
@@ -102,8 +105,11 @@ export function App() {
     );
   }, [user, exp]);
 
+  const invite = route.params.get('invite');
+  if (invite) return <AcceptInvite token={invite} />;
   if (user === undefined) return <FullPageSpinner label="Carregando…" />;
-  if (!user) return <Login onLogin={setUser} />;
+  // Depois do login, busca o /me (traz as contas da pessoa para o menu).
+  if (!user) return <Login onLogin={() => setUser(undefined)} />;
   if (!exp && route.view === 'heatmap' && route.params.get('url'))
     return <HeatmapViewer key={route.params.get('url')} url={route.params.get('url')!} />;
   if (!exp && route.view === 'recording' && route.params.get('id'))

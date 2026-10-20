@@ -18,8 +18,10 @@ import {
   NotFoundError,
   normalizePage,
   scrollReached,
+  type AccountRef,
   type Entity,
   type ExperimentRecord,
+  type Person,
   type Repo,
   type Role,
   type User,
@@ -42,16 +44,23 @@ type Row = Record<string, unknown>;
 const json = <T>(v: unknown): T => (typeof v === 'string' ? JSON.parse(v) : v) as T;
 const date = (v: unknown) => new Date(Number(v));
 
-const toUser = (r: Row): User => ({
+const toPerson = (r: Row): Person => ({
   id: r.id as string,
   accountId: r.account_id as string,
   email: r.email as string,
   name: r.name as string,
-  role: r.role as Role,
-  canPublishJs: !!r.can_publish_js,
   passwordHash: r.password_hash as string,
   createdAt: date(r.created_at),
 });
+/** Linha de users + role/can_publish_js da membership; `accountId` = a conta consultada. */
+const toUser = (r: Row, accountId: string): User => ({
+  ...toPerson(r),
+  accountId,
+  role: r.role as Role,
+  canPublishJs: !!r.can_publish_js,
+});
+const MEMBER_SQL =
+  'SELECT u.id, u.email, u.name, u.password_hash, u.created_at, m.role, m.can_publish_js FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.account_id = ?';
 const toProject = (r: Row) => ({
   id: r.id as string,
   accountId: r.account_id as string,
@@ -168,28 +177,94 @@ export function createD1Repo(d1: D1Like): Repo {
         passwordHash: await hashPassword(u.password),
         createdAt: new Date(),
       };
-      await q(
-        'INSERT INTO users (id, account_id, email, name, role, can_publish_js, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        user.id,
-        accountId,
-        user.email,
-        user.name,
-        user.role,
-        user.canPublishJs ? 1 : 0,
-        user.passwordHash,
-        user.createdAt.getTime(),
-      ).run();
+      const at = user.createdAt.getTime();
+      await d1.batch([
+        q(
+          'INSERT INTO users (id, account_id, email, name, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+          user.id,
+          accountId,
+          user.email,
+          user.name,
+          user.passwordHash,
+          at,
+        ),
+        q(
+          'INSERT INTO memberships (account_id, user_id, role, can_publish_js, created_at) VALUES (?, ?, ?, ?, ?)',
+          accountId,
+          user.id,
+          user.role,
+          user.canPublishJs ? 1 : 0,
+          at,
+        ),
+      ]);
       return user;
     },
 
     async findUserByEmail(email) {
       const r = await first('SELECT * FROM users WHERE email = ?', email.toLowerCase());
-      return r ? toUser(r) : undefined;
+      return r ? toPerson(r) : undefined;
     },
 
     async getUser(accountId, id) {
-      const r = await first('SELECT * FROM users WHERE account_id = ? AND id = ?', accountId, id);
-      return r ? toUser(r) : undefined;
+      const r = await first(`${MEMBER_SQL} AND m.user_id = ?`, accountId, id);
+      return r ? toUser(r, accountId) : undefined;
+    },
+
+    async listAccountsOf(userId) {
+      return all<AccountRef>(
+        'SELECT a.id, a.name, m.role FROM memberships m JOIN accounts a ON a.id = m.account_id WHERE m.user_id = ? ORDER BY m.created_at, a.name',
+        userId,
+      );
+    },
+
+    async listMembers(accountId) {
+      return (await all(`${MEMBER_SQL} ORDER BY m.created_at`, accountId)).map((r) => toUser(r, accountId));
+    },
+
+    async addMember(accountId, userId, a) {
+      await q(
+        'INSERT INTO memberships (account_id, user_id, role, can_publish_js, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (account_id, user_id) DO UPDATE SET role = excluded.role, can_publish_js = excluded.can_publish_js',
+        accountId,
+        userId,
+        a.role,
+        a.canPublishJs ? 1 : 0,
+        Date.now(),
+      ).run();
+    },
+
+    async updateMember(accountId, userId, a) {
+      const r = await first(
+        'UPDATE memberships SET role = ?, can_publish_js = ? WHERE account_id = ? AND user_id = ? RETURNING user_id',
+        a.role,
+        a.canPublishJs ? 1 : 0,
+        accountId,
+        userId,
+      );
+      return !!r;
+    },
+
+    async removeMember(accountId, userId) {
+      const r = await first(
+        'DELETE FROM memberships WHERE account_id = ? AND user_id = ? RETURNING user_id',
+        accountId,
+        userId,
+      );
+      if (!r) return false;
+      // Sem outra conta: apaga a pessoa; se era a conta padrão, a padrão vira a conta mais antiga que sobrou.
+      await d1.batch([
+        q(
+          'DELETE FROM users WHERE id = ? AND NOT EXISTS (SELECT 1 FROM memberships WHERE user_id = ?)',
+          userId,
+          userId,
+        ),
+        q(
+          'UPDATE users SET account_id = (SELECT account_id FROM memberships WHERE user_id = ? ORDER BY created_at LIMIT 1) WHERE id = ? AND account_id = ?',
+          userId,
+          userId,
+          accountId,
+        ),
+      ]);
+      return true;
     },
 
     async createProject(accountId, p) {
@@ -391,6 +466,10 @@ export function createD1Repo(d1: D1Like): Repo {
 
     async accountExists(id) {
       return !!(await first('SELECT id FROM accounts WHERE id = ?', id));
+    },
+
+    async getAccountName(id) {
+      return (await first<{ name: string }>('SELECT name FROM accounts WHERE id = ?', id))?.name;
     },
 
     async getAccountSettings(accountId) {

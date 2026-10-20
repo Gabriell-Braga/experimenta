@@ -29,9 +29,19 @@ import {
   LayoutDashboard,
   BrainCircuit,
   Sparkles,
+  Check,
+  Plus,
+  UserPlus,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { getAccountSettings, logout, saveAccountSettings, type Me } from './api';
+import {
+  createAccount,
+  getAccountSettings,
+  logout,
+  saveAccountSettings,
+  switchAccount,
+  type Me,
+} from './api';
 import { navigate } from './nav';
 import { Button, inputCls, Logo, Modal, useToast } from './ui';
 
@@ -94,6 +104,7 @@ export const NAV: NavGroup[] = [
       { view: 'install', label: 'Instalação', icon: Code2 },
       { view: 'integrations', label: 'Integrações', icon: Plug },
       { view: 'privacy', label: 'Privacidade', icon: ShieldCheck },
+      { view: 'team', label: 'Equipe', icon: UserPlus },
     ],
   },
 ];
@@ -165,9 +176,81 @@ export function AccountSettingsModal({ open, onClose }: { open: boolean; onClose
   );
 }
 
+/** Nova conta (base do SaaS): quem cria vira owner e já entra nela. */
+function NewAccountModal({ open, onClose }: { open: boolean; onClose(): void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nova conta"
+      testId="new-account-modal"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="new-account-form" variant="primary" loading={busy}>
+            Criar conta
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="new-account-form"
+        className="space-y-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (busy) return;
+          const f = new FormData(e.currentTarget);
+          setBusy(true);
+          try {
+            await createAccount(String(f.get('name')).trim(), new URL(String(f.get('site'))).href);
+            location.href = location.pathname;
+          } catch (err) {
+            toast('error', (err as Error).message);
+            setBusy(false);
+          }
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-gray-700">Nome da conta</span>
+          <input name="name" required maxLength={200} placeholder="Ex.: Loja da Ana" className={inputCls} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-gray-700">Endereço do site</span>
+          <input
+            name="site"
+            type="url"
+            required
+            placeholder="https://www.exemplo.com/"
+            className={inputCls}
+          />
+          <span className="text-xs text-gray-500">
+            Conta separada: testes, dados, equipe e snippet próprios. Você entra como owner.
+          </span>
+        </label>
+      </form>
+    </Modal>
+  );
+}
+
 function UserMenu({ user }: { user: Me }) {
+  const toast = useToast();
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const accounts = user.accounts ?? [];
+  const current = accounts.find((a) => a.id === user.accountId);
+  const switchTo = async (id: string) => {
+    try {
+      await switchAccount(id);
+      location.href = location.pathname; // recarrega: nenhuma tela fica com dado da conta anterior
+    } catch (err) {
+      toast('error', (err as Error).message);
+    }
+  };
   const initials = user.name
     .split(' ')
     .map((p) => p[0])
@@ -185,6 +268,38 @@ function UserMenu({ user }: { user: Me }) {
             {user.email}
             <br />
             Papel: <b className="text-gray-700">{user.role}</b>
+          </div>
+          <div className="border-y border-gray-900/[0.07] py-1" data-testid="account-list">
+            <p className="px-3 pt-1 pb-0.5 font-mono text-[10px] tracking-[0.12em] text-gray-400 uppercase">
+              Contas
+            </p>
+            {accounts.map((a) => (
+              <button
+                key={a.id}
+                role="menuitemradio"
+                aria-checked={a.id === user.accountId}
+                onClick={() => (a.id === user.accountId ? setOpen(false) : switchTo(a.id))}
+                className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left hover:bg-gray-100"
+              >
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                {a.id === user.accountId ? (
+                  <Check size={14} className="text-brand-600" aria-hidden="true" />
+                ) : (
+                  <span className="text-[11px] text-gray-400">{a.role}</span>
+                )}
+              </button>
+            ))}
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setCreating(true);
+              }}
+              className="flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-gray-600 hover:bg-gray-100"
+              data-testid="new-account"
+            >
+              <Plus size={14} aria-hidden="true" /> Nova conta
+            </button>
           </div>
           {user.role === 'owner' && (
             <button
@@ -223,10 +338,16 @@ function UserMenu({ user }: { user: Me }) {
         </span>
         <span className="min-w-0">
           <span className="block truncate text-sm text-white">{user.name}</span>
-          <span className="block truncate font-mono text-[10.5px] text-white/45">conta {user.accountId}</span>
+          <span
+            className="block truncate font-mono text-[10.5px] text-white/45"
+            data-testid="current-account"
+          >
+            {current?.name ?? `conta ${user.accountId}`}
+          </span>
         </span>
       </button>
       <AccountSettingsModal open={account} onClose={() => setAccount(false)} />
+      <NewAccountModal open={creating} onClose={() => setCreating(false)} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
@@ -32,20 +33,35 @@ const accountId = () =>
     .notNull()
     .references(() => accounts.id, { onDelete: 'cascade' });
 
+/** Pessoa (login). Papel e permissões ficam em `memberships`, uma linha por conta (fase 16.2). */
 export const users = pgTable(
   'users',
   {
     id: text('id').primaryKey(),
+    /** Conta padrão ao entrar (onde a pessoa foi criada); o acesso vem de `memberships`. */
     accountId: accountId(),
     email: text('email').notNull(),
     name: text('name').notNull(),
-    role: roleEnum('role').notNull().default('editor'),
-    /** customJS só pode ser PUBLICADO por quem tem esta permissão (owner sempre pode). */
-    canPublishJs: boolean('can_publish_js').notNull().default(false),
     passwordHash: text('password_hash').notNull(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('users_email_uq').on(t.email), index('users_account_idx').on(t.accountId)],
+);
+
+/** Pessoa ↔ conta, com o papel nessa conta. Uma pessoa pode estar em várias contas. */
+export const memberships = pgTable(
+  'memberships',
+  {
+    accountId: accountId(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: roleEnum('role').notNull().default('editor'),
+    /** customJS só pode ser PUBLICADO por quem tem esta permissão (owner sempre pode). */
+    canPublishJs: boolean('can_publish_js').notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.userId] }), index('memberships_user_idx').on(t.userId)],
 );
 
 export const projects = pgTable(

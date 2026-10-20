@@ -3,14 +3,25 @@ import { ExperimentSchema, type Experiment } from '@abtest/shared';
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
 const TOKEN_KEY = 'abt-token';
+/** Última conta usada: o login volta para ela (multi-conta). */
+const ACCOUNT_KEY = 'abt-account';
+
+export type Role = 'owner' | 'editor' | 'viewer';
+export interface AccountRef {
+  id: string;
+  name: string;
+  role: Role;
+}
 
 export interface Me {
   id: string;
   accountId: string;
   email: string;
   name: string;
-  role: 'owner' | 'editor' | 'viewer';
+  role: Role;
   canPublishJs: boolean;
+  /** Contas de que a pessoa é membro (vem do /me; não vem no login). */
+  accounts?: AccountRef[];
 }
 export interface Project {
   id: string;
@@ -55,7 +66,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { ...init, headers }).catch(() => {
     throw new ApiError(0, 'A API não respondeu (rede ou limite do servidor). Tente de novo.');
   });
-  if (res.status === 401 && path !== '/auth/login') logout();
+  if (res.status === 401 && !path.startsWith('/auth/')) logout();
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new ApiError(res.status, body.error ?? `erro ${res.status}`);
@@ -63,14 +74,71 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-export async function login(email: string, password: string): Promise<Me> {
-  const r = await api<{ token: string; user: Me }>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
+interface Session {
+  token: string;
+  user: Me;
+}
+function startSession(r: Session): Me {
   localStorage.setItem(TOKEN_KEY, r.token);
+  localStorage.setItem(ACCOUNT_KEY, r.user.accountId);
   return r.user;
 }
+
+export async function login(email: string, password: string): Promise<Me> {
+  const accountId = localStorage.getItem(ACCOUNT_KEY) ?? undefined;
+  return startSession(
+    await api<Session>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, accountId }),
+    }),
+  );
+}
+
+/** Troca de conta / conta nova: novo token; a página recarrega para nenhuma tela ficar com dado da conta anterior. */
+export const switchAccount = async (id: string) =>
+  startSession(await api<Session>(`/accounts/${encodeURIComponent(id)}/switch`, { method: 'POST' }));
+export const createAccount = async (name: string, siteUrl: string) =>
+  startSession(await api<Session>('/accounts', { method: 'POST', body: JSON.stringify({ name, siteUrl }) }));
+
+export interface Member extends Me {
+  createdAt: string;
+}
+export interface Invite {
+  id: string;
+  email: string;
+  role: Role;
+  canPublishJs: boolean;
+  expiresAt: string;
+  createdAt: string;
+}
+export const team = {
+  members: () => api<Member[]>('/members'),
+  update: (id: string, access: { role: Role; canPublishJs: boolean }) =>
+    api(`/members/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(access) }),
+  remove: (id: string) => api<void>(`/members/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  invites: () => api<Invite[]>('/invites'),
+  invite: (email: string, role: Role, canPublishJs: boolean) =>
+    api<{ id: string; token: string; expiresAt: string }>('/invites', {
+      method: 'POST',
+      body: JSON.stringify({ email, role, canPublishJs }),
+    }),
+  revoke: (id: string) => api<void>(`/invites/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+};
+
+/** Link que o owner copia e manda para a pessoa (sem serviço de e-mail, ver D-070). */
+export const inviteLink = (token: string) =>
+  `${location.origin}${location.pathname}?invite=${encodeURIComponent(token)}`;
+export const inviteInfo = (token: string) =>
+  api<{ accountName: string; email: string; role: Role; hasUser: boolean }>(
+    `/auth/invites/${encodeURIComponent(token)}`,
+  );
+export const acceptInvite = async (token: string, body: { password: string; name?: string }) =>
+  startSession(
+    await api<Session>(`/auth/invites/${encodeURIComponent(token)}/accept`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  );
 
 export const me = () => api<Me>('/me');
 export const listProjects = () => api<Project[]>('/projects');

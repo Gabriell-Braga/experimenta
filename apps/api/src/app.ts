@@ -4,11 +4,11 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { ExperimentSchema, NameSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
 import { cors } from 'hono/cors';
-import { forbid, hasRole, issueToken, requireAuth, type AuthVars } from './auth';
+import { forbid, hasRole, requireAuth, type AuthVars } from './auth';
 import { serveCdn, type CdnStore } from './cdn';
 import { rebuildReco, serveReco } from './reco';
 import { findConflicts } from './conflicts';
-import { newId, verifyPassword } from './crypto';
+import { newId } from './crypto';
 import { errors, ErrorSchema, json, security } from './http';
 import { behavior } from './analytics/behavior';
 import { normalizePage, NotFoundError, type Repo, type User } from './repo';
@@ -21,6 +21,7 @@ import { dispatchEvents, dispatchPublish } from './webhooks';
 import { ENTITY_PATHS, entityRoutes } from './routes/entities';
 import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
 import { reportRoutes } from './routes/report';
+import { TEAM_PATHS, teamRoutes } from './routes/team';
 import { createSessionStore, type SessionStore } from './sessions';
 
 export interface AppDeps {
@@ -41,16 +42,6 @@ export interface AppDeps {
   aiCompat?: CompatAi;
 }
 
-const UserOut = z
-  .object({
-    id: z.string(),
-    accountId: z.string(),
-    email: z.string(),
-    name: z.string(),
-    role: z.enum(['owner', 'editor', 'viewer']),
-    canPublishJs: z.boolean(),
-  })
-  .openapi('User');
 const ProjectOut = z.object({ id: z.string(), name: z.string(), siteUrl: z.string() }).openapi('Project');
 const ExperimentRecordOut = z
   .object({
@@ -64,15 +55,6 @@ const ExperimentInput = z
   .object({ projectId: z.string(), editorUrl: z.string().url(), experiment: ExperimentSchema })
   .openapi('ExperimentInput');
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
-
-const publicUser = (u: User) => ({
-  id: u.id,
-  accountId: u.accountId,
-  email: u.email,
-  name: u.name,
-  role: u.role,
-  canPublishJs: u.canPublishJs,
-});
 
 export function createApp(deps: AppDeps) {
   const repo = deps.repo;
@@ -152,7 +134,7 @@ export function createApp(deps: AppDeps) {
     allowHeaders: ['authorization', 'content-type'],
   });
   const PRIVATE = [
-    '/me',
+    ...TEAM_PATHS,
     '/projects',
     '/projects/*',
     '/experiments',
@@ -174,38 +156,7 @@ export function createApp(deps: AppDeps) {
   const auth = requireAuth(repo, deps.jwtSecret);
   for (const p of PRIVATE) app.use(p, auth);
 
-  app.openapi(
-    createRoute({
-      method: 'post',
-      path: '/auth/login',
-      tags: ['auth'],
-      request: {
-        body: json(z.object({ email: z.string().email(), password: z.string().min(1) }), 'credenciais'),
-      },
-      responses: {
-        200: json(z.object({ token: z.string(), user: UserOut }), 'token JWT (12 h)'),
-        401: json(ErrorSchema, 'credenciais inválidas'),
-      },
-    }),
-    async (c) => {
-      const { email, password } = c.req.valid('json');
-      const user = await repo.findUserByEmail(email);
-      if (!user || !(await verifyPassword(password, user.passwordHash)))
-        return c.json({ error: 'e-mail ou senha inválidos' }, 401);
-      return c.json({ token: await issueToken(user, deps.jwtSecret), user: publicUser(user) }, 200);
-    },
-  );
-
-  app.openapi(
-    createRoute({
-      method: 'get',
-      path: '/me',
-      tags: ['auth'],
-      security,
-      responses: { 200: json(UserOut, 'usuário logado'), 401: errors[401] },
-    }),
-    (c) => c.json(publicUser(c.get('user')), 200),
-  );
+  teamRoutes(app, repo, deps.jwtSecret);
 
   app.openapi(
     createRoute({

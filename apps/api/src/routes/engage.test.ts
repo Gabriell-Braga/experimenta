@@ -30,7 +30,7 @@ test('pop-ups em execução vão para a config publicada (pausados não); relat�
   const on = await mk('Cupom', 'running');
   await mk('Rascunho', 'draft');
   const publish = createPublisher({ repo: t.repo, cdn: fsCdnStore(cdnDir), publicUrl: 'https://x' });
-  const owner = (await t.repo.findUserByEmail('demo@abtest.dev'))!;
+  const owner = (await t.repo.getUser('demo', (await t.repo.findUserByEmail('demo@abtest.dev'))!.id))!;
   await publish('demo', owner);
   const cfg = PublishedConfigSchema.parse(JSON.parse(readFileSync(join(cdnDir, 'demo.json'), 'utf8')));
   expect(cfg.popups!.map((p) => [p.id, p.name, p.trigger.type])).toEqual([[on, 'Cupom', 'exit']]);

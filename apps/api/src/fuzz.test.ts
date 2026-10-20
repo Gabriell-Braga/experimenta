@@ -250,8 +250,8 @@ test('viewer não escreve: POST/PUT/PATCH/DELETE → 4xx', async () => {
       const r = await req(path, { method: op.method, as: 'viewer', body: JSON.stringify(sample(op.body)) });
       if (r.status < 400 || r.status >= 500) wrong.push(`${r.status} ${op.method} ${path}`);
     }
-  // Sessão de edição: viewer abre o editor em modo leitura.
-  expect(wrong.filter((w) => w !== '201 POST /edit-sessions')).toEqual([]);
+  // Sessão de edição: viewer abre o editor em modo leitura. Conta nova: quem cria é owner dela, não escreve nesta.
+  expect(wrong.filter((w) => !['201 POST /edit-sessions', '201 POST /accounts'].includes(w))).toEqual([]);
 }, 120_000);
 
 test('corpos quebrados e campos de topo trocados em toda rota com corpo → nunca 5xx', async () => {
