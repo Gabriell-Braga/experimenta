@@ -410,8 +410,11 @@ for (let i = 0; i < VISITORS; i++) {
 
     // Entrada: 38% pela home, metade direto na loja (campanhas), o resto no produto.
     const entry = s === 0 ? rand() : rand() * 0.8;
-    const firstRef = s === 0 ? ref || undefined : undefined;
-    const q = s === 0 ? utm : '';
+    // Volta: 45% por outro canal (e-mail, anúncio, busca...) e o resto direto, para a receita por canal
+    // mostrar primeiro e último toque diferentes.
+    const [sRef, sUtm] = s === 0 ? [ref, utm] : chance(0.45) ? pick(SOURCES) : ['', ''];
+    const firstRef = sRef || undefined;
+    const q = sUtm;
 
     if (entry < 0.38) {
       // ----- Home → produto → checkout → obrigado -----

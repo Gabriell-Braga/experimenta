@@ -9,10 +9,22 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { getDashboard, type Insight } from '../api';
+import { getAttribution, getDashboard, type Insight } from '../api';
+import { AttributionTable } from '../components/Attribution';
 import { LineChart, SERIES } from '../charts';
 import { navigate } from '../nav';
-import { Card, EmptyState, fmt, LoadingBlock, PageHeader, Segmented, Skeleton, Stat, useLoad } from '../ui';
+import {
+  Card,
+  EmptyState,
+  fmt,
+  LoadingBlock,
+  PageHeader,
+  Segmented,
+  selectCls,
+  Skeleton,
+  Stat,
+  useLoad,
+} from '../ui';
 import { PERIODS, shortDay, type Period } from './Events';
 import { VerdictTag } from './Report';
 
@@ -103,6 +115,48 @@ function Module({ title, view, children }: { title: string; view: string; childr
 const Big = ({ children }: { children: ReactNode }) => (
   <p className="tabular text-[22px] leading-tight font-semibold tracking-tight text-ink">{children}</p>
 );
+
+/** Receita por canal: carrega à parte do painel (rota própria, mais pesada). */
+function ChannelRevenue({ days }: { days: number }) {
+  const [event, setEvent] = useState('');
+  const { data } = useLoad(() => getAttribution(days, event || undefined), [days, event]);
+  const names = data?.events ?? [];
+  return (
+    <Card
+      title="Receita por canal"
+      action={
+        <select
+          value={event}
+          onChange={(e) => setEvent(e.target.value)}
+          className={selectCls}
+          aria-label="Conversão"
+          data-testid="attribution-event"
+        >
+          <option value="">Eventos com receita</option>
+          {[...names.map((n) => n.key), ...(event && !names.some((n) => n.key === event) ? [event] : [])].map(
+            (n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ),
+          )}
+        </select>
+      }
+    >
+      {!data ? (
+        <LoadingBlock rows={4} />
+      ) : (
+        <>
+          <p className="mb-3 text-sm text-gray-600">
+            {fmt.int(data.conversions)} {data.conversions === 1 ? 'conversão' : 'conversões'}
+            {data.revenue > 0 && ` · ${fmt.money(data.revenue)}`}
+          </p>
+          <AttributionTable data={data} />
+        </>
+      )}
+    </Card>
+  );
+}
 
 export function DashboardPage() {
   const [days, setDays] = useState<Period>('30');
@@ -275,6 +329,7 @@ export function DashboardPage() {
             </div>
           </>
         )}
+        <ChannelRevenue days={Number(days)} />
       </div>
     </>
   );

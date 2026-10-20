@@ -1,4 +1,5 @@
 import { createRoute, z } from '@hono/zod-openapi';
+import { attribute, goalConversions, loadTouches } from '../analytics/attribution';
 import {
   CUPED_LOOKBACK_DAYS,
   deviceByVisitor,
@@ -62,6 +63,53 @@ export function reportRoutes(app: Api, repo: Repo, publish?: AppDeps['publish'])
         }
       }
       return c.json(experimentReport(rec.experiment, events, range, filter, covariate), 200);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/experiments/{id}/attribution',
+      tags: ['relatórios'],
+      security,
+      summary:
+        'Receita por canal no experimento: conversões e receita de uma meta (padrão: a primária) por variação e canal, origem e campanha, no primeiro toque e no último toque não direto',
+      request: {
+        params: z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) }),
+        query: PeriodQuery.extend({
+          days: z.coerce.number().int().min(1).max(365).default(90),
+          goalId: z.string().optional(),
+        }),
+      },
+      responses: { 200: json(Report, 'atribuição'), ...errors },
+    }),
+    async (c) => {
+      const accountId = c.get('user').accountId;
+      const rec = await repo.getExperiment(accountId, c.req.valid('param').id);
+      if (!rec) return c.json({ error: 'experimento não encontrado' }, 404);
+      const exp = rec.experiment;
+      const q = c.req.valid('query');
+      const goal = exp.goals.find((g) => g.id === q.goalId) ?? exp.goals[0];
+      if (!goal) return c.json({ error: 'experimento sem metas' }, 404);
+      const range = period(q);
+      const vids = exp.variations.map((v) => v.id);
+      const conversions = goalConversions(
+        await repo.listEvents(accountId, { experimentId: exp.id, types: ['conversion'], ...range }),
+        goal.id,
+        vids,
+      );
+      const touches = await loadTouches(repo, accountId, conversions, range);
+      return c.json(
+        {
+          from: range.from.toISOString(),
+          to: range.to.toISOString(),
+          goalId: goal.id,
+          goalKey: goal.key,
+          variations: exp.variations.map((v) => ({ id: v.id, name: v.name })),
+          ...attribute(conversions, touches, vids.length),
+        },
+        200,
+      );
     },
   );
 

@@ -2,6 +2,7 @@ import { ArrowLeft, Download, Pencil, Printer, TriangleAlert, Trophy } from 'luc
 import { useEffect, useMemo, useState } from 'react';
 import {
   getExperiment,
+  getExperimentAttribution,
   getReport,
   rebalance,
   type ArmRow,
@@ -12,6 +13,7 @@ import {
   type Verdict,
 } from '../api';
 import { LineChart, seriesColor } from '../charts';
+import { AttributionTable } from '../components/Attribution';
 import { go, navigate, setParams } from '../nav';
 import {
   Button,
@@ -392,6 +394,38 @@ function toCsv(r: ExperimentReport, names: string[]): string {
   return rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
 }
 
+/** Receita por canal da meta: só busca quando a pessoa abre (rota própria, lê as páginas vistas). */
+function ChannelCard({ id, goal, days }: { id: string; goal: GoalReport; days: number }) {
+  const [open, setOpen] = useState(false);
+  const { data } = useLoad(
+    () => (open ? getExperimentAttribution(id, { days, goalId: goal.goalId }) : null),
+    [open, id, goal.goalId, days],
+  );
+  return (
+    <Card
+      title={`Receita por canal · ${goal.goalKey}`}
+      action={
+        !open && (
+          <Button size="sm" onClick={() => setOpen(true)} data-testid="attribution-open">
+            Ver por canal
+          </Button>
+        )
+      }
+    >
+      {!open ? (
+        <p className="text-sm text-gray-600">
+          De onde vieram as conversões desta meta em cada variação: canal, origem e campanha, no primeiro e no
+          último toque.
+        </p>
+      ) : !data ? (
+        <LoadingBlock rows={4} />
+      ) : (
+        <AttributionTable data={data} />
+      )}
+    </Card>
+  );
+}
+
 export function ReportPage({ id, params, user }: { id: string; params: URLSearchParams; user: Me }) {
   const toast = useToast();
   const [days, setDays] = useState<(typeof PERIODS)[number][0]>((params.get('days') as '30') ?? '30');
@@ -704,6 +738,7 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                           <RevenueTable goal={goal} names={names} />
                         </Card>
                       )}
+                      <ChannelCard id={exp.id} goal={goal} days={Number(days)} />
                       {goal.primary && (
                         <Card title="Taxa de conversão acumulada (meta primária)">
                           <LineChart

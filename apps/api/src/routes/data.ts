@@ -1,5 +1,6 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { Funnel, Survey } from '@abtest/shared';
+import { attribute, eventConversions, loadTouches } from '../analytics/attribution';
 import { cohortsReport } from '../analytics/cohorts';
 import { dashboard, DASHBOARD_TYPES } from '../analytics/dashboard';
 import { engageReport } from '../analytics/engage';
@@ -53,6 +54,40 @@ export function dataRoutes(app: Api, repo: Repo) {
     }),
     async (c) =>
       c.json(await loadDashboard(repo, c.get('user').accountId, period(c.req.valid('query'))), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/attribution',
+      tags: ['relatórios'],
+      security,
+      summary:
+        'Receita por canal: conversões (eventos com valor, ou um evento pelo nome) e receita por canal, origem e campanha, no primeiro toque e no último toque não direto (janela de 30 dias)',
+      request: { query: PeriodQuery.extend({ event: z.string().max(100).optional() }) },
+      responses: { 200: json(Report, 'atribuição'), ...errors },
+    }),
+    async (c) => {
+      // Fora do /analytics/dashboard de propósito (CPU do Worker): o cartão do painel chama à parte.
+      const accountId = c.get('user').accountId;
+      const q = c.req.valid('query');
+      const range = period(q);
+      const conv = eventConversions(
+        await repo.listEvents(accountId, { ...range, types: ['event'] }),
+        q.event,
+      );
+      const touches = await loadTouches(repo, accountId, conv.list, range);
+      return c.json(
+        {
+          from: range.from.toISOString(),
+          to: range.to.toISOString(),
+          event: q.event ?? null,
+          events: conv.events,
+          ...attribute(conv.list, touches),
+        },
+        200,
+      );
+    },
   );
 
   app.openapi(

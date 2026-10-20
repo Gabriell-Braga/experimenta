@@ -502,6 +502,33 @@ export interface Dashboard {
   profiles: { identified: number; multiDevice: number };
 }
 export const getDashboard = (days: number) => query<Dashboard>('/analytics/dashboard', { days });
+/** Receita por canal (D-080): linhas por canal, origem e campanha; números por variação (uma fora de teste). */
+export type Channel = 'direct' | 'organic' | 'paid' | 'social' | 'email' | 'referral' | 'campaign';
+export interface AttributionRow {
+  key: string;
+  channel: Channel;
+  conversions: number[];
+  revenue: number[];
+}
+export type AttributionDim = 'channel' | 'source' | 'campaign';
+export interface Attribution {
+  from: string;
+  to: string;
+  windowDays: number;
+  conversions: number;
+  revenue: number;
+  first: Record<AttributionDim, AttributionRow[]>;
+  last: Record<AttributionDim, AttributionRow[]>;
+  /** Painel: nomes de eventos do período (para escolher a conversão). */
+  events?: { key: string; count: number }[];
+  /** Experimento: variações na ordem das posições das linhas. */
+  variations?: { id: string; name: string }[];
+  goalKey?: string;
+}
+export const getAttribution = (days: number, event?: string) =>
+  query<Attribution>('/analytics/attribution', { days, event });
+export const getExperimentAttribution = (id: string, p: { days: number; goalId?: string }) =>
+  query<Attribution>(`/experiments/${encodeURIComponent(id)}/attribution`, p);
 export const getOverview = (days: number) => query<Overview>('/analytics/overview', { days });
 export const listEvents = (
   p: { type?: string; visitorId?: string; sessionId?: string; limit?: number } = {},

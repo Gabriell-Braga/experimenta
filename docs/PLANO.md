@@ -183,7 +183,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 - [x] 17.3 Link de pré-visualização/QA compartilhável por variação (sem publicar), com expiração; QA mode já existe no snippet (packages/snippet/src/qa.ts), falta gerar o link no editor
 - [x] 17.4 Agendamento: iniciar/pausar experimento e campanha em data/hora (job de hora em hora já existe)
 - [x] 17.5 Estatística: teste sequencial (pode olhar a qualquer momento sem inflar falso positivo) e redução de variância (CUPED) opcionais no relatório; métricas de guarda (guardrail) que alertam se uma variação piora outra meta
-- [ ] 17.6 Receita por canal: atribuição de receita/conversões por origem, UTM e campanha (first e last touch) no painel e no relatório do experimento
+- [x] 17.6 Receita por canal: atribuição de receita/conversões por origem, UTM e campanha (first e last touch) no painel e no relatório do experimento
 
 ### Fase 18 — IA no estilo Copilot
 - [ ] 18.1 Criar variação por texto: "deixe o botão verde e troque o título por X" vira operações no editor visual (sobre o DOM da página no iframe), com pré-visualização antes de aplicar; usa o mesmo provedor das ideias (Claude ou modelo grátis)

@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 17.5 concluída
-**Fase atual:** 17
-**Tarefa atual:** 17.6
-**Última atualização:** 2026-10-20 06:12
-**Próximo passo:** 17.6 receita por canal (atribuição first/last touch por origem, UTM e campanha).
+**Status:** 17.6 concluída (fase 17 concluída)
+**Fase atual:** 18
+**Tarefa atual:** 18.1
+**Última atualização:** 2026-10-20 06:23
+**Próximo passo:** 18.1 criar variação por texto (IA gera operações no editor visual).
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -617,3 +617,14 @@
 - Arquivos principais: packages/shared/src/{stats,experiment}.ts, apps/api/src/analytics/{report,insights}.ts, apps/api/src/routes/report.ts, apps/api/src/{bandit,publish}.ts, apps/editor/src/pages/Report.tsx, apps/editor/src/components/SettingsPanel.tsx, e2e/tests/{report,publish-flow}.spec.ts
 - Como testar manualmente: no editor de um teste, Configurações → marcar "Teste sequencial", "CUPED" e "guarda" numa meta secundária; salvar; abrir o relatório (coluna "p sempre válido", nota do CUPED com a redução, alerta se a variação piorar a meta de guarda). `pnpm --filter @abtest/shared exec vitest run src/stats.test.ts` (simulação A/A com 20 olhadas); `pnpm --filter @abtest/api exec vitest run src/routes/report.test.ts`; `pnpm --filter @abtest/e2e e2e tests/report.spec.ts`.
 - Observações: simulação (400 testes A/A, 20 olhadas de 500 por braço, semente fixa): falso positivo 0,5% com o sequencial vs 25,5% espiando o p-valor comum; poder com +20% de efeito 93% (vs 99,5%). CUPED custa uma consulta a mais (páginas vistas e exposições dos visitantes do relatório desde 30 dias antes do período) e O(n) de CPU, só no relatório com a opção ligada; o bandit/piloto automático e os insights não usam CUPED. Snippet inalterado (10.233 B). D-079.
+
+### 2026-10-20 06:23 — Tarefa 17.6 concluída (receita por canal)
+- O que foi feito: atribuição de conversões e receita por canal, origem e campanha, no primeiro toque e no último toque não direto, derivada só do que já é coletado (URL da página vista com UTMs/ids de clique e `referrer`); snippet inalterado. Canais: direto, busca orgânica, mídia paga, redes sociais, e-mail, referência e outras campanhas (UTM sem meio reconhecido). Toque = 1ª página de cada visita (sessão) ou página no meio da visita com UTM/id de clique; janela de 30 dias. Duas rotas próprias (fora do `/analytics/dashboard`, por causa da CPU do Worker): `GET /analytics/attribution` (conversão = eventos customizados com valor, ou um evento pelo nome) e `GET /experiments/:id/attribution` (conversões de uma meta, padrão a primária, por variação). Editor: cartão "Receita por canal" no Painel (carrega à parte, escolhe o evento) e cartão no relatório do experimento carregado sob demanda ("Ver por canal"), com modelo (último/primeiro toque) e agrupamento (canal/origem/campanha), conversões, receita e % da receita. `pnpm seed:data` agora gera visitas de volta por outros canais (primeiro e último toque diferentes).
+- Arquivos principais: apps/api/src/analytics/attribution.ts, apps/api/src/routes/{data,report}.ts, apps/editor/src/components/Attribution.tsx, apps/editor/src/pages/{Dashboard,Report}.tsx, apps/editor/src/api.ts, scripts/seed-data.ts, e2e/tests/attribution.spec.ts
+- Como testar manualmente: `pnpm seed:data`; Painel → "Receita por canal" (alternar Primeiro/Último toque e Canal/Origem/Campanha); relatório de um teste → "Ver por canal". `pnpm --filter @abtest/api exec vitest run src/analytics/attribution.test.ts src/routes/attribution.test.ts`; `pnpm --filter @abtest/e2e e2e tests/attribution.spec.ts`.
+- Observações: sem migração nem consulta nova no repositório (usa `listEvents`). Custo: uma leitura dos eventos do período + páginas vistas dos visitantes que converteram desde 30 dias antes (por id até 400 visitantes; acima, todas as páginas do intervalo); agregação O(n). O filtro de dispositivo do relatório não se aplica ao cartão por canal. D-080.
+
+### Resumo da Fase 17 (experimentação avançada)
+- Entregue: grupos mutuamente exclusivos (17.1), teste multipágina/funil (17.2), link de pré-visualização do rascunho (17.3), agendamento de iniciar/pausar (17.4), teste sequencial, CUPED e metas de guarda (17.5) e receita por canal com primeiro/último toque (17.6).
+- Nenhuma migração nova no D1 na fase (tudo em colunas JSON/entidades existentes).
+- Pendências da fase: snippet a 7 B do limite (D-069 continua aberto); CPU do Worker grátis no Painel (ver "Bloqueios"; a receita por canal já tem rota própria); entidades (pop-ups/pesquisas) sem agendamento; atribuição sem modelos fracionados (linear, decaimento) nem janela configurável.
