@@ -51,7 +51,10 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   if (token) headers.set('authorization', `Bearer ${token}`);
   if (init.body) headers.set('content-type', 'application/json');
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  // "Failed to fetch" = sem resposta legível: rede caiu ou o Worker foi encerrado (ex.: limite de CPU, 503 sem CORS).
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers }).catch(() => {
+    throw new ApiError(0, 'A API não respondeu (rede ou limite do servidor). Tente de novo.');
+  });
   if (res.status === 401 && path !== '/auth/login') logout();
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };

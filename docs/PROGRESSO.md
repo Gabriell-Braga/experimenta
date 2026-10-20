@@ -6,7 +6,8 @@
 **Próximo passo:** revisão humana; ver "Resumo final das fases 9–15" no fim do histórico.
 
 ## Bloqueios / perguntas para os humanos
-- (vazio) — perguntas anteriores respondidas em docs/DECISOES.md D-033.
+- CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
+- Perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
 ### 2026-10-14 03:34 — Seção 1.1 (setup) concluída
@@ -539,3 +540,8 @@
 - Limites do plano grátis que já apareceram: D1 100 mil linhas escritas/dia (cada evento = 7 linhas); KV 1.000 escritas/dia (cada deploy/publicação escreve várias); 5 cron triggers por conta (a API usa 1); waitUntil do Worker ~30 s.
 - Pendências: repositório sem remote git (push não feito); E2E não pode rodar com `pnpm dev` ligado (portas 4000/5173/5180 e o E2E não reaproveita a API).
 - Testes: `pnpm test` (API com fuzz de todas as rotas, contra Postgres e D1), `pnpm e2e` (funcional + robustez de todas as telas; 82 testes).
+
+### 2026-10-20 02:53 — "Failed to fetch" no Painel (produção)
+- Causa: `GET /analytics/dashboard` gasta ~46 ms de CPU (lê e agrega os eventos do período atual + anterior); o plano grátis do Workers permite 10 ms. A Cloudflare encerra o Worker (`exceededCpu`, visto com `wrangler tail`) e responde 503 sem cabeçalho CORS, então o navegador só vê "Failed to fetch". Outras telas que leem muitos eventos podem cair no mesmo limite conforme o tráfego cresce.
+- Feito: o editor troca o "Failed to fetch" cru por uma mensagem clara (apps/editor/src/api.ts). Repositório publicado em https://github.com/Gabriell-Braga/experimenta (remote `origin`).
+- Correção de verdade (decisão humana, ver "Bloqueios / perguntas"): plano Workers Paid (US$ 5/mês, 30 s de CPU por requisição) ou agregados diários pré-calculados no D1 para os relatórios.
