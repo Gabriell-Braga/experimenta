@@ -716,3 +716,4 @@
 - Produção: só a 19.1 foi publicada; 19.2–19.4 aguardam deploy (a 19.4 traz a migração D1 0012).
 - Pendências da fase: nada validado com contas/aparelhos reais (CRMs, Shopify, WordPress, SDKs nativos, S3/BigQuery); SDKs não publicados em registries; sem Swift para iOS; reenvio de webhook depende de tráfego para ser de minutos.
 
+- Deploy da fase 19 (2026-10-20 16:22): 19.1–19.4 em produção, migração D1 0012 (webhook_deliveries) aplicada. Primeira tentativa foi interrompida por queda de energia depois de API + migração; o backup do D1 dessa rodada não chegou a ser gravado (migração só cria tabela). Deploy refeito por completo.
