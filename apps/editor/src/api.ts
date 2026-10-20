@@ -381,6 +381,26 @@ export const restoreVersion = (id: string, v: number) =>
     method: 'POST',
   });
 
+/** Link de pré-visualização do rascunho de uma variação (17.3). O token só vem na criação. */
+export interface PreviewLink {
+  id: string;
+  variationId: string;
+  variationName: string;
+  expiresAt: string;
+  createdAt: string;
+}
+const previewPath = (id: string) => `/experiments/${encodeURIComponent(id)}/previews`;
+export const previews = {
+  list: (id: string) => api<PreviewLink[]>(previewPath(id)),
+  create: (id: string, variationId: string, hours: number) =>
+    api<{ id: string; url: string; expiresAt: string }>(previewPath(id), {
+      method: 'POST',
+      body: JSON.stringify({ variationId, hours }),
+    }),
+  revoke: (id: string, pid: string) =>
+    api<void>(`${previewPath(id)}/${encodeURIComponent(pid)}`, { method: 'DELETE' }),
+};
+
 export interface HeatmapFilters {
   experimentId?: string;
   variationId?: string;

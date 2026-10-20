@@ -180,7 +180,7 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 ### Fase 17 — Experimentação avançada que falta
 - [x] 17.1 Grupos mutuamente exclusivos: experimentos num grupo dividem o tráfego e o visitante entra em no máximo um; tela de grupos e aviso na lista
 - [x] 17.2 Teste multipágina (funil): uma variação com alterações em várias páginas/URLs do mesmo fluxo, visitante fica na mesma variação em todas
-- [ ] 17.3 Link de pré-visualização/QA compartilhável por variação (sem publicar), com expiração; QA mode já existe no snippet (packages/snippet/src/qa.ts), falta gerar o link no editor
+- [x] 17.3 Link de pré-visualização/QA compartilhável por variação (sem publicar), com expiração; QA mode já existe no snippet (packages/snippet/src/qa.ts), falta gerar o link no editor
 - [ ] 17.4 Agendamento: iniciar/pausar experimento e campanha em data/hora (job de hora em hora já existe)
 - [ ] 17.5 Estatística: teste sequencial (pode olhar a qualquer momento sem inflar falso positivo) e redução de variância (CUPED) opcionais no relatório; métricas de guarda (guardrail) que alertam se uma variação piora outra meta
 - [ ] 17.6 Receita por canal: atribuição de receita/conversões por origem, UTM e campanha (first e last touch) no painel e no relatório do experimento

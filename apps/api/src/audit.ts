@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import type { AuthVars } from './auth';
 import type { ActivityInput, Repo, User } from './repo';
 import { REQUEST_KIND, type PublishRequestData } from './routes/approvals';
+import { PREVIEW_KIND } from './routes/previews';
 
 // Histórico de atividades (auditoria, fase 16.3), registrado num ponto só: um middleware olha cada escrita bem
 // sucedida (2xx) das rotas abaixo e grava uma linha. Rotas novas que mudam configuração entram nesta tabela.
@@ -15,6 +16,8 @@ interface Before {
   status?: string;
   /** Alvo a registrar no lugar do id da rota (comentário → o item comentado). */
   id?: string;
+  /** Detalhe que some com a escrita (variação do link de pré-visualização revogado). */
+  detail?: string;
 }
 interface Ctx {
   user: User;
@@ -133,6 +136,31 @@ const RULES: Rule[] = [
     before: experimentBefore,
     action: 'rebalance',
     name: beforeName,
+  },
+  // Link de pré-visualização (17.3): fica no histórico do experimento; detalhe = variação (e validade).
+  {
+    method: 'POST',
+    path: '/experiments/:id/previews',
+    target: 'experiment',
+    before: experimentBefore,
+    action: 'preview',
+    name: beforeName,
+    detail: (x) => `${str(x.res.variationName)} · ${str(x.body.hours)} h`,
+  },
+  {
+    method: 'DELETE',
+    path: '/experiments/:id/previews/:pid',
+    target: 'experiment',
+    before: async (repo, acc, p) => {
+      const [e, link] = await Promise.all([
+        experimentBefore(repo, acc, p),
+        repo.getEntity(acc, PREVIEW_KIND, p.pid!),
+      ]);
+      return e && { ...e, detail: link?.name };
+    },
+    action: 'preview_revoke',
+    name: beforeName,
+    detail: (x) => x.before?.detail,
   },
   {
     method: 'POST',

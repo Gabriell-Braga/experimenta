@@ -12,6 +12,16 @@ await build({
   outfile: 'dist/abt.js',
   legalComments: 'none',
 });
+// preview.js: link de pré-visualização (17.3), carregado sob demanda pelo snippet; fora do limite abaixo.
+await build({
+  entryPoints: ['src/preview.ts'],
+  bundle: true,
+  minify: true,
+  format: 'iife',
+  target: 'es2019',
+  outfile: 'dist/preview.js',
+  legalComments: 'none',
+});
 const code = readFileSync('dist/abt.js');
 const gz = gzipSync(code, { level: 9 }).length;
 console.log(`[snippet] dist/abt.js ${code.length} B, gzip ${gz} B`);

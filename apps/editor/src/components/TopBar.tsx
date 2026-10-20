@@ -3,6 +3,7 @@ import {
   BarChart3,
   Eye,
   Flame,
+  Link2,
   Monitor,
   MousePointerClick,
   Pencil,
@@ -55,6 +56,8 @@ interface Props {
   onPublish(): void;
   onSettings(): void;
   onReport(): void;
+  /** Link de pré-visualização do rascunho da variação (17.3). */
+  onPreviewLink(): void;
   onUrl(url: string): void;
 }
 
@@ -265,6 +268,15 @@ export function TopBar(p: Props) {
           title="Resultados do experimento"
         >
           <BarChart3 size={15} aria-hidden="true" /> <span className="hidden lg:inline">Relatório</span>
+        </Button>
+        <Button
+          variant="inverseOutline"
+          onClick={p.onPreviewLink}
+          data-testid="open-preview-links"
+          title="Link de pré-visualização: mostra o rascunho no site, sem publicar"
+        >
+          <Link2 size={15} aria-hidden="true" />{' '}
+          <span className="hidden xl:inline">Link de pré-visualização</span>
         </Button>
         <Button
           variant="inverseOutline"

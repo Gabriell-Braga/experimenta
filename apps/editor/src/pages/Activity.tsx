@@ -41,6 +41,8 @@ const VERB: Record<string, string> = {
   duplicate: 'duplicou',
   rebalance: 'rebalanceou',
   publish: 'publicou',
+  preview: 'criou um link de pré-visualização para',
+  preview_revoke: 'revogou um link de pré-visualização de',
 };
 
 const role = (d: string) => d.replace(/^(owner|editor|viewer)/, (r) => ROLE_LABEL[r as Role]);
@@ -119,7 +121,11 @@ export function sentence(a: ActivityItem): ReactNode {
   const extra =
     a.action === 'draft'
       ? ' para rascunho'
-      : a.detail && (a.action === 'restore' || a.targetType === 'invite' || a.targetType === 'settings')
+      : a.detail &&
+          (a.action === 'restore' ||
+            a.action.startsWith('preview') ||
+            a.targetType === 'invite' ||
+            a.targetType === 'settings')
         ? ` (${role(a.detail)})`
         : '';
   return (

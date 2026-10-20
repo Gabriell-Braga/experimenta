@@ -22,11 +22,12 @@ export function fsCdnStore(dir: string): CdnStore {
   };
 }
 
-/** Copia os bundles compilados (snippet, agent e insights) para a pasta da CDN local. */
+/** Copia os bundles compilados (snippet, preview, agent, insights e engage) para a pasta da CDN local. */
 export function syncBundles(cdnDir: string, repoRoot: string): void {
   mkdirSync(cdnDir, { recursive: true });
   for (const [src, dest] of [
     ['packages/snippet/dist/abt.js', 'abt.js'],
+    ['packages/snippet/dist/preview.js', 'preview.js'],
     ['packages/agent/dist/agent.js', 'agent.js'],
     ['packages/insights/dist/insights.js', 'insights.js'],
     ['packages/engage/dist/engage.js', 'engage.js'],

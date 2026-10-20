@@ -1,6 +1,6 @@
 import type { PublishedConfig } from '@abtest/shared';
+import { sessionParam } from './qa';
 
-const EDIT_KEY = '_abt_edit';
 export const HANDSHAKE_TIMEOUT_MS = 10000;
 
 /** Dados que o agent recebe do snippet após o handshake (window.__ABT_AGENT__). */
@@ -18,20 +18,11 @@ declare global {
 }
 
 /**
- * Token de edição: `?abt_edit=<token>` (guardado na sessão para sobreviver à navegação dentro do iframe).
- * Só vale dentro de um iframe — aberto direto, o site roda normal.
+ * Token de edição: `?abt_edit=<token>` (guardado na sessão em `_abt_edit` para sobreviver à navegação dentro do
+ * iframe). Só vale dentro de um iframe — aberto direto, o site roda normal.
  */
-export function editToken(win: Window): string | null {
-  if (win.parent === win) return null;
-  let token = new URLSearchParams(win.location.search).get('abt_edit');
-  try {
-    if (token) win.sessionStorage.setItem(EDIT_KEY, token);
-    else token = win.sessionStorage.getItem(EDIT_KEY);
-  } catch {
-    /* sem sessionStorage: só a página com o parâmetro */
-  }
-  return token;
-}
+export const editToken = (win: Window): string | null =>
+  win.parent === win ? null : sessionParam(win, 'abt_edit');
 
 /**
  * Modo edição exige as três coisas:

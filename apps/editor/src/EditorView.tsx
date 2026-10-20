@@ -38,6 +38,7 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { EMPTY_GOAL, SettingsPanel, type GoalDraft } from './components/SettingsPanel';
 import { VersionsPanel } from './components/VersionsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
+import { PreviewLinks } from './components/PreviewLinks';
 import { connectAgent, type AgentPeer } from './connection';
 import { activeVariation, currentPage, initialState, onPage, reducer } from './store';
 
@@ -247,6 +248,7 @@ export function EditorView({ record, user }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [previewLinks, setPreviewLinks] = useState(false);
 
   /** Grava na API só se houver mudança. Conflitos são recarregados em segundo plano (não seguram o botão). */
   const persist = useCallback(async () => {
@@ -388,6 +390,7 @@ export function EditorView({ record, user }: Props) {
         onSave={() => void save()}
         onPublish={doPublish}
         onSettings={() => setSettingsOpen(true)}
+        onPreviewLink={() => setPreviewLinks(true)}
         onReport={() => (state.dirty ? setLeaving(true) : navigate('report', { id: state.experiment.id }))}
         onUrl={(url) => {
           openUrl(url);
@@ -731,6 +734,16 @@ export function EditorView({ record, user }: Props) {
         )}
       </div>
       <PromptDialog req={prompt} onClose={() => setPrompt(null)} />
+      {previewLinks && (
+        <PreviewLinks
+          onClose={() => setPreviewLinks(false)}
+          experimentId={state.experiment.id}
+          variations={state.experiment.variations}
+          activeId={state.activeVariationId}
+          dirty={state.dirty}
+          onSave={persist}
+        />
+      )}
       {settingsOpen && (
         <div
           className="fixed inset-0 z-40 grid place-items-center bg-ink/50 p-4"

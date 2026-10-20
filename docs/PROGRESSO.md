@@ -1,13 +1,13 @@
 # Progresso
-**Status:** 17.2 concluída
+**Status:** 17.3 concluída
 **Fase atual:** 17
-**Tarefa atual:** 17.3
-**Última atualização:** 2026-10-20 05:30
-**Próximo passo:** 17.3 link de pré-visualização/QA compartilhável.
+**Tarefa atual:** 17.4
+**Última atualização:** 2026-10-20 05:47
+**Próximo passo:** 17.4 agendamento de início/pausa.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
-- Snippet a 48 B do limite de 10 KB gzip (10.192 B depois da 17.2, que coube trocando o ícone SVG do selo de QA por um caractere): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
+- Snippet a 7 B do limite de 10 KB gzip (10.233 B depois da 17.3; a lógica do link de pré-visualização ficou no preview.js sob demanda e o snippet só detecta o parâmetro): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
 - Perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
@@ -600,3 +600,8 @@
 - Como testar manualmente: abrir um teste no editor, Configurações → "transformar em multipágina", alterar o título da home; Navegar → "Comprar agora" → "Adicionar esta página ao funil" → Editar → alterar o título do produto; salvar, iniciar e publicar; no site demo (janela anônima) a home e o produto mostram as alterações da mesma variação. `pnpm --filter @abtest/e2e e2e tests/multipage.spec.ts`.
 - Observações: snippet 10.192 B gzip (+28 B do funil, −72 B trocando o SVG do botão fechar do selo de QA por "✕"); alvo es2019 mantido. CSS/JS custom da variação valem em todas as páginas do funil (D-076).
 
+### 2026-10-20 05:47 — Tarefa 17.3 concluída (link de pré-visualização)
+- O que foi feito: botão "Link de pré-visualização" no editor (escolhe variação e validade de 1 h, 24 h, 7 dias ou 30 dias; salva antes se houver alteração; mostra o link uma vez com "Copiar"; lista os links ativos com "Revogar"). A API gera o token `<id>.<segredo>` (só o hash fica guardado, entidade `preview` fora das rotas genéricas, sem migração) e serve em `GET /preview/:conta/:token` o RASCUNHO do experimento compilado como na publicação (funil incluído), só com a variação do link, sem tráfego/audiências/grupo e com segmentação só de URL; customJS só se quem criou pode publicar JS. O snippet só detecta `?abt_preview=` (guardado na sessão, `off` sai) e carrega `preview.js` sob demanda, que esconde a página até 3 s, busca o rascunho, tira o token da URL, aplica com o runtime normal (sem coleta) e mostra o selo "Pré-visualização (rascunho)"; link inválido/expirado/revogado mostra aviso e sai do modo. Criar e revogar entram no histórico de atividades do experimento.
+- Arquivos principais: apps/api/src/routes/previews.ts, apps/api/src/audit.ts, packages/snippet/src/{preview,qa,main,editor}.ts, packages/snippet/build.mjs, apps/editor/src/components/PreviewLinks.tsx, apps/editor/src/components/TopBar.tsx, e2e/tests/preview-link.spec.ts
+- Como testar manualmente: abrir um teste no editor, alterar o título, "Link de pré-visualização" → Criar link; abrir o link numa janela anônima (vê a alteração sem publicar, navega pelo site mantendo o modo); Revogar e recarregar a janela (volta ao original com aviso). `pnpm --filter @abtest/api exec vitest run src/routes/previews.test.ts`; `pnpm --filter @abtest/e2e e2e tests/preview-link.spec.ts`.
+- Observações: snippet 10.233 B gzip (+41 B; para caber, `sessionParam` passou a servir QA, edição e pré-visualização: chave do QA na sessão virou `_ab_force`); preview.js 7,7 KB gzip só para quem abre o link. Alvo es2019 mantido. Link expirado é coberto no teste da API (o E2E cobre revogado e token adulterado). D-077.

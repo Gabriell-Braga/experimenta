@@ -9,7 +9,7 @@ import { installGoals } from './goals';
 import { engageBoot, loadBundle } from './engage';
 import { insightsBoot, sampled } from './insights';
 import { integrationsAdapter } from './integrations';
-import { readForce, showBadge } from './qa';
+import { readForce, sessionParam, showBadge } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
 
@@ -59,6 +59,10 @@ if (config && token) {
 
 /** Liga testes, coleta e bundles sob demanda. Só roda com consentimento (ou sem exigência na conta). */
 function boot(config: PublishedConfig): App | undefined {
+  // Link de pré-visualização (`?abt_preview=<token>`, guardado na sessão): o preview.js busca o rascunho na API e
+  // aplica só ele, sem os experimentos publicados nem coleta.
+  const preview = sessionParam(window, 'abt_preview');
+  if (preview) return void loadBundle(window, sibling('preview.js'), '__ABT_PREVIEW__', preview);
   const forced = readForce(window);
   const tracker = createTracker(window, config.trackingUrl);
   // Desligado (recusa): nada mais sai, nem do que já estiver carregado (insights.js, engage.js).
