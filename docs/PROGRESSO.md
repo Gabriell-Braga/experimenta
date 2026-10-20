@@ -680,3 +680,4 @@
 - O que foi feito: editor separa limite do servidor grátis (CPU ou cota diária, aviso âmbar) de erro real e de falta de conexão; "Tentar de novo" em toda tela que falha ao carregar; API responde 503 `plan_limit` para cota do D1/KV (D-088).
 - Arquivos principais: apps/editor/src/api.ts, apps/editor/src/ui.tsx, apps/api/src/app.ts, e2e/tests/limits.spec.ts
 - Como testar manualmente: em produção, Painel com 90 dias (estoura CPU) mostra o aviso âmbar; local: `pnpm --filter @abtest/e2e e2e tests/limits.spec.ts`.
+- Deploy feito (2026-10-20 12:33): `pnpm deploy:cf` com as migrações D1 0007–0011 (3 usuários → 3 vínculos, 1 owner). Backup do D1 exportado antes. Todos precisam entrar de novo uma vez (sessões novas da 16.5).
