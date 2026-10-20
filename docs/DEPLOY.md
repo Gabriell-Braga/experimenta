@@ -1,16 +1,19 @@
 # Deploy na Cloudflare
 
-Tudo roda em Workers (conta Cloudflare do projeto, subdomínio `hub-villa-deli.workers.dev`):
+Tudo roda em Workers na conta Cloudflare do projeto, com domínio próprio (zona `gabrielbraga.app`, rotas `custom_domain` em cada `wrangler.jsonc`). Os endereços antigos `*.hub-villa-deli.workers.dev` continuam respondendo (mesmos Workers).
 
 | Serviço | URL | O que é |
 |---|---|---|
-| Editor | https://abtest-editor.hub-villa-deli.workers.dev | app React (arquivos estáticos) |
-| API + CDN | https://abtest-api.hub-villa-deli.workers.dev | Worker Hono (`apps/api/src/worker.ts`), D1 `abtest-db`, KV `abtest-cdn`; Swagger em `/docs` |
-| Site demo | https://abtest-demo.hub-villa-deli.workers.dev | site de teste com o snippet instalado; `/bloqueado/*` envia XFO/CSP |
-| Extensão | https://abtest-editor.hub-villa-deli.workers.dev/abtest-extension.zip | MV3 com a ponte para o editor publicado |
+| Editor | https://experimenta.gabrielbraga.app | app React (arquivos estáticos) |
+| API + CDN | https://experimenta-api.gabrielbraga.app | Worker Hono (`apps/api/src/worker.ts`), D1 `abtest-db`, KV `abtest-cdn`; Swagger em `/docs` |
+| Site demo | https://experimenta-demo.gabrielbraga.app | site de teste com o snippet instalado; `/bloqueado/*` envia XFO/CSP |
+| Extensão | https://experimenta.gabrielbraga.app/abtest-extension.zip | MV3 com a ponte para o editor publicado |
+
+API e demo ficam em `experimenta-api` / `experimenta-demo` (irmãos, não `api.experimenta`): o certificado universal da Cloudflare só cobre um nível (`*.gabrielbraga.app`).
 
 ## Comandos
 - Deploy completo (bundles do snippet/agent na KV, recompila configs publicadas, migrações D1, API, editor com a extensão, demo): `pnpm deploy:cf` (precisa de `wrangler login`).
+- Dados de demonstração em produção (fases 1–19, idempotente): `API_URL=https://experimenta-api.gabrielbraga.app SITE_URL=https://experimenta-demo.gabrielbraga.app EDITOR_ORIGIN=https://experimenta.gabrielbraga.app SEED_PASSWORD=<senha> VISITORS=1500 pnpm seed:data`.
 - Smoke test em produção: `PROD_PASSWORD=<senha> pnpm --filter @abtest/e2e exec playwright test -c playwright.prod.config.ts`.
 - Logs da API: `cd apps/api && pnpm exec wrangler tail`.
 
@@ -23,4 +26,4 @@ Tudo roda em Workers (conta Cloudflare do projeto, subdomínio `hub-villa-deli.w
 - Variáveis em `apps/api/wrangler.jsonc`: `PUBLIC_URL`, `EDITOR_ORIGINS`, `DEMO_SITE_URL`, `HEATMAP_SAMPLE_RATE`.
 
 ## Para instalar num site real
-`<script src="https://abtest-api.hub-villa-deli.workers.dev/cdn/<conta>.js"></script>` como primeiro script do `<head>`.
+`<script src="https://experimenta-api.gabrielbraga.app/cdn/<conta>.js"></script>` como primeiro script do `<head>`.

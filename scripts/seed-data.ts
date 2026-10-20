@@ -263,6 +263,322 @@ await entity('flag', 'frete-expresso', {
   variables: {},
 });
 
+// ---------- Fases 16–19 (criadas uma vez) ----------
+
+// 17.1: dois testes da home num grupo mutuamente exclusivo (o visitante cai em no máximo um).
+const EXP_GRP_CTA = await experiment({
+  key: 'home-botao-urgencia',
+  name: 'Home: botão com urgência',
+  hypothesis: 'Se o botão disser que o estoque é limitado, mais gente clica, porque cria urgência.',
+  page: '/',
+  segmentation: { urls: [url('exact', `${SITE}/`)] },
+  variations: [
+    { id: 'seed_gc0', key: 'controle', name: 'Controle', weight: 50 },
+    {
+      id: 'seed_gc1',
+      key: 'urgencia',
+      name: 'Últimas unidades',
+      weight: 50,
+      operations: [op('seed_op_gc', '[data-testid=cta-comprar]', 'Comprar: últimas unidades')],
+    },
+  ],
+  goals: [{ id: 'seed_g_gc', key: 'clique-comprar', type: 'click', selector: '[data-testid=cta-comprar]' }],
+});
+const EXP_GRP_NEWS = await experiment({
+  key: 'home-newsletter-cupom',
+  name: 'Home: newsletter com cupom',
+  page: '/',
+  segmentation: { urls: [url('exact', `${SITE}/`)] },
+  variations: [
+    { id: 'seed_gn0', key: 'controle', name: 'Controle', weight: 50 },
+    {
+      id: 'seed_gn1',
+      key: 'cupom',
+      name: 'Ganhe 10%',
+      weight: 50,
+      operations: [op('seed_op_gn', '#newsletter-form > button', 'Quero 10% OFF')],
+    },
+  ],
+  goals: [{ id: 'seed_g_gn', key: 'newsletter', type: 'click', selector: '#newsletter-form > button' }],
+});
+await entity('group', 'Testes da home', {
+  description: 'Os dois testes mexem na home: cada visitante vê no máximo um.',
+  experiments: [
+    { id: EXP_GRP_CTA, percent: 50 },
+    { id: EXP_GRP_NEWS, percent: 50 },
+  ],
+});
+// 17.2 + 17.5: teste multipágina (produto → obrigado) com sequencial, CUPED e meta de guarda.
+const EXP_FUNIL = await experiment({
+  key: 'funil-produto-obrigado',
+  name: 'Funil: confiança do produto ao obrigado',
+  hypothesis: 'Reforçar troca grátis no produto e no pós-compra aumenta compras sem derrubar o NPS.',
+  page: '/produto.html',
+  pages: [
+    { id: 'pg_prod', name: 'Produto', url: `${SITE}/produto.html`, match: url('contains', '/produto') },
+    { id: 'pg_obg', name: 'Obrigado', url: `${SITE}/obrigado.html`, match: url('contains', '/obrigado') },
+  ],
+  stats: { sequential: true, cuped: true, guardrails: ['seed_g_fn_nl'] },
+  variations: [
+    { id: 'seed_fn0', key: 'controle', name: 'Controle', weight: 50 },
+    {
+      id: 'seed_fn1',
+      key: 'troca-gratis',
+      name: 'Troca grátis em 30 dias',
+      weight: 50,
+      operations: [
+        {
+          ...op('seed_op_fn1', 'h1.product-title', 'Tênis Runner X · troca grátis em 30 dias'),
+          page: 'pg_prod',
+        },
+        { ...op('seed_op_fn2', 'main > h1', 'Pedido confirmado! Troca grátis em 30 dias.'), page: 'pg_obg' },
+      ],
+    },
+  ],
+  goals: [
+    { id: 'seed_g_fn_buy', key: 'compra', type: 'custom', event: 'compra' },
+    { id: 'seed_g_fn_nl', key: 'obrigado', type: 'pageview', url: url('contains', '/obrigado') },
+  ],
+});
+// 17.4: rascunho com início agendado e o teste do frete com pausa agendada.
+const EXP_DRAFT = await experiment({
+  key: 'loja-black-friday',
+  name: 'Loja: faixa de Black Friday',
+  status: 'draft',
+  page: '/loja/',
+  segmentation: { urls: [url('contains', '/loja')] },
+  variations: [
+    { id: 'seed_bf0', key: 'controle', name: 'Controle', weight: 50 },
+    {
+      id: 'seed_bf1',
+      key: 'faixa',
+      name: 'Faixa Black Friday',
+      weight: 50,
+      operations: [op('seed_op_bf', '#hero-headline', 'Black Friday: até 40% OFF em tênis de corrida')],
+    },
+  ],
+  goals: [{ id: 'seed_g_bf', key: 'compra-loja', type: 'custom', event: 'purchase' }],
+});
+
+const iso = (ms: number) => new Date(ms).toISOString();
+if (!DRY) {
+  const schedules = await call<{ experimentId: string }[]>('/schedules', { token });
+  if (!schedules.some((s) => s.experimentId === EXP_DRAFT))
+    await call(`/experiments/${EXP_DRAFT}/schedules`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ action: 'start', at: iso(Date.now() + 33 * DAY) }),
+    });
+  if (!schedules.some((s) => s.experimentId === EXP_FRETE))
+    await call(`/experiments/${EXP_FRETE}/schedules`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ action: 'pause', at: iso(Date.now() + 14 * DAY) }),
+    });
+  // 17.3: link de QA da variação do funil (7 dias).
+  const previews = await call<unknown[]>(`/experiments/${EXP_FUNIL}/previews`, { token });
+  if (!previews.length)
+    await call(`/experiments/${EXP_FUNIL}/previews`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ variationId: 'seed_fn1', hours: 168 }),
+    });
+}
+
+// 18.3: backlog de hipóteses em todas as colunas, uma ligada ao teste do funil.
+if (!DRY) {
+  type Idea = { id: string; title: string };
+  let { ideas } = await call<{ ideas: Idea[] }>('/ai/ideas', { token });
+  const BACKLOG = [
+    {
+      title: 'Tabela de medidas no produto',
+      hypothesis: 'Quem não acha a tabela de medidas desiste; mostrá-la ao lado do preço reduz a dúvida.',
+      change: 'Link "Qual meu número?" abaixo do preço abrindo a tabela.',
+      page: '/produto.html',
+      metric: 'compra',
+    },
+    {
+      title: 'Selo de avaliações no topo da loja',
+      hypothesis: 'Avaliações pesaram na compra (NPS); mostrar a nota média na vitrine aumenta a confiança.',
+      change: 'Nota 4,8 ★ com 1.200 avaliações ao lado do título da loja.',
+      page: '/loja/',
+      metric: 'compra-loja',
+      ice: { impact: 7, confidence: 6, ease: 8 },
+    },
+    {
+      title: 'CEP antes do cartão no checkout',
+      hypothesis: 'O campo CEP é onde mais gente trava; calcular o frete antes evita surpresa no fim.',
+      change: 'Mover o CEP para o primeiro campo e mostrar o frete na hora.',
+      page: '/produto.html',
+      metric: 'compra',
+      ice: { impact: 9, confidence: 7, ease: 5 },
+    },
+    {
+      title: 'Troca grátis no funil',
+      hypothesis: 'Reforçar a troca grátis no produto e no pós-compra aumenta compras sem derrubar o NPS.',
+      change: 'Texto de troca grátis no título do produto e na página de obrigado.',
+      page: '/produto.html',
+      metric: 'compra',
+      ice: { impact: 6, confidence: 6, ease: 9 },
+      link: EXP_FUNIL,
+    },
+    {
+      title: 'Chamada "Corra mais" na home',
+      hypothesis: 'Um título com benefício direto aumenta o clique para comprar.',
+      change: 'Trocar o título do herói por "Corra mais, canse menos".',
+      page: '/',
+      metric: 'clique-comprar',
+      ice: { impact: 6, confidence: 8, ease: 10 },
+      link: EXP_HOME,
+      stage: 'done' as const,
+    },
+  ];
+  for (const { link, stage, ...b } of BACKLOG) {
+    if (ideas.some((i) => i.title === b.title)) continue;
+    const r = await call<{ id: string; ideas: Idea[] }>('/ai/ideas/manual', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(b),
+    });
+    ideas = r.ideas;
+    if (link)
+      await call(`/ai/ideas/${r.id}`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({ experimentId: link, ...(stage ? { stage } : {}) }),
+      });
+  }
+}
+
+// 19.1 + 19.4: integrações, webhooks (um que responde e um que falha, para a fila de reenvio) e exportação.
+await entity('integrations', 'integrações', {
+  ga4: true,
+  gtm: true,
+  segment: { enabled: true },
+  mixpanel: { enabled: true, conversions: false },
+  amplitude: { enabled: false },
+});
+await entity('consent', 'consentimento', { required: false, cmp: 'onetrust', category: '' });
+await entity('webhook', 'Slack da equipe (exemplo)', {
+  url: 'https://httpbin.org/post',
+  events: ['publish', 'approval', 'mention'],
+  enabled: true,
+});
+await entity('webhook', 'ERP fora do ar (exemplo de falha)', {
+  url: 'https://httpbin.org/status/503',
+  events: ['publish', 'approval'],
+  enabled: true,
+});
+if (!DRY && !(await call<{ config: { enabled: boolean } }>('/exports', { token })).config.enabled) {
+  await call('/integrations/crm', {
+    method: 'PUT',
+    token,
+    body: JSON.stringify({
+      hubspot: {
+        enabled: false,
+        fields: [
+          { from: 'segments', to: 'abt_segments' },
+          { from: 'revenue', to: 'abt_revenue' },
+          { from: 'attr.plano', to: 'plano' },
+        ],
+      },
+      salesforce: { enabled: false },
+    }),
+  });
+  await call('/exports', {
+    method: 'PUT',
+    token,
+    body: JSON.stringify({ enabled: true, events: true, reports: true, frequency: 'daily', hour: 3 }),
+  });
+}
+
+// 16.2/16.3/16.4/16.6: equipe (convite pendente), comentários com menção e pedidos de aprovação do editor.
+if (!DRY) {
+  type Member = { id: string; name: string; email: string };
+  const members = await call<Member[]>('/members', { token });
+  const invites = await call<{ email: string }[]>('/invites', { token });
+  if (!invites.some((i) => i.email === 'analista@passofirme.com.br'))
+    await call('/invites', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ email: 'analista@passofirme.com.br', role: 'editor' }),
+    });
+  const editorUser = members.find((m) => m.email === 'editor@abtest.dev');
+  const owner = members.find((m) => m.email === (process.env.SEED_EMAIL ?? 'demo@abtest.dev'));
+  const ed = editorUser
+    ? (
+        await call<{ token: string }>('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: 'editor@abtest.dev',
+            password: process.env.SEED_PASSWORD ?? 'demo1234',
+          }),
+        }).catch(() => null)
+      )?.token
+    : undefined;
+  const comment = async (
+    by: string,
+    targetType: string,
+    targetId: string,
+    body: string,
+    mentions: string[],
+  ) => {
+    const list = await call<{ body: string }[]>(
+      `/comments?targetType=${targetType}&targetId=${encodeURIComponent(targetId)}`,
+      { token },
+    );
+    if (!list.some((c) => c.body === body))
+      await call('/comments', {
+        method: 'POST',
+        token: by,
+        body: JSON.stringify({ targetType, targetId, body, mentions }),
+      });
+  };
+  if (ed && owner && editorUser) {
+    await comment(ed, 'experiment', EXP_FUNIL, `@${owner.name} subi a variação do funil, pode revisar?`, [
+      owner.id,
+    ]);
+    await comment(token, 'experiment', EXP_FUNIL, `@${editorUser.name} revisei, ficou ótimo. Vou aprovar.`, [
+      editorUser.id,
+    ]);
+    await comment(
+      ed,
+      'experiment',
+      EXP_LOJA,
+      'No desktop o título com benefício está perdendo, vale segmentar.',
+      [],
+    );
+    await comment(ed, 'popup', POPUP, 'Cupom CORRA10 vence dia 30, trocar depois.', []);
+    // Aprovação: a conta passa a exigir; um pedido aprovado (publica tudo acima) e outro pendente.
+    const settings = await call<object>('/account/settings', { token });
+    await call('/account/settings', {
+      method: 'PUT',
+      token,
+      body: JSON.stringify({ ...settings, requireApproval: true }),
+    });
+    const reqs = await call<{ status: string; id: string }[]>('/publish-requests', { token });
+    if (!reqs.length) {
+      const first = await call<{ id: string }>('/publish-requests', {
+        method: 'POST',
+        token: ed,
+        body: JSON.stringify({ note: 'Grupo da home, funil multipágina e ajustes do frete.' }),
+      });
+      await call(`/publish-requests/${first.id}/approve`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ comment: 'Aprovado, bom teste!' }),
+      });
+      await call('/publish-requests', {
+        method: 'POST',
+        token: ed,
+        body: JSON.stringify({
+          note: 'Agendei a faixa de Black Friday; publicar quando a arte estiver pronta.',
+        }),
+      });
+    }
+  }
+}
+
 // ---------- Tráfego ----------
 
 const events: Record<string, unknown>[] = [];
@@ -675,6 +991,73 @@ for (let i = 0; i < VISITORS; i++) {
     t += Math.round(DAY * (2 + rand() * 8));
   }
   void bought;
+}
+
+// Tráfego dos testes das fases 16–19 (depois do laço principal: não muda a sequência da semente acima).
+// Grupo da home: fatia 0–49 vai para o botão, 50–99 para a newsletter. Funil: só os últimos 30 dias.
+for (let i = 0; i < Math.round(VISITORS / 2); i++) {
+  const visitorId = randomUUID();
+  const sessionId = randomUUID();
+  const d = Math.floor(rand() * 30);
+  let t = now - d * DAY - Math.floor(rand() * DAY);
+  const base = (path: string) => ({
+    eventId: randomUUID(),
+    ts: (t += 3_000),
+    accountId: ACCOUNT,
+    visitorId,
+    sessionId,
+    url: SITE + path,
+  });
+  const arm = chance(0.5) ? 1 : 0;
+  const pair = (exp: string, key: string, prefix: string, vkey: string, path: string) => ({
+    experimentId: exp,
+    experimentKey: key,
+    variationId: `${prefix}${arm}`,
+    variationKey: arm ? vkey : 'controle',
+    ...base(path),
+  });
+  if (chance(0.5)) {
+    const [exp, key, prefix, vkey, goal, gkey, p] = chance(0.5)
+      ? [
+          EXP_GRP_CTA,
+          'home-botao-urgencia',
+          'seed_gc',
+          'urgencia',
+          'seed_g_gc',
+          'clique-comprar',
+          arm ? 0.36 : 0.3,
+        ]
+      : [
+          EXP_GRP_NEWS,
+          'home-newsletter-cupom',
+          'seed_gn',
+          'cupom',
+          'seed_g_gn',
+          'newsletter',
+          arm ? 0.11 : 0.06,
+        ];
+    events.push({ ...pair(exp, key, prefix, vkey, '/'), type: 'exposure' });
+    if (chance(p))
+      events.push({ ...pair(exp, key, prefix, vkey, '/'), type: 'conversion', goalId: goal, goalKey: gkey });
+  } else {
+    events.push({
+      ...pair(EXP_FUNIL, 'funil-produto-obrigado', 'seed_fn', 'troca-gratis', '/produto.html'),
+      type: 'exposure',
+    });
+    if (chance(arm ? 0.3 : 0.26)) {
+      const value = pick([299.9, 399.9, 599.9, 689.9]);
+      const c = (path: string, goalId: string, goalKey: string, v?: number) =>
+        events.push({
+          ...pair(EXP_FUNIL, 'funil-produto-obrigado', 'seed_fn', 'troca-gratis', path),
+          type: 'conversion',
+          goalId,
+          goalKey,
+          ...(v ? { value: v } : {}),
+        });
+      c('/produto.html', 'seed_g_fn_buy', 'compra', value);
+      c('/obrigado.html', 'seed_g_fn_nl', 'obrigado');
+    }
+  }
 }
 
 events.sort((a, b) => (a.ts as number) - (b.ts as number));

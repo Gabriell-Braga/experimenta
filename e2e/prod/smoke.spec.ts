@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-const SUB = process.env.PROD_SUB ?? 'hub-villa-deli';
-const EDITOR = `https://abtest-editor.${SUB}.workers.dev/`;
-const DEMO = `https://abtest-demo.${SUB}.workers.dev/`;
+const EDITOR = process.env.PROD_EDITOR ?? 'https://experimenta.gabrielbraga.app/';
+const DEMO = process.env.PROD_DEMO ?? 'https://experimenta-demo.gabrielbraga.app/';
 
 test('produção: login → editar → configurar → publicar → visitante vê a variação', async ({
   page,
@@ -25,10 +24,13 @@ test('produção: login → editar → configurar → publicar → visitante vê
   await page.keyboard.press('Enter');
   await expect(site.locator('#hero-title')).toHaveText(texto);
 
-  await page.getByTestId('side-settings').click();
+  await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('running');
   await page.getByTestId('weight-controle').fill('0');
   await page.getByTestId('weight-controle').blur();
+  await page.getByTestId('weight-variacao-1').fill('100');
+  await page.getByTestId('weight-variacao-1').blur();
+  await page.getByTestId('settings-done').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('Publicado', { timeout: 30_000 });
 
@@ -42,7 +44,9 @@ test('produção: login → editar → configurar → publicar → visitante vê
   await visitor.close();
 
   // Arquiva para não deixar o demo público alterado.
+  await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('archived');
+  await page.getByTestId('settings-done').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação', {
     timeout: 30_000,

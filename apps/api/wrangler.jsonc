@@ -5,6 +5,8 @@
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  // Domínio próprio (zona gabrielbraga.app na mesma conta); o *.workers.dev continua respondendo.
+  "routes": [{ "pattern": "experimenta-api.gabrielbraga.app", "custom_domain": true }],
   // Roda o Worker perto do D1 (cada consulta ao banco deixa de cruzar o continente).
   "placement": { "mode": "smart" },
   "d1_databases": [
@@ -17,9 +19,9 @@
   ],
   "kv_namespaces": [{ "binding": "CDN", "id": "c8a2bc427ff5448098a79ce2fb645e15" }],
   "vars": {
-    "PUBLIC_URL": "https://abtest-api.hub-villa-deli.workers.dev",
-    "EDITOR_ORIGINS": "https://abtest-editor.hub-villa-deli.workers.dev,http://localhost:5173",
-    "DEMO_SITE_URL": "https://abtest-demo.hub-villa-deli.workers.dev/",
+    "PUBLIC_URL": "https://experimenta-api.gabrielbraga.app",
+    "EDITOR_ORIGINS": "https://experimenta.gabrielbraga.app,https://abtest-editor.hub-villa-deli.workers.dev,http://localhost:5173",
+    "DEMO_SITE_URL": "https://experimenta-demo.gabrielbraga.app/",
     "HEATMAP_SAMPLE_RATE": "1",
     "EVENTS_RETENTION_DAYS": "90",
     // Ideias de teste com Gemini (camada grátis); chave no secret AI_API_KEY.

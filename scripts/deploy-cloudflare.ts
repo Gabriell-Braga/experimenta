@@ -6,9 +6,11 @@ import { join, relative } from 'node:path';
 import { zipSync } from 'fflate';
 import { compileAccountScript } from '../apps/api/src/cdn';
 
-const SUB = process.env.CF_SUBDOMAIN ?? 'hub-villa-deli';
-const API = `https://abtest-api.${SUB}.workers.dev`;
-const EDITOR = `https://abtest-editor.${SUB}.workers.dev`;
+// Domínios próprios (rotas custom_domain nos wrangler.jsonc); os *.workers.dev antigos continuam no ar.
+const API = 'https://experimenta-api.gabrielbraga.app';
+const EDITOR = 'https://experimenta.gabrielbraga.app';
+const DEMO = 'https://experimenta-demo.gabrielbraga.app';
+const OLD_EDITOR = 'https://abtest-editor.hub-villa-deli.workers.dev';
 const root = join(import.meta.dirname, '..');
 
 const run = (cmd: string, cwd = root, env: Record<string, string> = {}) => {
@@ -47,7 +49,9 @@ wrangler('d1 migrations apply abtest-db --remote');
 wrangler('deploy');
 
 // 3) Extensão (ponte injetada só no editor publicado) → zip baixável pelo editor.
-run('pnpm --filter @abtest/extension build', root, { EDITOR_ORIGINS: `${EDITOR},http://localhost:5173` });
+run('pnpm --filter @abtest/extension build', root, {
+  EDITOR_ORIGINS: `${EDITOR},${OLD_EDITOR},http://localhost:5173`,
+});
 const extDir = join(root, 'apps/extension/dist');
 const files: Record<string, Uint8Array> = {};
 const walk = (dir: string) => {
@@ -66,6 +70,4 @@ wrangler('deploy -c ../editor/wrangler.jsonc');
 run('pnpm --filter @abtest/demo build', root, { VITE_API_URL: API });
 wrangler('deploy -c ../demo/wrangler.jsonc');
 
-console.log(
-  `\nPronto:\n  editor: ${EDITOR}\n  demo:   https://abtest-demo.${SUB}.workers.dev\n  API:    ${API}/docs`,
-);
+console.log(`\nPronto:\n  editor: ${EDITOR}\n  demo:   ${DEMO}\n  API:    ${API}/docs`);

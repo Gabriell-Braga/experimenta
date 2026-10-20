@@ -46,10 +46,10 @@ function experimentInsights(
   events: TrackingEvent[],
   devices: Map<string, string>,
   range: { from: Date; to: Date },
+  r = experimentReport(exp, events, range),
 ) {
   const out: Insight[] = [];
   const link = { view: 'report', params: { id: exp.id } };
-  const r = experimentReport(exp, events, range);
   if (r.srm.mismatch)
     out.push({
       id: `srm:${exp.id}`,
@@ -81,11 +81,22 @@ function experimentInsights(
       detail: `${win.lift !== null && win.lift >= 0 ? '+' : ''}${pct(win.lift ?? 0)} em ${goal.goalKey}, ${pct(win.probBeatControl ?? 0)} de chance de ser melhor que o controle. Hora de implementar e encerrar o teste.`,
       link,
     });
-  // Por dispositivo: só com amostra mínima em todas as variações.
+  // Por dispositivo: só com amostra mínima em todas as variações. Só a meta primária e sem metas de guarda
+  // (cada meta custa um Monte Carlo; o painel roda no limite de CPU do Worker grátis).
+  const primary = {
+    ...exp,
+    goals: exp.goals.filter((x) => x.id === goal.goalId),
+    stats: { ...exp.stats, guardrails: [] },
+  };
   const per = Object.keys(DEVICE).flatMap((d) => {
-    const g = experimentReport(exp, events, range, (v) => devices.get(v) === d).goals.find(
-      (x) => x.goalId === goal.goalId,
-    );
+    const g = experimentReport(
+      primary,
+      events,
+      range,
+      (v) => devices.get(v) === d,
+      undefined,
+      2000,
+    ).goals.find((x) => x.goalId === goal.goalId);
     return g && g.arms.every((a) => a.visitors >= MIN_VISITORS) ? [{ device: d, arms: g.arms }] : [];
   });
   for (const arm of goal.arms.slice(1)) {
@@ -119,8 +130,10 @@ export function findInsights(input: {
   funnels: { id: string; name: string; data: Funnel }[];
   pages: ReturnType<typeof pagesReport>;
   forms: ReturnType<typeof formsReport>;
+  /** Relatórios já calculados por experimento (o painel reaproveita no resumo dos testes). */
+  reports?: Map<string, ReturnType<typeof experimentReport>>;
 }): Insight[] {
-  const { cur, range, running, funnels, pages, forms } = input;
+  const { cur, range, running, funnels, pages, forms, reports } = input;
   const out: Insight[] = [];
   const devices = deviceByVisitor(cur.filter((e) => e.type === 'pageview'));
   for (const exp of running)
@@ -130,6 +143,7 @@ export function findInsights(input: {
         cur.filter((e) => 'experimentId' in e && e.experimentId === exp.id),
         devices,
         range,
+        reports?.get(exp.id),
       ),
     );
 

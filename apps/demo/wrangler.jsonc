@@ -3,5 +3,6 @@
   "name": "abtest-demo",
   "compatibility_date": "2025-09-01",
   "workers_dev": true,
+  "routes": [{ "pattern": "experimenta-demo.gabrielbraga.app", "custom_domain": true }],
   "assets": { "directory": "./dist", "html_handling": "auto-trailing-slash" }
 }

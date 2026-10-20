@@ -717,3 +717,8 @@
 - Pendências da fase: nada validado com contas/aparelhos reais (CRMs, Shopify, WordPress, SDKs nativos, S3/BigQuery); SDKs não publicados em registries; sem Swift para iOS; reenvio de webhook depende de tráfego para ser de minutos.
 
 - Deploy da fase 19 (2026-10-20 16:22): 19.1–19.4 em produção, migração D1 0012 (webhook_deliveries) aplicada. Primeira tentativa foi interrompida por queda de energia depois de API + migração; o backup do D1 dessa rodada não chegou a ser gravado (migração só cria tabela). Deploy refeito por completo.
+
+### 2026-10-20 17:23 — Dados de demonstração das fases 16–19, domínio próprio e bateria de testes
+- O que foi feito: `pnpm seed:data` agora preenche as fases 16–19 (ver D-093) e rodou em produção (1.500 visitantes, 13,5 mil eventos). App mudou para https://experimenta.gabrielbraga.app (API `experimenta-api`, demo `experimenta-demo`); URLs do demo migradas no D1. Painel geral mais leve (estourava a CPU do Worker com 6 testes no ar). Smoke de produção atualizado (botão de configurações mudou) e novo `e2e/prod/tour.spec.ts`: todas as telas e relatórios com owner, editor e viewer, sem erro de JS, 5xx ou aviso de erro.
+- Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (120 passaram), SDK Python (9), produção: smoke + tour (4 passaram).
+- Pendência: painel de 30/90 dias ainda pode dar "Limite da versão de testes" no plano grátis (Workers Paid resolve).

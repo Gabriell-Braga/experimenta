@@ -25,8 +25,7 @@ export const DASHBOARD_TYPES = [
 const delta = (cur: number, prev: number) => (prev ? (cur - prev) / prev : null);
 
 /** Resumo de um experimento em execução: líder na meta primária, SRM e dias restantes. */
-export function experimentSummary(exp: Experiment, events: TrackingEvent[], range: { from: Date; to: Date }) {
-  const r = experimentReport(exp, events, range);
+export function experimentSummary(exp: Experiment, r: ReturnType<typeof experimentReport>) {
   const goal = r.goals.find((g) => g.primary) ?? r.goals[0];
   const challengers = goal?.arms.slice(1) ?? [];
   const best = challengers.reduce<(typeof challengers)[number] | null>(
@@ -76,10 +75,21 @@ export function dashboard(
   };
   const nps = cur.filter((e) => e.type === 'survey' && !e.qa);
   const cd = crossDevice(buildProfiles(cur).values());
+  // Um relatório por teste (Monte Carlo), usado nos achados e no resumo.
+  const reports = new Map(
+    running.map((exp) => [
+      exp.id,
+      experimentReport(
+        exp,
+        cur.filter((e) => 'experimentId' in e && e.experimentId === exp.id),
+        range,
+      ),
+    ]),
+  );
   return {
     from: range.from.toISOString(),
     to: range.to.toISOString(),
-    insights: findInsights({ cur, range, running, funnels, pages, forms }),
+    insights: findInsights({ cur, range, running, funnels, pages, forms, reports }),
     traffic: {
       ...t,
       deltas: {
@@ -92,13 +102,7 @@ export function dashboard(
       series: o.series.map((d) => ({ day: d.day, visitors: d.visitors })),
       devices: o.devices,
     },
-    experiments: running.map((exp) =>
-      experimentSummary(
-        exp,
-        cur.filter((e) => 'experimentId' in e && e.experimentId === exp.id),
-        range,
-      ),
-    ),
+    experiments: running.map((exp) => experimentSummary(exp, reports.get(exp.id)!)),
     behavior: {
       rage: sum(pages, 'rage'),
       dead: sum(pages, 'dead'),

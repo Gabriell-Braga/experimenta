@@ -81,7 +81,11 @@ export interface GuardrailViolation {
  * Sem CUPED: taxas com posterior Beta e receita com Normal (como sempre). Com CUPED (`x` = covariável na
  * mesma ordem): Y' ajustado e posterior Normal. Teste sequencial opcional; veredito de cada variação.
  */
-function armStats(kind: 'rate' | 'mean', values: number[][], opts: { x?: number[][]; sequential: boolean }) {
+function armStats(
+  kind: 'rate' | 'mean',
+  values: number[][],
+  opts: { x?: number[][]; sequential: boolean; draws?: number },
+) {
   const raw = values.map(meanVar);
   let means = raw;
   let stats: ArmResult[];
@@ -92,12 +96,12 @@ function armStats(kind: 'rate' | 'mean', values: number[][], opts: { x?: number[
     means = values.map((vs) => meanVar(c.adjusted.slice(k, (k += vs.length))));
     reduction = c.reduction;
     // Taxa/média exibida continua a observada; intervalo, melhoria e chances vêm do estimador ajustado.
-    stats = compareMeans(means).map((r, i) => ({ ...r, rate: raw[i]!.mean }));
+    stats = compareMeans(means, opts.draws).map((r, i) => ({ ...r, rate: raw[i]!.mean }));
   } else if (kind === 'rate') {
     const arms = values.map((vs) => ({ visitors: vs.length, conversions: vs.filter((v) => v > 0).length }));
     means = arms.map(rateInput);
-    stats = compareRates(arms);
-  } else stats = compareMeans(raw);
+    stats = compareRates(arms, opts.draws);
+  } else stats = compareMeans(raw, opts.draws);
   return {
     reduction,
     arms: stats.map((r, i) => {
@@ -135,6 +139,8 @@ export function experimentReport(
   visitorFilter?: (visitorId: string) => boolean,
   /** CUPED (`stats.cuped`): covariável pré-exposição por visitante (ausente = 0). Ver `preExposureActivity`. */
   covariate?: Map<string, number>,
+  /** Sorteios do Monte Carlo (padrão 20 mil); o painel usa menos no recorte por dispositivo (CPU do Worker). */
+  draws?: number,
 ) {
   const sequential = !!exp.stats?.sequential;
   const useCuped = !!exp.stats?.cuped && !!covariate;
@@ -185,13 +191,13 @@ export function experimentReport(
     const rates = armStats(
       'rate',
       perArm.map((a) => a.hits),
-      { x, sequential },
+      { x, sequential, draws },
     );
     const revenueStats = hasRevenue
       ? armStats(
           'mean',
           perArm.map((a) => a.values),
-          { x, sequential },
+          { x, sequential, draws },
         )
       : null;
     const sections = exp.sections?.map((sec) => {
