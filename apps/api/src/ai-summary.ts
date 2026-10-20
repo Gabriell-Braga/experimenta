@@ -9,35 +9,28 @@ import {
   type HeatmapContext,
   type HeatmapSummary,
   type RecordingSummary,
+  type ReportSummary,
   type Survey,
   type SurveySummary,
   type TrackingEvent,
 } from '@abtest/shared';
 import { AI_MODEL, compatJson, type CompatAi } from './ai';
+import {
+  mergeReport,
+  REPORT_JSON_SCHEMA,
+  REPORT_SYSTEM,
+  ReportModelSchema,
+  type ReportInput,
+} from './ai-report';
 import { STOP } from './analytics/surveys';
+import { clean } from './pii';
 
 /**
  * Resumo por IA (fase 18.4): gravação, mapa de calor de uma página e respostas abertas de pesquisa.
  * Entradas compactas e agregadas, sem replay bruto e sem dados pessoais (D-084).
  */
 
-// ---------- Dados pessoais ----------
-
-/** Troca e-mails e números longos (telefone, CPF, cartão, CEP: 8+ dígitos) por marcadores. */
-export const maskPii = (s: string) =>
-  s
-    .replace(/[\w.%+-]+@[\w-]+(?:\.[\w-]+)+/g, '[e-mail]')
-    .replace(/\+?\(?\d[\d\s()./-]{6,}\d/g, (m) => (m.replace(/\D/g, '').length >= 8 ? '[número]' : m));
-
-/** Texto de fora (site ou visitante) pronto para o prompt: uma linha, sem dado pessoal, cortado. */
-export const clean = (s: string, max = 200) =>
-  maskPii(
-    [...s]
-      .map((ch) => (ch < ' ' || ch === '\u007f' ? ' ' : ch))
-      .join('')
-      .replace(/\s+/g, ' ')
-      .trim(),
-  ).slice(0, max);
+export { clean, maskPii } from './pii';
 
 /** Só o caminho (query e hash podem levar e-mail, token, id de campanha). */
 export function pagePath(url: string) {
@@ -455,12 +448,14 @@ sentimento do tema e até 3 exemplos copiados das respostas. Dê o sentimento ge
     }),
     zod: SurveySummarySchema,
   },
+  report: { system: REPORT_SYSTEM, schema: REPORT_JSON_SCHEMA, zod: ReportModelSchema },
 } as const;
 
 export type SummaryOf = {
   recording: RecordingSummary;
   heatmap: HeatmapSummary;
   survey: SurveySummary;
+  report: ReportSummary;
 };
 export type AnySummary = SummaryOf[AiSummaryKind];
 
@@ -480,6 +475,9 @@ function tidy(v: unknown): unknown {
 export function parseSummary<K extends AiSummaryKind>(kind: K, json: unknown, input?: unknown): SummaryOf[K] {
   const r = SPECS[kind].zod.safeParse(tidy(json));
   if (!r.success) throw new Error('resposta fora do formato');
+  // Relatório: o modelo só escreve os textos; ação, confiança e números conferidos vêm das regras (D-085).
+  if (kind === 'report')
+    return mergeReport(input as ReportInput, r.data as Parameters<typeof mergeReport>[1]) as SummaryOf[K];
   const out = r.data as AnySummary;
   if (kind === 'survey') {
     const s = out as SurveySummary;

@@ -52,7 +52,122 @@ export const SurveySummarySchema = z.object({
 });
 export type SurveySummary = z.infer<typeof SurveySummarySchema>;
 
-export const AI_SUMMARY_KINDS = ['recording', 'heatmap', 'survey'] as const;
+export const NEXT_ACTIONS = [
+  'implement',
+  'keep-running',
+  'stop-iterate',
+  'investigate-srm',
+  'test-idea',
+] as const;
+export type NextAction = (typeof NEXT_ACTIONS)[number];
+export const CONFIDENCES = ['alta', 'média', 'baixa'] as const;
+
+/**
+ * Explicação do relatório de um experimento (fase 18.5). Ação, variação, dias e confiança vêm das regras sobre
+ * os números do relatório (a IA não decide); o modelo só escreve os textos e a ideia (D-085).
+ */
+export const ReportSummarySchema = z.object({
+  /** O resultado em linguagem simples. */
+  summary: line,
+  /** O que significa para o negócio. */
+  business: line,
+  confidence: z.enum(CONFIDENCES),
+  /** Ressalvas (SRM, amostra pequena, meta de guarda, novidade...). */
+  caveats: lines,
+  next: z.object({
+    action: z.enum(NEXT_ACTIONS),
+    text: line,
+    /** Variação a implementar. */
+    variation: z.string().max(200).optional(),
+    /** Continuar rodando: dias estimados (sem estimativa = ausente). */
+    days: z.number().int().nonnegative().optional(),
+    /** Ideia para o backlog (parar e iterar / testar ideia). */
+    idea: z.object({ title: line, hypothesis: line, change: line }).optional(),
+  }),
+});
+export type ReportSummary = z.infer<typeof ReportSummarySchema>;
+
+const fin = z.number().finite();
+const p01 = z.number().min(0).max(1);
+const VERDICTS = ['winner', 'loser', 'leading', 'inconclusive', 'baseline'] as const;
+const ArmNumbers = z.object({
+  variationId: z.string().max(100),
+  visitors: z.number().int().nonnegative(),
+  conversions: z.number().int().nonnegative(),
+  revenue: fin,
+  rpv: fin,
+  rate: p01,
+  rateLow: p01,
+  rateHigh: p01,
+  lift: fin.nullable(),
+  liftLow: fin.nullable(),
+  liftHigh: fin.nullable(),
+  probBeatControl: p01.nullable(),
+  probBest: p01,
+  pValue: p01.nullable(),
+  verdict: z.enum(VERDICTS),
+  sequential: z.object({ pValue: p01, liftLow: fin.nullable(), liftHigh: fin.nullable() }).nullish(),
+  guardrailViolated: z.boolean().optional(),
+});
+
+/**
+ * Números do relatório que a tela já tem (`GET /experiments/:id/report`), mandados de volta para a explicação
+ * sem recalcular a estatística na API. Dado do cliente: a API confere a coerência e só usa para explicar.
+ * Campos a mais (seções, CUPED, nomes) são descartados.
+ */
+export const ReportNumbersSchema = z.object({
+  visitors: z.number().int().nonnegative(),
+  variations: z
+    .array(z.object({ id: z.string().max(100), visitors: z.number().int().nonnegative() }))
+    .max(30),
+  goals: z
+    .array(
+      z.object({
+        goalId: z.string().max(100),
+        hasRevenue: z.boolean(),
+        guardrail: z.boolean().optional(),
+        arms: z.array(ArmNumbers).max(30),
+        revenueArms: z
+          .array(
+            z.object({
+              variationId: z.string().max(100),
+              lift: fin.nullable(),
+              probBeatControl: p01.nullable(),
+              verdict: z.enum(VERDICTS),
+            }),
+          )
+          .max(30)
+          .nullable(),
+      }),
+    )
+    .max(30),
+  /** Só para os dias com dados (primeiro dia com visitante até o fim do período). */
+  series: z
+    .array(z.object({ points: z.array(z.object({ visitors: z.number().nonnegative() })).max(400) }))
+    .max(30)
+    .optional(),
+  srm: z.object({ pValue: p01.nullable(), mismatch: z.boolean() }),
+  stats: z.object({ sequential: z.boolean(), cuped: z.boolean() }).optional(),
+  guardrails: z
+    .array(
+      z.object({
+        goalId: z.string().max(100),
+        variationId: z.string().max(100),
+        metric: z.enum(['rate', 'revenue']),
+        lift: fin.nullable(),
+      }),
+    )
+    .max(100)
+    .optional(),
+  estimate: z.object({
+    neededPerVariation: fin.nonnegative().nullable(),
+    daysRemaining: z.number().int().nonnegative().nullable(),
+    mde: fin,
+  }),
+});
+export type ReportNumbers = z.infer<typeof ReportNumbersSchema>;
+
+export const AI_SUMMARY_KINDS = ['recording', 'heatmap', 'survey', 'report'] as const;
 export type AiSummaryKind = (typeof AI_SUMMARY_KINDS)[number];
 
 /** Rótulos dos elementos clicados e elementos clicáveis sem clique, lidos pelo agent na página real. */

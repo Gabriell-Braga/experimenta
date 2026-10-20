@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 18.4 concluída
+**Status:** 18.5 concluída
 **Fase atual:** 18
-**Tarefa atual:** 18.5
-**Última atualização:** 2026-10-20 11:19
-**Próximo passo:** 18.5 assistente de relatório (explica o resultado e sugere o próximo passo).
+**Tarefa atual:** 18.6
+**Última atualização:** 2026-10-20 11:35
+**Próximo passo:** 18.6 geração de ideias em invocações separadas no Worker grátis.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -652,3 +652,10 @@
 - Arquivos principais: packages/shared/src/ai-summary.ts, packages/shared/src/rpc.ts (`heatmapContext`), packages/agent/src/summary.ts, apps/api/src/ai-summary.ts, apps/api/src/routes/ai-summary.ts, apps/editor/src/components/AiSummary.tsx, apps/editor/src/pages/{Recordings,Heatmaps,Surveys}.tsx, e2e/tests/ai-summary.spec.ts
 - Como testar manualmente: com ANTHROPIC_API_KEY (ou AI_BASE_URL/AI_MODEL) na API, abrir uma gravação → "Resumir com IA"; Mapas de calor → uma página → "Resumir com IA"; Pesquisas → relatório de uma pesquisa com pergunta aberta → "Resumir com IA" (sem chave, sai o resumo por palavras-chave). Clicar de novo não chama o modelo (cache). `pnpm --filter @abtest/api exec vitest run src/ai-summary.test.ts`; `pnpm --filter @abtest/e2e e2e tests/ai-summary.spec.ts` (pesquisa por regras de verdade; IA falsa por rota interceptada nas três telas).
 - Observações: sem migração (cache em entidade genérica `ai-summary`). Chamada síncrona como a 18.1 (no Worker conta a CPU, não a espera do modelo; nada em `waitUntil`). A gravação lê os blocos do rrweb como o player já lê (mesmo custo de CPU do GET da gravação). Erros de JavaScript do site não são coletados, então não entram no resumo. Snippet inalterado. D-084.
+
+### 2026-10-20 11:35 — Tarefa 18.5 concluída (assistente de relatório)
+- O que foi feito: cartão "Assistente de relatório" no relatório do experimento, botão "Explicar resultado". Reaproveita a rota e o cache da 18.4 (`POST /ai/summary`, `kind: 'report'`): a tela manda de volta os números do relatório que já mostra (a API não recalcula a estatística) e a API confere contra o experimento e entre si (variações e metas na ordem dele, conversões ≤ visitantes, taxa = conversões/visitantes, totais, controle com veredito "base"; adulterado = 409). A entrada da IA tem os números já formatados (taxa, intervalo, melhoria, chance de vencer, p ou p sempre válido, veredito, conversões a cada 1.000 visitantes, receita por visitante), SRM, metas de guarda violadas, metas secundárias, dias com dados, amostra necessária e dias restantes, e a hipótese do teste (18.2). **Próximo passo, confiança e ressalvas saem de regras** sobre o veredito (SRM → investigar; vencedora → implementar a de maior melhoria; todas perdendo ou piorando meta de guarda → parar e iterar; amostra atingida sem decisão → testar ideia mais ousada; senão continuar rodando N dias); o modelo só escreve resumo, o que significa para o negócio, as ressalvas, o texto do próximo passo e a ideia. Resposta da IA que cita número fora da entrada é rejeitada e cai na explicação por regras (com aviso). Sem chave de IA (e para quem só lê sem explicação guardada), explicação por regras, sempre disponível. Botão de ação: "Abrir <variação> no editor" (implementar) ou "Criar ideia no backlog" (parar e iterar / testar ideia; cria a ideia manual da 18.3 com página e meta do teste).
+- Arquivos principais: packages/shared/src/ai-summary.ts (`ReportSummarySchema`, `ReportNumbersSchema`), apps/api/src/ai-report.ts, apps/api/src/pii.ts (máscara de PII saiu de ai-summary.ts para evitar import circular), apps/api/src/ai-summary.ts, apps/api/src/routes/ai-summary.ts, apps/editor/src/components/AiSummary.tsx, apps/editor/src/pages/Report.tsx, e2e/tests/report-assistant.spec.ts
+- Como testar manualmente: abrir o relatório de um teste com visitantes → "Explicar resultado" (sem chave: "Por regras"; com ANTHROPIC_API_KEY ou AI_BASE_URL/AI_MODEL: texto da IA, guardado até os números mudarem) → num teste perdedor, "Criar ideia no backlog" e conferir em Otimização por IA. `pnpm --filter @abtest/api exec vitest run src/ai-report.test.ts`; `pnpm --filter @abtest/e2e e2e tests/report-assistant.spec.ts` (regras de verdade; IA falsa por rota interceptada).
+- Observações: sem migração (cache na entidade `ai-summary`, chave `report:<teste>|<dias>|<dispositivo>`). CPU da rota: validar o JSON do relatório e uma leitura do experimento; nada de Monte Carlo. Números mudam a cada visitante, então dentro de 1 h a explicação guardada volta marcada "Há dados novos" (como na 18.4). Snippet inalterado. D-085.
+

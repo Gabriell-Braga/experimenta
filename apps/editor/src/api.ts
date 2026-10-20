@@ -818,7 +818,9 @@ export type AiSummaryRequest =
       variationId?: string;
       context?: import('@abtest/shared').HeatmapContext;
     }
-  | { kind: 'survey'; surveyId: string; days?: number };
+  | { kind: 'survey'; surveyId: string; days?: number }
+  /** Assistente de relatório (18.5): os números que a tela já tem (a API confere e não recalcula). */
+  | { kind: 'report'; experimentId: string; days: number; device?: string; report: ExperimentReport };
 export interface AiSummary {
   kind: AiSummaryRequest['kind'];
   summary: Record<string, unknown>;

@@ -1,7 +1,14 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type Anthropic from '@anthropic-ai/sdk';
-import { AI_SUMMARY_KINDS, HeatmapContextSchema, type AiSummaryKind, type Survey } from '@abtest/shared';
+import {
+  AI_SUMMARY_KINDS,
+  HeatmapContextSchema,
+  ReportNumbersSchema,
+  type AiSummaryKind,
+  type Survey,
+} from '@abtest/shared';
 import { AI_MODEL, type CompatAi } from '../ai';
+import { checkReport, reportInput, ruleReport, type ReportInput } from '../ai-report';
 import {
   claudeSummary,
   compatSummary,
@@ -62,6 +69,18 @@ const Body = z.discriminatedUnion('kind', [
     days: z.number().int().min(1).max(365).default(90),
     refresh: z.boolean().optional(),
   }),
+  z.object({
+    kind: z.literal('report'),
+    experimentId: z.string().min(1).max(100),
+    days: z.number().int().min(1).max(365).default(30),
+    device: z.enum(['desktop', 'tablet', 'mobile']).optional(),
+    /**
+     * Números do relatório que a tela já mostra (sem recalcular a estatística aqui, CPU do Worker). Dado do
+     * cliente: conferido contra o experimento e entre si, e usado só para explicar (D-085).
+     */
+    report: ReportNumbersSchema,
+    refresh: z.boolean().optional(),
+  }),
 ]);
 
 const Out = z
@@ -79,6 +98,12 @@ const Out = z
   })
   .openapi('AiSummary');
 const ErrorOut = z.object({ error: z.string() });
+
+/** Tipos com explicação sem IA (barata, sempre disponível) e o nome dela no aviso. */
+const RULES: Partial<Record<AiSummaryKind, { label: string; run(input: unknown): AnySummary }>> = {
+  survey: { label: 'resumo por palavras-chave', run: (i) => ruleSurvey(i as ReturnType<typeof surveyInput>) },
+  report: { label: 'explicação por regras', run: (i) => ruleReport(i as ReportInput) },
+};
 
 const NO_AI =
   'IA não configurada nesta instalação: defina ANTHROPIC_API_KEY (Claude) ou AI_BASE_URL e AI_MODEL (modelo compatível com OpenAI) na API.';
@@ -130,6 +155,19 @@ export function aiSummaryRoutes(app: Api, repo: Repo, client?: Anthropic, compat
         input,
       };
     }
+    if (b.kind === 'report') {
+      const rec = await repo.getExperiment(accountId, b.experimentId);
+      if (!rec) return { error: 'experimento não encontrado', status: 404 };
+      const bad = checkReport(rec.experiment, b.report);
+      if (bad)
+        return {
+          error: `Os números do relatório não batem com o experimento (${bad}). Recarregue o relatório.`,
+          status: 409,
+        };
+      const r = reportInput(rec.experiment, b.report, { days: b.days, device: b.device });
+      if ('error' in r) return { error: r.error, status: 409 };
+      return { key: `report:${rec.experiment.id}|${b.days}|${b.device ?? ''}`, input: r.input };
+    }
     const s = await repo.getEntity<Survey>(accountId, 'survey', b.surveyId);
     if (!s) return { error: 'pesquisa não encontrada', status: 404 };
     const events = await repo.listEvents(accountId, {
@@ -167,7 +205,7 @@ export function aiSummaryRoutes(app: Api, repo: Repo, client?: Anthropic, compat
       tags: ['insights'],
       security,
       summary:
-        'Resumo por IA de uma gravação (objetivo, passos, onde travou, frustração), do mapa de calor de uma página (atenção, ignorado, sugestões) ou das respostas abertas de uma pesquisa (temas e sentimento). Guardado em cache até os dados mudarem.',
+        'Resumo por IA de uma gravação (objetivo, passos, onde travou, frustração), do mapa de calor de uma página (atenção, ignorado, sugestões), das respostas abertas de uma pesquisa (temas e sentimento) ou do relatório de um experimento (resultado em linguagem simples, negócio, ressalvas e próximo passo). Guardado em cache até os dados mudarem.',
       request: { body: json(Body, 'alvo do resumo') },
       responses: {
         200: json(Out, 'resumo'),
@@ -200,24 +238,31 @@ export function aiSummaryRoutes(app: Api, repo: Repo, client?: Anthropic, compat
           200,
         );
       if (hit && age < TTL_MS && hit.data.fp === fp) return reply(hit.data, true);
-      // Gerar custa: quem só lê vê o que já foi gerado (mesmo com dado novo).
-      if (!hasRole(user, 'editor')) return hit && age < TTL_MS ? reply(hit.data, true, true) : forbid(c);
-      if (hit && age < FRESH_MS && !b.refresh) return reply(hit.data, true, true);
 
       const now = new Date().toISOString();
+      const rule = RULES[b.kind];
       const rules = (notice?: string): Cached => ({
         key: r.key,
         fp,
-        kind: 'survey',
-        summary: ruleSurvey(r.input as ReturnType<typeof surveyInput>),
+        kind: b.kind,
+        summary: rule!.run(r.input),
         source: 'regras',
         note: [notice, r.note].filter(Boolean).join(' ') || undefined,
         createdAt: now,
       });
+      // Gerar custa: quem só lê vê o que já foi gerado (mesmo com dado novo); o relatório cai nas regras.
+      if (!hasRole(user, 'editor')) {
+        if (hit && age < TTL_MS) return reply(hit.data, true, true);
+        return b.kind === 'report'
+          ? reply(rules('Explicação por regras (a explicação por IA é gerada por quem edita).'), false)
+          : forbid(c);
+      }
+      if (hit && age < FRESH_MS && !b.refresh) return reply(hit.data, true, true);
+
       if (!client && !compat)
-        // Pesquisa cai num resumo por palavras-chave (barato, sem cache: com IA configurada depois, gera de verdade).
-        return b.kind === 'survey'
-          ? reply(rules('IA não configurada: resumo por palavras-chave.'), false)
+        // Pesquisa e relatório caem nas regras (baratas, sem cache: com IA configurada depois, gera de verdade).
+        return rule
+          ? reply(rules(`IA não configurada: ${rule.label}.`), false)
           : c.json({ error: NO_AI }, 409);
       let entry: Cached;
       try {
@@ -232,8 +277,7 @@ export function aiSummaryRoutes(app: Api, repo: Repo, client?: Anthropic, compat
       } catch (e) {
         console.error('[api] resumo por IA falhou', e);
         const why = (e as Error).message.slice(0, 120);
-        if (b.kind === 'survey')
-          return reply(rules(`A IA não respondeu agora (${why}); resumo por palavras-chave.`), false);
+        if (rule) return reply(rules(`A IA não respondeu agora (${why}); ${rule.label}.`), false);
         return c.json({ error: `A IA não respondeu agora (${why}). Tente de novo.` }, 502);
       }
       if (!entry.note) delete entry.note;

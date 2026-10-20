@@ -1,6 +1,6 @@
-import type { HeatmapSummary, RecordingSummary, SurveySummary } from '@abtest/shared';
+import type { HeatmapSummary, RecordingSummary, ReportSummary, SurveySummary } from '@abtest/shared';
 import { RefreshCw, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { aiSummary, type AiSummary as Result, type AiSummaryRequest } from '../api';
 import { Button, timeAgo } from '../ui';
 
@@ -25,7 +25,51 @@ function List({ title, items, testid }: { title: string; items: string[]; testid
   );
 }
 
+const CONFIDENCE: Record<string, string> = {
+  alta: 'bg-lime-soft text-brand-900',
+  média: 'bg-amber-50 text-amber-800',
+  baixa: 'bg-red-50 text-red-700',
+};
+
 function Body({ r }: { r: Result }) {
+  if (r.kind === 'report') {
+    const s = r.summary as unknown as ReportSummary;
+    return (
+      <>
+        <p className="font-medium text-ink" data-testid="ai-report-summary">
+          {s.summary}
+        </p>
+        <p>
+          <span className="label-mono block">O que significa para o negócio</span>
+          <span data-testid="ai-report-business">{s.business}</span>
+        </p>
+        <p className="flex items-center gap-2">
+          <span className="label-mono">Confiança</span>
+          <span
+            className={`rounded-sm px-1.5 py-0.5 text-xs font-medium ${CONFIDENCE[s.confidence] ?? ''}`}
+            data-testid="ai-report-confidence"
+          >
+            {s.confidence}
+          </span>
+        </p>
+        <List title="Ressalvas" items={s.caveats} testid="ai-report-caveats" />
+        <div>
+          <p className="label-mono mb-1">Próximo passo</p>
+          <p data-testid="ai-report-next" data-action={s.next.action}>
+            {s.next.text}
+          </p>
+          {s.next.idea && (
+            <p
+              className="mt-1 border-l-2 border-gray-200 pl-2 text-xs text-gray-600"
+              data-testid="ai-report-idea"
+            >
+              <b className="text-ink">{s.next.idea.title}</b> · {s.next.idea.hypothesis}
+            </p>
+          )}
+        </div>
+      </>
+    );
+  }
   if (r.kind === 'recording') {
     const s = r.summary as unknown as RecordingSummary;
     return (
@@ -90,16 +134,21 @@ function Body({ r }: { r: Result }) {
 }
 
 /**
- * Botão "Resumir com IA" e o resumo (gravação, mapa de calor ou pesquisa). A API guarda o resumo e só chama o
+ * Botão "Resumir com IA" e o resumo (gravação, mapa de calor, pesquisa ou relatório). A API guarda o resumo e só chama o
  * modelo de novo quando os dados mudam; com dado novo há menos de 1 h, mostra o guardado e oferece "Atualizar".
  */
 export function AiSummaryCard({
   request,
   className = '',
+  label = 'Resumir com IA',
+  actions,
 }: {
   /** Monta o pedido na hora (o mapa de calor lê o texto dos elementos na página). */
   request(): Promise<AiSummaryRequest> | AiSummaryRequest;
   className?: string;
+  label?: string;
+  /** Botões de ação a partir do resultado (ex.: próximo passo do relatório). */
+  actions?: (r: Result) => ReactNode;
 }) {
   const [r, setR] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +164,7 @@ export function AiSummaryCard({
     <section className={`space-y-2 text-sm ${className}`} data-testid="ai-summary">
       {!r && (
         <Button size="sm" onClick={() => run()} data-testid="ai-summary-run">
-          <Sparkles size={14} aria-hidden="true" /> Resumir com IA
+          <Sparkles size={14} aria-hidden="true" /> {label}
         </Button>
       )}
       {error && (
@@ -133,10 +182,15 @@ export function AiSummaryCard({
           data-testid="ai-summary-result"
         >
           <Body r={r} />
+          {actions?.(r)}
           <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-brand-100 pt-2 text-[11px] text-gray-500">
             <span data-testid="ai-summary-source">
-              {r.source === 'regras' ? 'Por palavras-chave' : `IA (${r.model ?? r.source})`} ·{' '}
-              {timeAgo(r.createdAt)}
+              {r.source === 'regras'
+                ? r.kind === 'survey'
+                  ? 'Por palavras-chave'
+                  : 'Por regras'
+                : `IA (${r.model ?? r.source})`}{' '}
+              · {timeAgo(r.createdAt)}
             </span>
             {r.note && <span data-testid="ai-summary-note">{r.note}</span>}
             {r.stale && <span className="text-amber-800">Há dados novos desde este resumo.</span>}

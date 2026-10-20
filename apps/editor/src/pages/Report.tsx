@@ -1,18 +1,22 @@
-import { ArrowLeft, Download, Pencil, Printer, TriangleAlert, Trophy } from 'lucide-react';
+import type { ReportSummary } from '@abtest/shared';
+import { ArrowLeft, Download, Lightbulb, Pencil, Printer, TriangleAlert, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   getExperiment,
   getExperimentAttribution,
   getReport,
+  ideas,
   rebalance,
   type ArmRow,
   type ArmStats,
+  type ExperimentRecord,
   type ExperimentReport,
   type GoalReport,
   type Me,
   type Verdict,
 } from '../api';
 import { LineChart, seriesColor } from '../charts';
+import { AiSummaryCard } from '../components/AiSummary';
 import { AttributionTable } from '../components/Attribution';
 import { go, navigate, setParams } from '../nav';
 import {
@@ -426,6 +430,65 @@ function ChannelCard({ id, goal, days }: { id: string; goal: GoalReport; days: n
   );
 }
 
+/** Botão do próximo passo do assistente, quando há o que fazer pelo app (implementar ou criar ideia). */
+function NextStepAction({
+  s,
+  record,
+  goalKey,
+}: {
+  s: ReportSummary;
+  record: ExperimentRecord;
+  goalKey: string;
+}) {
+  const toast = useToast();
+  const [idea, setIdea] = useState<'idle' | 'saving' | 'done'>('idle');
+  const exp = record.experiment;
+  if (s.next.action === 'implement')
+    return (
+      <Button
+        size="sm"
+        onClick={() => (exp.type === 'server' ? navigate('server', { id: exp.id }) : go(exp.id))}
+        data-testid="ai-report-action"
+      >
+        <Pencil size={12} aria-hidden="true" /> Abrir {s.next.variation ?? 'a vencedora'} no editor
+      </Button>
+    );
+  const draft = s.next.idea;
+  if (!draft) return null;
+  if (idea === 'done')
+    return (
+      <Button size="sm" variant="ghost" onClick={() => navigate('optimize')} data-testid="ai-report-backlog">
+        Ver no backlog
+      </Button>
+    );
+  return (
+    <Button
+      size="sm"
+      disabled={idea === 'saving'}
+      onClick={async () => {
+        setIdea('saving');
+        try {
+          await ideas.create({
+            title: draft.title.slice(0, 200),
+            hypothesis: draft.hypothesis,
+            change: draft.change,
+            page: record.editorUrl.slice(0, 500),
+            metric: goalKey.slice(0, 200),
+          });
+          setIdea('done');
+          toast('success', 'Ideia criada no backlog de hipóteses.');
+        } catch (e) {
+          setIdea('idle');
+          toast('error', (e as Error).message);
+        }
+      }}
+      data-testid="ai-report-action"
+    >
+      <Lightbulb size={12} aria-hidden="true" /> Criar ideia no backlog
+    </Button>
+  );
+}
+
 export function ReportPage({ id, params, user }: { id: string; params: URLSearchParams; user: Me }) {
   const toast = useToast();
   const [days, setDays] = useState<(typeof PERIODS)[number][0]>((params.get('days') as '30') ?? '30');
@@ -620,6 +683,32 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
               </div>
             </dl>
           </section>
+
+          {primary && report.variations.length > 1 && report.visitors > 0 && (
+            <Card title="Assistente de relatório" className="no-print">
+              <AiSummaryCard
+                key={`${days}|${device}`}
+                label="Explicar resultado"
+                request={() => ({
+                  kind: 'report',
+                  experimentId: exp.id,
+                  days: Number(days),
+                  ...(device ? { device } : {}),
+                  report,
+                })}
+                actions={(r) =>
+                  r.kind === 'report' &&
+                  user.role !== 'viewer' && (
+                    <NextStepAction
+                      s={r.summary as unknown as ReportSummary}
+                      record={record}
+                      goalKey={primary.goalKey}
+                    />
+                  )
+                }
+              />
+            </Card>
+          )}
 
           {!report.goals.length ? (
             <EmptyState
