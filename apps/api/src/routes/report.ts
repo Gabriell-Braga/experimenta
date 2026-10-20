@@ -11,6 +11,43 @@ import { rebalance } from '../bandit';
 import type { AppDeps } from '../app';
 import { errors, json, period, PeriodQuery, Report, security, type Api } from '../http';
 import type { Repo } from '../repo';
+import type { Experiment } from '@abtest/shared';
+
+/** Relatório do experimento no período (também usado pelo resultado da ideia no backlog, 18.3). */
+export async function loadReport(
+  repo: Repo,
+  accountId: string,
+  exp: Experiment,
+  q: z.infer<typeof PeriodQuery> & { device?: 'desktop' | 'tablet' | 'mobile' },
+) {
+  const range = period(q);
+  const events = await repo.listEvents(accountId, {
+    experimentId: exp.id,
+    types: ['exposure', 'conversion'],
+    ...range,
+  });
+  let filter: ((v: string) => boolean) | undefined;
+  let covariate: Map<string, number> | undefined;
+  const cuped = !!exp.stats?.cuped;
+  if (q.device || cuped) {
+    const ids = [...new Set(events.filter((e) => e.type === 'exposure').map((e) => e.visitorId))];
+    // Uma consulta só para os dois: CUPED olha até 30 dias antes da 1ª exposição (que pode ser anterior
+    // ao período), então busca também as exposições e começa mais cedo.
+    const visitorEvents = await repo.listEvents(accountId, {
+      types: cuped ? ['pageview', 'exposure'] : ['pageview'],
+      visitorIds: ids,
+      from: cuped ? new Date(range.from.getTime() - CUPED_LOOKBACK_DAYS * 86_400_000) : range.from,
+      to: range.to,
+    });
+    if (cuped) covariate = preExposureActivity(exp.id, visitorEvents);
+    if (q.device) {
+      const from = range.from.getTime();
+      const devices = deviceByVisitor(visitorEvents.filter((e) => e.type === 'pageview' && e.ts >= from));
+      filter = (v) => devices.get(v) === q.device;
+    }
+  }
+  return experimentReport(exp, events, range, filter, covariate);
+}
 
 /** Relatório de experimento (tarefa 9.4). Caminho já coberto por `/experiments/*` (privado). */
 export function reportRoutes(app: Api, repo: Repo, publish?: AppDeps['publish']) {
@@ -35,34 +72,7 @@ export function reportRoutes(app: Api, repo: Repo, publish?: AppDeps['publish'])
       const accountId = c.get('user').accountId;
       const rec = await repo.getExperiment(accountId, c.req.valid('param').id);
       if (!rec) return c.json({ error: 'experimento não encontrado' }, 404);
-      const q = c.req.valid('query');
-      const range = period(q);
-      const events = await repo.listEvents(accountId, {
-        experimentId: rec.experiment.id,
-        types: ['exposure', 'conversion'],
-        ...range,
-      });
-      let filter: ((v: string) => boolean) | undefined;
-      let covariate: Map<string, number> | undefined;
-      const cuped = !!rec.experiment.stats?.cuped;
-      if (q.device || cuped) {
-        const ids = [...new Set(events.filter((e) => e.type === 'exposure').map((e) => e.visitorId))];
-        // Uma consulta só para os dois: CUPED olha até 30 dias antes da 1ª exposição (que pode ser anterior
-        // ao período), então busca também as exposições e começa mais cedo.
-        const visitorEvents = await repo.listEvents(accountId, {
-          types: cuped ? ['pageview', 'exposure'] : ['pageview'],
-          visitorIds: ids,
-          from: cuped ? new Date(range.from.getTime() - CUPED_LOOKBACK_DAYS * 86_400_000) : range.from,
-          to: range.to,
-        });
-        if (cuped) covariate = preExposureActivity(rec.experiment.id, visitorEvents);
-        if (q.device) {
-          const from = range.from.getTime();
-          const devices = deviceByVisitor(visitorEvents.filter((e) => e.type === 'pageview' && e.ts >= from));
-          filter = (v) => devices.get(v) === q.device;
-        }
-      }
-      return c.json(experimentReport(rec.experiment, events, range, filter, covariate), 200);
+      return c.json(await loadReport(repo, accountId, rec.experiment, c.req.valid('query')), 200);
     },
   );
 

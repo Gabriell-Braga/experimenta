@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 18.2 concluída
+**Status:** 18.3 concluída
 **Fase atual:** 18
-**Tarefa atual:** 18.3
-**Última atualização:** 2026-10-20 10:42
-**Próximo passo:** 18.3 backlog de hipóteses.
+**Tarefa atual:** 18.4
+**Última atualização:** 2026-10-20 10:58
+**Próximo passo:** 18.4 resumo por IA de gravações, mapa de calor e respostas abertas.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
@@ -640,3 +640,9 @@
 - Arquivos principais: apps/api/src/routes/ai.ts (`ideaPage`, `ideaGoal`, `ideaExperiment` e a rota), apps/api/src/audit.ts, packages/shared/src/experiment.ts, apps/editor/src/pages/Optimize.tsx, apps/editor/src/components/{AiPanel,SettingsPanel}.tsx, apps/editor/src/EditorView.tsx, e2e/tests/idea-to-test.spec.ts
 - Como testar manualmente: Otimização por IA → Gerar ideias → "Criar teste" numa ideia: abre o editor na página da ideia, aba IA com a mudança (com chave de IA, a pré-visualização aparece sozinha); Configurações mostra nome, hipótese e meta; voltar às ideias: a ideia está em "Executadas" com "Abrir teste". `pnpm --filter @abtest/api exec vitest run src/ai.test.ts`; `pnpm --filter @abtest/e2e e2e tests/idea-to-test.spec.ts`.
 - Observações: sem migração (hipótese em `options`, vínculo no JSON das ideias); a hipótese não vai para o site (removida na publicação e no link de pré-visualização). A sugestão para o editor fica no sessionStorage (só a primeira abertura do teste gera). Snippet inalterado. D-082.
+
+### 2026-10-20 10:58 — Tarefa 18.3 concluída (backlog de hipóteses)
+- O que foi feito: a tela Otimização por IA virou o backlog de hipóteses, um quadro em quatro colunas (Ideias → Priorizadas → Em teste → Concluídas) sobre as mesmas ideias de antes (sem entidade nova). Ideias manuais ("Nova ideia": título, hipótese, mudança, página, meta; editar em Detalhes), geradas pela IA caem em "Ideias". Pontuação ICE (impacto, confiança, facilidade 1–10; score = média, uma casa) no modal "Priorizar", com sugestão a partir das etiquetas da IA; priorizar move de "Ideias" para "Priorizadas"; cada coluna ordena pelo maior ICE. Mover pelo menu "Mover…" do cartão (teclado) ou arrastando (HTML5 nativo). "Em teste" = teste ligado: "Criar teste" (18.2) ou "Ligar a teste" existente; com teste ligado a coluna segue o status dele (arquivado = concluída) e só "Concluídas" pode ser escolhida à mão; "Desligar teste" volta para "Priorizadas". Concluída com teste mostra o resultado (vencedora/perdedora/inconclusivo, variação, lift e visitantes) resumido do relatório da meta primária, calculado sob demanda por cartão e guardado quando o teste está arquivado. Criar, editar, priorizar, mover, ligar/desligar, descartar e limpar entram no histórico de atividades.
+- Arquivos principais: packages/shared/src/ideas.ts, apps/api/src/routes/ai.ts (`migrate`, `effectiveStage`, `ideaResult`, rotas `POST /ai/ideas/manual`, `PUT /ai/ideas/:id`, `GET /ai/ideas/:id/result`), apps/api/src/routes/report.ts (`loadReport` extraído), apps/api/src/audit.ts, apps/editor/src/pages/{Optimize,Activity}.tsx, apps/editor/src/api.ts, e2e/tests/backlog.spec.ts
+- Como testar manualmente: Otimização por IA → "Nova ideia" → "Priorizar" (ICE) → mover pelo menu ou arrastando → Detalhes → "Ligar a teste" → arquivar o teste → a ideia vai para Concluídas com o resultado; Atividades mostra "priorizou/moveu/ligou a ideia…". `pnpm --filter @abtest/api exec vitest run src/ai.test.ts -t backlog`; `pnpm --filter @abtest/e2e e2e tests/backlog.spec.ts`.
+- Observações: sem migração de banco (ideias continuam numa entidade JSON por conta; ideias salvas antes viram colunas na leitura: executada com teste = em teste, sem teste = concluída). O GET do quadro faz só duas consultas leves a mais quando há ideia ligada (lista de testes e resultados guardados) e nunca calcula relatório. Snippet inalterado. D-083.

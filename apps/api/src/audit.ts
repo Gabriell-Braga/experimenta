@@ -7,8 +7,10 @@ import { SCHEDULE_KIND, type ScheduleData } from './routes/schedules';
 
 // Histórico de atividades (auditoria, fase 16.3), registrado num ponto só: um middleware olha cada escrita bem
 // sucedida (2xx) das rotas abaixo e grava uma linha. Rotas novas que mudam configuração entram nesta tabela.
-// Fora dela de propósito: login, troca de conta, sessão de edição, ideias da IA e treinos (não mudam o que o
-// site recebe) e tudo do snippet (coleta, gravação).
+// Fora dela de propósito: login, troca de conta, sessão de edição, gerar ideias com IA e treinos (não mudam o
+// que o site recebe) e tudo do snippet (coleta, gravação). O backlog de hipóteses (18.3) entra: é decisão da
+// equipe (criar, editar, priorizar, mover, ligar a teste, descartar); movimentos automáticos não (vêm do status
+// do teste ligado, que já é registrado).
 
 type Json = Record<string, unknown>;
 /** Estado do alvo antes da escrita (nome para exclusões, status para saber se iniciou/pausou). */
@@ -76,6 +78,30 @@ const commentBefore: Rule['before'] = async (repo, acc, p) => {
   const r = await repo.getComment(acc, p.id!);
   return r && { name: r.targetName, id: r.targetId };
 };
+const IDEAS_KIND = 'ai-ideas';
+/** Nome das colunas do backlog no detalhe da atividade. */
+const STAGE_LABEL: Record<string, string> = {
+  idea: 'Ideias',
+  prioritized: 'Priorizadas',
+  testing: 'Em teste',
+  done: 'Concluídas',
+};
+const ideaBefore: Rule['before'] = async (repo, acc, p) => {
+  const [e] = await repo.listEntities<{ ideas?: Json[] }>(acc, IDEAS_KIND);
+  const i = e?.data.ideas?.find((x) => x.id === p.id);
+  return i ? { name: str(i.title), status: str(i.stage) } : null;
+};
+const resIdea = (x: Ctx) => (x.res.ideas as Json[] | undefined)?.find((i) => i.id === (x.p.id ?? x.res.id));
+/** Mudança mais relevante de um PUT na ideia (um PUT do quadro faz uma coisa só). */
+const ideaAction = (x: Ctx) => {
+  const to = str(resIdea(x)?.stage);
+  if ((x.body.stage !== undefined || x.body.done !== undefined) && to && to !== x.before?.status)
+    return 'move';
+  if (x.body.experimentId === null) return 'unlink';
+  if (x.body.experimentId !== undefined) return 'link';
+  if (x.body.ice) return 'prioritize';
+  return 'update';
+};
 const exp = (x: Ctx) => x.body.experiment as Json | undefined;
 const beforeName = (x: Ctx) => x.before?.name;
 
@@ -100,6 +126,47 @@ const RULES: Rule[] = [
     name: (x) =>
       ((x.res.ideas as Json | undefined)?.ideas as Json[] | undefined)?.find((i) => i.id === x.p.id)?.title,
     detail: () => 'a partir de ideia da IA',
+  },
+  // Backlog de hipóteses (18.3).
+  {
+    method: 'POST',
+    path: '/ai/ideas/manual',
+    target: 'idea',
+    action: 'create',
+    name: (x) => x.body.title,
+    id: (x) => x.res.id,
+  },
+  {
+    method: 'PUT',
+    path: '/ai/ideas/:id',
+    target: 'idea',
+    before: ideaBefore,
+    action: ideaAction,
+    name: (x) => resIdea(x)?.title ?? x.before?.name,
+    detail: (x) => {
+      const i = resIdea(x);
+      const a = ideaAction(x);
+      if (a === 'move') return STAGE_LABEL[str(i?.stage)];
+      if (a === 'link') return i?.experimentName;
+      if (a === 'prioritize') return `ICE ${str(i?.score).replace('.', ',')}`;
+      return null;
+    },
+  },
+  {
+    method: 'DELETE',
+    path: '/ai/ideas/:id',
+    target: 'idea',
+    before: ideaBefore,
+    action: 'delete',
+    name: beforeName,
+  },
+  {
+    method: 'DELETE',
+    path: '/ai/ideas',
+    target: 'idea',
+    action: 'clear',
+    name: () => 'Backlog de hipóteses',
+    id: () => null,
   },
   {
     method: 'PUT',

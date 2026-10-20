@@ -28,6 +28,7 @@ export const TARGET_LABEL: Record<string, [string, string]> = {
   propensity: ['Modelo preditivo', 'o modelo preditivo'],
   group: ['Grupos exclusivos', 'o grupo exclusivo'],
   comment: ['Comentários', 'um comentário em'],
+  idea: ['Backlog de hipóteses', 'a ideia'],
 };
 
 const VERB: Record<string, string> = {
@@ -88,6 +89,24 @@ export function sentence(a: ActivityItem): ReactNode {
     ) : (
       <>{who} encerrou uma sessão de login</>
     );
+  // Backlog de hipóteses (18.3): detalhe = coluna de destino, teste ligado ou "ICE 7,3".
+  if (a.targetType === 'idea' && a.action !== 'create' && a.action !== 'update' && a.action !== 'delete') {
+    if (a.action === 'clear') return <>{who} limpou o backlog de hipóteses</>;
+    const tail =
+      a.action === 'move'
+        ? `para ${a.detail ?? ''}`
+        : a.action === 'link'
+          ? `ao teste ${a.detail ?? ''}`
+          : a.action === 'unlink'
+            ? 'do teste'
+            : `(${a.detail ?? ''})`;
+    const verb = { move: 'moveu', link: 'ligou', unlink: 'desligou', prioritize: 'priorizou' }[a.action];
+    return (
+      <>
+        {who} {verb ?? a.action} a ideia {what} {tail}
+      </>
+    );
+  }
   if (a.targetType === 'publish') {
     const note = a.detail && <span className="text-gray-500"> ({a.detail})</span>;
     if (a.action === 'request')

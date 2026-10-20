@@ -1,4 +1,11 @@
-import { ExperimentSchema, type AiChange, type Experiment, type PageSummary } from '@abtest/shared';
+import {
+  ExperimentSchema,
+  type AiChange,
+  type Experiment,
+  type Ice,
+  type IdeaStage,
+  type PageSummary,
+} from '@abtest/shared';
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -721,15 +728,37 @@ export interface Idea {
   effort: string;
   basedOn: string;
 }
+/** Resultado do teste ligado à ideia, resumido do relatório (meta primária). */
+export interface IdeaResult {
+  outcome: 'winner' | 'loser' | 'inconclusive';
+  lift: number | null;
+  variation?: string;
+  goal: string;
+  visitors: number;
+  at: string;
+  /** Teste arquivado: resultado definitivo. */
+  final: boolean;
+}
 export interface SavedIdea extends Idea {
   id: string;
   createdAt: string;
-  source: 'claude' | 'modelo' | 'regras';
+  source: 'claude' | 'modelo' | 'regras' | 'manual';
   model?: string;
-  /** Marcada como executada pelo usuário. */
+  createdBy?: string;
+  /** Coluna do backlog (com teste ligado, segue o status dele). */
+  stage: IdeaStage;
+  stageAt?: string;
+  ice?: Ice;
+  /** ICE (média das três notas). */
+  score?: number;
   doneAt?: string;
-  /** Teste criado pela ideia ("Criar teste"). */
+  /** Teste ligado (criado pela ideia ou escolhido no quadro). */
   experimentId?: string;
+  experimentName?: string;
+  /** Status do teste ligado; `deleted` = excluído. */
+  experimentStatus?: string;
+  /** Resultado definitivo guardado. */
+  result?: IdeaResult;
 }
 /** Ideias guardadas na conta + estado da última geração (que roda em segundo plano na API). */
 export interface Ideas {
@@ -743,17 +772,26 @@ export interface Ideas {
   notice?: string;
   ideas: SavedIdea[];
 }
+export type IdeaText = Pick<Idea, 'title' | 'hypothesis' | 'change' | 'page' | 'metric'>;
+const ideaPath = (id: string) => `/ai/ideas/${encodeURIComponent(id)}`;
 export const ideas = {
   get: () => api<Ideas>('/ai/ideas'),
   generate: (days: number) => api<Ideas>(`/ai/ideas?days=${days}`, { method: 'POST' }),
-  done: (id: string, done: boolean) =>
-    api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ done }) }),
-  remove: (id: string) => api<Ideas>(`/ai/ideas/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** Ideia escrita pela equipe. */
+  create: (body: IdeaText) =>
+    api<Ideas & { id: string }>('/ai/ideas/manual', { method: 'POST', body: JSON.stringify(body) }),
+  update: (
+    id: string,
+    patch: Partial<IdeaText> & { stage?: IdeaStage; ice?: Ice | null; experimentId?: string | null },
+  ) => api<Ideas>(ideaPath(id), { method: 'PUT', body: JSON.stringify(patch) }),
+  remove: (id: string) => api<Ideas>(ideaPath(id), { method: 'DELETE' }),
   clear: () => api<Ideas>('/ai/ideas', { method: 'DELETE' }),
-  /** Cria (ou devolve, se já criado) o teste da ideia e a marca como executada. */
+  /** Resultado do teste ligado (calculado do relatório sob demanda). */
+  result: (id: string) => api<{ result: IdeaResult | null }>(`${ideaPath(id)}/result`),
+  /** Cria (ou devolve, se já criado) o teste da ideia e liga a ideia a ele. */
   createTest: (id: string) =>
     api<{ id: string; created: boolean; goalCreated: boolean; ai: boolean; ideas: Ideas }>(
-      `/ai/ideas/${encodeURIComponent(id)}/experiment`,
+      `${ideaPath(id)}/experiment`,
       { method: 'POST' },
     ),
 };

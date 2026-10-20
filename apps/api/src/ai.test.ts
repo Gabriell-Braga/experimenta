@@ -1,10 +1,11 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { expect, test, vi } from 'vitest';
+import { ExperimentSchema } from '@abtest/shared';
 import { claudeIdeas, compatFromEnv, compatIdeas, ruleIdeas } from './ai';
 import type { Dashboard } from './analytics/dashboard';
 import type { Insight } from './analytics/insights';
 import { autopilotWeights } from './bandit';
-import { ideaGoal, ideaPage } from './routes/ai';
+import { effectiveStage, ideaGoal, ideaPage, ideaResult, migrate } from './routes/ai';
 import { DEMO } from './seed';
 import { setupApp } from './test-app';
 
@@ -76,7 +77,7 @@ async function generateIdeas(t: Awaited<ReturnType<typeof setupApp>>) {
       status: string;
       source?: string;
       model?: string;
-      ideas: { id: string; title: string; doneAt?: string }[];
+      ideas: { id: string; title: string; stage: string }[];
     };
     if (s.status !== 'running') return s;
     await new Promise((ok) => setTimeout(ok, 20));
@@ -112,7 +113,7 @@ test('rota: gera em segundo plano, guarda, não repete, marca executada, descart
     as: 'editor',
     body: JSON.stringify({ done: true }),
   });
-  expect(((await put.json()) as { ideas: { doneAt?: string }[] }).ideas[0]!.doneAt).toBeTruthy();
+  expect(((await put.json()) as { ideas: { stage: string }[] }).ideas[0]!.stage).toBe('done');
   // Executada não bloqueia a mesma ideia de voltar numa geração nova.
   expect((await generateIdeas(t3)).ideas).toHaveLength(2);
   expect((await t3.req(`/ai/ideas/${id}`, { method: 'DELETE', as: 'editor' })).status).toBe(200);
@@ -290,10 +291,14 @@ test('rota: criar teste da ideia (dados, vínculo, idempotência, permissões, a
   const again = (await (await t.req(path, { method: 'POST', as: 'editor' })).json()) as {
     id: string;
     created: boolean;
-    ideas: { ideas: { id: string; doneAt?: string; experimentId?: string }[] };
+    ideas: { ideas: { id: string; stage: string; experimentId?: string }[] };
   };
   expect(again).toMatchObject({ id: b1.id, created: false });
-  expect(again.ideas.ideas[0]).toMatchObject({ experimentId: b1.id, doneAt: expect.any(String) });
+  expect(again.ideas.ideas[0]).toMatchObject({
+    experimentId: b1.id,
+    stage: 'testing',
+    experimentName: idea.title,
+  });
   expect((await t.repo.listExperiments(DEMO.accountId)).map((e) => e.id).sort()).toEqual(
     [b1.id, 'exp_base'].sort(),
   );
@@ -323,4 +328,186 @@ test('rota: criar teste da ideia (dados, vínculo, idempotência, permissões, a
   });
   const r3 = await t2.req('/ai/ideas/idea_r1/experiment', { method: 'POST', as: 'editor' });
   expect(await r3.json()).toMatchObject({ id: 'exp_idea_r1', created: true, ai: false, goalCreated: true });
+}, 30_000);
+
+test('backlog: migração, coluna pelo status do teste e resultado do relatório', () => {
+  const base = {
+    ...idea,
+    impact: 'alto' as const,
+    effort: 'baixo' as const,
+    id: 'i',
+    createdAt: '',
+    source: 'claude' as const,
+  };
+  expect(migrate(base).stage).toBe('idea');
+  expect(migrate({ ...base, doneAt: 'x' }).stage).toBe('done');
+  expect(migrate({ ...base, doneAt: 'x', experimentId: 'e' }).stage).toBe('testing');
+  expect(migrate({ ...base, stage: 'prioritized', doneAt: 'x' }).stage).toBe('prioritized');
+  expect(effectiveStage('prioritized')).toBe('prioritized');
+  expect(effectiveStage('testing', 'running')).toBe('testing');
+  expect(effectiveStage('testing', 'draft')).toBe('testing');
+  expect(effectiveStage('testing', 'archived')).toBe('done');
+  expect(effectiveStage('done', 'running')).toBe('done');
+
+  const exp = ExperimentSchema.parse({
+    id: 'e',
+    key: 'e',
+    name: 'E',
+    status: 'archived',
+    variations: [
+      { id: 'c', key: 'c', name: 'Controle', weight: 1 },
+      { id: 'a', key: 'a', name: 'Verde', weight: 1 },
+      { id: 'b', key: 'b', name: 'Azul', weight: 1 },
+    ],
+    goals: [{ id: 'g', key: 'compra', type: 'custom', event: 'compra' }],
+  });
+  const arm = (variationId: string, verdict: string, lift: number | null) => ({
+    variationId,
+    verdict,
+    lift,
+    visitors: 100,
+  });
+  const report = (...arms: ReturnType<typeof arm>[]) =>
+    ({ goals: [{ goalKey: 'compra', arms: [arm('c', 'baseline', null), ...arms] }] }) as never;
+  const now = new Date('2026-10-20T00:00:00Z');
+  expect(ideaResult(exp, report(arm('a', 'leading', 0.05), arm('b', 'winner', 0.12)), now)).toEqual({
+    outcome: 'winner',
+    lift: 0.12,
+    variation: 'Azul',
+    goal: 'compra',
+    visitors: 300,
+    at: now.toISOString(),
+    final: true,
+  });
+  expect(ideaResult(exp, report(arm('a', 'loser', -0.2), arm('b', 'loser', -0.1)))).toMatchObject({
+    outcome: 'loser',
+    lift: -0.1,
+    variation: 'Azul',
+  });
+  expect(ideaResult(exp, report(arm('a', 'inconclusive', 0.01), arm('b', 'loser', -0.1)))).toMatchObject({
+    outcome: 'inconclusive',
+    variation: 'Verde',
+  });
+  expect(ideaResult(exp, { goals: [] })).toBeNull();
+});
+
+test('rota: backlog (ideia manual, ICE, mover, ligar a teste, resultado, auditoria, migração)', async () => {
+  const t = await setupApp();
+  const put = (id: string, body: unknown, as = 'editor') =>
+    t.req(`/ai/ideas/${id}`, { method: 'PUT', as, body: JSON.stringify(body) });
+  const board = async () => (await (await t.req('/ai/ideas', { as: 'viewer' })).json()) as Board;
+  type Board = {
+    id?: string;
+    ideas: {
+      id: string;
+      stage: string;
+      score?: number;
+      source: string;
+      createdBy?: string;
+      experimentId?: string;
+      experimentStatus?: string;
+      result?: unknown;
+    }[];
+  };
+  const manual = { title: 'Frete grátis no topo', hypothesis: 'Se mostrar, compra mais', page: '/' };
+  const post = (body: unknown, as = 'editor') =>
+    t.req('/ai/ideas/manual', { method: 'POST', as, body: JSON.stringify(body) });
+  expect((await post(manual, 'viewer')).status).toBe(403);
+  expect((await post({ title: ' ' })).status).toBe(400);
+  const created = (await (await post(manual)).json()) as Board;
+  const id = created.id!;
+  expect(created.ideas[0]).toMatchObject({ id, stage: 'idea', source: 'manual', metric: '' });
+  expect(created.ideas[0]!.createdBy).toBeTruthy();
+  // Outra conta não enxerga.
+  expect((await put(id, { stage: 'done' }, 'other')).status).toBe(404);
+
+  // Priorizar (ICE) move para "priorizada"; score = média.
+  expect((await put(id, { ice: { impact: 11, confidence: 5, ease: 5 } })).status).toBe(400);
+  const p = (await (await put(id, { ice: { impact: 9, confidence: 6, ease: 8 } })).json()) as Board;
+  expect(p.ideas[0]).toMatchObject({ stage: 'prioritized', score: 7.7 });
+  expect(((await (await put(id, { stage: 'idea' })).json()) as Board).ideas[0]!.stage).toBe('idea');
+
+  // Ligar a teste existente: "em teste"; voltar às colunas anteriores exige desligar.
+  expect((await put(id, { experimentId: 'exp_nao_existe' })).status).toBe(404);
+  const expId = 'exp_frete';
+  await t.repo.saveExperiment(DEMO.accountId, {
+    projectId: (await t.repo.listProjects(DEMO.accountId))[0]!.id,
+    editorUrl: 'http://localhost:5180/',
+    experiment: ExperimentSchema.parse({
+      id: expId,
+      key: 'frete',
+      name: 'Frete',
+      status: 'running',
+      variations: [
+        { id: 'v0', key: 'controle', name: 'Controle', weight: 1 },
+        { id: 'v1', key: 'frete', name: 'Frete', weight: 1 },
+      ],
+      goals: [{ id: 'g', key: 'compra', type: 'custom', event: 'compra' }],
+    }),
+  });
+  const l = (await (await put(id, { experimentId: expId })).json()) as Board;
+  expect(l.ideas[0]).toMatchObject({ stage: 'testing', experimentId: expId });
+  expect((await put(id, { stage: 'prioritized' })).status).toBe(409);
+  const status = (s: string) =>
+    t.req(`/experiments/${expId}/status`, {
+      method: 'PATCH',
+      as: 'owner',
+      body: JSON.stringify({ status: s }),
+    });
+
+  // Teste arquivado = concluída (automático); o resultado vem do relatório e fica guardado.
+  expect((await status('archived')).status).toBe(200);
+  expect((await board()).ideas[0]).toMatchObject({ stage: 'done', experimentStatus: 'archived' });
+  expect((await board()).ideas[0]!.result).toBeUndefined();
+  const result = async () =>
+    (
+      (await (await t.req(`/ai/ideas/${id}/result`, { as: 'viewer' })).json()) as {
+        result: { outcome: string; final: boolean } | null;
+      }
+    ).result;
+  expect(await result()).toMatchObject({ outcome: 'inconclusive', final: true });
+  expect((await board()).ideas[0]!.result).toMatchObject({ outcome: 'inconclusive' });
+  // Desarquivar volta para "em teste" e o resultado guardado deixa de valer.
+  expect((await status('paused')).status).toBe(200);
+  expect((await board()).ideas[0]!.stage).toBe('testing');
+  expect((await result())?.final).toBe(false);
+  expect(await t.repo.listEntities(DEMO.accountId, 'idea-result')).toHaveLength(0);
+
+  // Desligar devolve para "priorizada"; editar o texto.
+  const u = (await (
+    await put(id, { experimentId: null, title: 'Frete grátis no cabeçalho' })
+  ).json()) as Board;
+  expect(u.ideas[0]).toMatchObject({ stage: 'prioritized', title: 'Frete grátis no cabeçalho' });
+  expect(u.ideas[0]!.experimentId).toBeUndefined();
+
+  const acts = (await t.repo.listActivities(DEMO.accountId, {})).filter((a) => a.targetType === 'idea');
+  expect(acts.map((a) => [a.action, a.detail]).reverse()).toEqual([
+    ['create', null],
+    ['prioritize', 'ICE 7,7'],
+    ['move', 'Ideias'],
+    ['link', expect.any(String)],
+    ['unlink', null],
+  ]);
+  expect((await t.req(`/ai/ideas/${id}`, { method: 'DELETE', as: 'editor' })).status).toBe(200);
+  expect((await t.repo.listActivities(DEMO.accountId, {}))[0]).toMatchObject({
+    targetType: 'idea',
+    action: 'delete',
+    targetName: 'Frete grátis no cabeçalho',
+  });
+
+  // Dados de antes do backlog: executada com teste = em teste; sem teste = concluída.
+  await t.repo.saveEntity(DEMO.accountId, {
+    id: (await t.repo.listEntities(DEMO.accountId, 'ai-ideas'))[0]!.id,
+    kind: 'ai-ideas',
+    name: 'ideias',
+    data: {
+      status: 'done',
+      ideas: [
+        { ...idea, id: 'idea_a', createdAt: '', source: 'regras', doneAt: 'x', experimentId: expId },
+        { ...idea, id: 'idea_b', createdAt: '', source: 'regras', doneAt: 'x' },
+        { ...idea, id: 'idea_c', createdAt: '', source: 'regras' },
+      ],
+    },
+  });
+  expect((await board()).ideas.map((i) => i.stage)).toEqual(['testing', 'done', 'idea']);
 }, 30_000);

@@ -11,7 +11,7 @@ interface Idea {
   page: string;
   change: string;
   hypothesis: string;
-  doneAt?: string;
+  stage: string;
 }
 interface Ideas {
   status: string;
@@ -78,7 +78,7 @@ async function seedIdeas(request: APIRequestContext) {
       await new Promise((ok) => setTimeout(ok, 250));
       s = (await (await request.get(`${API}/ai/ideas`, { headers })).json()) as Ideas;
     }
-    const mine = (t: string) => s.ideas.find((x) => x.page === PAGE && x.title === t && !x.doneAt);
+    const mine = (t: string) => s.ideas.find((x) => x.page === PAGE && x.title === t && x.stage !== 'done');
     const cta = mine('Subir o CTA e a prova social');
     const click = mine('Tornar clicável o que parece clicável');
     if (cta && click) return { cta, click, headers };
@@ -165,10 +165,15 @@ test('ideia → teste em um clique: editor com nome, página, hipótese, meta e 
     expect.objectContaining({ editorUrl: `${SITE}${PAGE}` }),
   ]);
 
-  // Na lista de ideias: executada, com link para o teste.
+  // No backlog: coluna "Em teste", com link para o teste.
   await page.goto(`${EDITOR}?view=optimize`);
-  await page.getByText(/Executadas/).click();
-  await card(cta.title).getByTestId('idea-open-test').click();
+  await expect(card(cta.title)).toHaveAttribute('data-stage', 'testing');
+  await page
+    .getByTestId('stage-testing')
+    .getByTestId('idea')
+    .filter({ hasText: cta.title })
+    .getByTestId('idea-open-test')
+    .click();
   await expect(page).toHaveURL(new RegExp(`\\?exp=exp_${cta.id}$`));
   // Reabrir o teste não gera de novo.
   await expect(page.getByTestId('ai-seed')).toHaveCount(0);
