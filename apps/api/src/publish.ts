@@ -1,4 +1,5 @@
 import {
+  compileFunnel,
   PublishedConfigSchema,
   type Audience,
   type Consent,
@@ -145,9 +146,10 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
         cur.slots.push(i);
         slotsOf.set(owner, cur);
       });
+    // Multipágina (17.2): URLs das páginas e página explícita em cada operação (o snippet só compara ids).
     const running = all
       .filter((e) => e.status === 'running')
-      .map((e) => ({ ...e, group: slotsOf.get(e.id) }));
+      .map((e) => ({ ...compileFunnel(e), group: slotsOf.get(e.id) }));
 
     if (!canPublishJs(user)) {
       const published = jsOf(last?.config.experiments ?? []);

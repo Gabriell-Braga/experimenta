@@ -1,9 +1,12 @@
+import { matchUrl } from '@abtest/snippet/segment';
 import {
   ExperimentSchema,
   MvtSectionSchema,
   mvtVariations,
+  pageOfOperation,
   type CampaignType,
   type Experiment,
+  type FunnelPage,
   type MvtSection,
   type Operation,
   type OperationDraft,
@@ -53,6 +56,13 @@ export type Action =
   | { type: 'removeMvt'; id: string }
   /** Redirecionamento (URL dividida) e outros campos de uma variação. */
   | { type: 'patchVariation'; id: string; patch: Partial<Pick<Variation, 'redirect' | 'name'>> }
+  /**
+   * Teste multipágina: adiciona `url` como página do funil (a 1ª vez transforma o teste em multipágina, com a
+   * página aberta como 1ª). Remover a última página volta a página única (as alterações dela ficam).
+   */
+  | { type: 'addPage'; url: string }
+  | { type: 'patchPage'; id: string; patch: Partial<Pick<FunnelPage, 'name' | 'match'>> }
+  | { type: 'removePage'; id: string }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'saved' };
@@ -196,6 +206,24 @@ export const activeVariation = (s: EditorState): Variation => {
   return s.experiment.variations.find((v) => v.id === s.activeVariationId) ?? s.experiment.variations[0]!;
 };
 
+/** Tipos de campanha que podem ser multipágina (MVT, URL dividida e server-side não). */
+export const canFunnel = (exp: Experiment) => ['ab', 'personalization', 'rollout'].includes(exp.type);
+
+/** Teste multipágina: página do funil aberta no iframe (a 1ª cuja regra casa com a URL, como no snippet). */
+export const currentPage = (s: EditorState): FunnelPage | undefined =>
+  s.experiment.pages?.find((p) => matchUrl(p.match, s.url));
+
+/** Filtro das operações que valem em `page` (todas, fora de teste multipágina). */
+export const onPage = (exp: Pick<Experiment, 'pages'>, page: string | undefined) => (o: Operation) =>
+  !exp.pages?.length || (page !== undefined && pageOfOperation(exp, o) === page);
+
+/** Operações da variação ativa que valem na página aberta (todas, fora de teste multipágina). */
+export const pageOperations = (s: EditorState): Operation[] =>
+  activeVariation(s).operations.filter(onPage(s.experiment, currentPage(s)?.id));
+
+/** Campos que a operação mantém quando o rascunho a substitui (o agent não conhece a página). */
+const keep = (o: Operation) => ({ id: o.id, order: o.order, ...(o.page ? { page: o.page } : {}) });
+
 /** Renumera `order` conforme a posição (a lista é a ordem de aplicação). */
 const renumber = (ops: Operation[]) => ops.map((o, i) => (o.order === i ? o : { ...o, order: i }));
 
@@ -267,28 +295,39 @@ export function reducer(s: EditorState, a: Action): EditorState {
         ...s.experiment,
         variations: s.experiment.variations.map((v) => (v.id === a.id ? { ...v, name: a.name } : v)),
       });
-    case 'addOperation':
+    case 'addOperation': {
+      const page = currentPage(s)?.id;
+      // Multipágina fora de qualquer página do funil: a alteração não teria onde valer.
+      if (s.experiment.pages?.length && !page) return s;
       return commit(
         s,
         editVariation(s, (v) => ({
           ...v,
           operations: renumber([
             ...v.operations,
-            { ...a.draft, id: uid('op'), order: v.operations.length } as Operation,
+            { ...a.draft, id: uid('op'), order: v.operations.length, ...(page ? { page } : {}) } as Operation,
           ]),
         })),
       );
-    case 'upsertOperation':
+    }
+    case 'upsertOperation': {
+      const page = currentPage(s)?.id;
+      if (s.experiment.pages?.length && !page) return s;
       return commit(
         s,
         editVariation(s, (v) => {
-          const prev = findEquivalent(v.operations, a.draft);
+          const prev = findEquivalent(v.operations.filter(onPage(s.experiment, page)), a.draft);
           if (!prev)
             return {
               ...v,
               operations: [
                 ...v.operations,
-                { ...a.draft, id: uid('op'), order: v.operations.length } as Operation,
+                {
+                  ...a.draft,
+                  id: uid('op'),
+                  order: v.operations.length,
+                  ...(page ? { page } : {}),
+                } as Operation,
               ],
             };
           // findEquivalent garante mesmo tipo; setStyle soma as propriedades.
@@ -299,20 +338,19 @@ export function reducer(s: EditorState, a: Action): EditorState {
           ) as OperationDraft;
           return {
             ...v,
-            operations: v.operations.map((o) =>
-              o === prev ? ({ ...next, id: o.id, order: o.order } as Operation) : o,
-            ),
+            operations: v.operations.map((o) => (o === prev ? ({ ...next, ...keep(o) } as Operation) : o)),
           };
         }),
         a.coalesceKey,
       );
+    }
     case 'updateOperation':
       return commit(
         s,
         editVariation(s, (v) => ({
           ...v,
           operations: v.operations.map((o) =>
-            o.id === a.id ? ({ ...a.draft, id: o.id, order: o.order } as Operation) : o,
+            o.id === a.id ? ({ ...a.draft, ...keep(o) } as Operation) : o,
           ),
         })),
       );
@@ -399,6 +437,57 @@ export function reducer(s: EditorState, a: Action): EditorState {
         ...s.experiment,
         variations: s.experiment.variations.map((v) => (v.id === a.id ? { ...v, ...a.patch } : v)),
       });
+    case 'addPage': {
+      const exp = s.experiment;
+      const pages = exp.pages ?? [];
+      if (!canFunnel(exp) || pages.some((p) => matchUrl(p.match, a.url))) return s;
+      const inc = exp.segmentation.urls.filter((r) => !r.exclude);
+      // 1ª página: herda a regra da segmentação se ela era uma só (ex.: "contém /produto/").
+      const match =
+        !pages.length && inc.length === 1 && matchUrl(inc[0]!, a.url)
+          ? inc[0]!
+          : { match: 'exact' as const, value: a.url, exclude: false };
+      const page: FunnelPage = { id: uid('pg'), name: `Página ${pages.length + 1}`, url: a.url, match };
+      return commit(s, {
+        ...exp,
+        pages: [...pages, page],
+        // As inclusões da segmentação passam a ser as páginas; exclusões continuam valendo.
+        segmentation: { ...exp.segmentation, urls: exp.segmentation.urls.filter((r) => r.exclude) },
+      });
+    }
+    case 'patchPage':
+      return commit(s, {
+        ...s.experiment,
+        pages: s.experiment.pages?.map((p) => (p.id === a.id ? { ...p, ...a.patch } : p)),
+      });
+    case 'removePage': {
+      const exp = s.experiment;
+      const pages = exp.pages ?? [];
+      const gone = pages.find((p) => p.id === a.id);
+      if (!gone) return s;
+      if (pages.length === 1)
+        return commit(s, {
+          ...exp,
+          pages: undefined,
+          segmentation: {
+            ...exp.segmentation,
+            urls: [{ ...gone.match, exclude: false }, ...exp.segmentation.urls.filter((r) => r.exclude)],
+          },
+          variations: exp.variations.map((v) => ({
+            ...v,
+            operations: v.operations.map(({ page: _p, ...o }) => o as Operation),
+          })),
+        });
+      // As alterações da página saem junto (em todas as variações).
+      return commit(s, {
+        ...exp,
+        pages: pages.filter((p) => p !== gone),
+        variations: exp.variations.map((v) => ({
+          ...v,
+          operations: renumber(v.operations.filter((o) => pageOfOperation(exp, o) !== gone.id)),
+        })),
+      });
+    }
     case 'setUrl':
       return { ...s, url: a.url };
     case 'undo': {

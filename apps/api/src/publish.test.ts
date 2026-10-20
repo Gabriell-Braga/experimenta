@@ -92,6 +92,60 @@ describe('publicação', () => {
     expect((await repo.lastPublication('demo'))?.version).toBe(2);
   });
 
+  test('multipágina: URLs das páginas no lugar das inclusões e página explícita em cada operação', async () => {
+    const body = exp('exp_funil', 'running');
+    const ops = body.experiment.variations[1]!.operations!;
+    const funil = {
+      ...body,
+      experiment: {
+        ...body.experiment,
+        segmentation: {
+          urls: [
+            { match: 'contains', value: '/qualquer' },
+            { match: 'contains', value: 'interno=1', exclude: true },
+          ],
+        },
+        pages: [
+          {
+            id: 'p1',
+            name: 'Carrinho',
+            url: 'http://localhost:5180/carrinho',
+            match: { match: 'contains', value: '/carrinho' },
+          },
+          {
+            id: 'p2',
+            name: 'Pagar',
+            url: 'http://localhost:5180/pagar',
+            match: { match: 'contains', value: '/pagar' },
+          },
+        ],
+        variations: [
+          body.experiment.variations[0]!,
+          {
+            ...body.experiment.variations[1]!,
+            operations: [...ops, { ...ops[0]!, id: 'o2', order: 1, page: 'p2' }],
+          },
+        ],
+      },
+    };
+    const put = (b: object) =>
+      call('/experiments/exp_funil', 'editor', { method: 'PUT', body: JSON.stringify(b) });
+    expect((await put(funil)).status).toBe(200);
+    await call('/publish', 'editor', { method: 'POST' });
+    const cfg = PublishedConfigSchema.parse(JSON.parse(readFileSync(join(cdnDir, 'demo.json'), 'utf8')));
+    const e = cfg.experiments.find((x) => x.id === 'exp_funil')!;
+    expect(e.segmentation.urls).toEqual([
+      { match: 'contains', value: '/carrinho', exclude: false },
+      { match: 'contains', value: '/pagar', exclude: false },
+      { match: 'contains', value: 'interno=1', exclude: true },
+    ]);
+    expect(e.variations[1]!.operations.map((o) => o.page)).toEqual(['p1', 'p2']);
+    // Sem páginas, a operação não leva `page` (vale onde a segmentação deixar).
+    const plain = cfg.experiments.find((x) => x.id === 'exp_run')!;
+    expect(plain.variations[1]!.operations[0]).not.toHaveProperty('page');
+    await put({ ...funil, experiment: { ...funil.experiment, status: 'paused' } });
+  });
+
   test('customJS novo exige permissão; JS já publicado pode ser republicado por editor', async () => {
     await save('editor', exp('exp_js', 'running', 'console.log(1)'));
     const denied = await call('/publish', 'editor', { method: 'POST' });

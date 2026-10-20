@@ -2,6 +2,8 @@ import type { OperationDraft } from '@abtest/shared';
 import { describe, expect, test } from 'vitest';
 import {
   activeVariation,
+  currentPage,
+  pageOperations,
   initialState,
   newExperiment,
   reducer,
@@ -173,4 +175,42 @@ test('MVT: edição vai para a opção ativa e as combinações são regeneradas
   // Desfazer volta as 6 combinações.
   s = run(s, { type: 'undo' });
   expect(s.experiment.variations).toHaveLength(6);
+});
+
+test('multipágina: cada página com as alterações dela, mesma variação; remover volta a página única', () => {
+  const P2 = 'http://localhost:5180/produto.html';
+  // Alteração feita antes de virar multipágina fica na 1ª página.
+  let s = run(start(), { type: 'addOperation', draft: draft('home') }, { type: 'addPage', url: URL_ });
+  expect(s.experiment.pages).toMatchObject([{ name: 'Página 1', url: URL_, match: { value: URL_ } }]);
+  expect(s.experiment.segmentation.urls).toEqual([]);
+  expect(pageOperations(s)).toHaveLength(1);
+
+  // Página fora do funil: nada para editar, alteração ignorada.
+  s = run(s, { type: 'setUrl', url: P2 }, { type: 'addOperation', draft: draft('ignorada') });
+  expect(currentPage(s)).toBeUndefined();
+  expect(pageOperations(s)).toEqual([]);
+  expect(activeVariation(s).operations).toHaveLength(1);
+
+  s = run(s, { type: 'addPage', url: P2 }, { type: 'addOperation', draft: draft('produto') });
+  expect(currentPage(s)?.name).toBe('Página 2');
+  const p2 = s.experiment.pages![1]!.id;
+  expect(pageOperations(s).map((o) => [o.page, (o as { value: string }).value])).toEqual([[p2, 'produto']]);
+  // Mesmo alvo e tipo na outra página não é "equivalente": cada página tem a sua.
+  s = run(s, { type: 'upsertOperation', draft: draft('produto 2') });
+  expect(pageOperations(s).map((o) => (o as { value: string }).value)).toEqual(['produto 2']);
+  // Atualizar pelo painel mantém a página.
+  s = run(s, { type: 'updateOperation', id: pageOperations(s)[0]!.id, draft: draft('produto 3') });
+  expect(pageOperations(s)[0]!.page).toBe(p2);
+  s = run(s, { type: 'setUrl', url: URL_ });
+  expect(pageOperations(s).map((o) => (o as { value: string }).value)).toEqual(['home']);
+
+  // Remover a página 2 leva as alterações dela; remover a última volta a página única com a regra dela.
+  s = run(s, { type: 'removePage', id: p2 });
+  expect(activeVariation(s).operations.map((o) => (o as { value: string }).value)).toEqual(['home']);
+  s = run(s, { type: 'removePage', id: s.experiment.pages![0]!.id });
+  expect(s.experiment.pages).toBeUndefined();
+  expect(s.experiment.segmentation.urls).toEqual([{ match: 'exact', value: URL_, exclude: false }]);
+  expect(activeVariation(s).operations[0]).not.toHaveProperty('page');
+  s = run(s, { type: 'undo' });
+  expect(s.experiment.pages).toHaveLength(1);
 });

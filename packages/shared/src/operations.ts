@@ -26,6 +26,8 @@ const base = {
   id: z.string().min(1),
   order: z.number().int().nonnegative(),
   target: TargetSchema,
+  /** Teste multipágina: id da página do funil (`Experiment.pages`) onde a operação vale. Ausente = 1ª página. */
+  page: z.string().optional(),
 };
 
 export const OperationSchema = z.discriminatedUnion('type', [

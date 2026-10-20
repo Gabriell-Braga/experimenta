@@ -7,7 +7,7 @@ import { loadProfile, notePage, saveProfile, type Profile } from './data';
 import { renderOperations } from './dynamic';
 import { applyOperations, type ApplyHandle } from './engine/apply';
 import { detectDevice, getVisitor, isBot, local, randomId, type Visitor } from './env';
-import { matchSegmentation } from './segment';
+import { matchSegmentation, matchUrl } from './segment';
 import { watchLocation } from './spa';
 
 /** Distribui o Omit sobre a união (Omit direto colapsa a união discriminada). */
@@ -34,6 +34,8 @@ export type EventBase = Pick<
 export interface Active {
   experiment: Experiment;
   variation: Variation;
+  /** Teste multipágina: página do funil aplicada (a operação só vale na página dela). */
+  page?: string;
   handle?: ApplyHandle;
   cleanup: (() => void)[];
 }
@@ -113,8 +115,10 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
     active.delete(id);
   };
 
-  const activate = (exp: Experiment, variation: Variation) => {
-    const a: Active = { experiment: exp, variation, cleanup: [] };
+  const activate = (exp: Experiment, variation: Variation, page?: string) => {
+    const a: Active = { experiment: exp, variation, page, cleanup: [] };
+    // A API grava a página em toda operação de teste multipágina; fora dele, `page` é sempre undefined.
+    const ops = variation.operations.filter((o) => o.page === page);
     active.set(exp.id, a);
 
     if (variation.redirect) {
@@ -137,15 +141,15 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
       a.cleanup.push(() => style.remove());
     }
 
-    if (variation.operations.length) {
+    if (ops.length) {
       const af = hide(
         doc,
-        variation.operations.map((op) => op.target.selector),
+        ops.map((op) => op.target.selector),
         exp.antiFlicker.mode,
         exp.antiFlicker.timeoutMs,
       );
       a.cleanup.push(af.release);
-      a.handle = applyOperations(renderOperations(variation.operations, win, profile), {
+      a.handle = applyOperations(renderOperations(ops, win, profile), {
         root: doc,
         timeoutMs: exp.antiFlicker.timeoutMs,
         persist: true,
@@ -214,9 +218,12 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
       }
       const variation = forced ?? assign(visitor.id, exp, stored);
       if (!variation) continue;
-      if (active.get(exp.id)?.variation === variation) continue;
+      // Multipágina: a mesma variação em todas as páginas; trocar de página (SPA) reaplica as operações dela.
+      const page = exp.pages?.find((p) => matchUrl(p.match, ctx.url))?.id;
+      const cur = active.get(exp.id);
+      if (cur?.variation === variation && cur.page === page) continue;
       deactivate(exp.id);
-      activate(exp, variation);
+      activate(exp, variation, page);
     }
     saveAssignments(storage, stored);
   };

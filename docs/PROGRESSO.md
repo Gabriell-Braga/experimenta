@@ -1,13 +1,13 @@
 # Progresso
-**Status:** 17.1 concluída
+**Status:** 17.2 concluída
 **Fase atual:** 17
-**Tarefa atual:** 17.2
-**Última atualização:** 2026-10-20 05:18
-**Próximo passo:** 17.2 teste multipágina (funil).
+**Tarefa atual:** 17.3
+**Última atualização:** 2026-10-20 05:30
+**Próximo passo:** 17.3 link de pré-visualização/QA compartilhável.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
-- Snippet a 4 B do limite de 10 KB gzip (10.236 B depois da 17.1): a próxima mudança no runtime (ex.: 17.2) vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar código. Decidir.
+- Snippet a 48 B do limite de 10 KB gzip (10.192 B depois da 17.2, que coube trocando o ícone SVG do selo de QA por um caractere): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
 - Perguntas anteriores respondidas em docs/DECISOES.md D-033.
 
 ## Histórico
@@ -593,3 +593,10 @@
 - Arquivos principais: packages/shared/src/entities.ts (GroupSchema, allocateSlots), packages/shared/src/experiment.ts, packages/snippet/src/bucket.ts, packages/snippet/src/runtime.ts, apps/api/src/routes/entities.ts, apps/api/src/publish.ts, apps/editor/src/pages/Groups.tsx, apps/editor/src/pages/Experiments.tsx, e2e/tests/groups.spec.ts
 - Como testar manualmente: criar dois testes na mesma página com textos diferentes, iniciar; Testes → Grupos exclusivos → Novo grupo → adicionar os dois → Salvar e publicar; abrir o site demo em janelas anônimas: cada visitante vê só um dos testes, sempre o mesmo. `pnpm --filter @abtest/api exec vitest run src/routes/groups.test.ts`; `pnpm --filter @abtest/e2e e2e tests/groups.spec.ts`.
 - Observações: snippet 10.236 B gzip (limite 10.240 B; coube sem mudar o alvo, ver "Bloqueios"). Tráfego efetivo de um teste no grupo = fatia × tráfego do próprio teste. Teste pausado mantém a fatia (fica sem teste) até sair do grupo (D-075).
+
+### 2026-10-20 05:30 — Tarefa 17.2 concluída (teste multipágina / funil)
+- O que foi feito: experimento ganha `pages` (funil: nome, URL aberta no editor e regra de URL) e cada operação ganha `page` (sem `page` = 1ª página, então testes antigos e operações feitas antes de virar funil continuam valendo). Sem migração: `pages` vai na coluna JSON `options` e `page` no JSON das operações, nos dois bancos. Ao publicar, `compileFunnel` troca as inclusões de URL da segmentação pelas regras das páginas (exclusões continuam) e grava a página explícita em toda operação; o snippet só acha a página atual (1ª regra que casa) e aplica as operações dela, mantendo a variação persistida do teste (mesma em todas as páginas); em SPA, trocar de página do funil reaplica. Editor: "transformar em multipágina" em Configurações (começa pela página aberta), barra "Funil" com as páginas (contagem de alterações, clicar abre a página no iframe), página fora do funil fica só em navegar com "Adicionar esta página ao funil"; lista de alterações, painel de propriedades e o agent recebem só as operações da página aberta; renomear/mudar regra/remover página em Configurações (remover leva as alterações dela; remover a última volta a página única com a regra dela). Exposição: o snippet emite em cada página do funil e o relatório já conta o visitante na 1ª exposição (1ª página do funil que ele vê).
+- Arquivos principais: packages/shared/src/{experiment,operations}.ts, packages/snippet/src/{runtime,qa}.ts, apps/api/src/publish.ts, apps/editor/src/{store.ts,EditorView.tsx,components/SettingsPanel.tsx}, e2e/tests/multipage.spec.ts
+- Como testar manualmente: abrir um teste no editor, Configurações → "transformar em multipágina", alterar o título da home; Navegar → "Comprar agora" → "Adicionar esta página ao funil" → Editar → alterar o título do produto; salvar, iniciar e publicar; no site demo (janela anônima) a home e o produto mostram as alterações da mesma variação. `pnpm --filter @abtest/e2e e2e tests/multipage.spec.ts`.
+- Observações: snippet 10.192 B gzip (+28 B do funil, −72 B trocando o SVG do botão fechar do selo de QA por "✕"); alvo es2019 mantido. CSS/JS custom da variação valem em todas as páginas do funil (D-076).
+

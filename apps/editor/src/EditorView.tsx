@@ -1,8 +1,18 @@
-import { GripVertical, MousePointer2, MousePointerClick, TriangleAlert, X } from 'lucide-react';
+import { ChevronRight, GripVertical, MousePointer2, MousePointerClick, TriangleAlert, X } from 'lucide-react';
 import { selectorFragility } from '@abtest/selector';
 import { matchUrl } from '@abtest/snippet/segment';
 import type { ApplyResult, ElementInfo, HeatmapMode } from '@abtest/shared';
-import { lazy, Suspense, useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import {
   API_URL,
   createEditSession,
@@ -29,7 +39,7 @@ import { EMPTY_GOAL, SettingsPanel, type GoalDraft } from './components/Settings
 import { VersionsPanel } from './components/VersionsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { connectAgent, type AgentPeer } from './connection';
-import { activeVariation, initialState, reducer } from './store';
+import { activeVariation, currentPage, initialState, onPage, reducer } from './store';
 
 // Monaco é pesado: só carrega quando a aba de código é aberta.
 const CodePanel = lazy(() => import('./components/CodePanel'));
@@ -67,6 +77,14 @@ export function EditorView({ record, user }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const peer = useRef<AgentPeer | null>(null);
   const variation = activeVariation(state);
+  /** Teste multipágina: páginas do funil e a aberta no iframe (sem página = fora do funil, só navegar). */
+  const funnel = state.experiment.pages?.length ? state.experiment.pages : undefined;
+  const page = currentPage(state);
+  const offFunnel = !!funnel && !page;
+  const ops = useMemo(
+    () => variation.operations.filter(onPage({ pages: funnel }, page?.id)),
+    [variation, funnel, page?.id],
+  );
   const siteOrigin = new URL(state.url).origin;
   /**
    * URL carregada no iframe (só muda quando o usuário digita outra). `state.url` acompanha a página ATUAL
@@ -125,20 +143,23 @@ export function EditorView({ record, user }: Props) {
   // Modo e variação: reenviados a cada mudança e a cada (re)conexão.
   useEffect(() => {
     if (!connected) return;
-    peer.current?.call('setMode', { mode: mode === 'edit' ? 'edit' : 'browse' }).catch(() => {});
-  }, [connected, readyCount, mode]);
+    // Fora das páginas do funil não há onde gravar alterações: só navegar.
+    peer.current
+      ?.call('setMode', { mode: mode === 'edit' && !offFunnel ? 'edit' : 'browse' })
+      .catch(() => {});
+  }, [connected, readyCount, mode, offFunnel]);
 
   useEffect(() => {
     if (!connected) return;
     peer.current
       ?.call('applyVariation', {
-        operations: variation.operations,
+        operations: ops,
         customCSS: variation.customCSS,
         customJS: variation.customJS,
         runJS,
       })
       .then(setApplyResult, () => {});
-  }, [connected, readyCount, variation, runJS]);
+  }, [connected, readyCount, variation, ops, runJS]);
 
   // Mapa de calor: filtros, dados da API e quantos seletores não existem na página atual.
   const [heatFilters, setHeatFilters] = useState<HeatmapFilters>({});
@@ -299,6 +320,15 @@ export function EditorView({ record, user }: Props) {
     return () => removeEventListener('beforeunload', onUnload);
   }, [state.dirty]);
 
+  /** Carrega outra página no iframe (barra de endereço ou página do funil). */
+  const openUrl = (url: string) => {
+    setConnected(false);
+    setFrameSrcUrl(url);
+    // Mesma src (o usuário navegou dentro do iframe e volta à página inicial): recria o iframe.
+    if (url === frameSrcUrl) setFrameKey((k) => k + 1);
+    dispatch({ type: 'setUrl', url });
+  };
+
   /** A página aberta casa com as regras de URL do experimento? (mesma lógica do snippet) */
   const pageInSegmentation = (() => {
     const urls = state.experiment.segmentation.urls;
@@ -360,9 +390,7 @@ export function EditorView({ record, user }: Props) {
         onSettings={() => setSettingsOpen(true)}
         onReport={() => (state.dirty ? setLeaving(true) : navigate('report', { id: state.experiment.id }))}
         onUrl={(url) => {
-          setConnected(false);
-          setFrameSrcUrl(url);
-          dispatch({ type: 'setUrl', url });
+          openUrl(url);
           // Segmentação ainda é a padrão (só a página inicial)? Acompanha a nova página.
           const urls = state.experiment.segmentation.urls;
           const only = urls.length === 1 ? urls[0] : undefined;
@@ -429,7 +457,49 @@ export function EditorView({ record, user }: Props) {
           </button>
         </div>
       )}
-      {!pageInSegmentation && (
+      {funnel && (
+        <nav
+          aria-label="Páginas do funil"
+          data-testid="funnel-bar"
+          className={`flex flex-wrap items-center gap-1 border-b px-4 py-1.5 text-sm ${offFunnel ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-gray-900/10 bg-white'}`}
+        >
+          <span className="mr-1 text-xs text-gray-500">Funil:</span>
+          {funnel.map((p, i) => {
+            const n = variation.operations.filter(onPage(state.experiment, p.id)).length;
+            return (
+              <Fragment key={p.id}>
+                {i > 0 && <ChevronRight size={14} className="text-gray-400" aria-hidden="true" />}
+                <button
+                  data-testid="funnel-page"
+                  aria-current={page?.id === p.id ? 'page' : undefined}
+                  title={p.url}
+                  onClick={() => page?.id !== p.id && openUrl(p.url)}
+                  className={`rounded px-2 py-0.5 ${page?.id === p.id ? 'bg-ink text-white' : 'hover:bg-gray-900/5'}`}
+                >
+                  {i + 1}. {p.name}
+                  <span className="ml-1 text-xs opacity-70">({n})</span>
+                </button>
+              </Fragment>
+            );
+          })}
+          {offFunnel && (
+            <>
+              <span className="ml-3 flex-1">
+                <TriangleAlert size={15} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+                Esta página não faz parte do funil: só dá para navegar.
+              </span>
+              <Button
+                size="sm"
+                onClick={() => dispatch({ type: 'addPage', url: state.url })}
+                data-testid="funnel-add"
+              >
+                Adicionar esta página ao funil
+              </Button>
+            </>
+          )}
+        </nav>
+      )}
+      {!pageInSegmentation && !funnel && (
         <div
           className="flex items-center justify-between gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
           data-testid="segment-warning"
@@ -549,7 +619,7 @@ export function EditorView({ record, user }: Props) {
               {(
                 [
                   ['element', 'Elemento'],
-                  ['changes', `Alterações (${variation.operations.length})`],
+                  ['changes', `Alterações (${ops.length})`],
                   ['code', 'CSS/JS'],
                   ['health', 'Saúde'],
                   ['versions', 'Versões'],
@@ -577,7 +647,7 @@ export function EditorView({ record, user }: Props) {
               (selected ? (
                 <PropertiesPanel
                   info={selected}
-                  operations={variation.operations}
+                  operations={ops}
                   onUpsert={(draft, coalesceKey) => dispatch({ type: 'upsertOperation', draft, coalesceKey })}
                   onSelectSelector={(selector) =>
                     peer.current?.call('select', { selector }).then(setSelected, () => {})
@@ -598,7 +668,7 @@ export function EditorView({ record, user }: Props) {
               ))}
             {tab === 'changes' && (
               <ChangesPanel
-                operations={variation.operations}
+                operations={ops}
                 conflicts={conflicts}
                 result={applyResult}
                 onHighlight={(selector) => peer.current?.call('highlight', { selector }).catch(() => {})}
@@ -606,7 +676,11 @@ export function EditorView({ record, user }: Props) {
                   peer.current?.call('select', { selector }).then(setSelected, () => {})
                 }
                 onRemove={(id) => dispatch({ type: 'removeOperation', id })}
-                onMove={(id, to) => dispatch({ type: 'moveOperation', id, to })}
+                // `to` é a posição na lista desta página; a ordem guardada é a da variação inteira.
+                onMove={(id, to) =>
+                  ops[to] &&
+                  dispatch({ type: 'moveOperation', id, to: variation.operations.indexOf(ops[to]) })
+                }
               />
             )}
             {tab === 'versions' && (
@@ -688,6 +762,7 @@ export function EditorView({ record, user }: Props) {
             <div className="overflow-y-auto px-5 py-4">
               <SettingsPanel
                 experiment={state.experiment}
+                url={state.url}
                 dispatch={dispatch}
                 goal={goal}
                 onGoal={setGoal}

@@ -82,6 +82,18 @@ export const CampaignTypeSchema = z.enum(['ab', 'split', 'mvt', 'personalization
 export type CampaignType = z.infer<typeof CampaignTypeSchema>;
 export type Variation = z.infer<typeof VariationSchema>;
 
+/**
+ * Página de um teste multipágina (funil): `url` é a página aberta no editor e `match` a regra que a reconhece
+ * no site. As operações de cada variação dizem a página em que valem (`Operation.page`).
+ */
+export const FunnelPageSchema = z.object({
+  id: z.string(),
+  name: NameSchema,
+  url: z.string().url(),
+  match: UrlRuleSchema,
+});
+export type FunnelPage = z.infer<typeof FunnelPageSchema>;
+
 export const AntiFlickerSchema = z.object({
   mode: z.enum(['element', 'page']).default('element'),
   timeoutMs: z.number().int().positive().default(1500),
@@ -112,6 +124,11 @@ export const ExperimentSchema = z
     /** Audiências salvas que o visitante precisa satisfazer (todas), além da segmentação. */
     audiences: z.array(z.string()).default([]),
     /**
+     * Teste multipágina (funil): presente = as URLs do teste são as das páginas (no lugar das inclusões da
+     * segmentação) e cada operação vale só na página dela. CSS/JS da variação valem em todas.
+     */
+    pages: z.array(FunnelPageSchema).max(20).optional(),
+    /**
      * Grupo mutuamente exclusivo: só na config publicada (a API preenche ao compilar, nunca é gravado). O
      * visitante entra se a fatia `bucketOf(visitante, id) % 100` estiver em `slots`.
      */
@@ -123,6 +140,9 @@ export const ExperimentSchema = z
       ctx.addIssue({ code: 'custom', path: ['variations'], message: 'chaves de variação repetidas' });
     if (exp.variations.reduce((s, v) => s + v.weight, 0) <= 0)
       ctx.addIssue({ code: 'custom', path: ['variations'], message: 'soma dos pesos precisa ser > 0' });
+    const pages = exp.pages?.map((p) => p.id) ?? [];
+    if (new Set(pages).size !== pages.length)
+      ctx.addIssue({ code: 'custom', path: ['pages'], message: 'páginas repetidas' });
   });
 export type Experiment = z.infer<typeof ExperimentSchema>;
 
@@ -130,10 +150,42 @@ export type Experiment = z.infer<typeof ExperimentSchema>;
  * Campos do experimento guardados juntos na coluna JSON `options` (tipo, MVT, alocação, audiências) e da
  * variação na coluna `extra` — evita uma coluna nova por recurso nos dois bancos.
  */
-export const EXPERIMENT_OPTION_KEYS = ['type', 'sections', 'allocation', 'audiences'] as const;
+export const EXPERIMENT_OPTION_KEYS = ['type', 'sections', 'allocation', 'audiences', 'pages'] as const;
 export const VARIATION_EXTRA_KEYS = ['variables', 'combination'] as const;
 export function pickKeys<T extends object, K extends keyof T>(o: T, keys: readonly K[]): Partial<Pick<T, K>> {
   const out: Partial<Pick<T, K>> = {};
   for (const k of keys) if (o[k] !== undefined) out[k] = o[k];
   return out;
+}
+
+/** Página do funil em que a operação vale (sem `page` = 1ª página); undefined fora de teste multipágina. */
+export const pageOfOperation = (exp: Pick<Experiment, 'pages'>, op: { page?: string }) =>
+  exp.pages?.length ? (op.page ?? exp.pages[0]!.id) : undefined;
+
+/**
+ * Prepara o teste para o site (ao publicar): com páginas, as inclusões de URL viram as regras das páginas
+ * (exclusões da segmentação continuam) e toda operação leva a página explícita, então o snippet só compara
+ * `op.page` com a página atual. Sem páginas, `page` é removida (vale onde a segmentação deixar).
+ */
+export function compileFunnel(exp: Experiment): Experiment {
+  const pages = exp.pages?.length ? exp.pages : undefined;
+  return {
+    ...exp,
+    pages,
+    segmentation: pages
+      ? {
+          ...exp.segmentation,
+          urls: [
+            ...pages.map((p) => ({ ...p.match, exclude: false })),
+            ...exp.segmentation.urls.filter((r) => r.exclude),
+          ],
+        }
+      : exp.segmentation,
+    variations: exp.variations.map((v) => ({
+      ...v,
+      operations: v.operations.map(({ page: _page, ...op }) =>
+        pages ? { ...op, page: pageOfOperation(exp, { page: _page }) } : op,
+      ),
+    })),
+  };
 }

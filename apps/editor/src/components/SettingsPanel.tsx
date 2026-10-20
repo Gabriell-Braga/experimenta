@@ -3,7 +3,7 @@ import type { Audience, Experiment, Goal, UrlRule } from '@abtest/shared';
 import { useState, type Dispatch } from 'react';
 import { entities, type Entity } from '../api';
 import { describeRule } from '../pages/Audiences';
-import { uid, type Action } from '../store';
+import { canFunnel, uid, type Action } from '../store';
 import { Skeleton, useLoad } from '../ui';
 
 /** Audiências salvas que o visitante precisa atender (todas), além das páginas e dispositivos. */
@@ -102,14 +102,107 @@ const ALLOCATIONS: [Experiment['allocation'], string, string][] = [
   ],
 ];
 
+/** Teste multipágina: páginas do funil (nome e regra de URL); entrar no funil começa pela página aberta. */
+function FunnelSettings({
+  experiment,
+  url,
+  dispatch,
+}: {
+  experiment: Experiment;
+  url: string;
+  dispatch: Dispatch<Action>;
+}) {
+  const pages = experiment.pages ?? [];
+  const patchPage = (id: string, patch: Extract<Action, { type: 'patchPage' }>['patch']) =>
+    dispatch({ type: 'patchPage', id, patch });
+  return (
+    <fieldset className="flex flex-col gap-1" data-testid="funnel-settings">
+      <legend className="mb-1 text-gray-600">Teste multipágina (funil)</legend>
+      {!pages.length ? (
+        <>
+          <p className="text-xs text-gray-500">
+            Alterações em várias páginas do mesmo fluxo (ex.: carrinho → pagamento), com o visitante na mesma
+            variação em todas.
+          </p>
+          <button
+            onClick={() => dispatch({ type: 'addPage', url })}
+            className="self-start text-xs text-orange-600"
+            data-testid="make-funnel"
+          >
+            + transformar em multipágina (começando por esta página)
+          </button>
+        </>
+      ) : (
+        <>
+          {pages.map((p, i) => (
+            <div key={p.id} className="flex items-center gap-1" data-testid="funnel-page-settings">
+              <span className="w-4 shrink-0 text-xs text-gray-400">{i + 1}</span>
+              <input
+                key={p.name}
+                defaultValue={p.name}
+                aria-label="Nome da página"
+                className={`${input} w-28`}
+                onBlur={(e) => {
+                  const name = e.target.value.trim();
+                  if (name && name !== p.name) patchPage(p.id, { name });
+                }}
+              />
+              <select
+                value={p.match.match}
+                aria-label="Tipo de regra"
+                onChange={(e) =>
+                  patchPage(p.id, { match: { ...p.match, match: e.target.value as UrlRule['match'] } })
+                }
+                className={`${input} px-1`}
+              >
+                <option value="exact">é</option>
+                <option value="contains">contém</option>
+                <option value="regex">regex</option>
+              </select>
+              <input
+                key={p.match.value}
+                defaultValue={p.match.value}
+                aria-label="URL da página"
+                className={`${input} min-w-0 flex-1`}
+                onBlur={(e) => {
+                  const value = e.target.value.trim();
+                  if (value && value !== p.match.value) patchPage(p.id, { match: { ...p.match, value } });
+                }}
+              />
+              <button
+                onClick={() => dispatch({ type: 'removePage', id: p.id })}
+                aria-label={
+                  pages.length > 1 ? 'Remover página e as alterações dela' : 'Voltar a página única'
+                }
+                title={pages.length > 1 ? 'Remover página e as alterações dela' : 'Voltar a página única'}
+                className="px-1 text-red-600"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <p className="text-xs text-gray-500">
+            O visitante fica na mesma variação em todas as páginas e é contado na primeira que vê. Cada página
+            tem as próprias alterações; CSS/JS da variação valem em todas. Para incluir outra página, navegue
+            até ela no site e use “Adicionar esta página ao funil”.
+          </p>
+        </>
+      )}
+    </fieldset>
+  );
+}
+
 export function SettingsPanel({
   experiment,
+  url,
   dispatch,
   goal,
   onGoal,
   onPick,
 }: {
   experiment: Experiment;
+  /** Página aberta no editor (1ª página ao transformar em multipágina). */
+  url: string;
   dispatch: Dispatch<Action>;
   goal: GoalDraft;
   onGoal(g: GoalDraft): void;
@@ -250,8 +343,16 @@ export function SettingsPanel({
       </div>
       <div className="flex flex-col gap-4">
         <AudiencePicker experiment={experiment} onChange={(audiences) => patch({ audiences })} />
+        {canFunnel(experiment) && <FunnelSettings experiment={experiment} url={url} dispatch={dispatch} />}
         <fieldset className="flex flex-col gap-1">
-          <legend className="mb-1 text-gray-600">Páginas (segmentação por URL)</legend>
+          <legend className="mb-1 text-gray-600">
+            {experiment.pages?.length ? 'Exclusões de URL' : 'Páginas (segmentação por URL)'}
+          </legend>
+          {!!experiment.pages?.length && (
+            <p className="text-xs text-gray-500">
+              As páginas do funil definem onde o teste roda; aqui valem só as regras marcadas “não”.
+            </p>
+          )}
           {urls.map((r, i) => (
             <div key={i} className="flex items-center gap-1">
               <select
@@ -300,14 +401,16 @@ export function SettingsPanel({
           <button
             onClick={() => {
               setFocusLast(true);
-              setUrls([...urls, { match: 'contains', value: '', exclude: false }]);
+              setUrls([...urls, { match: 'contains', value: '', exclude: !!experiment.pages?.length }]);
             }}
             className="self-start text-xs text-orange-600"
             data-testid="add-url-rule"
           >
             + regra de URL
           </button>
-          {!urls.length && <p className="text-xs text-gray-500">Sem regras: roda em todas as páginas.</p>}
+          {!urls.length && !experiment.pages?.length && (
+            <p className="text-xs text-gray-500">Sem regras: roda em todas as páginas.</p>
+          )}
         </fieldset>
 
         <fieldset className="flex flex-col gap-1" data-testid="goals">

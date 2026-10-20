@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { ExperimentSchema, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
+import { compileFunnel, ExperimentSchema, type PublishedConfig, type TrackingEvent } from '@abtest/shared';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { OK_ATTR } from './antiflicker';
 import { resetProcessed } from './engine/apply';
@@ -160,6 +160,65 @@ test('SPA: pushState/popstate reavaliam a segmentação, ativam e revertem', asy
   rt.stop();
   history.pushState(null, '', '/sobre');
   expect(urls).toHaveLength(3); // patches desfeitos
+});
+
+test('multipágina: mesma variação em todas as páginas, cada uma com as operações dela (SPA reaplica)', async () => {
+  history.replaceState(null, '', '/carrinho');
+  document.body.innerHTML = '<h1 id="t">Carrinho</h1>';
+  const cfg = config(
+    {
+      customCSS: '.x{}',
+      operations: [
+        // Sem página = 1ª página do funil (operação criada antes de virar multipágina).
+        { id: 'o1', order: 0, type: 'setText', target: { selector: '#t' }, value: 'Carrinho B' },
+        { id: 'o2', order: 1, type: 'setText', target: { selector: '#t' }, value: 'Pagar B', page: 'p2' },
+      ],
+    },
+    {
+      // A inclusão da segmentação é trocada pelas regras das páginas; a exclusão continua valendo.
+      segmentation: {
+        urls: [
+          { match: 'contains', value: '/outra' },
+          { match: 'contains', value: 'teste=1', exclude: true },
+        ],
+      },
+      pages: [
+        {
+          id: 'p1',
+          name: 'Carrinho',
+          url: 'https://loja.test/carrinho',
+          match: { match: 'contains', value: '/carrinho' },
+        },
+        {
+          id: 'p2',
+          name: 'Pagamento',
+          url: 'https://loja.test/pagamento',
+          match: { match: 'contains', value: '/pagamento' },
+        },
+      ],
+    },
+  );
+  cfg.experiments = cfg.experiments.map(compileFunnel);
+  const events: TrackingEvent[] = [];
+  const rt = start(window, cfg, { sink: (e) => events.push(e) })!;
+  expect(document.querySelector('#t')!.textContent).toBe('Carrinho B');
+
+  history.pushState(null, '', '/pagamento');
+  document.body.innerHTML = '<h1 id="t">Pagamento</h1>';
+  await tick();
+  expect(rt.active.get('e1')).toMatchObject({ page: 'p2', variation: { key: 'b' } });
+  expect(document.querySelector('#t')!.textContent).toBe('Pagar B');
+  expect(document.querySelectorAll('style[data-abt-css]')).toHaveLength(1);
+
+  history.pushState(null, '', '/pagamento?teste=1');
+  expect(rt.active.size).toBe(0);
+  history.pushState(null, '', '/outra');
+  expect(rt.active.size).toBe(0);
+  // Uma atribuição só; o relatório conta o visitante na 1ª exposição (1ª página do funil que ele viu).
+  expect(new Set(events.filter((e) => e.type === 'exposure').map((e) => e.variationKey))).toEqual(
+    new Set(['b']),
+  );
+  rt.stop();
 });
 
 test('score preditivo: audiência "score ≥ 0,5" só entra com modelo publicado e score alto', () => {

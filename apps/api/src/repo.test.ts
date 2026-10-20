@@ -122,6 +122,42 @@ describe('repositório', () => {
     });
   });
 
+  test('teste multipágina: páginas e a página de cada operação sobrevivem ao salvar', async () => {
+    const base = exp('e_funil', 'funil');
+    const e = ExperimentSchema.parse({
+      ...base,
+      pages: [
+        {
+          id: 'p1',
+          name: 'Carrinho',
+          url: 'https://a.com/carrinho',
+          match: { match: 'contains', value: '/carrinho' },
+        },
+        {
+          id: 'p2',
+          name: 'Pagamento',
+          url: 'https://a.com/pagar',
+          match: { match: 'exact', value: 'https://a.com/pagar' },
+        },
+      ],
+      variations: base.variations.map((v) => ({
+        ...v,
+        operations: v.operations.map((o) => ({ ...o, page: 'p2' })),
+      })),
+    });
+    const d = await repo.createAccount('Loja D');
+    const projD = await repo.createProject(d.id, { name: 'Site D', siteUrl: 'https://a.com' });
+    await repo.saveExperiment(d.id, {
+      projectId: projD.id,
+      editorUrl: 'https://a.com/carrinho',
+      experiment: e,
+    });
+    expect((await repo.getExperiment(d.id, 'e_funil'))!.experiment).toEqual(e);
+    // Experimento sem páginas (como os salvos antes do recurso) continua sem.
+    await repo.saveExperiment(d.id, { projectId: projD.id, editorUrl: 'https://a.com/', experiment: base });
+    expect((await repo.getExperiment(d.id, 'e_funil'))?.experiment.pages).toBeUndefined();
+  });
+
   test('isolamento por conta: outra conta não lê, não lista, não sobrescreve nem apaga', async () => {
     await repo.saveExperiment(a.id, {
       projectId: projA.id,
