@@ -1,5 +1,17 @@
 import { IDEA_STAGES, iceScore, type Ice, type IdeaStage } from '@abtest/shared';
-import { Copy, Link2, MessageSquare, Pencil, Plane, Plus, Sparkles, Trash2, Unlink } from 'lucide-react';
+import {
+  Copy,
+  GripVertical,
+  Link2,
+  MessageSquare,
+  Move,
+  Pencil,
+  Plane,
+  Plus,
+  Sparkles,
+  Trash2,
+  Unlink,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import {
   ideas,
@@ -74,6 +86,16 @@ const targets = (i: SavedIdea) =>
     (s) => s !== i.stage && (!linked(i) || s === 'testing' || s === 'done') && (s !== 'testing' || linked(i)),
   );
 const linked = (i: SavedIdea) => !!i.experimentId && i.experimentStatus !== 'deleted';
+/** Próxima coluna válida à esquerda (-1) ou à direita (1), para mover pelo teclado. */
+const neighbor = (i: SavedIdea, dir: -1 | 1) => {
+  const ok = targets(i);
+  for (let k = IDEA_STAGES.indexOf(i.stage) + dir; k >= 0 && k < IDEA_STAGES.length; k += dir)
+    if (ok.includes(IDEA_STAGES[k]!)) return IDEA_STAGES[k]!;
+  return null;
+};
+/** Por que a coluna não aceita a ideia arrastada (aparece na coluna durante o arraste). */
+const blockedWhy = (i: SavedIdea) =>
+  linked(i) ? 'Teste ligado: só “Em teste” ou “Concluídas”' : 'Crie ou ligue um teste antes';
 
 /** Maior ICE primeiro; sem ICE no fim, mais nova primeiro. */
 const byScore = (a: SavedIdea, b: SavedIdea) =>
@@ -139,6 +161,9 @@ function IdeaCard({
   onEdit,
   onPrioritize,
   onLink,
+  dragging,
+  onDrag,
+  onMove,
 }: {
   i: SavedIdea;
   canEdit: boolean;
@@ -147,6 +172,9 @@ function IdeaCard({
   onEdit(): void;
   onPrioritize(): void;
   onLink(): void;
+  dragging: boolean;
+  onDrag(id: string | null): void;
+  onMove(stage: IdeaStage): void;
 }) {
   const copy = useCopy();
   const toast = useToast();
@@ -177,20 +205,40 @@ function IdeaCard({
     if (talk) self.current?.scrollIntoView({ block: 'center' });
     // Só na primeira renderização.
   }, []);
-  const moves = targets(i);
   return (
     <li
       ref={self}
-      className="rounded-lg border border-gray-900/10 bg-white p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)]"
+      className={`rounded-lg border border-gray-900/10 bg-white p-3 shadow-[0_1px_0_rgba(0,0,0,0.02)] ${canEdit ? 'cursor-grab active:cursor-grabbing' : ''} ${dragging ? 'opacity-40' : ''}`}
       data-testid="idea"
       data-stage={i.stage}
       draggable={canEdit}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', i.id);
         e.dataTransfer.effectAllowed = 'move';
+        onDrag(i.id);
       }}
+      onDragEnd={() => onDrag(null)}
     >
       <div className="flex items-start gap-2">
+        {canEdit && (
+          // Alça: mostra que o cartão arrasta e é a alternativa por teclado (setas ← → mudam de coluna).
+          <button
+            type="button"
+            className="-ml-1 mt-0.5 shrink-0 cursor-grab rounded-sm p-0.5 text-gray-400 hover:bg-gray-100 hover:text-ink active:cursor-grabbing"
+            title="Arraste para outra coluna (ou foque e use ← →)"
+            aria-label={`Mover “${i.title}”: setas esquerda e direita mudam de coluna`}
+            onKeyDown={(e) => {
+              const dir = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+              if (!dir) return;
+              e.preventDefault();
+              const to = neighbor(i, dir);
+              if (to) onMove(to);
+            }}
+            data-testid="idea-drag"
+          >
+            <GripVertical size={16} aria-hidden="true" />
+          </button>
+        )}
         <h3 className="min-w-0 flex-1 font-display text-base leading-tight text-ink">{i.title}</h3>
         {i.score !== undefined && (
           <span
@@ -269,24 +317,6 @@ function IdeaCard({
           <Button size="sm" variant="ghost" onClick={onPrioritize} data-testid="idea-prioritize">
             {i.ice ? 'ICE' : 'Priorizar'}
           </Button>
-        )}
-        {canEdit && moves.length > 0 && (
-          <select
-            aria-label={`Mover “${i.title}” para`}
-            className={`${selectCls} py-0.5 text-xs`}
-            value=""
-            onChange={(e) =>
-              e.target.value && onChange(ideas.update(i.id, { stage: e.target.value as IdeaStage }))
-            }
-            data-testid="idea-move"
-          >
-            <option value="">Mover…</option>
-            {moves.map((s) => (
-              <option key={s} value={s}>
-                {STAGE[s].label}
-              </option>
-            ))}
-          </select>
         )}
         <Button
           size="sm"
@@ -663,9 +693,12 @@ export function OptimizePage({ user }: { user: Me }) {
     null,
   );
   const [over, setOver] = useState<IdeaStage | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const dragged = data?.ideas.find((x) => x.id === dragId);
   const drop = (stage: IdeaStage) => (e: DragEvent) => {
     e.preventDefault();
     setOver(null);
+    setDragId(null);
     const i = data?.ideas.find((x) => x.id === e.dataTransfer.getData('text/plain'));
     if (!i || i.stage === stage) return;
     if (!targets(i).includes(stage))
@@ -742,49 +775,85 @@ export function OptimizePage({ user }: { user: Me }) {
               : 'Gere ideias com IA (usam só números agregados do período; nenhum dado de visitante sai da conta) ou escreva as da equipe em “Nova ideia”.'}
           </EmptyState>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="ideas">
-            {IDEA_STAGES.map((stage) => {
-              const list = data.ideas.filter((i) => i.stage === stage).sort(byScore);
-              return (
-                <section
-                  key={stage}
-                  aria-labelledby={`stage-${stage}`}
-                  className={`flex min-w-0 flex-col rounded-lg border p-2 transition-colors ${over === stage ? 'border-brand-500 bg-lime-soft/40' : 'border-gray-900/[0.07] bg-gray-50'}`}
-                  data-testid={`stage-${stage}`}
-                  onDragOver={(e) => {
-                    if (!canEdit) return;
-                    e.preventDefault();
-                    setOver(stage);
-                  }}
-                  onDragLeave={() => setOver(null)}
-                  onDrop={drop(stage)}
-                >
-                  <header className="flex items-baseline gap-2 px-1 pb-2">
-                    <h2 id={`stage-${stage}`} className="text-sm font-semibold text-ink">
-                      {STAGE[stage].label}
-                    </h2>
-                    <span className="tabular font-mono text-xs text-gray-500">{list.length}</span>
-                    <span className="ml-auto truncate text-[11px] text-gray-400">{STAGE[stage].help}</span>
-                  </header>
-                  <ol className="space-y-2">
-                    {list.map((i) => (
-                      <IdeaCard
-                        key={i.id}
-                        i={i}
-                        canEdit={canEdit}
-                        user={user}
-                        onChange={change}
-                        onEdit={() => setModal({ kind: 'edit', idea: i })}
-                        onPrioritize={() => setModal({ kind: 'ice', idea: i })}
-                        onLink={() => setModal({ kind: 'link', idea: i })}
-                      />
-                    ))}
-                  </ol>
-                  {!list.length && <p className="px-1 py-6 text-center text-xs text-gray-400">Nada aqui.</p>}
-                </section>
-              );
-            })}
-          </div>
+          <>
+            {canEdit && (
+              <p className="flex items-center gap-1.5 text-xs text-gray-500" data-testid="ideas-drag-hint">
+                <Move size={14} aria-hidden="true" />
+                Arraste os cartões entre as colunas para mudar a etapa (ou foque a alça e use ← →).
+              </p>
+            )}
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="ideas">
+              {IDEA_STAGES.map((stage) => {
+                const list = data.ideas.filter((i) => i.stage === stage).sort(byScore);
+                // Durante o arraste: colunas que aceitam ficam tracejadas; as que não aceitam, apagadas com o motivo.
+                const accepts = !!dragged && dragged.stage !== stage && targets(dragged).includes(stage);
+                const blocked = !!dragged && dragged.stage !== stage && !accepts;
+                const look =
+                  over === stage && accepts
+                    ? 'border-dashed border-brand-500 bg-lime-soft/50'
+                    : accepts
+                      ? 'border-dashed border-brand-500/60 bg-lime-soft/20'
+                      : blocked
+                        ? 'border-gray-900/[0.07] bg-gray-50 opacity-50'
+                        : 'border-gray-900/[0.07] bg-gray-50';
+                return (
+                  <section
+                    key={stage}
+                    aria-labelledby={`stage-${stage}`}
+                    className={`flex min-w-0 flex-col rounded-lg border p-2 transition-colors ${look}`}
+                    data-testid={`stage-${stage}`}
+                    data-drop={accepts ? 'ok' : blocked ? 'blocked' : undefined}
+                    onDragOver={(e) => {
+                      if (!canEdit) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = blocked ? 'none' : 'move';
+                      setOver(stage);
+                    }}
+                    onDragLeave={() => setOver(null)}
+                    onDrop={drop(stage)}
+                  >
+                    <header className="flex items-baseline gap-2 px-1 pb-2">
+                      <h2 id={`stage-${stage}`} className="text-sm font-semibold text-ink">
+                        {STAGE[stage].label}
+                      </h2>
+                      <span className="tabular font-mono text-xs text-gray-500">{list.length}</span>
+                      <span className="ml-auto truncate text-[11px] text-gray-400">
+                        {blocked && dragged ? blockedWhy(dragged) : STAGE[stage].help}
+                      </span>
+                    </header>
+                    <ol className="space-y-2">
+                      {list.map((i) => (
+                        <IdeaCard
+                          key={i.id}
+                          i={i}
+                          canEdit={canEdit}
+                          user={user}
+                          onChange={change}
+                          onEdit={() => setModal({ kind: 'edit', idea: i })}
+                          onPrioritize={() => setModal({ kind: 'ice', idea: i })}
+                          onLink={() => setModal({ kind: 'link', idea: i })}
+                          dragging={dragId === i.id}
+                          onDrag={setDragId}
+                          onMove={(to) => void change(ideas.update(i.id, { stage: to }))}
+                        />
+                      ))}
+                    </ol>
+                    {accepts ? (
+                      <p className="mt-2 rounded-md border border-dashed border-brand-500/60 px-1 py-4 text-center text-xs font-medium text-brand-700">
+                        Solte aqui
+                      </p>
+                    ) : (
+                      !list.length && (
+                        <p className="px-1 py-6 text-center text-xs text-gray-400">
+                          {canEdit ? 'Arraste uma ideia para cá.' : 'Nada aqui.'}
+                        </p>
+                      )
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          </>
         )}
         <Card title="Piloto automático">
           <div className="space-y-2 text-sm text-gray-700">

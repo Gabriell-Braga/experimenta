@@ -48,7 +48,7 @@ async function as(browser: Browser, token: string) {
   return page;
 }
 
-test('backlog: ideia manual, priorizar (ICE), mover (menu e arrastar), ligar a teste e resultado', async ({
+test('backlog: ideia manual, priorizar (ICE), mover (arrastar e teclado), ligar a teste e resultado', async ({
   browser,
   request,
 }) => {
@@ -87,17 +87,26 @@ test('backlog: ideia manual, priorizar (ICE), mover (menu e arrastar), ligar a t
   // Maior ICE primeiro.
   await expect(col('prioritized').getByTestId('idea-score')).toHaveText(['ICE 7,7', 'ICE 5']);
 
-  // Mover pelo menu (teclado) e de volta arrastando.
-  await card('Selo de compra segura').getByTestId('idea-move').selectOption('idea');
+  // Mover pelo teclado (alça + setas) e de volta arrastando.
+  await expect(page.getByTestId('ideas-drag-hint')).toBeVisible();
+  await card('Selo de compra segura').getByTestId('idea-drag').press('ArrowLeft');
   await expect(col('idea').getByTestId('idea')).toHaveCount(1);
   await card('Selo de compra segura').dragTo(col('prioritized'));
   await expect(col('prioritized').getByTestId('idea')).toHaveCount(2);
-  // Sem teste, "Em teste" não é opção.
-  await expect(card('Selo de compra segura').getByTestId('idea-move').locator('option')).toHaveText([
-    'Mover…',
-    'Ideias',
-    'Concluídas',
-  ]);
+  // Sem teste, "Em teste" é pulada: seta para a direita vai direto para "Concluídas".
+  await card('Selo de compra segura').getByTestId('idea-drag').press('ArrowRight');
+  await expect(col('done').getByTestId('idea')).toHaveCount(1);
+  await card('Selo de compra segura').getByTestId('idea-drag').press('ArrowLeft');
+  await expect(col('prioritized').getByTestId('idea')).toHaveCount(2);
+  // Durante o arraste, "Em teste" aparece bloqueada com o motivo.
+  await card('Selo de compra segura').hover();
+  await page.mouse.down();
+  await col('testing').hover();
+  await col('testing').hover({ position: { x: 20, y: 20 } });
+  await expect(col('testing')).toHaveAttribute('data-drop', 'blocked');
+  await expect(col('testing')).toContainText('Crie ou ligue um teste antes');
+  await expect(col('done')).toHaveAttribute('data-drop', 'ok');
+  await page.mouse.up();
 
   // Ligar a um teste existente: "Em teste", com o status do teste.
   const frete = card('Frete grátis no topo');
@@ -108,7 +117,9 @@ test('backlog: ideia manual, priorizar (ICE), mover (menu e arrastar), ligar a t
   await expect(col('testing').getByTestId('idea')).toHaveCount(1);
   await expect(frete.getByTestId('idea-open-test')).toHaveText('Frete no topo');
   await expect(frete).toContainText('Em execução');
-  await expect(frete.getByTestId('idea-move').locator('option')).toHaveText(['Mover…', 'Concluídas']);
+  // Com teste ligado, não volta para trás.
+  await frete.getByTestId('idea-drag').press('ArrowLeft');
+  await expect(col('testing').getByTestId('idea')).toHaveCount(1);
 
   // Teste arquivado = concluída, com o resultado do relatório.
   const r = await request.patch(`${API}/experiments/exp_backlog_frete/status`, {
@@ -124,5 +135,5 @@ test('backlog: ideia manual, priorizar (ICE), mover (menu e arrastar), ligar a t
   await nav(page, 'activity');
   await expect(page.getByText(/priorizou a ideia Frete grátis no topo \(ICE 7,7\)/)).toBeVisible();
   await expect(page.getByText(/ligou a ideia Frete grátis no topo ao teste Frete no topo/)).toBeVisible();
-  await expect(page.getByText(/moveu a ideia Selo de compra segura para Priorizadas/)).toBeVisible();
+  await expect(page.getByText(/moveu a ideia Selo de compra segura para Priorizadas/)).toHaveCount(2);
 });
