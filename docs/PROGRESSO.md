@@ -733,4 +733,4 @@
 - Seletor de workspace no topo da sidebar (D-095); workspace "Fluxo (SaaS)" do demo com snippet próprio; migração dos dados simulados aplicada no D1 e na config da CDN; tabelas com rolagem horizontal no celular.
 - Testes: `pnpm lint`, `pnpm test`, `pnpm typecheck`, `pnpm e2e` (120 passaram).
 
-- Deploy completo (2026-10-20 21:25): migrações D1 em dia, API, editor e demo publicados. Pendente: workspace `fluxo` existe no D1 sem membros nem projeto (cota do D1 acabou no meio do seed; o seed não repete porque a conta já existe).
+- Deploy completo (2026-10-20 21:25): migrações D1 em dia, API, editor e demo publicados. Workspace `fluxo` completado à mão no D1 (3 membros copiados da demo + projeto), porque a cota acabou no meio do seed e o seed não repete com a conta já existente.
