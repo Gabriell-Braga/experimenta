@@ -78,7 +78,8 @@ test('falha e leitura não entram; outra conta não vê', async () => {
   expect((await send('POST', '/experiments', body(experiment('exp_v')), 'viewer')).status).toBe(403);
   await t.get('/experiments');
   expect((await list()).items.length).toBe(before);
-  expect((await list('', 'other')).items).toEqual([]);
+  // Só o login da própria pessoa (20.6).
+  expect((await list('', 'other')).items.map((a) => a.action)).toEqual(['login']);
 });
 
 test('entidades, publicação, equipe e chave de API; filtros por pessoa e tipo', async () => {

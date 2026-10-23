@@ -1200,6 +1200,44 @@ export function createD1Repo(d1: D1Like): Repo {
       ).run();
     },
 
+    async deleteVisitorData(accountId, visitorIds) {
+      let ev = 0;
+      let rec = 0;
+      // D1: no máximo 100 parâmetros por consulta, então lotes de 80 visitantes.
+      for (let i = 0; i < visitorIds.length; i += 80) {
+        const ids = visitorIds.slice(i, i + 80);
+        const inList = ids.map(() => '?').join(', ');
+        const [, recs, evs] = await d1.batch([
+          q(
+            `DELETE FROM recording_chunks WHERE account_id = ? AND session_id IN (SELECT session_id FROM recordings WHERE account_id = ? AND visitor_id IN (${inList}))`,
+            accountId,
+            accountId,
+            ...ids,
+          ),
+          q(
+            `DELETE FROM recordings WHERE account_id = ? AND visitor_id IN (${inList}) RETURNING id`,
+            accountId,
+            ...ids,
+          ),
+          q(
+            `DELETE FROM events WHERE account_id = ? AND visitor_id IN (${inList}) RETURNING id`,
+            accountId,
+            ...ids,
+          ),
+          ...ids.map((v) =>
+            q(
+              'DELETE FROM webhook_deliveries WHERE account_id = ? AND instr(body, ?) > 0',
+              accountId,
+              `"visitorId":${JSON.stringify(v)}`,
+            ),
+          ),
+        ]);
+        rec += recs?.results?.length ?? 0;
+        ev += evs?.results?.length ?? 0;
+      }
+      return { events: ev, recordings: rec };
+    },
+
     async insertPublication(accountId, config, userId) {
       await q(
         'INSERT INTO publications (id, account_id, version, config, published_by, published_at) VALUES (?, ?, ?, ?, ?, ?)',

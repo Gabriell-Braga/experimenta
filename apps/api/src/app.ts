@@ -5,8 +5,10 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { ExperimentSchema, NameSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
 import { cors } from 'hono/cors';
+import { secureHeaders } from 'hono/secure-headers';
 import { auditLog } from './audit';
 import { forbid, hasRole, requireAuth, type AuthVars } from './auth';
+import { loginGuard } from './login-guard';
 import { serveCdn, type CdnStore } from './cdn';
 import { rebuildReco, serveReco } from './reco';
 import { findConflicts } from './conflicts';
@@ -32,6 +34,7 @@ import { RECORDING_PATHS, recordingRoutes } from './routes/recordings';
 import { reportRoutes } from './routes/report';
 import { TEAM_PATHS, teamRoutes } from './routes/team';
 import { SECURITY_PATHS, securityRoutes } from './routes/security';
+import { PRIVACY_PATHS, privacyRoutes } from './routes/privacy';
 import { ssoRoutes, type SsoProviders } from './sso';
 import { createSessionStore, type SessionStore } from './sessions';
 import type { PublishResult } from './publish';
@@ -103,6 +106,18 @@ export function createApp(deps: AppDeps) {
     console.error(err);
     return c.json({ error: 'erro interno' }, 500);
   });
+  // Cabeçalhos de segurança (20.6) em toda resposta. CORP fica desligado: /cdn/*.js é carregado por <script> no site
+  // do cliente (outra origem) e o CORP same-origin do padrão bloquearia. XFO/frame-ancestors não afetam isso (só
+  // valem para documento emoldurado; a API não é emoldurada em nenhum fluxo, nem no modo edição).
+  app.use(
+    secureHeaders({
+      strictTransportSecurity: 'max-age=31536000; includeSubDomains',
+      xFrameOptions: 'DENY',
+      referrerPolicy: 'no-referrer',
+      crossOriginResourcePolicy: false,
+      contentSecurityPolicy: { frameAncestors: ["'none'"] },
+    }),
+  );
   app.openAPIRegistry.registerComponent('securitySchemes', 'bearer', {
     type: 'http',
     scheme: 'bearer',
@@ -170,6 +185,7 @@ export function createApp(deps: AppDeps) {
   const PRIVATE = [
     ...TEAM_PATHS,
     ...SECURITY_PATHS,
+    ...PRIVACY_PATHS,
     '/account/sso',
     '/projects',
     '/projects/*',
@@ -195,6 +211,10 @@ export function createApp(deps: AppDeps) {
     '/recommendations/*',
   ];
   for (const p of ['/auth/*', ...PRIVATE]) app.use(p, privateCors);
+  // Força bruta: limite por IP e por e-mail (login-guard.ts).
+  const guard = loginGuard(repo, deps.jwtSecret);
+  app.use('/auth/login', guard);
+  app.use('/auth/login/totp', guard);
   const auth = requireAuth(repo, deps.jwtSecret);
   for (const p of PRIVATE) app.use(p, auth);
   // Depois da autenticação: registra as escritas bem sucedidas no histórico de atividades (audit.ts).
@@ -787,6 +807,7 @@ export function createApp(deps: AppDeps) {
   commentRoutes(app, repo);
   previewRoutes(app, repo);
   scheduleRoutes(app, repo);
+  privacyRoutes(app, repo);
 
   app.openapi(
     createRoute({

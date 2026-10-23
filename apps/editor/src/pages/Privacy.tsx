@@ -1,6 +1,16 @@
 import { ConsentSchema, type Consent } from '@abtest/shared';
 import { useEffect, useState } from 'react';
-import { entities, type Entity, type Me, publish, publishedText } from '../api';
+import {
+  downloadFile,
+  entities,
+  eraseSubject,
+  type Entity,
+  type Me,
+  publish,
+  publishedText,
+  type Subject,
+  subjectQuery,
+} from '../api';
 import { Button, Card, inputCls, PageHeader, selectCls, Skeleton, useLoad, useToast } from '../ui';
 import { Switch } from './Flags';
 import { CodeBlock } from './Install';
@@ -120,6 +130,89 @@ function ConsentCard({ canEdit }: { canEdit: boolean }) {
   );
 }
 
+/** Direitos do titular (LGPD art. 18, GDPR art. 15 e 17): exportar ou apagar tudo de uma pessoa. Só owner. */
+function SubjectCard() {
+  const toast = useToast();
+  const [kind, setKind] = useState<'visitorId' | 'userId'>('userId');
+  const [id, setId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const subject = { [kind]: id.trim() } as Subject;
+  const run = async (fn: () => Promise<void>) => {
+    if (!id.trim() || busy) return;
+    setBusy(true);
+    try {
+      await fn();
+    } catch (err) {
+      toast('error', (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const exportData = () =>
+    run(() =>
+      downloadFile(
+        `/privacy/subject?${subjectQuery(subject)}`,
+        `titular-${id.trim().replace(/[^\w.-]/g, '_')}.json`,
+      ),
+    );
+  const erase = () =>
+    run(async () => {
+      if (!confirm(`Apagar TODOS os dados de ${id.trim()}? Não dá para desfazer.`)) return;
+      const r = await eraseSubject(subject);
+      toast(
+        'success',
+        r.visitorIds.length
+          ? `Apagado: ${r.events} eventos e ${r.recordings} gravações de ${r.visitorIds.length} visitante(s).`
+          : 'Nada encontrado para esse id.',
+      );
+    });
+  return (
+    <Card title="Pedidos de titulares (LGPD/GDPR)">
+      <p className="text-sm text-gray-600">
+        Quando um visitante pede acesso ou exclusão dos dados dele, informe o id do usuário (o mesmo do{' '}
+        <code className="font-mono text-xs">identify</code>, junta todos os aparelhos) ou o id do visitante
+        (cookie <code className="font-mono text-xs">_abt_vid</code>). Sai tudo: eventos, atributos, respostas
+        de pesquisas e formulários, gravações. Fica registrado em Atividades.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <select
+          value={kind}
+          onChange={(e) => setKind(e.target.value as typeof kind)}
+          className={selectCls}
+          aria-label="Tipo de id"
+          data-testid="dsar-kind"
+        >
+          <option value="userId">Id do usuário (CDP)</option>
+          <option value="visitorId">Id do visitante</option>
+        </select>
+        <input
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+          maxLength={200}
+          placeholder={kind === 'userId' ? 'cliente-123' : 'v_…'}
+          aria-label="Id do titular"
+          className={`${inputCls} min-w-0 flex-1 font-mono text-xs`}
+          data-testid="dsar-id"
+        />
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Button size="sm" onClick={exportData} disabled={!id.trim() || busy} data-testid="dsar-export">
+          Exportar (JSON)
+        </Button>
+        <Button
+          size="sm"
+          variant="danger"
+          onClick={erase}
+          disabled={!id.trim() || busy}
+          data-testid="dsar-delete"
+        >
+          Apagar tudo
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 const SITE_CODE = `window.abq = window.abq || [];
 abq.push(['consent', true]);  // aceitou
 abq.push(['consent', false]); // recusou: apaga os cookies do snippet`;
@@ -151,6 +244,7 @@ export function PrivacyPage({ user }: { user: Me }) {
             https://seu-site.com/privacidade?abt_optout=1
           </code>
         </Card>
+        {user.role === 'owner' && <SubjectCard />}
       </div>
     </>
   );

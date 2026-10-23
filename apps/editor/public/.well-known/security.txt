@@ -1,0 +1,7 @@
+# Experimenta: relato de vulnerabilidades (RFC 9116). Política completa em SECURITY.md no repositório.
+# CONFIRMAR: o e-mail abaixo é provisório até a caixa de segurança definitiva existir.
+Contact: mailto:security@gabrielbraga.app
+Expires: 2027-10-23T00:00:00.000Z
+Preferred-Languages: pt, en
+Canonical: https://experimenta.gabrielbraga.app/.well-known/security.txt
+Policy: https://experimenta.gabrielbraga.app/seguranca

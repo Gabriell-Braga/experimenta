@@ -1,0 +1,31 @@
+# Atualizações de dependências (20.6): pedidos semanais, agrupando as menores para não inundar de PRs.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      menores:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /sdks/python
+    schedule:
+      interval: weekly
+  - package-ecosystem: gomod
+    directory: /sdks/go
+    schedule:
+      interval: weekly
+  - package-ecosystem: maven
+    directory: /sdks/java
+    schedule:
+      interval: weekly
+  - package-ecosystem: composer
+    directory: /sdks/php
+    schedule:
+      interval: weekly

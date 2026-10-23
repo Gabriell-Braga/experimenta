@@ -937,3 +937,11 @@ export interface AiSummary {
 }
 export const aiSummary = (body: AiSummaryRequest & { refresh?: boolean }) =>
   api<AiSummary>('/ai/summary', { method: 'POST', body: JSON.stringify(body) });
+
+/** Pedido do titular (20.6): exporta (download JSON) ou apaga tudo de um visitante ou usuário do CDP. */
+export type Subject = { visitorId: string } | { userId: string };
+export const subjectQuery = (s: Subject) => new URLSearchParams(s as Record<string, string>).toString();
+export const eraseSubject = (s: Subject) =>
+  api<{ visitorIds: string[]; events: number; recordings: number }>(`/privacy/subject?${subjectQuery(s)}`, {
+    method: 'DELETE',
+  });

@@ -43,6 +43,7 @@ import { GroupsPage } from './pages/Groups';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
 import { TeamPage } from './pages/Team';
+import { TrustPage } from './pages/Trust';
 import { AppShell } from './shell';
 import { Button, Spinner } from './ui';
 
@@ -139,6 +140,8 @@ export function App() {
     );
   }, [user, exp]);
 
+  // Página pública (20.6): sem login.
+  if (location.pathname.replace(/\/+$/, '') === '/seguranca') return <TrustPage />;
   const invite = route.params.get('invite');
   if (invite) return <AcceptInvite token={invite} />;
   if (user === undefined) return <FullPageSpinner label="Carregando…" />;

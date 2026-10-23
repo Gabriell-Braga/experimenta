@@ -13,7 +13,9 @@ export const TARGET_LABEL: Record<string, [string, string]> = {
   invite: ['Convites', 'o convite de'],
   apikey: ['Chaves de API', 'a chave de API'],
   settings: ['Configurações do workspace', ''],
-  security: ['Login em duas etapas', ''],
+  security: ['Login e duas etapas', ''],
+  privacy: ['Pedidos de titulares (LGPD)', ''],
+  export_file: ['Downloads de dados', 'o arquivo'],
   session: ['Sessões de login', ''],
   funnel: ['Funis', 'o funil'],
   audience: ['Audiências', 'a audiência'],
@@ -44,6 +46,8 @@ const VERB: Record<string, string> = {
   publish: 'publicou',
   preview: 'criou um link de pré-visualização para',
   preview_revoke: 'revogou um link de pré-visualização de',
+  download: 'baixou',
+  export: 'exportou',
 };
 
 const role = (d: string) => d.replace(/^(owner|editor|viewer)/, (r) => ROLE_LABEL[r as Role]);
@@ -73,6 +77,28 @@ export function sentence(a: ActivityItem): ReactNode {
       </>
     );
   }
+  if (a.targetType === 'security' && a.action.startsWith('login'))
+    return a.action === 'login' ? (
+      <>{who} entrou</>
+    ) : (
+      <>
+        {who} errou a senha{a.detail && ` (${a.detail})`}
+      </>
+    );
+  if (a.targetType === 'security' && a.action === 'totp_failed')
+    return (
+      <>
+        {who} errou o código da 2ª etapa{a.detail && ` (${a.detail})`}
+      </>
+    );
+  // Pedido do titular (20.6): alvo = "visitante x" ou "usuário y".
+  if (a.targetType === 'privacy')
+    return (
+      <>
+        {who} {a.action === 'dsar_delete' ? 'apagou os dados' : 'exportou os dados'} do {what}
+        {a.detail && ` (${a.detail})`}
+      </>
+    );
   if (a.targetType === 'security')
     return a.action === 'totp_on' ? (
       <>{who} ativou o login em duas etapas</>

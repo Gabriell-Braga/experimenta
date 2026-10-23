@@ -18,7 +18,7 @@
     "@hono/node-server": "1",
     "@hono/swagger-ui": "0.5",
     "@hono/zod-openapi": "0.19",
-    "drizzle-orm": "0.44",
+    "drizzle-orm": "0.45",
     "hono": "4",
     "postgres": "3",
     "zod": "3.24"

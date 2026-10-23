@@ -1,0 +1,12 @@
+# Cloudflare (Workers static assets): cabeçalhos de segurança do editor (20.6, D-100).
+# __API_ORIGIN__ é trocado no build pela origem de VITE_API_URL (vite.config.ts).
+# Scripts e workers só da própria origem (Monaco e os workers dele vêm do bundle); estilos inline (React, Monaco,
+# rrweb); imagens e fontes https: (gravações e mapas de calor reproduzem o site do cliente); o site do cliente
+# abre em iframe (frame-src https:); ninguém emoldura o editor.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' __API_ORIGIN__; frame-src https: blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'

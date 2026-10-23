@@ -7,7 +7,9 @@ import { SCHEDULE_KIND, type ScheduleData } from './routes/schedules';
 
 // Histórico de atividades (auditoria, fase 16.3), registrado num ponto só: um middleware olha cada escrita bem
 // sucedida (2xx) das rotas abaixo e grava uma linha. Rotas novas que mudam configuração entram nesta tabela.
-// Fora dela de propósito: login, troca de conta, sessão de edição, gerar ideias com IA e treinos (não mudam o
+// Login (20.6): o sucesso entra aqui (a pessoa vem da resposta); falhas e bloqueios são registrados em
+// login-guard.ts. Leituras (GET) só entram quando tiram dados da conta (downloads de CSV, pedido do titular).
+// Fora dela de propósito: troca de conta, sessão de edição, gerar ideias com IA e treinos (não mudam o
 // que o site recebe) e tudo do snippet (coleta, gravação). O backlog de hipóteses (18.3) entra: é decisão da
 // equipe (criar, editar, priorizar, mover, ligar a teste, descartar); movimentos automáticos não (vêm do status
 // do teste ligado, que já é registrado).
@@ -25,6 +27,7 @@ interface Before {
 interface Ctx {
   user: User;
   p: Record<string, string>;
+  q: Record<string, string>;
   body: Json;
   res: Json;
   before: Before | null;
@@ -515,6 +518,52 @@ const RULES: Rule[] = [
     skip: (x) => !x.res.started,
     detail: (x) => str((x.res.config as Json | undefined)?.destination),
   },
+  // Login (20.6): só quando sai o token (com TOTP, a 1ª etapa devolve o desafio e conta na 2ª).
+  ...(['/auth/login', '/auth/login/totp'] as const).map((path): Rule => ({
+    method: 'POST',
+    path,
+    target: 'security',
+    action: 'login',
+    actor: (res) => (res.token ? (res.user as User | undefined) : undefined),
+    name: (x) => x.user.name,
+    id: (x) => x.user.id,
+  })),
+  // Saída de dados (20.6): downloads de CSV e pedidos do titular (LGPD art. 18 / GDPR art. 15 e 17).
+  {
+    method: 'GET',
+    path: '/exports/files/:id',
+    target: 'export_file',
+    action: 'download',
+    before: entityBefore('export-file'),
+    name: beforeName,
+  },
+  {
+    method: 'GET',
+    path: '/profiles/segments/:id',
+    target: 'segment',
+    action: 'export',
+    skip: (x) => x.q.format !== 'csv',
+    before: entityBefore('segment'),
+    name: beforeName,
+    detail: () => 'CSV',
+  },
+  ...(
+    [
+      ['GET', 'dsar_export'],
+      ['DELETE', 'dsar_delete'],
+    ] as const
+  ).map(([method, action]): Rule => ({
+    method,
+    path: '/privacy/subject',
+    target: 'privacy',
+    action,
+    name: (x) => (x.q.userId ? `usuário ${x.q.userId}` : `visitante ${x.q.visitorId}`),
+    id: () => null,
+    detail: (x) =>
+      action === 'dsar_delete'
+        ? `${str(x.res.events)} eventos, ${str(x.res.recordings)} gravações`
+        : `${str(x.res.visitorIds && (x.res.visitorIds as unknown[]).length)} visitantes`,
+  })),
   {
     method: 'POST',
     path: '/auth/invites/:token/accept',
@@ -570,7 +619,6 @@ async function later(c: Context, p: Promise<unknown>) {
 export function auditLog(repo: Repo): MiddlewareHandler<{ Variables: AuthVars }> {
   return async (c, next) => {
     const method = c.req.method;
-    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next();
     let rule: Rule | undefined;
     let p: Record<string, string> | null = null;
     for (const r of RULES)
@@ -586,7 +634,14 @@ export function auditLog(repo: Repo): MiddlewareHandler<{ Variables: AuthVars }>
     const res = await readJson(c.res.clone());
     const user = rule.actor ? rule.actor(res) : pre;
     if (!user?.accountId) return;
-    const x: Ctx = { user, p, body: await readJson(c.req), res, before };
+    const x: Ctx = {
+      user,
+      p,
+      q: c.req.query(),
+      body: method === 'GET' ? {} : await readJson(c.req),
+      res,
+      before,
+    };
     if (rule.skip?.(x)) return;
     const a: ActivityInput = {
       // Chave de API não é pessoa: fica sem userId, com o nome da chave.

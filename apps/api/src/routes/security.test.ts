@@ -120,7 +120,11 @@ test('duas etapas: configura, ativa e o login passa a pedir o código (replay, r
 
   // Auditoria: ativar, novos códigos e desativar ficam no histórico.
   const acts = await t.get<{ items: { action: string; targetType: string }[] }>('/activities?type=security');
-  expect(acts.items.map((a) => a.action)).toEqual(['totp_off', 'recovery_codes', 'totp_on']);
+  expect(
+    acts.items.map((a) => a.action).filter((a) => a.startsWith('totp_o') || a === 'recovery_codes'),
+  ).toEqual(['totp_off', 'recovery_codes', 'totp_on']);
+  // Login (20.6): entradas e códigos errados da 2ª etapa também.
+  expect(acts.items.map((a) => a.action)).toEqual(expect.arrayContaining(['login', 'totp_failed']));
 });
 
 test('sessões ativas: lista, encerra uma, sai de todos os outros e sai desta', async () => {

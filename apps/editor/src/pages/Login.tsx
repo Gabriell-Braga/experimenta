@@ -80,7 +80,7 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
         </p>
       </aside>
 
-      <main className="flex items-center justify-center p-6">
+      <main className="flex flex-col items-center justify-center p-6">
         {challenge ? (
           <form
             className="w-full max-w-sm"
@@ -218,6 +218,9 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
             </Button>
           </form>
         )}
+        <a href="/seguranca" className="mt-8 text-xs text-gray-600 underline hover:text-ink">
+          Segurança e privacidade
+        </a>
       </main>
     </div>
   );

@@ -1377,6 +1377,42 @@ export function createRepo(db: Db) {
         .where(and(ne(webhookDeliveries.status, 'pending'), lt(webhookDeliveries.updatedAt, cutoff)));
     },
 
+    /**
+     * Pedido do titular (LGPD art. 18, GDPR art. 17): apaga eventos, gravações e entregas de webhook pendentes
+     * que citam os visitantes. Devolve quantos eventos e gravações saíram.
+     */
+    async deleteVisitorData(accountId: string, visitorIds: string[]) {
+      if (!visitorIds.length) return { events: 0, recordings: 0 };
+      const recs = await db
+        .delete(recordings)
+        .where(and(eq(recordings.accountId, accountId), inArray(recordings.visitorId, visitorIds)))
+        .returning({ sessionId: recordings.sessionId });
+      if (recs.length)
+        await db.delete(recordingChunks).where(
+          and(
+            eq(recordingChunks.accountId, accountId),
+            inArray(
+              recordingChunks.sessionId,
+              recs.map((r) => r.sessionId),
+            ),
+          ),
+        );
+      const evs = await db
+        .delete(events)
+        .where(and(eq(events.accountId, accountId), inArray(events.visitorId, visitorIds)))
+        .returning({ id: events.id });
+      for (const v of visitorIds)
+        await db
+          .delete(webhookDeliveries)
+          .where(
+            and(
+              eq(webhookDeliveries.accountId, accountId),
+              sql`strpos(${webhookDeliveries.body}, ${`"visitorId":${JSON.stringify(v)}`}) > 0`,
+            ),
+          );
+      return { events: evs.length, recordings: recs.length };
+    },
+
     async insertPublication(accountId: string, config: PublishedConfig, userId?: string) {
       await db.insert(publications).values({
         id: newId('pub'),
