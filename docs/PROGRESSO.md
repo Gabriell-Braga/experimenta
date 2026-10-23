@@ -1,9 +1,9 @@
 # Progresso
-**Status:** 19.4 concluída — Fase 19 e plano concluídos
-**Fase atual:** 19
-**Tarefa atual:** —
-**Última atualização:** 2026-10-20 15:26
-**Próximo passo:** deploy das fases 19.2–19.4 (migrações 0012) e os bloqueios abaixo; o plano não tem tarefas abertas.
+**Status:** Fase 20 em andamento (QA externo e conformidade)
+**Fase atual:** 20
+**Tarefa atual:** 20.1–20.7 em andamento (em paralelo)
+**Última atualização:** 2026-10-23 02:47
+**Próximo passo:** concluir a Fase 20 (docs/PLANO.md) e o diagnóstico em docs/CONFORMIDADE.md.
 
 ## Bloqueios / perguntas para os humanos
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.

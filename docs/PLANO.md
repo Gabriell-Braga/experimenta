@@ -199,6 +199,16 @@ Pedido de 2026-10-20: cobrir o que a VWO tem hoje e o app ainda não tem (compar
 - [x] 19.3 App nativo: SDK React Native (flags, experimentos, eventos) e base para iOS/Android; mapas de calor e gravação de tela em app ficam para depois do SDK
 - [x] 19.4 Retry e fila de webhooks (pendência conhecida) e exportação agendada de dados (CSV/S3/BigQuery)
 
+### Fase 20 — QA externo e conformidade (paridade com os certificados da VWO)
+Pedido de 2026-10-23: corrigir o relatório "QA do Experimenta" (23 itens: 4 altos, 10 médios, 9 baixos) e preparar o produto e a empresa para os mesmos selos que a VWO exibe (ISO 27001, ISO 27701, ISO 27017/27018, SOC 2 Tipo II, PCI DSS, GDPR/LGPD, alinhamento HIPAA). Diagnóstico e plano em docs/CONFORMIDADE.md.
+- [ ] 20.1 Painel: métricas pré-agregadas por dia para 30/90 dias no Worker grátis, um único aviso (também no celular), duração restante com teto e aviso, texto dos insights
+- [ ] 20.2 Relatório e lista de experimentos: vencedor só após a amostra planejada (ou sequencial), melhoria coerente com as taxas e card da meta, assistente sem "mais 796 dias", teste no ar abre o relatório e edição avisa, tráfego do grupo exclusivo, aba Todos/arquivados, nomes "Nova campanha" e "Insights · Jornada"
+- [ ] 20.3 Mapas de calor, funis e gravações: mapa no celular, período no detalhe, URLs normalizadas e filtro por domínio, carrossel pausado e filtro por variação, domínio e filtro de duração nas gravações
+- [ ] 20.4 Privacidade e segurança: esperar consentimento ligado por padrão e escolha na instalação (banner no demo), URL alvo só nos domínios do workspace e sem dados pessoais, sessão em cookie httpOnly/Secure, snippet com tempo limite e opção assíncrona, recuperar senha e criar conta
+- [ ] 20.5 Acabamento: acessibilidade (nomes, switch, senha, ordem de títulos), contraste do login, barra do editor em 1536 px, coluna Status visível no celular
+- [ ] 20.6 Controles técnicos de conformidade: cabeçalhos de segurança, varredura de dependências/segredos/código no CI, SECURITY.md e security.txt, política de senha e bloqueio de tentativas, direitos do titular (exportar/apagar dados de um visitante), página pública de segurança
+- [ ] 20.7 SGSI documental: políticas ISO 27001/27701, registro de tratamento (ROPA), DPA e lista de suboperadores, plano de resposta a incidentes, continuidade e backup, gestão de riscos e mapeamento de controles (Anexo A e SOC 2)
+
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.
 - Se encontrar um caminho tecnicamente melhor que o descrito, registre a justificativa em docs/DECISOES.md e siga com ele. Se mudar a arquitetura de forma significativa, registre também em "Bloqueios / perguntas" para os humanos revisarem depois.
