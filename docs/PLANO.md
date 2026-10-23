@@ -207,7 +207,7 @@ Pedido de 2026-10-23: corrigir o relatório "QA do Experimenta" (23 itens: 4 alt
 - [ ] 20.4 Privacidade e segurança: esperar consentimento ligado por padrão e escolha na instalação (banner no demo), URL alvo só nos domínios do workspace e sem dados pessoais, sessão em cookie httpOnly/Secure, snippet com tempo limite e opção assíncrona, recuperar senha e criar conta
 - [ ] 20.5 Acabamento: acessibilidade (nomes, switch, senha, ordem de títulos), contraste do login, barra do editor em 1536 px, coluna Status visível no celular
 - [ ] 20.6 Controles técnicos de conformidade: cabeçalhos de segurança, varredura de dependências/segredos/código no CI, SECURITY.md e security.txt, política de senha e bloqueio de tentativas, direitos do titular (exportar/apagar dados de um visitante), página pública de segurança
-- [ ] 20.7 SGSI documental: políticas ISO 27001/27701, registro de tratamento (ROPA), DPA e lista de suboperadores, plano de resposta a incidentes, continuidade e backup, gestão de riscos e mapeamento de controles (Anexo A e SOC 2)
+- [x] 20.7 SGSI documental: políticas ISO 27001/27701, registro de tratamento (ROPA), DPA e lista de suboperadores, plano de resposta a incidentes, continuidade e backup, gestão de riscos e mapeamento de controles (Anexo A e SOC 2)
 
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.
