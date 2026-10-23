@@ -14,7 +14,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getRecording, listRecordings } from '../api';
+import { getAccountSettings, getRecording, listRecordings } from '../api';
+import { domainOf, domainsOf, SHORT_RECORDING_SECONDS, withoutDomains } from '../domains';
 import { AiSummaryCard } from '../components/AiSummary';
 import { navigate } from '../nav';
 import {
@@ -32,6 +33,7 @@ import {
   useToast,
 } from '../ui';
 import { PERIODS, type Period } from './Events';
+import { DomainFilter, useHiddenDomains } from './Heatmaps';
 
 export const DEVICE_ICON: Record<string, LucideIcon> = {
   desktop: Monitor,
@@ -45,7 +47,10 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
   const [device, setDevice] = useState('');
   const [page, setPage] = useState('');
   const [dPage, setDPage] = useState('');
-  const [minSeconds, setMinSeconds] = useState('');
+  // Sessões de 0:00 a poucos segundos (rejeição imediata) escondidas por padrão.
+  const [minSeconds, setMinSeconds] = useState(String(SHORT_RECORDING_SECONDS));
+  const [hidden, setHidden] = useHiddenDomains();
+  const { data: settings } = useLoad(getAccountSettings, []);
   const [frustrated, setFrustrated] = useState(false);
   const visitorId = params.get('visitor') ?? undefined;
   useEffect(() => {
@@ -55,7 +60,7 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
     const t = setTimeout(() => setDPage(page), page ? 300 : 0);
     return () => clearTimeout(t);
   }, [page]);
-  const { data: rows } = useLoad(
+  const { data: all } = useLoad(
     () =>
       listRecordings({
         days,
@@ -67,13 +72,16 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
       }),
     [days, device, dPage, minSeconds, frustrated, visitorId],
   );
+  const firstPage = (r: { pages: string[] }) => r.pages[0] ?? '';
+  const rows = all && withoutDomains(all, firstPage, hidden);
+  const rate = settings?.heatmapSampleRate;
 
   return (
     <>
       <PageHeader
         eyebrow="Insights"
         title="Gravações de sessão"
-        description="Assista à visita como o visitante viu: cliques, scroll, navegação e frustração. Campos de formulário sempre mascarados."
+        description={`Assista à visita como o visitante viu: cliques, scroll, navegação e frustração. Campos de formulário sempre mascarados. Amostragem: ${rate == null ? 'padrão do servidor' : `${Math.round(rate * 1000) / 10}% dos visitantes`}.`}
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
       <div className="mt-5 flex flex-wrap items-center gap-2.5">
@@ -101,7 +109,7 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
           className={selectCls}
           aria-label="Duração mínima"
         >
-          <option value="">Qualquer duração</option>
+          <option value="">Qualquer duração (inclui as de 0:00)</option>
           <option value="10">10 s ou mais</option>
           <option value="30">30 s ou mais</option>
           <option value="60">1 min ou mais</option>
@@ -122,6 +130,14 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
           </Button>
         )}
       </div>
+      {all && (
+        <DomainFilter
+          className="mt-3"
+          domains={domainsOf(all, firstPage)}
+          hidden={hidden}
+          onChange={setHidden}
+        />
+      )}
       {rows === null ? (
         <LoadingBlock className="mt-4" rows={8} />
       ) : (
@@ -133,6 +149,7 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
             >
               A gravação vale para a fração de visitantes definida em Configurações do workspace (a mesma do
               mapa de calor).
+              {minSeconds && ' Sessões curtas estão escondidas: escolha "Qualquer duração" para vê-las.'}
             </EmptyState>
           ) : (
             <ul className="divide-y divide-gray-900/[0.06]" data-testid="recordings">
@@ -164,6 +181,7 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
                           <span className="flex items-center gap-1">
                             <Icon size={12} aria-hidden="true" /> {r.vw}×{r.vh}
                           </span>
+                          <span data-testid="recording-domain">{domainOf(r.pages[0] ?? '') || 'n/d'}</span>
                           <span>visitante {r.visitorId.slice(0, 8)}</span>
                         </span>
                       </span>

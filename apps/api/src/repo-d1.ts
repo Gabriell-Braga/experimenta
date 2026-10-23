@@ -750,6 +750,10 @@ export function createD1Repo(d1: D1Like): Repo {
         conds.push("json_extract(payload, '$.device') = ?");
         args.push(f.device);
       }
+      if (f.from) {
+        conds.push('ts >= ?');
+        args.push(f.from.getTime());
+      }
       if (f.experimentId) {
         // Chave entre aspas no caminho JSON: ids podem ter caracteres especiais.
         conds.push(f.variationId ? 'json_extract(payload, ?) = ?' : 'json_extract(payload, ?) IS NOT NULL');

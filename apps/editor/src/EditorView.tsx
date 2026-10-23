@@ -137,6 +137,7 @@ export function EditorView({ record, user }: Props) {
         if (selectorFragility(draft.target.selector) === 'high') setFragileWarning(draft.target.selector);
       }),
       c.peer.on('navigated', ({ url }) => dispatch({ type: 'setUrl', url })),
+      c.peer.on('heatmapStatus', ({ missing }) => setHeatMissing(missing)),
     ];
     return () => {
       offs.forEach((f) => f());

@@ -5,7 +5,9 @@ import { fmt, selectCls } from '../ui';
 export type HeatmapResult = Omit<HeatmapData, 'mode'> & { page: string };
 
 interface Props {
-  /** Variações para filtrar (só no editor de um experimento). */
+  /** Experimentos para escolher (visualizador do módulo); no editor o experimento é o aberto. */
+  experiments?: { id: string; name: string }[];
+  /** Variações para filtrar (do experimento aberto no editor ou do escolhido em `experiments`). */
   variations?: Variation[];
   filters: HeatmapFilters;
   onFilters(f: HeatmapFilters): void;
@@ -26,6 +28,7 @@ export const HEATMAP_MODES: [HeatmapMode, string, string][] = [
 ];
 
 export function HeatmapPanel({
+  experiments,
   variations,
   filters,
   onFilters,
@@ -68,6 +71,40 @@ export function HeatmapPanel({
         </div>
         <p className="mt-1.5 text-xs text-gray-500">{HEATMAP_MODES.find((x) => x[0] === mode)?.[2]}</p>
       </div>
+      <label className="flex flex-col gap-1">
+        <span className="label-mono">Período</span>
+        <select
+          className={selectCls}
+          data-testid="heatmap-days"
+          value={filters.days ?? ''}
+          onChange={(e) => onFilters({ ...filters, days: e.target.value || undefined })}
+        >
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="">Todo o histórico</option>
+        </select>
+      </label>
+      {experiments && (
+        <label className="flex flex-col gap-1">
+          <span className="label-mono">Experimento</span>
+          <select
+            className={selectCls}
+            data-testid="heatmap-experiment"
+            value={filters.experimentId ?? ''}
+            onChange={(e) =>
+              onFilters({ ...filters, experimentId: e.target.value || undefined, variationId: undefined })
+            }
+          >
+            <option value="">Todos os visitantes</option>
+            {experiments.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {variations && (
         <label className="flex flex-col gap-1">
           <span className="label-mono">Variação</span>
@@ -77,7 +114,7 @@ export function HeatmapPanel({
             value={filters.variationId ?? ''}
             onChange={(e) => onFilters({ ...filters, variationId: e.target.value || undefined })}
           >
-            <option value="">Todos os visitantes</option>
+            <option value="">{experiments ? 'Todas as variações' : 'Todos os visitantes'}</option>
             {variations.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
@@ -123,7 +160,8 @@ export function HeatmapPanel({
           </dl>
           {missing > 0 && (
             <p className="text-xs text-amber-800">
-              {missing} elemento(s) não existem nesta página agora (layout ou variação diferente).
+              {missing} elemento(s) clicados não aparecem na tela agora (escondidos neste layout, em outro
+              slide do carrossel, ainda não carregados ou de outra variação). Os visíveis estão desenhados.
             </p>
           )}
           {mode === 'scroll' ? (

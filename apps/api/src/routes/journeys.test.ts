@@ -46,8 +46,8 @@ test('entradas, saídas, caminhos e explorador de página', async () => {
   expect(j.sessions).toBe(4);
   expect(j.bounceRate).toBeCloseTo(0.25, 6);
   expect(j.entries[0]).toEqual({ key: S, count: 3 });
-  expect(j.exits.find((x) => x.key === `${S}/produto.html`)!.count).toBe(2);
-  expect(j.paths[0]).toEqual({ steps: [S, `${S}/produto.html`, `${S}/obrigado.html`], count: 1 });
+  expect(j.exits.find((x) => x.key === `${S}/produto`)!.count).toBe(2);
+  expect(j.paths[0]).toEqual({ steps: [S, `${S}/produto`, `${S}/obrigado`], count: 1 });
   expect(j.focus!.views).toBe(3);
   expect(j.focus!.previous).toEqual([
     { key: S, count: 2 },
@@ -55,6 +55,6 @@ test('entradas, saídas, caminhos e explorador de página', async () => {
   ]);
   expect(j.focus!.next).toEqual([
     { key: '(saída)', count: 2 },
-    { key: `${S}/obrigado.html`, count: 1 },
+    { key: `${S}/obrigado`, count: 1 },
   ]);
 });

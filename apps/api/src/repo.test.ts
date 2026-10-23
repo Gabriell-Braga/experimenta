@@ -1,6 +1,6 @@
 import { ExperimentSchema } from '@abtest/shared';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { normalizePage, NotFoundError, retentionCutoff, verifyPassword, type Repo } from './repo';
+import { normalizePage, NotFoundError, pagePath, retentionCutoff, verifyPassword, type Repo } from './repo';
 import { testRepo } from './test-repo';
 
 let repo: Repo;
@@ -253,4 +253,12 @@ test('normalizePage: páginas do site e telas do app (SDK React Native)', () => 
   expect(normalizePage('https://loja.com/produto/?a=1#x')).toBe('https://loja.com/produto');
   expect(normalizePage('app://com.loja/Carrinho')).toBe('app://com.loja/Carrinho');
   expect(normalizePage('app://app/')).toBe('app://app');
+  // Mesma rota: barra final, index.html e .html (D-098).
+  expect(normalizePage('https://loja.com/loja/index.html')).toBe('https://loja.com/loja');
+  expect(normalizePage('https://loja.com/loja/checkout.html#top')).toBe('https://loja.com/loja/checkout');
+  expect(normalizePage('https://loja.com/index.htm')).toBe('https://loja.com');
+  expect(normalizePage('https://loja.com/')).toBe('https://loja.com');
+  expect(normalizePage('https://loja.com/html')).toBe('https://loja.com/html');
+  expect(pagePath('https://outro.com/loja/index.html?a=1')).toBe('/loja');
+  expect(pagePath('https://loja.com')).toBe('/');
 });

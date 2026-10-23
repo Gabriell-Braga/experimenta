@@ -28,7 +28,7 @@ const BLOCKED = [
 export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.parent) {
   const doc = win.document;
   const overlay = createOverlay(doc);
-  const heatmap = createHeatmapLayer(doc, overlay.root);
+  const heatmap = createHeatmapLayer(doc, overlay.root, (st) => peer.emit('heatmapStatus', st));
   let mode: 'edit' | 'browse' = 'edit';
   let selected: Element | null = null;
   let variation: { handle?: ApplyHandle; style?: HTMLStyleElement; script?: HTMLScriptElement } = {};
