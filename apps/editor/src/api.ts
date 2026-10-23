@@ -459,6 +459,8 @@ export interface HeatmapFilters {
   experimentId?: string;
   variationId?: string;
   device?: 'desktop' | 'tablet' | 'mobile';
+  /** Últimos N dias ('7', '30', '90'); ausente = todo o histórico. */
+  days?: string;
 }
 export function getHeatmap(url: string, f: HeatmapFilters) {
   const q = new URLSearchParams({ url });

@@ -21,3 +21,35 @@ test('D1 0007: usuários existentes viram membros da sua conta com o mesmo papel
   ]);
   expect(Object.keys(db.prepare('SELECT * FROM users').get() as object)).not.toContain('role');
 });
+
+test('D1 0013: páginas já gravadas perdem index.html e .html (mesma regra de normalizePage)', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { normalizePage } = await import('./repo');
+  const db = new DatabaseSync(':memory:');
+  const dir = new URL('../migrations-d1/', import.meta.url);
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+  const run = (f: string) => db.exec(readFileSync(new URL(f, dir), 'utf8'));
+  files.filter((f) => f < '0013').forEach(run);
+  db.exec("INSERT INTO accounts (id, name, created_at) VALUES ('a', 'A', 1)");
+  const old = [
+    'https://x.com/loja/index.html',
+    'https://x.com/loja/checkout.html',
+    'https://x.com/a.htm',
+    'https://x.com/html',
+  ];
+  old.forEach((page, i) =>
+    db
+      .prepare(
+        "INSERT INTO events (id, account_id, type, page, payload, ts, received_at) VALUES (?, 'a', 'click', ?, '{}', 1, 1)",
+      )
+      .run(String(i), page),
+  );
+  files.filter((f) => f >= '0013').forEach(run);
+  const pages = db
+    .prepare('SELECT page FROM events ORDER BY id')
+    .all()
+    .map((r) => (r as { page: string }).page);
+  expect(pages).toEqual(old.map(normalizePage));
+});

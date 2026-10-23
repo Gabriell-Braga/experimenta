@@ -124,6 +124,8 @@ export const agentEvents = {
   selected: ElementInfoSchema.nullable(),
   operation: z.object({ draft: OperationDraftSchema }),
   navigated: z.object({ url: z.string() }),
+  /** Mapa de calor redesenhado porque o DOM mudou (carrossel, conteúdo tardio): seletores achados agora. */
+  heatmapStatus: z.object({ resolved: z.number(), missing: z.number() }),
 };
 
 export type Methods = Record<string, { params: z.ZodTypeAny; result: z.ZodTypeAny }>;

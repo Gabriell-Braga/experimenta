@@ -1,11 +1,21 @@
 import type { HeatmapMode } from '@abtest/shared';
 import { ArrowLeft, Flame, Monitor, Smartphone, Tablet, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { createEditSession, frameUrl, getHeatmap, query, type HeatmapFilters } from '../api';
+import {
+  createEditSession,
+  frameUrl,
+  getExperiment,
+  getHeatmap,
+  listExperiments,
+  query,
+  type ExperimentRecord,
+  type HeatmapFilters,
+} from '../api';
 import { AiSummaryCard } from '../components/AiSummary';
 import { HeatmapPanel, type HeatmapResult } from '../components/HeatmapPanel';
 import { DEVICE_WIDTH, type Device } from '../components/TopBar';
 import { connectAgent, type AgentPeer } from '../connection';
+import { domainsOf, loadHiddenDomains, saveHiddenDomains, withoutDomains } from '../domains';
 import { navigate } from '../nav';
 import {
   Button,
@@ -38,7 +48,9 @@ export function HeatmapsPage() {
   useEffect(() => {
     document.title = 'Mapas de calor · Experimenta';
   }, []);
-  const { data: rows } = useLoad(() => query<PageRow[]>('/analytics/pages', { days }), [days]);
+  const { data: all } = useLoad(() => query<PageRow[]>('/analytics/pages', { days }), [days]);
+  const [hidden, setHidden] = useHiddenDomains();
+  const rows = all && withoutDomains(all, (r) => r.page, hidden);
   const max = Math.max(1, ...(rows ?? []).map((r) => r.pageviews));
   return (
     <>
@@ -48,6 +60,14 @@ export function HeatmapsPage() {
         description="Cliques, scroll, movimento do mouse e cliques de frustração desenhados sobre o seu site real. Escolha uma página."
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
+      {all && (
+        <DomainFilter
+          className="mt-5"
+          domains={domainsOf(all, (r) => r.page)}
+          hidden={hidden}
+          onChange={setHidden}
+        />
+      )}
       {rows === null ? (
         <LoadingBlock className="mt-6" rows={6} />
       ) : (
@@ -75,7 +95,7 @@ export function HeatmapsPage() {
                     <tr
                       key={r.page}
                       className="group cursor-pointer hover:bg-lime-soft/40"
-                      onClick={() => navigate('heatmap', { url: r.href })}
+                      onClick={() => navigate('heatmap', { url: r.href, days })}
                       data-testid="page-row"
                     >
                       <td className="max-w-md px-4 py-3">
@@ -119,6 +139,58 @@ export function HeatmapsPage() {
   );
 }
 
+/** Domínios escondidos nas listas de insights, lembrados neste navegador (localStorage). */
+export function useHiddenDomains() {
+  const [hidden, set] = useState(loadHiddenDomains);
+  const update = (h: string[]) => {
+    set(h);
+    saveHiddenDomains(h);
+  };
+  return [hidden, update] as const;
+}
+
+/**
+ * Liga/desliga domínios (a mesma rota em domínio antigo, staging...). Só aparece com mais de um domínio
+ * ou com algum escondido.
+ */
+export function DomainFilter({
+  domains,
+  hidden,
+  onChange,
+  className = '',
+}: {
+  domains: string[];
+  hidden: string[];
+  onChange(h: string[]): void;
+  className?: string;
+}) {
+  if (domains.length < 2 && !hidden.length) return null;
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-1.5 ${className}`}
+      role="group"
+      aria-label="Domínios"
+      data-testid="domain-filter"
+    >
+      <span className="label-mono mr-1">Domínios</span>
+      {domains.map((d) => {
+        const on = !hidden.includes(d);
+        return (
+          <button
+            key={d}
+            aria-pressed={on}
+            title={on ? 'Esconder este domínio' : 'Mostrar este domínio'}
+            onClick={() => onChange(on ? [...hidden, d] : hidden.filter((x) => x !== d))}
+            className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${on ? 'border-ink bg-ink text-white' : 'border-gray-900/15 bg-white text-gray-400 line-through'}`}
+          >
+            {d}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const DEVICES: [Device, string, LucideIcon][] = [
   ['desktop', 'Desktop', Monitor],
   ['tablet', 'Tablet', Tablet],
@@ -129,7 +201,7 @@ const DEVICES: [Device, string, LucideIcon][] = [
  * Visualizador em tela cheia: o site real no iframe (via sessão de edição + agent, em modo navegar) com o
  * mapa de calor desenhado por cima. Navegar no site troca a página analisada.
  */
-export function HeatmapViewer({ url }: { url: string }) {
+export function HeatmapViewer({ url, days }: { url: string; days?: string | null }) {
   const toast = useToast();
   const iframe = useRef<HTMLIFrameElement>(null);
   const peer = useRef<AgentPeer | null>(null);
@@ -139,7 +211,12 @@ export function HeatmapViewer({ url }: { url: string }) {
   const [ready, setReady] = useState(0);
   const [device, setDevice] = useState<Device>('desktop');
   const [mode, setMode] = useState<HeatmapMode>('heat');
-  const [filters, setFilters] = useState<HeatmapFilters>({});
+  // Período escolhido na lista (padrão 30 dias, como a lista).
+  const [filters, setFilters] = useState<HeatmapFilters>(() => ({
+    days: PERIODS.some(([p]) => p === days) ? days! : '30',
+  }));
+  const { data: experiments } = useLoad(listExperiments, []);
+  const [record, setRecord] = useState<ExperimentRecord | null>(null);
   const [data, setData] = useState<HeatmapResult | null>(null);
   const [missing, setMissing] = useState(0);
   const siteOrigin = new URL(url).origin;
@@ -157,6 +234,7 @@ export function HeatmapViewer({ url }: { url: string }) {
       onPrompt: async () => null,
     });
     peer.current = c.peer;
+    const offStatus = c.peer.on('heatmapStatus', ({ missing: m }) => setMissing(m));
     const off = c.peer.on('ready', ({ url: u }) => {
       const clean = new URL(u);
       clean.searchParams.delete('abt_edit');
@@ -167,10 +245,38 @@ export function HeatmapViewer({ url }: { url: string }) {
     });
     return () => {
       off();
+      offStatus();
       c.dispose();
       peer.current = null;
     };
   }, [token, siteOrigin]);
+  // Experimento escolhido: carrega as variações (para o filtro e para mostrar a página como a variação).
+  useEffect(() => {
+    setRecord(null);
+    if (!filters.experimentId) return;
+    let live = true;
+    getExperiment(filters.experimentId).then(
+      (r) => live && setRecord(r),
+      (e: Error) => toast('error', e.message),
+    );
+    return () => {
+      live = false;
+    };
+  }, [filters.experimentId, toast]);
+  // Variação escolhida aplicada no iframe (só operações e CSS, nunca JS): os seletores dos cliques de quem
+  // viu a variação passam a existir. Sem variação, volta ao site original. Reaplica a cada página nova.
+  const variation = record?.experiment.variations.find((v) => v.id === filters.variationId);
+  useEffect(() => {
+    if (!connected) return;
+    peer.current
+      ?.call('applyVariation', {
+        operations: variation?.operations ?? [],
+        customCSS: variation?.customCSS ?? '',
+        customJS: '',
+        runJS: false,
+      })
+      .catch(() => {});
+  }, [connected, ready, variation]);
   // Dispositivo do mapa acompanha a largura do iframe.
   useEffect(() => setFilters((f) => ({ ...f, device: device === 'desktop' ? undefined : device })), [device]);
   useEffect(() => {
@@ -247,6 +353,8 @@ export function HeatmapViewer({ url }: { url: string }) {
         </main>
         <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-900/10 bg-white">
           <HeatmapPanel
+            experiments={experiments ?? []}
+            variations={record?.experiment.variations}
             mode={mode}
             onMode={setMode}
             filters={filters}

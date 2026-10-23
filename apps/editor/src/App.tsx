@@ -146,7 +146,13 @@ export function App() {
   if (!user) return <Login onLogin={() => setUser(undefined)} initialError={ssoError} />;
   if (user.totpRequired) return <TotpGate user={user} onDone={() => setUser(undefined)} />;
   if (!exp && route.view === 'heatmap' && route.params.get('url'))
-    return <HeatmapViewer key={route.params.get('url')} url={route.params.get('url')!} />;
+    return (
+      <HeatmapViewer
+        key={route.params.get('url')}
+        url={route.params.get('url')!}
+        days={route.params.get('days')}
+      />
+    );
   if (!exp && route.view === 'recording' && route.params.get('id'))
     return <RecordingPlayer key={route.params.get('id')} id={route.params.get('id')!} />;
   if (!exp) {

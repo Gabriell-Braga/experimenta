@@ -20,6 +20,8 @@ export function journeysReport(
   o: { focus?: string; depth?: number; device?: string } = {},
 ) {
   const depth = o.depth ?? 4;
+  // Página do explorador na mesma regra das chaves (aceita a URL crua: .html, barra final, query).
+  const focus = o.focus && normalizePage(o.focus);
   const sessions = new Map<string, { ts: number; page: string }[]>();
   for (const e of events) {
     if (e.type !== 'pageview' || e.qa || (o.device && e.device !== o.device)) continue;
@@ -43,9 +45,9 @@ export function journeysReport(
     inc(exits, seq.at(-1)!);
     if (seq.length === 1) bounces++;
     inc(paths, seq.slice(0, depth).join(' → '));
-    if (o.focus)
+    if (focus)
       seq.forEach((p, i) => {
-        if (p !== o.focus) return;
+        if (p !== focus) return;
         focusViews++;
         inc(prev, i ? seq[i - 1]! : ENTRY);
         inc(next, i < seq.length - 1 ? seq[i + 1]! : EXIT);
@@ -57,6 +59,6 @@ export function journeysReport(
     entries: top(entries, 10),
     exits: top(exits, 10),
     paths: top(paths, 15).map((p) => ({ steps: p.key.split(' → '), count: p.count })),
-    focus: o.focus ? { page: o.focus, views: focusViews, previous: top(prev, 8), next: top(next, 8) } : null,
+    focus: focus ? { page: focus, views: focusViews, previous: top(prev, 8), next: top(next, 8) } : null,
   };
 }

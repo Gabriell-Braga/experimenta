@@ -315,6 +315,27 @@ describe('agent: mapa de calor', () => {
     expect(shadow().querySelector('.heat-badge')).toBeNull();
     await call('hideHeatmap', {});
   });
+
+  test('carrossel/conteúdo tardio: redesenha quando o DOM muda e avisa o app; animações congeladas', async () => {
+    const box = { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 } as DOMRect;
+    const r = await call('showHeatmap', {
+      clicks: { total: 3, elements: [{ selector: '#tarde', count: 3, points: [[0.5, 0.5]] }] },
+      scroll: { pageviews: 0, reached: [] },
+    });
+    expect(r.result).toEqual({ resolved: 0, missing: 1 });
+    expect(document.querySelector('style[data-abt-heatmap]')!.textContent).toContain('transition:none');
+    // O site carrega o elemento depois (produtos, slide que entra).
+    const el = document.createElement('button');
+    el.id = 'tarde';
+    el.getBoundingClientRect = () => box;
+    document.body.append(el);
+    await vi.waitFor(() => expect(events('heatmapStatus').at(-1)).toEqual({ resolved: 1, missing: 0 }), {
+      timeout: 2000,
+    });
+    expect(shadow().querySelector('.heat-badge[data-selector="#tarde"]')!.textContent).toBe('3');
+    await call('hideHeatmap', {});
+    expect(document.querySelector('style[data-abt-heatmap]')).toBeNull();
+  });
 });
 
 describe('agent: resumo da página para a IA', () => {

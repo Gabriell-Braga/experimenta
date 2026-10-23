@@ -535,13 +535,15 @@ export function createApp(deps: AppDeps) {
       path: '/heatmap',
       tags: ['heatmap'],
       security,
-      summary: 'Mapa de calor/cliques e scroll de uma página (filtros: variação e dispositivo)',
+      summary: 'Mapa de calor/cliques e scroll de uma página (filtros: variação, dispositivo e período)',
       request: {
         query: z.object({
           url: z.string().url(),
           experimentId: z.string().optional(),
           variationId: z.string().optional(),
           device: z.enum(['desktop', 'tablet', 'mobile']).optional(),
+          /** Últimos N dias; ausente = todo o histórico guardado. */
+          days: z.coerce.number().int().min(1).max(365).optional(),
         }),
       },
       responses: {
@@ -581,10 +583,11 @@ export function createApp(deps: AppDeps) {
     }),
     async (c) => {
       const accountId = c.get('user').accountId;
-      const q = c.req.valid('query');
+      const { days, ...q } = c.req.valid('query');
+      const from = days ? new Date(Date.now() - days * 86_400_000) : undefined;
       const [base, extra] = await Promise.all([
-        repo.heatmap(accountId, q),
-        repo.listEvents(accountId, { page: normalizePage(q.url), types: ['move', 'frustration'] }),
+        repo.heatmap(accountId, { ...q, from }),
+        repo.listEvents(accountId, { page: normalizePage(q.url), types: ['move', 'frustration'], from }),
       ]);
       return c.json({ ...base, ...behavior(extra, q) }, 200);
     },

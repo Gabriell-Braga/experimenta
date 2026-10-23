@@ -23,6 +23,7 @@ import {
   notInArray,
   or,
   sql,
+  type AnyColumn,
   type SQL,
 } from 'drizzle-orm';
 import type { Db } from './db';
@@ -280,19 +281,32 @@ export const mergePages = (a: string[], b: string[]) => {
   return out.slice(0, 200);
 };
 
+/** Final de caminho que não muda a página: `/index.html`, `.html` e barra final (`/loja/` = `/loja/index.html` = `/loja`). */
+const PAGE_SUFFIX = /(\/index\.html?|\.html?)?\/?$/;
+
 /**
- * Página para o mapa de calor: origin + caminho, sem query, hash nem barra final. Telas do app
- * (`app://<appId>/<Tela>`, SDK React Native) não têm origin no padrão de URL: viram `app://<appId>/<Tela>`.
+ * Página (mapas de calor, funis, jornadas, formulários...): origin + caminho, sem query, hash, barra final,
+ * `index.html` nem `.html`. Telas do app (`app://<appId>/<Tela>`, SDK React Native) não têm origin no padrão
+ * de URL: viram `app://<appId>/<Tela>`. Única regra de página da API; `pageSql` é a mesma no Postgres e a
+ * coluna `page` do D1 é gravada com esta função.
  */
 export function normalizePage(url: string): string {
+  let s: string;
   try {
     const u = new URL(url);
-    const origin = u.origin === 'null' ? `${u.protocol}//${u.host}` : u.origin;
-    return (origin + u.pathname).replace(/\/$/, '');
+    s = (u.origin === 'null' ? `${u.protocol}//${u.host}` : u.origin) + u.pathname;
   } catch {
-    return url.split('#')[0]!.split('?')[0]!.replace(/\/$/, '');
+    s = url.split('#')[0]!.split('?')[0]!;
   }
+  return s.replace(PAGE_SUFFIX, '');
 }
+
+/** Caminho da página normalizada (sem o domínio): agrupa a mesma rota servida em domínios diferentes. */
+export const pagePath = (url: string) => normalizePage(url).replace(/^https?:\/\/[^/]+/, '') || '/';
+
+/** `normalizePage` em SQL (Postgres) sobre a URL do payload do evento. */
+const pageSql = (payload: AnyColumn) =>
+  sql`regexp_replace(split_part(split_part(${payload}->>'url', '#', 1), '?', 1), ${PAGE_SUFFIX.source}, '')`;
 
 /** % das páginas vistas que chegaram a 10, 20, … 100% de profundidade. */
 export function scrollReached(depths: number[]) {
@@ -872,10 +886,7 @@ export function createRepo(db: Db) {
       if (f.experimentId) conds.push(eq(events.experimentId, f.experimentId));
       if (f.sessionId) conds.push(eq(events.sessionId, f.sessionId));
       if (f.visitorIds) conds.push(inArray(events.visitorId, f.visitorIds.length ? f.visitorIds : ['']));
-      if (f.page)
-        conds.push(
-          sql`regexp_replace(split_part(split_part(${events.payload}->>'url', '#', 1), '?', 1), '/$', '') = ${f.page}`,
-        );
+      if (f.page) conds.push(sql`${pageSql(events.payload)} = ${f.page}`);
       const rows = await db
         .select({ payload: events.payload })
         .from(events)
@@ -920,21 +931,19 @@ export function createRepo(db: Db) {
     },
 
     /**
-     * Mapa de calor de uma página (URL sem query/hash/barra final), opcionalmente filtrado por
-     * variação (experimentId + variationId ativos na página) e dispositivo.
+     * Mapa de calor de uma página (`normalizePage`), opcionalmente filtrado por variação (experimentId +
+     * variationId ativos na página), dispositivo e período (`from`).
      */
     async heatmap(
       accountId: string,
-      f: { url: string; experimentId?: string; variationId?: string; device?: string },
+      f: { url: string; experimentId?: string; variationId?: string; device?: string; from?: Date },
       maxPoints = 200,
     ) {
       const page = normalizePage(f.url);
       const p = events.payload;
-      const conds = [
-        eq(events.accountId, accountId),
-        sql`regexp_replace(split_part(split_part(${p}->>'url', '#', 1), '?', 1), '/$', '') = ${page}`,
-      ];
+      const conds = [eq(events.accountId, accountId), sql`${pageSql(p)} = ${page}`];
       if (f.device) conds.push(sql`${p}->>'device' = ${f.device}`);
+      if (f.from) conds.push(gte(events.ts, f.from));
       if (f.experimentId && f.variationId)
         conds.push(sql`${p}->'variations'->>${f.experimentId} = ${f.variationId}`);
       else if (f.experimentId) conds.push(sql`${p}->'variations' ? ${f.experimentId}`);

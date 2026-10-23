@@ -73,7 +73,7 @@ test('funil em ordem, com janela; conversão, tempo e para onde vão os que desi
   expect(r.steps[0]!.dropoff).toBe(2);
   expect(r.steps[0]!.dropoffNext).toEqual([{ page: '(saiu do site)', count: 2 }]);
   expect(r.steps[1]!.dropoffNext).toEqual([
-    { page: `${S}/loja`, count: 1 },
+    { page: '/loja', count: 1 },
     { page: '(saiu do site)', count: 1 },
   ]);
 });

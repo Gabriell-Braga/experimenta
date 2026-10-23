@@ -36,7 +36,7 @@ test('módulo Mapas de calor: lista de páginas e visualizador sobre o site real
   });
   await login(page, { email: 'viewer@abtest.dev', password: 'demo1234' });
   await nav(page, 'heatmaps');
-  await page.getByTestId('page-row').filter({ hasText: 'produto.html' }).click();
+  await page.getByTestId('page-row').filter({ hasText: '5180/produto' }).click();
   await expect(page.getByTestId('viewer-url')).toHaveText('localhost:5180/produto.html');
   await page.getByTestId('heatmap-mode-frustration').click();
   const overlay = page.frameLocator('[data-testid=site-frame]').locator('abt-editor-overlay');

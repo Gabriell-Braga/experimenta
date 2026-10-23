@@ -22,13 +22,33 @@ export function heatColor(a: number): [number, number, number] {
 }
 
 /**
+ * Sem movimento no site enquanto o mapa está aberto: animações e transições CSS vão direto ao estado final
+ * (carrossel CSS parado, slide que entra com fade aparece já visível). `animation-play-state: paused` não
+ * serve: congelaria o slide novo no primeiro quadro do fade (invisível).
+ */
+const FREEZE =
+  '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition:none!important;scroll-behavior:auto!important}';
+
+export interface HeatmapStatus {
+  resolved: number;
+  missing: number;
+}
+
+/**
  * Camada de mapa de calor no Shadow DOM do agent. Pontos de clique são relativos ao elemento (rx, ry),
  * então o desenho acompanha scroll, resize e layouts diferentes; recalcula a cada frame de scroll.
  * Modos: `heat` (calor + contagens + faixas de scroll), `click` (contagem por elemento), `scroll`
  * (scrollmap: cor por % de visitantes que chegou a cada trecho), `move` (calor do movimento do mouse)
  * e `frustration` (rage/dead clicks por elemento).
+ * O DOM do site muda depois do desenho (carrossel JS troca o slide, conteúdo carregado depois, layout do
+ * celular): redesenha a cada mutação (no máximo a cada 200 ms) e avisa `onStatus` quando muda quantos
+ * seletores aparecem; desenhar uma vez só deixava o calor parado e "elementos que não existem" errados.
  */
-export function createHeatmapLayer(doc: Document, root: ShadowRoot) {
+export function createHeatmapLayer(
+  doc: Document,
+  root: ShadowRoot,
+  onStatus: (s: HeatmapStatus) => void = () => {},
+) {
   const win = doc.defaultView!;
   const style = doc.createElement('style');
   style.textContent = CSS;
@@ -40,8 +60,13 @@ export function createHeatmapLayer(doc: Document, root: ShadowRoot) {
   badges.className = 'heat-badges';
   const bands = doc.createElement('div');
   bands.className = 'heat-bands';
+  const freeze = doc.createElement('style');
+  freeze.setAttribute('data-abt-heatmap', '');
+  freeze.textContent = FREEZE;
   let data: HeatmapData | null = null;
   let raf = 0;
+  let throttle: ReturnType<typeof setTimeout> | undefined;
+  let last = '';
 
   const rectOf = (selector: string) => {
     const el = resolveTarget({ selector, alternates: [] }, doc)?.el;
@@ -189,24 +214,48 @@ export function createHeatmapLayer(doc: Document, root: ShadowRoot) {
     return { resolved, missing };
   };
 
+  const redraw = () => {
+    const st = draw();
+    const key = `${st.resolved}/${st.missing}`;
+    if (data && key !== last) onStatus(st);
+    last = key;
+    return st;
+  };
   const schedule = () => {
     cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(draw);
+    raf = requestAnimationFrame(redraw);
   };
+  const mo =
+    typeof MutationObserver === 'function'
+      ? new MutationObserver(() => {
+          throttle ??= setTimeout(() => {
+            throttle = undefined;
+            schedule();
+          }, 200);
+        })
+      : null;
 
   return {
     show(d: HeatmapData) {
       data = d;
       if (!canvas.isConnected) root.append(style, scrollLayer, canvas, bands, badges);
+      if (!freeze.isConnected) (doc.head ?? doc.documentElement).append(freeze);
       win.addEventListener('scroll', schedule, true);
       win.addEventListener('resize', schedule);
-      return draw();
+      mo?.observe(doc.documentElement, { childList: true, subtree: true, attributes: true });
+      const st = draw();
+      last = `${st.resolved}/${st.missing}`;
+      return st;
     },
     hide() {
       data = null;
+      mo?.disconnect();
+      clearTimeout(throttle);
+      throttle = undefined;
+      cancelAnimationFrame(raf);
       win.removeEventListener('scroll', schedule, true);
       win.removeEventListener('resize', schedule);
-      for (const n of [style, scrollLayer, canvas, bands, badges]) n.remove();
+      for (const n of [style, scrollLayer, canvas, bands, badges, freeze]) n.remove();
     },
   };
 }

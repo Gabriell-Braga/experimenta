@@ -129,3 +129,34 @@ test('páginas: vistas, visitantes, cliques, frustração e scroll médio, mais 
   const mobile = await t.get<{ page: string; pageviews: number }[]>('/analytics/pages?device=mobile');
   expect(mobile.find((p) => p.page.endsWith('/loja'))!.pageviews).toBe(1);
 });
+
+test('mesma página com .html, index.html ou barra final é uma linha só; período no mapa de calor', async () => {
+  const click = (url: string, ts = Date.now()) =>
+    ev({
+      type: 'click',
+      url,
+      ts,
+      device: 'desktop',
+      variations: {},
+      selector: '#pay',
+      rx: 0.5,
+      ry: 0.5,
+      px: 1,
+      py: 1,
+      vw: 1,
+      vh: 1,
+    } as never);
+  await t.collect([
+    click('http://localhost:5180/loja/checkout'),
+    click('http://localhost:5180/loja/checkout.html?x=1'),
+    click('http://localhost:5180/loja/checkout/'),
+    click('http://localhost:5180/loja/checkout.html', Date.now() - 20 * 86_400_000),
+  ]);
+  const heat = (url: string, extra = '') => t.get<Heat>(`/heatmap?url=${encodeURIComponent(url)}${extra}`);
+  expect((await heat('http://localhost:5180/loja/checkout.html')).clicks.total).toBe(4);
+  expect((await heat('http://localhost:5180/loja/checkout', '&days=7')).clicks.total).toBe(3);
+  const pages = await t.get<{ page: string; clicks: number }[]>('/analytics/pages?days=30');
+  expect(pages.filter((p) => p.page.includes('checkout'))).toEqual([
+    expect.objectContaining({ page: 'http://localhost:5180/loja/checkout', clicks: 4 }),
+  ]);
+});
