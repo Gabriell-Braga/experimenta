@@ -248,7 +248,7 @@ export function FunnelsPage({ user }: { user: Me }) {
   return (
     <>
       <PageHeader
-        eyebrow="Insights · Jornada"
+        eyebrow="Insights"
         title="Funis"
         description="O caminho até a conversão, passo a passo: quantos avançam, quanto tempo levam e para onde vão os que desistem."
         actions={

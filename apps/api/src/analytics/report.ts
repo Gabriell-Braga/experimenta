@@ -1,8 +1,11 @@
 import {
+  canDecide,
   compareMeans,
   compareRates,
   cuped,
+  gateVerdict,
   meanVar,
+  MIN_FULL_DAYS,
   msprt,
   rateInput,
   sampleSize,
@@ -84,7 +87,7 @@ export interface GuardrailViolation {
 function armStats(
   kind: 'rate' | 'mean',
   values: number[][],
-  opts: { x?: number[][]; sequential: boolean; draws?: number },
+  opts: { x?: number[][]; sequential: boolean; ready: boolean; draws?: number },
 ) {
   const raw = values.map(meanVar);
   let means = raw;
@@ -109,7 +112,10 @@ function armStats(
       const base = Math.abs(means[0]!.mean);
       return {
         ...r,
-        verdict: verdict(r, MIN_VISITORS, Math.min(raw[0]!.n, raw[i]!.n), t, SEQ_ALPHA),
+        verdict: gateVerdict(
+          verdict(r, MIN_VISITORS, Math.min(raw[0]!.n, raw[i]!.n), t, SEQ_ALPHA),
+          opts.ready,
+        ),
         ...(opts.sequential
           ? {
               sequential: t
@@ -172,6 +178,18 @@ export function experimentReport(
   for (const [v, arm] of armOf) visitorsBy.get(arm)!.push(v);
   const visitors = vids.map((id) => visitorsBy.get(id)!.length);
   const total = visitors.reduce((s, n) => s + n, 0);
+  // Dias completos com dados no período (desde a 1ª exposição vista).
+  const firstExposure = Math.min(...exposedAt.values());
+  const daysRunning = Number.isFinite(firstExposure)
+    ? Math.max(0, Math.floor((range.to.getTime() - firstExposure) / 86_400_000))
+    : 0;
+  /** Vencedora/perdedora só depois da amostra planejada desta meta e de 7 dias completos (ou sequencial). */
+  const ready = (control: { visitors: number; conversions: number }, minVisitors: number) => {
+    const rate = control.visitors ? control.conversions / control.visitors : 0;
+    const needed = rate > 0 ? sampleSize(rate, DEFAULT_MDE) : null;
+    return canDecide({ sequential, needed, visitors: minVisitors, days: daysRunning });
+  };
+  const minArm = visitors.length ? Math.min(...visitors) : 0;
 
   const goals: GoalReport[] = exp.goals.map((g, gi) => {
     const m = conv.get(g.id) ?? new Map<string, number>();
@@ -188,16 +206,17 @@ export function experimentReport(
     });
     const hasRevenue = perArm.some((a) => a.revenue !== 0);
     const x = useCuped ? vids.map((id) => visitorsBy.get(id)!.map((v) => covariate!.get(v) ?? 0)) : undefined;
+    const opts = { x, sequential, draws, ready: !!perArm[0] && ready(perArm[0], minArm) };
     const rates = armStats(
       'rate',
       perArm.map((a) => a.hits),
-      { x, sequential, draws },
+      opts,
     );
     const revenueStats = hasRevenue
       ? armStats(
           'mean',
           perArm.map((a) => a.values),
-          { x, sequential, draws },
+          opts,
         )
       : null;
     const sections = exp.sections?.map((sec) => {
@@ -293,9 +312,14 @@ export function experimentReport(
   const needed = control && control.rate > 0 ? sampleSize(control.rate, DEFAULT_MDE) : null;
   const activeDays = new Set(firstDay.values()).size || 1;
   const perDay = total / activeDays;
+  // Também falta completar a semana mínima (sem teste sequencial).
   const remaining =
     needed && Number.isFinite(needed) && perDay > 0
-      ? Math.max(0, Math.ceil((needed * vids.length - total) / perDay))
+      ? Math.max(
+          0,
+          Math.ceil((needed * vids.length - total) / perDay),
+          sequential ? 0 : MIN_FULL_DAYS - daysRunning,
+        )
       : null;
 
   return {
@@ -321,6 +345,16 @@ export function experimentReport(
       neededPerVariation: needed && Number.isFinite(needed) ? needed : null,
       daysRemaining: remaining,
       mde: DEFAULT_MDE,
+    },
+    /**
+     * Pode decidir (meta primária)? Antes disso a tela mostra "ainda coletando" com o progresso até a amostra
+     * planejada e os dias completos (vencedora/perdedora já vêm rebaixadas em todas as metas).
+     */
+    maturity: {
+      ready: !!control && ready(goals[0]!.arms[0]!, minArm),
+      daysRunning,
+      minDays: MIN_FULL_DAYS,
+      progress: needed && Number.isFinite(needed) ? Math.min(1, minArm / needed) : null,
     },
   };
 }

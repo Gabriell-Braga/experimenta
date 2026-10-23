@@ -53,7 +53,7 @@ export function JourneysPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Insights · Jornada"
+        eyebrow="Insights"
         title="Jornadas"
         description="Por onde os visitantes entram, que caminhos percorrem e onde saem. Escolha uma página para ver de onde vêm e para onde vão."
         actions={

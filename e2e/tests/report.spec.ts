@@ -37,10 +37,12 @@ test('relatório: tabela por variação, vencedora, CSV e comparação de metas'
     ).status(),
   ).toBe(201);
   const events = [];
-  for (let i = 0; i < 600; i++) {
+  // 400 por variação espalhados por 9 dias, 80% vs 95%: passa da amostra planejada (~326 por variação) e da
+  // semana mínima, então pode declarar vencedora (20.2).
+  for (let i = 0; i < 800; i++) {
     const arm = i % 2 ? 'b' : 'c';
     const base = {
-      ts: Date.now() - 1000 * i,
+      ts: Date.now() - (i % 9) * 86_400_000 - 1000 * i,
       accountId: 'demo',
       visitorId: `${id}-v${i}`,
       url: 'http://localhost:5180/',
@@ -52,7 +54,7 @@ test('relatório: tabela por variação, vencedora, CSV e comparação de metas'
       variationKey: arm,
     };
     events.push({ ...base, ...ctx, eventId: `${id}-e${i}`, type: 'exposure' });
-    if ((i >> 1) % (arm === 'b' ? 4 : 10) === 0)
+    if ((i >> 1) % 20 < (arm === 'b' ? 19 : 16))
       events.push({
         ...base,
         ...ctx,
@@ -74,7 +76,7 @@ test('relatório: tabela por variação, vencedora, CSV e comparação de metas'
   const rows = page.getByTestId('report-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(1)).toContainText('Vencedora');
-  await expect(rows.nth(0)).toContainText('300');
+  await expect(rows.nth(0)).toContainText('400');
   await expect(page.getByTestId('revenue-table')).toBeVisible();
   const download = page.waitForEvent('download');
   await page.getByTestId('report-csv').click();

@@ -1,5 +1,14 @@
 import { z } from 'zod';
-import type { Experiment, NextAction, ReportNumbers, ReportSummary } from '@abtest/shared';
+import {
+  canDecide,
+  gateVerdict,
+  MIN_FULL_DAYS,
+  remainingDuration,
+  type Experiment,
+  type NextAction,
+  type ReportNumbers,
+  type ReportSummary,
+} from '@abtest/shared';
 import { clean } from './pii';
 import { MIN_VISITORS, SEQ_ALPHA } from './analytics/report';
 
@@ -66,6 +75,19 @@ export function reportInput(
   const name = (id: string) => clean(exp.variations.find((v) => v.id === id)?.name ?? id, 80);
   const goalKey = (id: string) => clean(exp.goals.find((g) => g.id === id)?.key ?? id, 80);
   const seq = !!rep.stats?.sequential;
+  const points = rep.series?.[0]?.points.length
+    ? rep.series[0].points.map((_, d) => rep.series!.reduce((s, x) => s + (x.points[d]?.visitors ?? 0), 0))
+    : [];
+  const firstDay = points.findIndex((v) => v > 0);
+  const daysWithData = firstDay < 0 ? null : points.length - firstDay;
+  // Mesma trava do relatório (20.2), conferida de novo aqui: os números vêm do cliente.
+  const ready = canDecide({
+    sequential: seq,
+    needed: rep.estimate.neededPerVariation,
+    visitors: Math.min(...primary.arms.map((a) => a.visitors)),
+    days: daysWithData ?? 0,
+  });
+  const shown = (x: keyof typeof VERDICT_PT) => VERDICT_PT[gateVerdict(x, ready)];
   const variations = primary.arms.map((a, i) => {
     const rev = primary.revenueArms?.[i];
     return {
@@ -93,7 +115,7 @@ export function reportInput(
           }
         : {}),
       chanceBestPct: chance(a.probBest),
-      verdict: VERDICT_PT[a.verdict],
+      verdict: shown(a.verdict),
       ...(a.guardrailViolated ? { worsensGuardrail: true } : {}),
       ...(primary.hasRevenue
         ? {
@@ -113,23 +135,19 @@ export function reportInput(
       name: name(a.variationId),
       liftPct: pct(a.lift, 1),
       chanceToBeatControlPct: chance(a.probBeatControl),
-      verdict: VERDICT_PT[a.verdict],
+      verdict: shown(a.verdict),
     })),
   }));
-  const points = rep.series?.[0]?.points.length
-    ? rep.series[0].points.map((_, d) => rep.series!.reduce((s, x) => s + (x.points[d]?.visitors ?? 0), 0))
-    : [];
-  const firstDay = points.findIndex((v) => v > 0);
   const base = {
     experiment: clean(exp.name, 120),
     ...(exp.hypothesis ? { hypothesis: clean(exp.hypothesis, 600) } : {}),
     status: { draft: 'rascunho', running: 'no ar', paused: 'pausado', archived: 'arquivado' }[exp.status],
     periodDays: q.days,
-    daysWithData: firstDay < 0 ? null : points.length - firstDay,
+    daysWithData,
     device: q.device ?? 'todos',
     method: seq
       ? `teste sequencial: vencedora ou perdedora com p sempre válido abaixo de ${SEQ_ALPHA}`
-      : 'bayesiano: vencedora com 95% ou mais de chance de superar o controle, perdendo com 5% ou menos',
+      : `bayesiano: vencedora com 95% ou mais de chance de superar o controle, perdendo com 5% ou menos, só depois da amostra planejada e de ${MIN_FULL_DAYS} dias completos`,
     cuped: !!rep.stats?.cuped,
     minVisitorsPerVariation: MIN_VISITORS,
     totalVisitors: rep.visitors,
@@ -147,6 +165,7 @@ export function reportInput(
       neededPerVariation: rep.estimate.neededPerVariation,
       daysRemaining: rep.estimate.daysRemaining,
       detectableLiftPct: pct(rep.estimate.mde, 0),
+      readyToDecide: ready,
     },
   };
   return { input: { ...base, recommendation: decide(base) } };
@@ -201,12 +220,16 @@ export type ReportInput = {
     neededPerVariation: number | null;
     daysRemaining: number | null;
     detectableLiftPct: number | null;
+    /** Amostra planejada e semana mínima atingidas (ou teste sequencial): antes disso não há vencedora. */
+    readyToDecide: boolean;
   };
   /** Decidido pelas regras: o modelo explica, não muda. */
   recommendation: {
     action: NextAction;
     variation?: string;
     days?: number;
+    /** Faltam mais de 8 semanas: encerrar ou redesenhar em vez de esperar. */
+    tooLong?: boolean;
     confidence: ReportSummary['confidence'];
     caveats: string[];
   };
@@ -223,7 +246,8 @@ const signed = (n: number | null | undefined, d = 1) =>
 /**
  * Próximo passo, confiança e ressalvas a partir do veredito do relatório:
  * SRM → investigar; alguma vencedora → implementar a de maior melhoria; todas perdendo ou piorando meta de
- * guarda → parar e iterar; amostra necessária atingida sem decisão → testar ideia mais ousada; senão continuar.
+ * guarda → parar e iterar; amostra necessária atingida sem decisão → testar ideia mais ousada; faltando mais de
+ * 8 semanas → encerrar ou redesenhar (teste dificilmente conclui); senão continuar.
  */
 export function decide(b: Base): ReportInput['recommendation'] {
   const arms = b.variations.slice(1);
@@ -268,9 +292,16 @@ export function decide(b: Base): ReportInput['recommendation'] {
     };
   if (b.sample.daysRemaining === 0 && minVisitors >= b.minVisitorsPerVariation)
     return { action: 'test-idea', confidence: 'média', caveats };
+  const left = remainingDuration(b.sample.daysRemaining);
+  if (left.kind === 'too-long') {
+    caveats.push(
+      'No ritmo atual faltam mais de 8 semanas para a amostra planejada: o teste dificilmente vai concluir.',
+    );
+    return { action: 'test-idea', tooLong: true, confidence: 'média', caveats };
+  }
   return {
     action: 'keep-running',
-    ...(b.sample.daysRemaining ? { days: b.sample.daysRemaining } : {}),
+    ...(left.kind === 'ok' && left.days ? { days: left.days } : {}),
     confidence: arms.some((a) => a.verdict === 'liderando') && !shaky ? 'média' : 'baixa',
     caveats,
   };
@@ -325,11 +356,17 @@ export function ruleReport(i: ReportInput): ReportSummary {
       'Manter o controle: a mudança não trouxe ganho e pode custar conversões.' + revenue,
       'Parar o teste, manter o controle e usar o aprendizado numa nova hipótese.',
     ],
-    'test-idea': [
-      `A amostra necessária foi atingida e ainda não há diferença clara em ${i.goal}: ${compare}.`,
-      `Se existe diferença, ela é menor que os ${br(i.sample.detectableLiftPct)}% que o teste consegue detectar; esperar mais custa tempo e tráfego.`,
-      'Encerrar o teste e testar uma variação mais ousada no mesmo ponto da página.',
-    ],
+    'test-idea': rec.tooLong
+      ? [
+          `Ainda sem diferença clara em ${i.goal} (${compare}), e no ritmo atual o teste levaria mais de 8 semanas para concluir.`,
+          'Esperar tanto custa tráfego e tempo, e sazonalidade e mudanças no site acabam misturando o resultado.',
+          'Encerrar ou redesenhar o teste: buscar um efeito mínimo maior (mudança mais ousada), mandar mais tráfego para ele ou medir uma meta mais próxima da mudança.',
+        ]
+      : [
+          `A amostra necessária foi atingida e ainda não há diferença clara em ${i.goal}: ${compare}.`,
+          `Se existe diferença, ela é menor que os ${br(i.sample.detectableLiftPct)}% que o teste consegue detectar; esperar mais custa tempo e tráfego.`,
+          'Encerrar o teste e testar uma variação mais ousada no mesmo ponto da página.',
+        ],
     'keep-running': [
       best.verdict === 'liderando'
         ? `${best.name} está na frente em ${i.goal} (${compare}), mas ainda sem certeza.`

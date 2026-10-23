@@ -5,7 +5,7 @@ import { findInsights } from './insights';
 import { pagesReport } from './pages';
 
 const to = new Date(Date.UTC(2026, 9, 19));
-const range = { from: new Date(to.getTime() - 7 * 86_400_000), to };
+const range = { from: new Date(to.getTime() - 14 * 86_400_000), to };
 const T = to.getTime() - 86_400_000;
 const exp = (weights = [50, 50]) =>
   ExperimentSchema.parse({
@@ -23,7 +23,10 @@ const base = (v: string, ts = T) => ({ visitorId: v, sessionId: `s${v}`, ts, url
 const pv = (v: string, url: string, device = 'desktop', ts = T) =>
   ({ ...base(v, ts), type: 'pageview', url, device }) as TrackingEvent;
 
-/** n visitantes por variação; `conv(arm, i)` diz quem converte; dispositivo alterna por `device(i)`. */
+/**
+ * n visitantes por variação; `conv(arm, i)` diz quem converte; dispositivo alterna por `device(i)`. Exposições
+ * espalhadas por 9 dias (8 completos): passa da semana mínima para declarar vencedora.
+ */
 function traffic(
   n: number,
   conv: (arm: string, i: number, device: string) => boolean,
@@ -36,7 +39,7 @@ function traffic(
       const d = device(i);
       out.push(pv(v, 'http://x.com/', d));
       out.push({
-        ...base(v, T + 1),
+        ...base(v, T + 1 - (i % 9) * 86_400_000),
         type: 'exposure',
         experimentId: 'e1',
         experimentKey: 'hero',
@@ -69,9 +72,16 @@ const run = (cur: TrackingEvent[], extra: Partial<Parameters<typeof findInsights
   });
 
 test('vencedor declarado e segmento divergente por dispositivo', () => {
-  // B: 40% vs 10% no total → vence.
-  const win = run(traffic(400, (arm, i) => (arm === 'b' ? i % 10 < 4 : i % 10 < 1)));
-  expect(win.find((x) => x.kind === 'winner')).toMatchObject({ severity: 'good', title: 'Hero: B venceu' });
+  // B: 95% vs 80% no total, com a amostra planejada (~326 por variação) e 8 dias completos → vence.
+  const conv = (arm: string, i: number) => (arm === 'b' ? i % 20 < 19 : i % 10 < 8);
+  const win = run(traffic(400, conv));
+  expect(win.find((x) => x.kind === 'winner')).toMatchObject({
+    severity: 'good',
+    title: 'Hero: B venceu',
+    detail: expect.stringContaining('+19% em compra'),
+  });
+  // 20.2: a mesma diferença com 100 visitantes por variação ainda é "coletando" (sem vencedora).
+  expect(run(traffic(100, conv)).find((x) => x.kind === 'winner')).toBeUndefined();
 
   // B ganha no desktop (40% vs 10%) e perde no celular (10% vs 40%).
   const div = run(
@@ -146,11 +156,11 @@ test('meta de guarda piorada: alerta crítico e a variação não é anunciada c
     goals: [...exp().goals, { id: 'g2', key: 'retorno', type: 'custom', event: 'retorno' }],
     stats: { guardrails: ['g2'] },
   });
-  // B vence a primária (40% vs 10%) mas derruba "retorno" (40% → 10%).
-  const cur = traffic(400, (arm, i) => (arm === 'b' ? i % 10 < 4 : i % 10 < 1));
+  // B vence a primária (95% vs 80%) mas derruba "retorno" (80% → 50%).
+  const cur = traffic(400, (arm, i) => (arm === 'b' ? i % 20 < 19 : i % 10 < 8));
   for (const arm of ['a', 'b'])
     for (let i = 0; i < 400; i++)
-      if (arm === 'a' ? i % 10 < 4 : i % 10 < 1)
+      if (arm === 'a' ? i % 10 < 8 : i % 10 < 5)
         cur.push({
           ...base(`${arm}${i}`, T + 3),
           type: 'conversion',

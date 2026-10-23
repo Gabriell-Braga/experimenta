@@ -1,4 +1,4 @@
-import type { ReportSummary } from '@abtest/shared';
+import { remainingDuration, type ReportSummary } from '@abtest/shared';
 import { ArrowLeft, Download, Lightbulb, Pencil, Printer, TriangleAlert, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -143,7 +143,12 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
             <th className="px-3 py-2 text-right font-medium">Conversões</th>
             <th className="px-3 py-2 text-right font-medium">Taxa</th>
             <th className="w-40 px-3 py-2 font-medium">Intervalo 95%</th>
-            <th className="px-3 py-2 text-right font-medium">Melhoria</th>
+            <th
+              className="px-3 py-2 text-right font-medium"
+              title="Melhoria observada: taxa da variação ÷ taxa do controle − 1. Abaixo, o intervalo de 95%."
+            >
+              Melhoria
+            </th>
             <th className="px-3 py-2 font-medium">Chance de vencer</th>
             {seq ? (
               <th
@@ -207,7 +212,10 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
                       </span>
                     )
                   : a.liftLow !== null && (
-                      <span className="block text-[10px] text-gray-400">
+                      <span
+                        className="block text-[10px] text-gray-400"
+                        title="Intervalo de credibilidade de 95% da melhoria (bayesiano)"
+                      >
                         {signedPct(a.liftLow, 0)} a {signedPct(a.liftHigh, 0)}
                       </span>
                     )}
@@ -310,10 +318,13 @@ function Headline({
   goal,
   names,
   visitors,
+  ready,
 }: {
   goal: GoalReport | undefined;
   names: string[];
   visitors: number;
+  /** Amostra planejada e semana mínima atingidas (ou sequencial): antes disso, "ainda coletando". */
+  ready: boolean;
 }) {
   if (!goal)
     return (
@@ -353,6 +364,13 @@ function Headline({
     return (
       <p data-testid="headline">
         Nenhuma variação supera o controle. <b>{name}</b> tem só {chance} de chance de vencer.
+      </p>
+    );
+  if (!ready)
+    return (
+      <p data-testid="headline">
+        Dados insuficientes, ainda coletando: <b>{name}</b> está com {signedPct(a.lift)} ({chance} de chance
+        de superar o controle), mas o resultado só vale com a amostra planejada e uma semana completa.
       </p>
     );
   return (
@@ -517,6 +535,7 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
   const names = useMemo(() => report?.variations.map((v) => v.name) ?? [], [report]);
   const goal = report?.goals.find((g) => g.goalId === goalId) ?? report?.goals[0];
   const primary = report?.goals[0];
+  const left = remainingDuration(report?.estimate.daysRemaining ?? null);
 
   if (!record)
     return (
@@ -654,7 +673,12 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                 <Trophy size={20} aria-hidden="true" />
               </div>
               <div className="min-w-0 flex-1 font-display text-[22px] leading-snug text-ink">
-                <Headline goal={primary} names={names} visitors={report.visitors} />
+                <Headline
+                  goal={primary}
+                  names={names}
+                  visitors={report.visitors}
+                  ready={report.maturity.ready}
+                />
               </div>
             </div>
             <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-gray-900/[0.07] pt-4 sm:grid-cols-4">
@@ -674,20 +698,52 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                   {report.estimate.neededPerVariation ? fmt.int(report.estimate.neededPerVariation) : 'n/d'}
                   <span className="ml-1 text-xs font-normal text-gray-500">por variação</span>
                 </dd>
+                {report.maturity.progress !== null && (
+                  <dd className="mt-1.5" data-testid="sample-progress">
+                    <span className="block h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                      <span
+                        className="block h-full bg-brand-500"
+                        style={{ width: `${report.maturity.progress * 100}%` }}
+                      />
+                    </span>
+                    <span className="tabular mt-1 block font-mono text-[11px] text-gray-500">
+                      {fmt.pct(report.maturity.progress, 0)} coletado ·{' '}
+                      {Math.min(report.maturity.daysRunning, report.maturity.minDays)} de{' '}
+                      {report.maturity.minDays} dias
+                    </span>
+                  </dd>
+                )}
               </div>
               <div>
                 <dt className="label-mono">Duração restante</dt>
-                <dd className="tabular mt-1 text-xl font-semibold text-ink">
+                <dd className="tabular mt-1 text-xl font-semibold text-ink" data-testid="days-remaining">
                   {primary?.arms.some((a) => a.verdict === 'winner' || a.verdict === 'loser')
                     ? 'pronto para decidir'
-                    : report.estimate.daysRemaining === null
+                    : left.kind === 'unknown'
                       ? 'n/d'
-                      : report.estimate.daysRemaining === 0
-                        ? 'amostra atingida'
-                        : `~${report.estimate.daysRemaining} dias`}
+                      : left.kind === 'too-long'
+                        ? 'mais de 8 semanas'
+                        : left.days === 0
+                          ? 'amostra atingida'
+                          : `~${left.days} dias`}
                 </dd>
               </div>
             </dl>
+            {left.kind === 'too-long' && (
+              <p
+                role="alert"
+                className="mt-4 flex gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                data-testid="too-long"
+              >
+                <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  No ritmo atual o teste levaria mais de 8 semanas para atingir a amostra planejada e
+                  dificilmente vai concluir. Considere encerrar ou redesenhar: buscar um efeito mínimo maior
+                  (mudança mais ousada), mandar mais tráfego para ele ou medir uma meta mais próxima da
+                  mudança.
+                </span>
+              </p>
+            )}
           </section>
 
           {primary && report.variations.length > 1 && report.visitors > 0 && (
@@ -730,6 +786,9 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                 <p className="label-mono mb-2">Metas</p>
                 {report.goals.map((g) => {
                   const best = Math.max(...g.arms.slice(1).map((a) => a.lift ?? -Infinity));
+                  const bestRevenue = Math.max(
+                    ...(g.revenueArms ?? []).slice(1).map((a) => a.lift ?? -Infinity),
+                  );
                   return (
                     <button
                       key={g.goalId}
@@ -751,8 +810,9 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                         )}
                       </span>
                       <span className="tabular font-mono text-[11px] text-gray-500">
-                        melhor: {Number.isFinite(best) ? signedPct(best) : 'n/d'}
-                        {g.hasRevenue && ' · receita'}
+                        conversão: {Number.isFinite(best) ? signedPct(best) : 'n/d'}
+                        {g.hasRevenue &&
+                          ` · receita: ${Number.isFinite(bestRevenue) ? signedPct(bestRevenue) : 'n/d'}`}
                       </span>
                     </button>
                   );
@@ -857,12 +917,15 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                       Teste sequencial (mSPRT): pode olhar o resultado quantas vezes quiser sem aumentar o
                       risco de falso positivo. Vencedora quando o p sempre válido fica abaixo de 5% com pelo
                       menos 100 visitantes por variação; “chance de vencer” (bayesiana) fica como referência.
+                      Melhoria = taxa da variação ÷ taxa do controle − 1.
                     </>
                   ) : (
                     <>
                       Estatística bayesiana: “chance de vencer” é a probabilidade de a variação ter taxa maior
-                      que o controle, dado o que foi observado. Vencedora a partir de 95% com pelo menos 100
-                      visitantes por variação. p-valor (z-test) ao lado para referência.
+                      que o controle, dado o que foi observado. Vencedora a partir de 95%, mas só depois de
+                      atingir a amostra planejada e {report.maturity.minDays} dias completos (antes disso,
+                      “ainda coletando”: olhar cedo infla o falso positivo). Melhoria = taxa da variação ÷
+                      taxa do controle − 1. p-valor (z-test) ao lado para referência.
                     </>
                   )}
                 </p>

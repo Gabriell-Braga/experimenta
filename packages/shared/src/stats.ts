@@ -150,7 +150,10 @@ export interface ArmResult {
   /** Intervalo de credibilidade de 95% da taxa. */
   rateLow: number;
   rateHigh: number;
-  /** Melhoria relativa vs controle (mediana do posterior) e intervalo de 95%. null no controle. */
+  /**
+   * Melhoria relativa OBSERVADA vs controle (taxa/média da variação ÷ a do controle − 1, a mesma conta das
+   * taxas exibidas) e intervalo de credibilidade de 95% do posterior. null no controle ou com controle zerado.
+   */
   lift: number | null;
   liftLow: number | null;
   liftHigh: number | null;
@@ -240,7 +243,7 @@ function summarize(samples: Float64Array[], point: number[], pValues: (number | 
       rate: point[j]!,
       rateLow: quantile(sorted, 0.025),
       rateHigh: quantile(sorted, 0.975),
-      lift: isControl ? null : quantile(lift, 0.5),
+      lift: isControl || !point[0] ? null : (point[j]! - point[0]!) / Math.abs(point[0]!),
       liftLow: isControl ? null : quantile(lift, 0.025),
       liftHigh: isControl ? null : quantile(lift, 0.975),
       probBeatControl: isControl ? null : beat[j]! / draws,
@@ -336,6 +339,25 @@ export function verdict(
   }
   return r.probBeatControl >= 0.75 ? 'leading' : 'inconclusive';
 }
+
+/** Dias completos mínimos antes de decidir: cobre um ciclo semanal (dias úteis e fim de semana). */
+export const MIN_FULL_DAYS = 7;
+
+/**
+ * O teste já pode ser decidido? Com teste sequencial (p sempre válido), a qualquer momento. Senão, só depois
+ * da amostra planejada (`needed` por variação) E de `MIN_FULL_DAYS` dias completos: olhar antes disso infla o
+ * falso positivo (com 100 visitantes por variação já aparecia "95% de chance").
+ */
+export function canDecide(o: { sequential: boolean; needed: number | null; visitors: number; days: number }) {
+  return (
+    o.sequential ||
+    (o.needed !== null && Number.isFinite(o.needed) && o.visitors >= o.needed && o.days >= MIN_FULL_DAYS)
+  );
+}
+
+/** Antes de poder decidir, vencedora vira "liderando" e perdedora vira "inconclusivo" (ainda coletando). */
+export const gateVerdict = (v: Verdict, ready: boolean): Verdict =>
+  ready ? v : v === 'winner' ? 'leading' : v === 'loser' ? 'inconclusive' : v;
 
 /**
  * Pesos do multi-armed bandit (Thompson sampling): cada braço recebe tráfego proporcional à probabilidade de

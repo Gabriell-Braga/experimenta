@@ -16,6 +16,7 @@ import {
 import {
   API_URL,
   createEditSession,
+  duplicateExperiment,
   frameUrl,
   getConflicts,
   getHeatmap,
@@ -205,6 +206,8 @@ export function EditorView({ record, user }: Props) {
   }, [connected, mode, heat, heatMode]);
   /** Seletor frágil da última alteração criada (aviso até o usuário fechar). */
   const [fragileWarning, setFragileWarning] = useState<string | null>(null);
+  // Teste no ar aberto no editor: avisa uma vez (fechável) que editar mistura os dados.
+  const [liveWarning, setLiveWarning] = useState(true);
   /** Fallback da extensão: 'idle' → 'missing' (não instalada) | 'active' (sessão aberta; iframe recarregado). */
   const [ext, setExt] = useState<'idle' | 'missing' | 'active'>('idle');
   const [frameKey, setFrameKey] = useState(0);
@@ -452,6 +455,42 @@ export function EditorView({ record, user }: Props) {
       {ext === 'active' && (
         <div className="bg-blue-50 px-4 py-1 text-xs text-blue-800" data-testid="ext-active">
           Editando via extensão (headers de bloqueio de iframe removidos só nesta aba).
+        </div>
+      )}
+      {liveWarning && state.experiment.status === 'running' && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+          data-testid="live-warning"
+        >
+          <span>
+            <TriangleAlert size={15} className="mr-1 inline align-[-2px]" aria-hidden="true" />
+            Este teste está no ar. Publicar mudanças aqui altera o que quem já está no teste vê e mistura no
+            relatório os dados de antes e depois. Prefira criar uma nova versão (cópia em rascunho, com
+            contagem do zero).
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            {user.role !== 'viewer' && (
+              <Button
+                size="sm"
+                data-testid="live-duplicate"
+                onClick={async () => {
+                  try {
+                    const { id } = await duplicateExperiment(state.experiment.id);
+                    toast('success', 'Nova versão criada como rascunho.');
+                    go(id);
+                  } catch (e) {
+                    toast('error', (e as Error).message);
+                  }
+                }}
+              >
+                Criar nova versão
+              </Button>
+            )}
+            <button onClick={() => setLiveWarning(false)} aria-label="Fechar">
+              <X size={16} />
+            </button>
+          </span>
         </div>
       )}
       {error && (

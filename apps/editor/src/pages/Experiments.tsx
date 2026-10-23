@@ -32,7 +32,8 @@ import {
 } from '../ui';
 
 const FILTERS = [
-  ['all', 'Todos'],
+  // "Ativos" = tudo menos arquivados (o total do cabeçalho inclui os arquivados).
+  ['all', 'Ativos'],
   ['running', 'Em execução'],
   ['draft', 'Rascunhos'],
   ['paused', 'Pausados'],
@@ -43,10 +44,13 @@ function CreateModal({
   open,
   onClose,
   initialType = 'ab',
+  title,
 }: {
   open: boolean;
   onClose(): void;
   initialType?: CampaignType;
+  /** Mesmo nome do botão que abre a janela. */
+  title: string;
 }) {
   const toast = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -78,7 +82,7 @@ function CreateModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Nova campanha"
+      title={title}
       testId="create-modal"
       footer={
         <>
@@ -386,8 +390,16 @@ export function VariationChips({ count }: { count: number }) {
   );
 }
 
-/** Abre a campanha: editor visual, ou página própria no server-side. */
-const open = (e: ExperimentSummary) => (e.type === 'server' ? navigate('server', { id: e.id }) : go(e.id));
+/**
+ * Abre a campanha: rascunho vai para o editor visual (ou a página própria no server-side); no ar, pausada ou
+ * arquivada abre o relatório (editar teste no ar mexe no que os visitantes já veem).
+ */
+const open = (e: ExperimentSummary) =>
+  e.status !== 'draft'
+    ? navigate('report', { id: e.id })
+    : e.type === 'server'
+      ? navigate('server', { id: e.id })
+      : go(e.id);
 
 export function TypeTag({ type }: { type: CampaignType }) {
   const c = CAMPAIGNS[type] ?? CAMPAIGNS.ab;
@@ -439,10 +451,15 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
   // Contagens e lista só do tipo desta tela (Server-side não conta os testes A/B).
   const ofType = useMemo(() => (items ?? []).filter((e) => !type || e.type === type), [items, type]);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: ofType.length };
+    const c: Record<string, number> = { total: ofType.length };
     for (const e of ofType) c[e.status] = (c[e.status] ?? 0) + 1;
+    c.all = ofType.length - (c.archived ?? 0);
     return c;
   }, [ofType]);
+  const traffic = (e: ExperimentSummary) =>
+    Math.round((e.traffic * (groupOf.get(e.id)?.percent ?? 100)) / 10) / 10;
+  // Botão e janela com o mesmo nome: "experimento" na lista geral, "campanha" nas telas de cada tipo.
+  const newLabel = type ? 'Nova campanha' : 'Novo experimento';
   const shown = ofType.filter(
     (e) =>
       (filter === 'all' ? e.status !== 'archived' : e.status === filter) &&
@@ -456,13 +473,13 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
         title={type ? CAMPAIGNS[type].label : 'Experimentos'}
         description={
           <span className="tabular font-mono text-xs text-gray-500">
-            {counts.running ?? 0} em execução / {counts.all} no total
+            {counts.running ?? 0} em execução / {counts.total} no total
           </span>
         }
         actions={
           canEdit && (
             <Button variant="primary" onClick={() => setCreating(true)} data-testid="new-experiment">
-              <Plus size={16} aria-hidden="true" /> Novo experimento
+              <Plus size={16} aria-hidden="true" /> {newLabel}
             </Button>
           )
         }
@@ -479,7 +496,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                 id,
                 <>
                   {label}
-                  {id !== 'all' && counts[id] ? (
+                  {counts[id] ? (
                     <span className="tabular ml-1.5 font-mono text-[11px] opacity-60">{counts[id]}</span>
                   ) : null}
                 </>,
@@ -598,11 +615,20 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                   <VariationChips count={e.variations} />
                 </td>
                 <td className="px-4 py-3">
-                  <span className="flex items-center gap-2 text-gray-600">
+                  {/* Tráfego efetivo: num grupo exclusivo, só a fatia do grupo entra no teste. */}
+                  <span
+                    className="flex items-center gap-2 text-gray-600"
+                    title={
+                      groupOf.get(e.id)
+                        ? `${e.traffic}% do tráfego × fatia de ${groupOf.get(e.id)!.percent}% do grupo exclusivo`
+                        : undefined
+                    }
+                    data-testid="row-traffic"
+                  >
                     <span className="h-1 w-16 overflow-hidden rounded-full bg-gray-100">
-                      <span className="block h-full bg-brand-500" style={{ width: `${e.traffic}%` }} />
+                      <span className="block h-full bg-brand-500" style={{ width: `${traffic(e)}%` }} />
                     </span>
-                    <span className="tabular font-mono text-xs">{e.traffic}%</span>
+                    <span className="tabular font-mono text-xs">{traffic(e)}%</span>
                   </span>
                 </td>
                 <td
@@ -639,7 +665,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
               !items.length &&
               canEdit && (
                 <Button variant="primary" onClick={() => setCreating(true)}>
-                  <Plus size={16} aria-hidden="true" /> Novo experimento
+                  <Plus size={16} aria-hidden="true" /> {newLabel}
                 </Button>
               )
             }
@@ -650,7 +676,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
           </EmptyState>
         )}
       </div>
-      <CreateModal open={creating} onClose={() => setCreating(false)} initialType={type} />
+      <CreateModal open={creating} onClose={() => setCreating(false)} initialType={type} title={newLabel} />
       {scheduling && (
         <ScheduleModal
           experimentId={scheduling.id}

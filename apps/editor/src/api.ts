@@ -628,6 +628,8 @@ export interface ExperimentReport {
     lift: number | null;
   }[];
   estimate: { neededPerVariation: number | null; daysRemaining: number | null; mde: number };
+  /** Pode decidir (amostra planejada + 7 dias completos, ou sequencial)? `progress` = menor variação / amostra. */
+  maturity: { ready: boolean; daysRunning: number; minDays: number; progress: number | null };
 }
 export const rebalance = (id: string) =>
   api<{ changed: boolean; weights: number[]; publishError?: string }>(

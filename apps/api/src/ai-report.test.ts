@@ -78,8 +78,10 @@ const allText = (s: ReturnType<typeof ruleReport>) =>
     s.next.idea?.change ?? '',
   ].join('\n');
 
-test('regras: vencedora → implementar, com ressalva de poucos dias; textos só citam números da entrada', () => {
-  const i = input(
+test('regras: vencedora → implementar só com a amostra planejada e a semana completa; textos só citam números da entrada', () => {
+  // 20.2: 10% vs 15% com 1.000 por variação em 3 dias tem >99% de chance, mas a amostra planejada (~14 mil por
+  // variação) e a semana mínima não foram atingidas: ainda coletando, não vencedora.
+  const early = input(
     numbers(
       [
         { n: 1000, conv: 100 },
@@ -88,35 +90,41 @@ test('regras: vencedora → implementar, com ressalva de poucos dias; textos só
       3,
     ),
   );
-  expect(i.daysWithData).toBe(3);
-  expect(i.hypothesis).toContain('Botão verde');
-  expect(i.variations[1]).toMatchObject({
+  // 3 ou 4 dias de calendário (UTC), conforme a hora em que o teste roda.
+  expect([3, 4]).toContain(early.daysWithData);
+  expect(early.hypothesis).toContain('Botão verde');
+  expect(early.sample.readyToDecide).toBe(false);
+  expect(early.variations[1]).toMatchObject({
     name: 'Verde',
     ratePct: 15,
-    verdict: 'vencedora',
+    liftPct: 50, // melhoria observada (15 / 10 − 1)
+    verdict: 'liderando',
     conversionsPer1000: 150,
   });
+  const e = ruleReport(early);
+  expect(e.next.action).toBe('keep-running');
+  expect(e.next.text).toMatch(/cerca de [\d.]+ dias/);
+  expect(e.caveats.join(' ')).toContain('efeito novidade');
+  expect(unknownNumbers(allText(e), early)).toEqual([]);
+  // Com a amostra planejada (~326 por variação a partir de 80%) e 14 dias: vencedora, confiança alta.
+  const i = input(
+    numbers(
+      [
+        { n: 1000, conv: 800 },
+        { n: 1000, conv: 950 },
+      ],
+      14,
+    ),
+  );
+  expect(i.sample.readyToDecide).toBe(true);
+  expect(i.variations[1]).toMatchObject({ verdict: 'vencedora', conversionsPer1000: 950 });
   const s = ruleReport(i);
   expect(s.next).toMatchObject({ action: 'implement', variation: 'Verde' });
   expect(s.next.idea).toBeUndefined();
-  expect(s.confidence).toBe('média');
-  expect(s.caveats.join(' ')).toContain('efeito novidade');
-  expect(s.summary).toContain('15,00%');
-  expect(s.business).toContain('150,0');
+  expect(s).toMatchObject({ confidence: 'alta', caveats: [] });
+  expect(s.summary).toContain('95,00%');
+  expect(s.business).toContain('950,0');
   expect(unknownNumbers(allText(s), i)).toEqual([]);
-  // Mesmo resultado com 14 dias de dados: confiança alta, sem ressalvas.
-  const long = ruleReport(
-    input(
-      numbers(
-        [
-          { n: 1000, conv: 100 },
-          { n: 1000, conv: 150 },
-        ],
-        14,
-      ),
-    ),
-  );
-  expect(long).toMatchObject({ confidence: 'alta', caveats: [] });
 });
 
 test('regras: inconclusivo pequeno → continuar N dias; perdendo → parar e iterar com ideia; SRM → investigar', () => {
@@ -129,20 +137,23 @@ test('regras: inconclusivo pequeno → continuar N dias; perdendo → parar e it
       10,
     ),
   );
+  // 20.2: 12 visitantes por dia levariam anos (antes: "continuar por 796 dias") → encerrar ou redesenhar.
+  expect(small.sample.daysRemaining!).toBeGreaterThan(56);
   const k = ruleReport(small);
-  expect(k.next.action).toBe('keep-running');
-  expect(k.next.days).toBe(small.sample.daysRemaining);
-  expect(k.next.days).toBeGreaterThan(0);
-  expect(k.next.text).toMatch(/cerca de [\d.]+ dias/);
-  expect(k.confidence).toBe('baixa');
+  expect(k.next.action).toBe('test-idea');
+  expect(k.next.days).toBeUndefined();
+  expect(k.next.text).toContain('efeito mínimo maior');
+  expect(k.summary).toContain('mais de 8 semanas');
+  expect(k.next.idea).toBeDefined();
   expect(k.caveats.join(' ')).toContain('Amostra pequena: 60 visitantes');
+  expect(k.caveats.join(' ')).toContain('dificilmente vai concluir');
   expect(unknownNumbers(allText(k), small)).toEqual([]);
 
   const lose = input(
     numbers(
       [
-        { n: 1000, conv: 150 },
-        { n: 1000, conv: 90 },
+        { n: 1000, conv: 800 },
+        { n: 1000, conv: 700 },
       ],
       14,
     ),
@@ -223,15 +234,15 @@ test('texto da IA junto às regras: ação e confiança das regras, número inve
   const i = input(
     numbers(
       [
-        { n: 1000, conv: 100 },
-        { n: 1000, conv: 150 },
+        { n: 1000, conv: 800 },
+        { n: 1000, conv: 950 },
       ],
-      3,
+      14,
     ),
   );
   const ai = {
-    summary: 'Verde converte 15% contra 10% do controle.',
-    business: 'Mais 50 compras a cada 1.000 visitantes.',
+    summary: 'Verde converte 95% contra 80% do controle.',
+    business: 'São 950,0 compras a cada 1.000 visitantes.',
     caveats: ['Poucos dias de teste.'],
     nextStep: 'Publicar a Verde para todos.',
     idea: { title: 'Ignorar', hypothesis: '', change: '' },
@@ -243,7 +254,7 @@ test('texto da IA junto às regras: ação e confiança das regras, número inve
     text: 'Publicar a Verde para todos.',
   });
   expect(m.next.idea).toBeUndefined();
-  expect(m.confidence).toBe('média');
+  expect(m.confidence).toBe('alta');
   expect(m.caveats).toEqual(['Poucos dias de teste.']);
   // Menos ressalvas que as regras: ficam as das regras.
   expect(mergeReport(i, { ...ai, caveats: [] }).caveats).toEqual(i.recommendation.caveats);
@@ -267,8 +278,8 @@ async function app(ai?: Anthropic) {
   });
   const list = events(
     [
-      { n: 300, conv: 30 },
-      { n: 300, conv: 60 },
+      { n: 400, conv: 320 },
+      { n: 400, conv: 380 },
     ],
     10,
   );
@@ -309,8 +320,8 @@ test('rota: sem IA explica por regras (também para quem só lê); números adul
 
 test('rota: IA falsa explica, cache por impressão digital, regras decidem a ação e número inventado cai nas regras', async () => {
   const ai = fake({
-    summary: 'Verde converte 20,00% contra 10,00% do controle.',
-    business: 'São 200,0 compras a cada 1.000 visitantes contra 100,0.',
+    summary: 'Verde converte 95,00% contra 80,00% do controle.',
+    business: 'São 950,0 compras a cada 1.000 visitantes contra 800,0.',
     caveats: [],
     nextStep: 'Publicar a Verde.',
     idea: { title: '', hypothesis: '', change: '' },
@@ -325,7 +336,7 @@ test('rota: IA falsa explica, cache por impressão digital, regras decidem a aç
     source: 'claude',
     cached: false,
     summary: {
-      summary: 'Verde converte 20,00% contra 10,00% do controle.',
+      summary: 'Verde converte 95,00% contra 80,00% do controle.',
       next: { action: 'implement', variation: 'Verde' },
     },
   });

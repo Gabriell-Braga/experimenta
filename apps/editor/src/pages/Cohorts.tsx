@@ -37,7 +37,7 @@ export function CohortsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Insights · Jornada"
+        eyebrow="Insights"
         title="Coortes"
         description="Visitantes agrupados pela data da primeira visita. Veja quantos voltam ao site e quantos convertem com o passar do tempo."
         actions={

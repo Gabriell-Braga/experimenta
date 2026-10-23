@@ -93,8 +93,14 @@ test('visitantes, conversões únicas, receita, taxa e estatística por variaç�
   expect(b).toMatchObject({ conversions: 40, revenue: 4000 });
   expect(b!.rate).toBeCloseTo(0.2, 6);
   expect(b!.probBeatControl!).toBeGreaterThan(0.99);
-  expect(b!.verdict).toBe('winner');
+  // 20.2: >99% de chance com 200 por variação e 3 dias ainda não é vencedora (amostra planejada e semana
+  // mínima não atingidas): "liderando", com o progresso para a tela mostrar "ainda coletando".
+  expect(b!.verdict).toBe('leading');
+  expect(b!.lift!).toBeCloseTo(0.2 / (20 / 201) - 1, 10); // melhoria observada
   expect(c!.verdict).toBe('baseline');
+  expect(r.maturity).toMatchObject({ ready: false, daysRunning: 3, minDays: 7 });
+  expect(r.maturity.progress!).toBeCloseTo(200 / r.estimate.neededPerVariation!, 6);
+  expect(r.estimate.daysRemaining!).toBeGreaterThanOrEqual(4);
   expect(buy.revenueArms![1]!.probBeatControl!).toBeGreaterThan(0.9);
   const cta = r.goals.find((g) => g.goalKey === 'cta')!;
   expect(cta.arms.map((a) => a.conversions)).toEqual([0, 0]);
@@ -277,4 +283,6 @@ test('17.5: teste sequencial, CUPED com atividade anterior à exposição e meta
   expect(r.guardrails).toMatchObject([{ goalId: 's_ok', variationId: 'srv1', metric: 'rate' }]);
   expect(b.guardrailViolated).toBe(true);
   expect(b.verdict).toBe('leading');
+  // Sequencial: p sempre válido, pode decidir antes da semana mínima.
+  expect(r.maturity.ready).toBe(true);
 });

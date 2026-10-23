@@ -1,9 +1,12 @@
 import { expect, test } from 'vitest';
+import { remainingDuration } from './duration';
 import {
+  canDecide,
   chiSquareSf,
   compareMeans,
   compareRates,
   cuped,
+  gateVerdict,
   meanVar,
   msprt,
   rateInput,
@@ -17,6 +20,54 @@ import {
   zTest,
   type MeanInput,
 } from './stats';
+
+test('20.2: melhoria exibida é a observada (taxa da variação ÷ taxa do controle − 1)', () => {
+  // Caso do relatório de QA: 11,01% vs 12,35% → +12,17%, não a mediana do posterior.
+  const [c, b] = compareRates([
+    { visitors: 10000, conversions: 1101 },
+    { visitors: 10000, conversions: 1235 },
+  ]);
+  expect(c!.lift).toBeNull();
+  expect(b!.lift!).toBeCloseTo(0.1235 / 0.1101 - 1, 10);
+  expect(b!.liftLow!).toBeLessThan(b!.lift!);
+  expect(b!.liftHigh!).toBeGreaterThan(b!.lift!);
+  // Controle zerado: sem melhoria relativa definida.
+  expect(
+    compareRates([
+      { visitors: 100, conversions: 0 },
+      { visitors: 100, conversions: 3 },
+    ])[1]!.lift,
+  ).toBeNull();
+  const [, rb] = compareMeans([
+    { n: 1000, mean: 10, variance: 4 },
+    { n: 1000, mean: 10.14, variance: 4 },
+  ]);
+  expect(rb!.lift!).toBeCloseTo(0.014, 10);
+});
+
+test('20.2: vencedora só com a amostra planejada e 7 dias completos (ou teste sequencial)', () => {
+  const base = { sequential: false, needed: 13235, visitors: 13235, days: 7 };
+  expect(canDecide(base)).toBe(true);
+  expect(canDecide({ ...base, visitors: 100 })).toBe(false); // amostra pequena
+  expect(canDecide({ ...base, days: 6 })).toBe(false); // menos de uma semana
+  expect(canDecide({ ...base, needed: null })).toBe(false);
+  expect(canDecide({ ...base, needed: Infinity })).toBe(false);
+  expect(canDecide({ sequential: true, needed: null, visitors: 100, days: 1 })).toBe(true);
+  expect(gateVerdict('winner', false)).toBe('leading');
+  expect(gateVerdict('loser', false)).toBe('inconclusive');
+  expect(gateVerdict('leading', false)).toBe('leading');
+  expect(gateVerdict('winner', true)).toBe('winner');
+  expect(gateVerdict('baseline', false)).toBe('baseline');
+});
+
+test('duração restante: desconhecida, longa demais (> 8 semanas) ou em dias', () => {
+  expect(remainingDuration(null)).toEqual({ kind: 'unknown' });
+  expect(remainingDuration(NaN)).toEqual({ kind: 'unknown' });
+  expect(remainingDuration(-1)).toEqual({ kind: 'unknown' });
+  expect(remainingDuration(796)).toEqual({ kind: 'too-long' });
+  expect(remainingDuration(56)).toEqual({ kind: 'ok', days: 56 });
+  expect(remainingDuration(2.1)).toEqual({ kind: 'ok', days: 3 });
+});
 
 /** P(B > A) exato para posteriores Beta (Evan Miller), para conferir o Monte Carlo. */
 function exactProbBBeatsA(a: { s: number; f: number }, b: { s: number; f: number }) {

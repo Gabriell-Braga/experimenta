@@ -6,6 +6,7 @@ export * from './events';
 export * from './rpc';
 export * from './rpc-peer';
 export * from './stats';
+export * from './duration';
 export * from './entities';
 export * from './mvt';
 export * from './reco';
