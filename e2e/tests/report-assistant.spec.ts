@@ -33,12 +33,12 @@ test('assistente de relatório: sem IA explica por regras e cria a ideia no back
       })
     ).status(),
   ).toBe(201);
-  // Controle converte 25%, a variação 10%: perdendo com confiança.
+  // Controle converte 80%, a variação 10%, 500 por variação em 9 dias: amostra planejada e semana completa (D-097).
   const events = [];
-  for (let i = 0; i < 600; i++) {
+  for (let i = 0; i < 1000; i++) {
     const arm = i % 2 ? 'b' : 'c';
     const base = {
-      ts: Date.now() - 1000 * i,
+      ts: Date.now() - 777_600 * i,
       accountId: 'demo',
       visitorId: `${id}-v${i}`,
       url: 'http://localhost:5180/',
@@ -50,7 +50,7 @@ test('assistente de relatório: sem IA explica por regras e cria a ideia no back
       variationKey: arm,
     };
     events.push({ ...base, ...ctx, eventId: `${id}-e${i}`, type: 'exposure' });
-    if ((i >> 1) % (arm === 'c' ? 4 : 10) === 0)
+    if (arm === 'c' ? (i >> 1) % 5 !== 0 : (i >> 1) % 10 === 0)
       events.push({
         ...base,
         ...ctx,
@@ -75,8 +75,9 @@ test('assistente de relatório: sem IA explica por regras e cria a ideia no back
   await expect(page.getByTestId('ai-summary-note')).toContainText('IA não configurada');
   await expect(page.getByTestId('ai-report-summary')).toContainText('Nenhuma variação superou o controle');
   await expect(page.getByTestId('ai-report-summary')).toContainText('10,00%');
-  await expect(page.getByTestId('ai-report-confidence')).toHaveText('média');
-  await expect(page.getByTestId('ai-report-caveats')).toContainText('efeito novidade');
+  await expect(page.getByTestId('ai-report-confidence')).toHaveText('alta');
+  // 9 dias de dados: sem a ressalva de efeito novidade (só aparece com poucos dias).
+  await expect(page.getByTestId('ai-report-caveats')).toHaveCount(0);
   await expect(page.getByTestId('ai-report-next')).toHaveAttribute('data-action', 'stop-iterate');
   await expect(page.getByTestId('ai-report-idea')).toContainText(`Nova iteração: ${experiment.name}`);
 

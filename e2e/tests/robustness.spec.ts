@@ -128,7 +128,7 @@ test('login: campos vazios, e-mail inválido, senha errada e clique duplo', asyn
   const p = watch(page);
   await page.goto(EDITOR);
   const email = page.getByLabel('E-mail');
-  const pass = page.getByLabel('Senha');
+  const pass = page.getByLabel('Senha', { exact: true });
   const enter = page.getByRole('button', { name: 'Entrar' });
   for (const [e, s] of [
     ['', ''],

@@ -6,7 +6,7 @@ export const OWNER = { email: 'demo@abtest.dev', password: 'demo1234' };
 export async function login(page: Page, cred = OWNER) {
   await page.goto(EDITOR);
   await page.getByLabel('E-mail').fill(cred.email);
-  await page.getByLabel('Senha').fill(cred.password);
+  await page.getByLabel('Senha', { exact: true }).fill(cred.password);
   await page.getByRole('button', { name: 'Entrar' }).click();
 }
 

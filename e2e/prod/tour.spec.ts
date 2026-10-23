@@ -45,9 +45,9 @@ for (const email of ['demo@abtest.dev', 'editor@abtest.dev', 'viewer@abtest.dev'
     });
     await page.goto(EDITOR);
     await page.getByLabel('E-mail').fill(email);
-    await page.getByLabel('Senha').fill(process.env.PROD_PASSWORD!);
+    await page.getByLabel('Senha', { exact: true }).fill(process.env.PROD_PASSWORD!);
     await page.getByRole('button', { name: 'Entrar' }).click();
-    await expect(page.getByLabel('Senha')).toBeHidden({ timeout: 30_000 });
+    await expect(page.getByLabel('Senha', { exact: true })).toBeHidden({ timeout: 30_000 });
 
     const visit = async (search: string) => {
       await page.goto(`${EDITOR}${search}`);

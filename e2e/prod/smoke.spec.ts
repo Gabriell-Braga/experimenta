@@ -10,7 +10,7 @@ test('produção: login → editar → configurar → publicar → visitante vê
   test.skip(!process.env.PROD_PASSWORD, 'defina PROD_PASSWORD');
   await page.goto(EDITOR);
   await page.getByLabel('E-mail').fill('demo@abtest.dev');
-  await page.getByLabel('Senha').fill(process.env.PROD_PASSWORD!);
+  await page.getByLabel('Senha', { exact: true }).fill(process.env.PROD_PASSWORD!);
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByTestId('new-experiment').click();
   await page.getByTestId('create-name').fill('Smoke');

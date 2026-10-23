@@ -1,11 +1,12 @@
 # Progresso
-**Status:** Fase 20 em andamento (QA externo e conformidade)
+**Status:** Fase 20 concluída (QA externo e conformidade)
 **Fase atual:** 20
-**Tarefa atual:** 20.1–20.7 em andamento (em paralelo)
-**Última atualização:** 2026-10-23 02:47
-**Próximo passo:** concluir a Fase 20 (docs/PLANO.md) e o diagnóstico em docs/CONFORMIDADE.md.
+**Tarefa atual:** —
+**Última atualização:** 2026-10-23 04:01
+**Próximo passo:** deploy da Fase 20 (migrações D1 0013 e 0014, republicar demo e fluxo) e os passos humanos de docs/CONFORMIDADE.md (Fases B e C).
 
 ## Bloqueios / perguntas para os humanos
+- Certificações (ISO 27001/27701/27017/27018, SOC 2 Tipo II, PCI DSS) exigem auditor externo, período de operação com evidências e orçamento: ver docs/CONFORMIDADE.md, seções 3 e 4. Decisões humanas: contratar certificadora/auditor e teste de invasão, nomear encarregado (DPO), confirmar o e-mail de segurança (provisório `security@gabrielbraga.app` em SECURITY.md, security.txt e /seguranca), assinar as políticas de docs/seguranca e revisar o DPA com jurídico, ligar proteção de branch + 2FA no GitHub/Cloudflare.
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
 - Snippet a 9 B do limite de 10 KB gzip (10.231 B depois da 19.1; a lógica do link de pré-visualização ficou no preview.js sob demanda e o snippet só detecta o parâmetro): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
 - Integrações da 19.1 (HubSpot, Salesforce, Shopify, WordPress) não foram validadas com contas reais (o plugin do WordPress passou no `php -l` do PHP 8.3 em 2026-10-20 13:42): testar numa conta de cada antes de anunciar.
@@ -734,3 +735,10 @@
 - Testes: `pnpm lint`, `pnpm test`, `pnpm typecheck`, `pnpm e2e` (120 passaram).
 
 - Deploy completo (2026-10-20 21:25): migrações D1 em dia, API, editor e demo publicados. Workspace `fluxo` completado à mão no D1 (3 membros copiados da demo + projeto), porque a cota acabou no meio do seed e o seed não repete com a conta já existente.
+
+### 2026-10-23 04:01 — Fase 20 concluída (QA externo e conformidade)
+- O que foi feito: os 23 itens do relatório "QA do Experimenta" (4 altos, 10 médios, 9 baixos) e a preparação para os selos da VWO. 20.1 painel com agregados diários (`daily_stats`), blocos independentes, 7 dias por padrão, um aviso só e duração com teto (D-096). 20.2 vencedor só com amostra planejada + 7 dias (ou sequencial), melhoria observada, teste no ar abre o relatório, tráfego efetivo, aba Ativos, nomes (D-097). 20.3 mapa de calor que redesenha com o DOM (causa do mapa vazio no celular), período no detalhe, página normalizada única, filtros de domínio e variação, gravações com domínio e mínimo de 10 s (D-098). 20.4 consentimento por padrão + banner no demo, URL alvo restrita e sem PII, sessão em cookie httpOnly com CSRF, CDN com stale-if-error e instalação assíncrona, cadastro e recuperação de senha (D-099). 20.5 acessibilidade e contraste. 20.6 cabeçalhos de segurança/CSP, bloqueio de força bruta, auditoria de login e downloads, exportar/apagar dados de titular, CI de segurança (CodeQL, gitleaks, pnpm audit, Dependabot), SECURITY.md, security.txt e página pública /seguranca (D-100). 20.7 diagnóstico e plano em docs/CONFORMIDADE.md e SGSI documental em docs/seguranca (política, acesso, desenvolvimento, incidentes, continuidade, fornecedores, ROPA, riscos, pessoas, DPA modelo, Declaração de Aplicabilidade × SOC 2).
+- Arquivos principais: ver os commits `fase 20: 20.x` e D-096 a D-100; docs/CONFORMIDADE.md, docs/seguranca/*, SECURITY.md, .github/workflows/security.yml, .github/dependabot.yml.
+- Como testar manualmente: Painel em 7/30/90 dias; relatório de teste com pouca amostra ("ainda coletando"); Mapas de calor > /loja > Celular; Configurar > Instalação (consentimento e modo assíncrono); login com "Esqueci minha senha"/"Criar conta"; /seguranca sem login; Configurar > Privacidade > dados de um visitante.
+- Testes: `pnpm typecheck`, `pnpm lint`, `pnpm test` (API 87+ arquivos nos dois bancos) e `pnpm e2e` (120 passaram). E2E ajustados: rótulo exato da senha (o botão "Mostrar senha" também casava), teste de agenda criado como rascunho (teste pausado agora abre o relatório) e assistente com dados maduros (D-097).
+- Observações: drizzle-orm subiu para 0.45 (alerta alto do pnpm audit). Snippet inalterado (10.231 B gzip). Nada publicado: deploy precisa das migrações D1 0013 (regrava `page` dos eventos antigos, consome cota) e 0014, republicar `demo` e `fluxo`, e avisar que contas sem escolha passam a esperar consentimento; usuários logados entram de novo uma vez. Documento do QA com status por item entregue fora do repositório ("QA do Experimenta - status.docx"). Certificados dependem de auditoria externa (Bloqueios).
