@@ -35,5 +35,5 @@ nas decisões citadas. Ordem: o que destrava primeiro.
 
 ## 5. Outros
 - Snippet a 9 B do limite de 10 KB gzip (D-069): a próxima mudança no runtime precisa do alvo es2020 ou de enxugar.
-- SSO só configurado, sem OIDC/SAML (D-073). Sem serviço de e-mail (convites copiados à mão).
+- SSO só configurado, sem OIDC/SAML (D-073). Sem serviço de e-mail (convites copiados à mão; link de recuperação de senha só no log da API, D-099).
 - E2E não roda com `pnpm dev` ligado (portas).

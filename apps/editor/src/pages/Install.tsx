@@ -2,6 +2,7 @@ import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { API_URL, type Me } from '../api';
 import { Button, Card, PageHeader, useCopy } from '../ui';
+import { ConsentCard } from './Privacy';
 
 export function CodeBlock({ code, testId }: { code: string; testId?: string }) {
   const [copied, setCopied] = useState(false);
@@ -52,26 +53,88 @@ export const COMMANDS: [string, string][] = [
   ],
 ];
 
+/** Tempo máximo com a página escondida na instalação assíncrona: depois disso ela aparece mesmo sem o snippet. */
+const ASYNC_TIMEOUT_MS = 2500;
+
+/**
+ * Instalação assíncrona (D-099): o script não bloqueia a página; um estilo inline esconde o <body> até o snippet
+ * rodar, dar erro ou passar de 2,5 s. O runtime não muda (o anti-flicker por elemento continua dentro dele).
+ */
+export const asyncTag = (src: string) => `<style id="abt-af">body{opacity:0!important}</style>
+<script>
+(function (d) {
+  var done = function () { var s = d.getElementById('abt-af'); if (s) s.remove(); };
+  setTimeout(done, ${ASYNC_TIMEOUT_MS});
+  var s = d.createElement('script');
+  s.src = '${src}';
+  s.async = true;
+  s.onload = s.onerror = done;
+  d.head.appendChild(s);
+})(document);
+</script>`;
+
 export function InstallPage({ user }: { user: Me }) {
   useEffect(() => {
     document.title = 'Instalação · Experimenta';
   }, []);
-  const tag = `<script src="${API_URL}/cdn/${user.accountId}.js"></script>`;
+  const [mode, setMode] = useState<'sync' | 'async'>('sync');
+  const src = `${API_URL}/cdn/${user.accountId}.js`;
+  const tag = mode === 'sync' ? `<script src="${src}"></script>` : asyncTag(src);
   return (
     <>
       <PageHeader
         eyebrow="Configurar"
         title="Instalação do snippet"
-        description="Um único script, síncrono e pequeno, como primeiro item do <head>. Ele aplica os experimentos sem piscar, coleta os eventos e abre o editor visual quando você edita pelo app."
+        description="Um único script pequeno como primeiro item do <head>. Ele aplica os experimentos sem piscar, coleta os eventos e abre o editor visual quando você edita pelo app."
       />
-      <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-6">
+        <ConsentCard
+          canEdit={user.role !== 'viewer'}
+          title="0. Consentimento de cookies (escolha antes de instalar)"
+        />
+      </div>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <Card title="1. Cole no <head> de todas as páginas">
+          <div className="mb-3 flex gap-2" role="radiogroup" aria-label="Forma de instalação">
+            {(
+              [
+                ['sync', 'Síncrona (recomendada)'],
+                ['async', 'Assíncrona com tempo limite'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={mode === k}
+                onClick={() => setMode(k)}
+                data-testid={`install-${k}`}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium ${
+                  mode === k
+                    ? 'border-ink bg-ink text-white'
+                    : 'border-gray-300 text-gray-700 hover:border-ink'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <CodeBlock code={tag} testId="snippet-tag" />
           <ul className="mt-4 space-y-2 text-sm text-gray-600">
-            <li>
-              <b className="text-ink">Primeiro script do head.</b> Assim as alterações entram antes da página
-              aparecer (anti-flicker por elemento, sem esconder a página inteira).
-            </li>
+            {mode === 'sync' ? (
+              <li>
+                <b className="text-ink">Primeiro script do head.</b> Assim as alterações entram antes da
+                página aparecer (anti-flicker por elemento, sem esconder a página inteira). O arquivo fica em
+                cache por 5 min e, se o servidor demorar ou falhar, o navegador usa a cópia anterior.
+              </li>
+            ) : (
+              <li>
+                <b className="text-ink">Não bloqueia a página.</b> A página fica escondida até o snippet
+                rodar, no máximo {ASYNC_TIMEOUT_MS / 1000} s; se ele demorar mais, a página aparece sem os
+                testes naquela visita. Use quando o tempo de carregamento pesar mais que a chance de ver o
+                original piscar.
+              </li>
+            )}
             <li>
               <b className="text-ink">SPA (React, Vue, Next…):</b> nada a fazer: mudanças de rota são
               detectadas automaticamente.

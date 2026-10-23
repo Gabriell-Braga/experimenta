@@ -116,14 +116,20 @@ test('GA4/GTM ligados vão para a config publicada; desligados ficam de fora', a
 });
 
 test('consentimento: só vai para a config quando exigido; categoria inválida é recusada', async () => {
-  const consent = await t.get<{ id: string }[]>('/entities/consent');
-  expect(consent).toEqual([]);
+  // Demo já vem esperando consentimento (seed, D-099); sem escolha salva o padrão também é esperar.
+  const consent = await t.get<{ id: string; data: { required: boolean } }[]>('/entities/consent');
+  expect(consent.map((c) => c.data.required)).toEqual([true]);
+  expect((await post('/publish', {})).status).toBe(200);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).consent).toEqual({});
   expect(
     (await post('/entities/consent', { name: 'c', data: { required: true, category: 'a b"<' } })).status,
   ).toBe(400);
-  const r = await post('/entities/consent', { name: 'c', data: { required: false, cmp: 'onetrust' } });
-  expect(r.status).toBeLessThan(300);
-  const { id } = (await r.json()) as { id: string };
+  const id = consent[0]!.id;
+  await t.req(`/entities/consent/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name: 'c', data: { required: false, cmp: 'onetrust' } }),
+    as: 'owner',
+  });
   expect((await post('/publish', {})).status).toBe(200);
   expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).consent).toBeUndefined();
 

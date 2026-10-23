@@ -39,11 +39,14 @@ if (existsSync(join(cdnDir, 'abt.js'))) {
         apiUrl: publicUrl,
         trackingUrl: `${publicUrl}/collect`,
         experiments: [],
+        // Esperar consentimento (D-099), menos no E2E (DEMO_CONSENT=0).
+        ...(process.env.DEMO_CONSENT === '0' ? {} : { consent: {} }),
       });
 }
 
 const repo = createRepo(db);
-if (process.env.NODE_ENV !== 'production') await seedDev(repo);
+if (process.env.NODE_ENV !== 'production')
+  await seedDev(repo, undefined, undefined, process.env.DEMO_CONSENT !== '0');
 const jwtSecret = process.env.JWT_SECRET ?? 'dev-secret-troque-em-producao';
 if (!process.env.JWT_SECRET) console.warn('[api] JWT_SECRET não definido; usando segredo de desenvolvimento');
 

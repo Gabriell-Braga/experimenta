@@ -3,11 +3,18 @@ import type { CompatAi } from './ai';
 import { HTTPException } from 'hono/http-exception';
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
-import { ExperimentSchema, NameSchema, TrackingEventSchema, type TrackingEvent } from '@abtest/shared';
+import {
+  ExperimentSchema,
+  NameSchema,
+  targetUrlError,
+  TrackingEventSchema,
+  type Experiment,
+  type TrackingEvent,
+} from '@abtest/shared';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { auditLog } from './audit';
-import { forbid, hasRole, requireAuth, type AuthVars } from './auth';
+import { CSRF_HEADER, forbid, hasRole, requireAuth, setSessionCookie, type AuthVars } from './auth';
 import { loginGuard } from './login-guard';
 import { serveCdn, type CdnStore } from './cdn';
 import { rebuildReco, serveReco } from './reco';
@@ -35,6 +42,7 @@ import { reportRoutes } from './routes/report';
 import { TEAM_PATHS, teamRoutes } from './routes/team';
 import { SECURITY_PATHS, securityRoutes } from './routes/security';
 import { PRIVACY_PATHS, privacyRoutes } from './routes/privacy';
+import { signupRoutes, type SendMail } from './routes/signup';
 import { ssoRoutes, type SsoProviders } from './sso';
 import { createSessionStore, type SessionStore } from './sessions';
 import type { PublishResult } from './publish';
@@ -65,6 +73,8 @@ export interface AppDeps {
   crmBase?: CrmBase;
   /** Endereços de S3/BigQuery/token do Google (só nos testes, servidores falsos). */
   exportBase?: ExportBase;
+  /** Envio de e-mail (recuperação de senha); sem provedor só registra no log. */
+  sendMail?: SendMail;
 }
 
 const ProjectOut = z.object({ id: z.string(), name: z.string(), siteUrl: z.string() }).openapi('Project');
@@ -180,7 +190,9 @@ export function createApp(deps: AppDeps) {
   const privateCors = cors({
     origin: deps.editorOrigins,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowHeaders: ['authorization', 'content-type'],
+    allowHeaders: ['authorization', 'content-type', CSRF_HEADER],
+    // Cookie httpOnly da sessão (D-099): só os origins do editor recebem resposta com credenciais.
+    credentials: true,
   });
   const PRIVATE = [
     ...TEAM_PATHS,
@@ -215,12 +227,21 @@ export function createApp(deps: AppDeps) {
   const guard = loginGuard(repo, deps.jwtSecret);
   app.use('/auth/login', guard);
   app.use('/auth/login/totp', guard);
-  const auth = requireAuth(repo, deps.jwtSecret);
+  const auth = requireAuth(repo, deps.jwtSecret, deps.editorOrigins);
   for (const p of PRIVATE) app.use(p, auth);
   // Depois da autenticação: registra as escritas bem sucedidas no histórico de atividades (audit.ts).
   app.use('*', auditLog(repo));
 
+  // Volta do SSO: o editor recebe o token no #hash e troca pelo cookie httpOnly (não guarda o token).
+  app.post('/auth/cookie', auth, (c) => {
+    const token = (c.req.header('authorization') ?? '').slice(7);
+    if (!c.get('sid') || !c.req.header(CSRF_HEADER)) return forbid(c);
+    setSessionCookie(c, token);
+    return c.body(null, 204);
+  });
+
   teamRoutes(app, repo, deps.jwtSecret);
+  signupRoutes(app, repo, deps.jwtSecret, deps.editorOrigins, deps.sendMail);
   securityRoutes(app, repo, deps.jwtSecret);
   ssoRoutes(app, repo, deps.jwtSecret, deps.sso ?? {}, deps.editorOrigins);
 
@@ -298,6 +319,23 @@ export function createApp(deps: AppDeps) {
 
   const save = (user: User, body: z.infer<typeof ExperimentInput>) =>
     repo.saveExperiment(user.accountId, { ...body, userId: user.id });
+  /** URLs do teste (página do editor, páginas do funil, redirecionamentos) só nos sites do workspace e sem dado pessoal. */
+  const urlError = async (accountId: string, editorUrl: string, e: Experiment, projectId?: string) => {
+    const projects = await repo.listProjects(accountId);
+    // Projeto de outra conta: segue para o 404 do repositório (não diz nada sobre a URL).
+    if (projectId && !projects.some((p) => p.id === projectId)) return null;
+    const sites = projects.map((p) => p.siteUrl);
+    const urls = [
+      editorUrl,
+      ...(e.pages ?? []).map((p) => p.url),
+      ...e.variations.flatMap((v) => (v.redirect ? [v.redirect.url] : [])),
+    ];
+    for (const u of urls) {
+      const err = targetUrlError(u, sites);
+      if (err) return err;
+    }
+    return null;
+  };
 
   app.openapi(
     createRoute({
@@ -309,14 +347,18 @@ export function createApp(deps: AppDeps) {
       responses: {
         201: json(z.object({ version: z.number() }), 'criado'),
         ...errors,
+        400: json(ErrorSchema, 'URL fora dos sites do workspace ou com dado pessoal'),
         409: json(ErrorSchema, 'chave já usada'),
       },
     }),
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
+      const body = c.req.valid('json');
+      const bad = await urlError(user.accountId, body.editorUrl, body.experiment, body.projectId);
+      if (bad) return c.json({ error: bad }, 400);
       try {
-        return c.json({ version: await save(user, c.req.valid('json')) }, 201);
+        return c.json({ version: await save(user, body) }, 201);
       } catch (e) {
         if (e instanceof NotFoundError) return c.json({ error: e.message }, 404);
         return c.json({ error: 'chave de experimento já usada nesta conta' }, 409);
@@ -360,6 +402,8 @@ export function createApp(deps: AppDeps) {
       const body = c.req.valid('json');
       if (body.experiment.id !== c.req.valid('param').id)
         return c.json({ error: 'id do corpo difere da URL' }, 400);
+      const bad = await urlError(user.accountId, body.editorUrl, body.experiment, body.projectId);
+      if (bad) return c.json({ error: bad }, 400);
       try {
         return c.json({ version: await save(user, body) }, 200);
       } catch (e) {
@@ -451,6 +495,7 @@ export function createApp(deps: AppDeps) {
       responses: {
         200: json(z.object({ version: z.number() }), 'restaurada como nova versão'),
         ...errors,
+        400: json(ErrorSchema, 'URL inválida'),
         409: json(ErrorSchema, 'chave já usada'),
       },
     }),
@@ -461,6 +506,8 @@ export function createApp(deps: AppDeps) {
       const snap = await repo.getVersion(user.accountId, id, v);
       const current = await repo.getExperiment(user.accountId, id);
       if (!snap || !current) return c.json({ error: 'versão não encontrada' }, 404);
+      const bad = await urlError(user.accountId, snap.editorUrl, snap.experiment);
+      if (bad) return c.json({ error: bad }, 400);
       try {
         const version = await repo.saveExperiment(user.accountId, {
           projectId: current.projectId,
@@ -647,7 +694,11 @@ export function createApp(deps: AppDeps) {
       security,
       summary: 'Cria uma cópia em rascunho (ids novos, inclusive das operações)',
       request: { params: IdParam },
-      responses: { 201: json(z.object({ id: z.string() }), 'cópia criada'), ...errors },
+      responses: {
+        201: json(z.object({ id: z.string() }), 'cópia criada'),
+        ...errors,
+        400: json(ErrorSchema, 'URL inválida'),
+      },
     }),
     async (c) => {
       const user = c.get('user');
@@ -655,6 +706,8 @@ export function createApp(deps: AppDeps) {
       const r = await repo.getExperiment(user.accountId, c.req.valid('param').id);
       if (!r) return c.json({ error: 'experimento não encontrado' }, 404);
       const e = r.experiment;
+      const bad = await urlError(user.accountId, r.editorUrl, e);
+      if (bad) return c.json({ error: bad }, 400);
       // Ids de operação também mudam: o snippet usa o id da operação para idempotência.
       const experiment = {
         ...e,

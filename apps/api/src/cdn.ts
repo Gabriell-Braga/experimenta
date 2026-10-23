@@ -32,7 +32,13 @@ const TYPES: Record<string, string> = {
   json: 'application/json; charset=utf-8',
 };
 
-/** Serve a CDN: só leitura, cache curto + ETag (publicar sobrescreve os arquivos). */
+/**
+ * Cache do /cdn (D-099): 5 min fresco; depois o navegador/borda pode usar a cópia velha enquanto revalida (1 dia)
+ * ou se a API errar (7 dias). Uma publicação leva até ~5 min (mais uma visita) para chegar a quem já tem o arquivo.
+ */
+export const CDN_CACHE = 'public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800';
+
+/** Serve a CDN: só leitura, cache + ETag (publicar sobrescreve os arquivos). */
 export function serveCdn(store: CdnStore) {
   return async (c: Context) => {
     const name = c.req.param('file') ?? '';
@@ -41,7 +47,7 @@ export function serveCdn(store: CdnStore) {
     if (body === null) return c.text('não encontrado', 404);
     const etag = `"${await sha1(body)}"`;
     c.header('ETag', etag);
-    c.header('Cache-Control', 'public, max-age=60');
+    c.header('Cache-Control', CDN_CACHE);
     c.header('Access-Control-Allow-Origin', '*');
     if (c.req.header('if-none-match') === etag) return c.body(null, 304);
     c.header('Content-Type', type!);

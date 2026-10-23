@@ -1,7 +1,7 @@
 import { ChevronRight, GripVertical, MousePointer2, MousePointerClick, TriangleAlert, X } from 'lucide-react';
 import { selectorFragility } from '@abtest/selector';
 import { matchUrl } from '@abtest/snippet/segment';
-import type { ApplyResult, ElementInfo, HeatmapMode } from '@abtest/shared';
+import { stripPii, type ApplyResult, type ElementInfo, type HeatmapMode } from '@abtest/shared';
 import {
   Fragment,
   lazy,
@@ -61,6 +61,13 @@ export function EditorView({ record, user }: Props) {
   const accountId = user.accountId;
   const toast = useToast();
   const [state, dispatch] = useReducer(reducer, record, (r) => initialState(r.experiment, r.editorUrl));
+  /** Página aberta no iframe, sem parâmetros com dado pessoal (não vão para o teste salvo, D-099). */
+  const setPageUrl = (url: string) => {
+    const r = stripPii(url);
+    if (r.removed.length)
+      toast('info', `Tiramos da URL do teste parâmetros com dados pessoais: ${r.removed.join(', ')}.`);
+    dispatch({ type: 'setUrl', url: r.url });
+  };
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -117,7 +124,7 @@ export function EditorView({ record, user }: Props) {
       c.peer.on('ready', ({ url }) => {
         const clean = new URL(url);
         clean.searchParams.delete('abt_edit');
-        dispatch({ type: 'setUrl', url: clean.href });
+        setPageUrl(clean.href);
         setConnected(true);
         setReadyCount((n) => n + 1); // cada navegação do iframe gera novo ready → reenviar estado
       }),
@@ -136,7 +143,7 @@ export function EditorView({ record, user }: Props) {
         dispatch({ type: 'addOperation', draft });
         if (selectorFragility(draft.target.selector) === 'high') setFragileWarning(draft.target.selector);
       }),
-      c.peer.on('navigated', ({ url }) => dispatch({ type: 'setUrl', url })),
+      c.peer.on('navigated', ({ url }) => setPageUrl(url)),
       c.peer.on('heatmapStatus', ({ missing }) => setHeatMissing(missing)),
     ];
     return () => {

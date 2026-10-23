@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app';
 import { fsCdnStore } from './cdn-fs';
-import { compileAccountScript, writeAccountFiles } from './cdn';
+import { CDN_CACHE, compileAccountScript, writeAccountFiles } from './cdn';
 import { type Repo } from './repo';
 import { testRepo } from './test-repo';
 import { DEMO, seedDev } from './seed';
@@ -268,7 +268,7 @@ describe('CDN local', () => {
     const res = await app.request('/cdn/acc1.js');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('javascript');
-    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(res.headers.get('cache-control')).toBe(CDN_CACHE);
     expect(await res.text()).toBe(compileAccountScript(config, '/*runtime*/'));
     const again = await app.request('/cdn/acc1.js', {
       headers: { 'if-none-match': res.headers.get('etag')! },

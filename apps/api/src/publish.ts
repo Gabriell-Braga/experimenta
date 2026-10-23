@@ -1,4 +1,5 @@
 import {
+  ConsentSchema,
   compileIntegrations,
   compileFunnel,
   PublishedConfigSchema,
@@ -131,7 +132,8 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       repo.listEntities<Consent>(accountId, 'consent'),
       repo.listEntities<Group>(accountId, 'group'),
     ]);
-    const consent = cons[0]?.data;
+    // Sem escolha salva vale o padrão do schema: esperar consentimento (D-099).
+    const consent = cons[0]?.data ?? ConsentSchema.parse({});
     const targets = compileIntegrations(integ[0]?.data);
     const recos = recoList.filter((r) => r.data.status === 'running');
     const surveys = surveyList.filter((s) => s.data.status === 'running');

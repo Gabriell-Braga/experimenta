@@ -25,5 +25,10 @@ API e demo ficam em `experimenta-api` / `experimenta-demo` (irmãos, não `api.e
 - Opcional, grátis: modelo compatível com OpenAI no lugar do Claude — `AI_BASE_URL`, `AI_MODEL` e `AI_API_KEY` (quando o provedor pede). Ex.: Gemini (camada grátis, chave em aistudio.google.com) `AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai AI_MODEL=gemini-3.5-flash,gemini-3.1-flash-lite AI_REASONING=none` (lista: sobrecarga ou timeout de 15 s passa para o próximo; configurado em produção: vars no wrangler.jsonc, chave no secret `AI_API_KEY`; o 2.5 não está mais disponível para chaves novas); Groq `https://api.groq.com/openai/v1` + `llama-3.3-70b-versatile`; Ollama local `http://localhost:11434/v1` + `qwen2.5:7b` (sem chave). Se o modelo falhar ou responder fora do formato, valem as regras.
 - Variáveis em `apps/api/wrangler.jsonc`: `PUBLIC_URL`, `EDITOR_ORIGINS`, `DEMO_SITE_URL`, `HEATMAP_SAMPLE_RATE`.
 
+## Sessão do editor e e-mail (D-099)
+- Login do editor em cookie `abt_session` (httpOnly; em HTTPS `SameSite=None; Secure; Partitioned`, porque o editor também roda no `*.workers.dev`, outro site). Editor e API precisam estar em `EDITOR_ORIGINS` (CORS com credenciais só para eles). Em `experimenta.gabrielbraga.app` → `experimenta-api.gabrielbraga.app` o cookie é do mesmo site (gabrielbraga.app).
+- Sem provedor de e-mail: o link de "Esqueci minha senha" sai só no log da API (`wrangler tail`, linha `[e-mail sem provedor]`). Para enviar de verdade, passar `sendMail` em `createApp` (`apps/api/src/routes/signup.ts`).
+- Cache do `/cdn/*`: `max-age=300, stale-while-revalidate=86400, stale-if-error=604800` (publicação chega a quem já tem o arquivo em até ~5 min).
+
 ## Para instalar num site real
-`<script src="https://experimenta-api.gabrielbraga.app/cdn/<conta>.js"></script>` como primeiro script do `<head>`.
+`<script src="https://experimenta-api.gabrielbraga.app/cdn/<conta>.js"></script>` como primeiro script do `<head>` (ou a versão assíncrona com tempo limite, em Configurar → Instalação). Antes, escolher o consentimento (Configurar → Privacidade ou Instalação): por padrão o snippet espera `abq.push(['consent', true])` ou o CMP.

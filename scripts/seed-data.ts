@@ -236,6 +236,8 @@ await entity('audience', 'Recorrentes no celular', {
     { type: 'device', value: 'mobile' },
   ],
 });
+// Esperar consentimento (D-099): os sites do demo têm banner que chama abq.push(['consent', true]).
+await entity('consent', 'consentimento', { required: true, cmp: 'none', category: '' });
 await entity('segment', 'Compradores', { match: 'all', rules: [{ field: 'revenue', op: 'gte', value: 1 }] });
 await entity('segment', 'Multi-dispositivo', {
   match: 'all',

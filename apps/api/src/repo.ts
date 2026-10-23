@@ -467,6 +467,14 @@ export function createRepo(db: Db) {
       await db.update(users).set({ mfa }).where(eq(users.id, userId));
     },
 
+    /** Troca a senha (recuperação): o hash novo invalida o token de recuperação usado. */
+    async setPassword(userId: string, password: string): Promise<void> {
+      await db
+        .update(users)
+        .set({ passwordHash: await hashPassword(password) })
+        .where(eq(users.id, userId));
+    },
+
     async getRequireTotp(accountId: string): Promise<boolean> {
       const [row] = await db
         .select({ v: accounts.requireTotp })

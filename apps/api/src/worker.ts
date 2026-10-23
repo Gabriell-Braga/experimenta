@@ -74,6 +74,7 @@ async function build(env: Env) {
         apiUrl: env.PUBLIC_URL,
         trackingUrl: `${env.PUBLIC_URL}/collect`,
         experiments: [],
+        consent: {}, // esperar consentimento (D-099)
       });
   return createApp({
     repo,

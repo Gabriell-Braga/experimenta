@@ -1,4 +1,5 @@
 import type { Context, MiddlewareHandler } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
 import { sha256hex } from './crypto';
 import type { Person, Repo, Role, User } from './repo';
@@ -31,6 +32,40 @@ export async function openSession(repo: Repo, secret: string, c: Context, user: 
     expiresAt: new Date(Date.now() + TOKEN_TTL_S * 1000),
   });
   return issueToken(user, sid, secret);
+}
+
+/** Cookie httpOnly da sessão do editor (D-099). O token nunca fica ao alcance de script da página. */
+export const SESSION_COOKIE = 'abt_session';
+/**
+ * Header que o editor manda em toda requisição. Header customizado obriga preflight de CORS, que só passa para
+ * EDITOR_ORIGINS: escrita autenticada por cookie sem ele é recusada (CSRF). Também pede o cookie no login.
+ */
+export const CSRF_HEADER = 'x-requested-with';
+
+/**
+ * HTTPS: `SameSite=None; Secure; Partitioned` (editor e API podem estar em sites diferentes, ex.: *.workers.dev;
+ * Partitioned/CHIPS mantém o cookie mesmo com cookies de terceiros bloqueados). HTTP (dev em localhost, mesmo site): Lax.
+ */
+function writeSessionCookie(c: Context, token: string, maxAge: number) {
+  const https = new URL(c.req.url).protocol === 'https:';
+  setCookie(c, SESSION_COOKIE, token, {
+    httpOnly: true,
+    path: '/',
+    maxAge,
+    ...(https ? { secure: true, sameSite: 'None', partitioned: true } : { sameSite: 'Lax' }),
+  });
+}
+export const setSessionCookie = (c: Context, token: string) => writeSessionCookie(c, token, TOKEN_TTL_S);
+export const clearSessionCookie = (c: Context) => writeSessionCookie(c, '', 0);
+
+/**
+ * Corpo da resposta de login/troca de conta. Navegador do editor (manda o header CSRF): token só no cookie
+ * httpOnly, fora do corpo. Clientes de API, SDK e testes (sem o header): token no corpo, para o Bearer.
+ */
+export function sessionBody<U>(c: Context, token: string, user: U): { token?: string; user: U } {
+  if (!c.req.header(CSRF_HEADER)) return { token, user };
+  setSessionCookie(c, token);
+  return { user };
 }
 
 /** Erros seguidos da 2ª etapa até bloquear, e por quanto tempo. */
@@ -97,14 +132,29 @@ const TOTP_SETUP_PATHS = /^\/(me(\/.*)?|sessions(\/.*)?|accounts\/[^/]+\/switch)
 export const TOTP_REQUIRED = 'totp_required';
 
 /**
- * Bearer JWT → usuário recarregado do banco a cada requisição (papel/permissão sempre atuais,
+ * Bearer JWT (ou cookie do editor) → usuário recarregado do banco a cada requisição (papel/permissão sempre atuais,
  * usuário removido perde acesso na hora). A conta vem do token, nunca do corpo da requisição.
  * A sessão do token (`sid`) também é conferida: encerrada ou vencida, o token para de valer na hora.
  */
-export function requireAuth(repo: Repo, secret: string): MiddlewareHandler<{ Variables: AuthVars }> {
+export function requireAuth(
+  repo: Repo,
+  secret: string,
+  editorOrigins: string[],
+): MiddlewareHandler<{ Variables: AuthVars }> {
   return async (c, next) => {
     const header = c.req.header('authorization') ?? '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    let token = header.startsWith('Bearer ') ? header.slice(7) : '';
+    // Sem Bearer: cookie do editor. Escrita por cookie exige o header CSRF e, se vier, Origin do editor.
+    if (!token) {
+      token = getCookie(c, SESSION_COOKIE) ?? '';
+      const origin = c.req.header('origin');
+      if (
+        token &&
+        !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) &&
+        (!c.req.header(CSRF_HEADER) || (origin && !editorOrigins.includes(origin)))
+      )
+        return c.json({ error: 'requisição de outra origem recusada' }, 403);
+    }
     let user: User | undefined;
     try {
       if (token.startsWith(API_KEY_PREFIX)) user = await userFromApiKey(repo, token);

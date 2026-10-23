@@ -264,6 +264,10 @@ export function createD1Repo(d1: D1Like): Repo {
       await q('UPDATE users SET mfa = ? WHERE id = ?', mfa ? JSON.stringify(mfa) : null, userId).run();
     },
 
+    async setPassword(userId, password) {
+      await q('UPDATE users SET password_hash = ? WHERE id = ?', await hashPassword(password), userId).run();
+    },
+
     async getRequireTotp(accountId) {
       return !!(await first<{ v: number }>('SELECT require_totp AS v FROM accounts WHERE id = ?', accountId))
         ?.v;

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ApiError, login, loginTotp, type Me } from '../api';
+import { useState, type InputHTMLAttributes } from 'react';
+import { ApiError, forgotPassword, login, loginTotp, resetPassword, signup, type Me } from '../api';
 import { Button, inputCls, Logo } from '../ui';
 
 /** Cartão de "resultado" do painel de apresentação: a cara do produto antes de entrar. */
@@ -42,7 +42,180 @@ function SampleResult() {
   );
 }
 
+/** Link de recuperação de senha (`?reset=<token>`). */
+const resetToken = () => new URLSearchParams(location.search).get('reset');
+
+type Mode = 'login' | 'signup' | 'forgot' | 'reset';
+
+/** Campo de texto do login (rótulo visível = nome acessível). */
+function Field({ label, ...props }: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
+      <input required className={inputCls} aria-label={label} {...props} />
+    </label>
+  );
+}
+
+function PasswordHint() {
+  return (
+    <p id="pw-hint" className="-mt-2 text-xs text-gray-600">
+      Mínimo de 10 caracteres.
+    </p>
+  );
+}
+
+const errorText = (err: unknown) =>
+  err instanceof ApiError && err.status !== 0 && err.status < 500
+    ? err.message
+    : 'Não foi possível concluir. Tente de novo.';
+const str = (f: FormData, k: string) => String(f.get(k) ?? '').trim();
+
+/** Criar conta, esqueci a senha e senha nova pelo link (D-099). Sem serviço de e-mail, o link sai no log da API. */
+function AccountForms({
+  mode,
+  setMode,
+  onLogin,
+}: {
+  mode: Exclude<Mode, 'login'>;
+  setMode(m: Mode, notice?: string): void;
+  onLogin(u: Me): void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (f: FormData) => {
+    if (mode === 'signup') {
+      let siteUrl: string;
+      try {
+        siteUrl = new URL(str(f, 'siteUrl')).href;
+      } catch {
+        throw new ApiError(400, 'Endereço do site inválido (ex.: https://minhaloja.com.br).');
+      }
+      onLogin(
+        await signup({
+          name: str(f, 'name'),
+          email: str(f, 'email'),
+          password: String(f.get('password')),
+          workspace: str(f, 'workspace'),
+          siteUrl,
+        }),
+      );
+    } else if (mode === 'forgot') setDone((await forgotPassword(str(f, 'email'))).message);
+    else {
+      if (f.get('password') !== f.get('confirm')) throw new ApiError(400, 'As senhas não conferem.');
+      await resetPassword(resetToken() ?? '', String(f.get('password')));
+      history.replaceState(null, '', location.pathname);
+      setMode('login', 'Senha trocada. Entre com a senha nova.');
+    }
+  };
+
+  const title = { signup: 'Criar conta', forgot: 'Esqueci minha senha', reset: 'Senha nova' }[mode];
+  return (
+    <form
+      className="w-full max-w-sm"
+      data-testid={`${mode}-form`}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy) return;
+        const f = new FormData(e.currentTarget);
+        setBusy(true);
+        setError(null);
+        try {
+          await submit(f);
+        } catch (err) {
+          setError(errorText(err));
+        }
+        setBusy(false);
+      }}
+    >
+      <Logo className="mb-12 lg:hidden" />
+      <p className="label-mono">Acesso</p>
+      <h1 className="mt-2 font-display text-4xl font-normal text-ink">{title}</h1>
+      {mode === 'forgot' && (
+        <p className="mt-2 text-sm text-gray-600">
+          Enviamos um link para criar uma senha nova (vale 30 minutos).
+        </p>
+      )}
+      <div className="mt-8 space-y-4">
+        {mode === 'signup' && (
+          <>
+            <Field label="Seu nome" name="name" autoComplete="name" autoFocus maxLength={200} />
+            <Field label="E-mail" name="email" type="email" autoComplete="email" />
+            <Field
+              label="Senha"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={10}
+              aria-describedby="pw-hint"
+            />
+            <PasswordHint />
+            <Field label="Nome do workspace" name="workspace" placeholder="Minha loja" maxLength={200} />
+            <Field
+              label="Endereço do site"
+              name="siteUrl"
+              type="url"
+              placeholder="https://minhaloja.com.br"
+            />
+          </>
+        )}
+        {mode === 'forgot' && !done && (
+          <Field label="E-mail" name="email" type="email" autoComplete="email" autoFocus />
+        )}
+        {mode === 'reset' && (
+          <>
+            <Field
+              label="Senha nova"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={10}
+              autoFocus
+              aria-describedby="pw-hint"
+            />
+            <PasswordHint />
+            <Field label="Repita a senha" name="confirm" type="password" autoComplete="new-password" />
+          </>
+        )}
+      </div>
+      {done && (
+        <p role="status" className="mt-4 rounded-md bg-gray-100 px-3 py-2 text-sm text-ink">
+          {done}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+      {!done && (
+        <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full py-2.5">
+          {mode === 'signup' ? 'Criar conta' : mode === 'forgot' ? 'Enviar link' : 'Trocar senha'}
+        </Button>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          if (mode === 'reset') history.replaceState(null, '', location.pathname);
+          setMode('login');
+        }}
+        className="mt-3 w-full text-center text-sm text-gray-600 hover:text-ink"
+      >
+        Voltar para o login
+      </button>
+    </form>
+  );
+}
+
 export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initialError?: string | null }) {
+  const [mode, setModeState] = useState<Mode>(resetToken() ? 'reset' : 'login');
+  const [notice, setNotice] = useState<string | null>(null);
+  const setMode = (m: Mode, n?: string) => {
+    setModeState(m);
+    setNotice(n ?? null);
+  };
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
@@ -81,7 +254,9 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
       </aside>
 
       <main className="flex flex-col items-center justify-center p-6">
-        {challenge ? (
+        {mode !== 'login' ? (
+          <AccountForms key={mode} mode={mode} setMode={setMode} onLogin={onLogin} />
+        ) : challenge ? (
           <form
             className="w-full max-w-sm"
             data-testid="totp-form"
@@ -208,6 +383,11 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
                 </span>
               </label>
             </div>
+            {notice && (
+              <p role="status" className="mt-4 rounded-md bg-gray-100 px-3 py-2 text-sm text-ink">
+                {notice}
+              </p>
+            )}
             {error && (
               <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
                 {error}
@@ -216,6 +396,22 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
             <Button type="submit" variant="primary" loading={busy} className="mt-6 w-full py-2.5">
               {busy ? 'Entrando…' : 'Entrar'}
             </Button>
+            <div className="mt-4 flex justify-between text-sm">
+              <button
+                type="button"
+                onClick={() => setMode('forgot')}
+                className="text-gray-600 underline-offset-2 hover:text-ink hover:underline"
+              >
+                Esqueci minha senha
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('signup')}
+                className="font-medium text-ink underline-offset-2 hover:underline"
+              >
+                Criar conta
+              </button>
+            </div>
           </form>
         )}
         <a href="/seguranca" className="mt-8 text-xs text-gray-600 underline hover:text-ink">
