@@ -142,8 +142,10 @@ test('passo do painel falhando: tenta de novo, depois a IA recebe só a lista de
   const events = vi.spyOn(t.repo, 'listEvents').mockRejectedValue(new Error('banco ocupado'));
   await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
   expect(await step(t)).toMatchObject({ status: 'running', step: 'dashboard' });
+  const perTry = events.mock.calls.length; // o painel lê por blocos: várias consultas por tentativa
+  expect(perTry).toBeGreaterThan(0);
   expect(await step(t)).toMatchObject({ status: 'running', step: 'dashboard' });
-  expect(events).toHaveBeenCalledTimes(2);
+  expect(events).toHaveBeenCalledTimes(2 * perTry);
   // Esgotadas as tentativas: segue para o modelo sem painel, avisando por quê.
   const s = await step(t);
   expect(s).toMatchObject({ status: 'running', step: 'model' });

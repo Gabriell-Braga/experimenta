@@ -1,25 +1,10 @@
-import type { Experiment, Funnel, TrackingEvent } from '@abtest/shared';
-import { engageReport } from './engage';
-import { formsReport } from './forms';
-import { findInsights } from './insights';
-import { overview } from './overview';
-import { pagesReport } from './pages';
+import { remainingDuration, type Experiment, type TrackingEvent } from '@abtest/shared';
+import { sumDays, type DayStats } from './daily';
+import type { Insight } from './insights';
 import { buildProfiles, crossDevice } from './profiles';
-import { experimentReport } from './report';
+import type { experimentReport } from './report';
 
-/** Tipos de evento que o painel lê (sem `click`/`move`, os mais volumosos). */
-export const DASHBOARD_TYPES = [
-  'pageview',
-  'event',
-  'conversion',
-  'exposure',
-  'identify',
-  'frustration',
-  'scroll',
-  'form',
-  'engage',
-  'survey',
-] as const;
+export { DASHBOARD_TYPES } from './daily';
 
 /** Variação relativa vs período anterior (null sem base). */
 const delta = (cur: number, prev: number) => (prev ? (cur - prev) / prev : null);
@@ -45,83 +30,77 @@ export function experimentSummary(exp: Experiment, r: ReturnType<typeof experime
         : null,
     srm: r.srm.mismatch,
     daysRemaining: r.estimate.daysRemaining,
+    /** Acima de 8 semanas: não esperar concluir (encerrar ou redesenhar). */
+    duration: remainingDuration(r.estimate.daysRemaining),
   };
 }
 
 /**
- * Painel geral: KPIs de todos os módulos no período, com comparação ao período anterior de mesma duração.
- * `prev` = eventos do período anterior; `running` = experimentos em execução (com os próprios eventos).
+ * Bloco principal do painel a partir dos agregados diários: tráfego (com variação vs período anterior de mesma
+ * duração), comportamento, formulários e engajamento. `unique` = únicos do período e do anterior (contados no banco);
+ * dia sem agregado conta zero e entra em `pendingDays` (no período anterior, desliga as variações).
  */
-export function dashboard(
-  cur: TrackingEvent[],
-  prev: TrackingEvent[],
-  range: { from: Date; to: Date },
-  running: Experiment[],
-  funnels: { id: string; name: string; data: Funnel }[] = [],
-) {
-  const o = overview(cur, range.from, range.to);
-  const p = overview(prev, range.from, range.from).totals;
-  const t = o.totals;
-  const pages = pagesReport(cur);
-  const scrolls = pages.filter((x) => x.avgScroll !== null);
-  const forms = formsReport(cur);
-  const engage = engageReport(cur);
-  const sum = (xs: { [k: string]: unknown }[], k: string) =>
-    xs.reduce((s, x) => s + ((x[k] as number) ?? 0), 0);
-  const formTotals = {
-    landed: sum(forms, 'landed'),
-    interacted: sum(forms, 'interacted'),
-    submitted: sum(forms, 'submitted'),
-  };
-  const nps = cur.filter((e) => e.type === 'survey' && !e.qa);
-  const cd = crossDevice(buildProfiles(cur).values());
-  // Um relatório por teste (Monte Carlo), usado nos achados e no resumo.
-  const reports = new Map(
-    running.map((exp) => [
-      exp.id,
-      experimentReport(
-        exp,
-        cur.filter((e) => 'experimentId' in e && e.experimentId === exp.id),
-        range,
-      ),
-    ]),
-  );
+export function dashboardSummary(input: {
+  days: string[];
+  prevDays: string[];
+  stats: Map<string, DayStats>;
+  unique: { cur: { visitors: number; sessions: number }; prev: { visitors: number; sessions: number } };
+  to: Date;
+}) {
+  const { days, prevDays, stats, unique } = input;
+  const c = sumDays(days.flatMap((d) => stats.get(d) ?? []));
+  const prevComplete = prevDays.every((d) => stats.has(d));
+  const p = sumDays(prevDays.flatMap((d) => stats.get(d) ?? []));
+  const d = (cur: number, prev: number) => (prevComplete ? delta(cur, prev) : null);
+  const scrolls = c.pages.filter((x) => x.scrolls);
   return {
-    from: range.from.toISOString(),
-    to: range.to.toISOString(),
-    insights: findInsights({ cur, range, running, funnels, pages, forms, reports }),
+    from: new Date(`${days[0]}T00:00:00Z`).toISOString(),
+    to: input.to.toISOString(),
+    pendingDays: days.filter((x) => !stats.has(x)).length,
     traffic: {
-      ...t,
+      visitors: unique.cur.visitors,
+      sessions: unique.cur.sessions,
+      pageviews: c.pageviews,
+      events: c.events,
+      conversions: c.conversions,
+      revenue: c.revenue,
       deltas: {
-        visitors: delta(t.visitors, p.visitors),
-        sessions: delta(t.sessions, p.sessions),
-        pageviews: delta(t.pageviews, p.pageviews),
-        conversions: delta(t.conversions, p.conversions),
-        revenue: delta(t.revenue, p.revenue),
+        visitors: d(unique.cur.visitors, unique.prev.visitors),
+        sessions: d(unique.cur.sessions, unique.prev.sessions),
+        pageviews: d(c.pageviews, p.pageviews),
+        conversions: d(c.conversions, p.conversions),
+        revenue: d(c.revenue, p.revenue),
       },
-      series: o.series.map((d) => ({ day: d.day, visitors: d.visitors })),
-      devices: o.devices,
+      series: days.map((day) => ({ day, visitors: stats.get(day)?.visitors ?? 0 })),
+      devices: c.devices,
     },
-    experiments: running.map((exp) => experimentSummary(exp, reports.get(exp.id)!)),
     behavior: {
-      rage: sum(pages, 'rage'),
-      dead: sum(pages, 'dead'),
+      rage: c.rage,
+      dead: c.dead,
       avgScroll: scrolls.length
-        ? Math.round(scrolls.reduce((s, x) => s + x.avgScroll!, 0) / scrolls.length)
+        ? Math.round(scrolls.reduce((s, x) => s + x.scrollSum / x.scrolls, 0) / scrolls.length)
         : null,
-      worstPage: [...pages].sort((a, b) => b.rage + b.dead - (a.rage + a.dead))[0]?.page ?? null,
+      worstPage:
+        [...c.pages].filter((x) => x.rage + x.dead).sort((a, b) => b.rage + b.dead - (a.rage + a.dead))[0]
+          ?.page ?? null,
     },
     forms: {
-      ...formTotals,
-      completion: formTotals.interacted ? formTotals.submitted / formTotals.interacted : null,
+      ...c.forms,
+      completion: c.forms.interacted ? c.forms.submitted / c.forms.interacted : null,
     },
-    engage: {
-      views: sum(engage, 'views'),
-      clicks: sum(engage, 'clicks'),
-      submits: sum(engage, 'submits'),
-      surveyResponses: nps.length,
-    },
-    profiles: { identified: cd.identified, multiDevice: cd.multiDevice },
+    engage: c.engage,
   };
 }
-export type Dashboard = ReturnType<typeof dashboard>;
+
+/** Perfis identificados no período e quantos usam mais de um dispositivo (`identify` + páginas vistas deles). */
+export function profilesSummary(events: TrackingEvent[]) {
+  const cd = crossDevice(buildProfiles(events).values());
+  return { identified: cd.identified, multiDevice: cd.multiDevice };
+}
+
+/** Painel inteiro (as ideias de IA leem tudo junto; a tela pede bloco a bloco). */
+export type Dashboard = ReturnType<typeof dashboardSummary> & {
+  experiments: ReturnType<typeof experimentSummary>[];
+  insights: Insight[];
+  profiles: ReturnType<typeof profilesSummary>;
+};

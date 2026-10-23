@@ -58,6 +58,8 @@ export function pagesReport(events: TrackingEvent[], device?: string) {
       ...p,
       visitors: visitors.size,
       avgScroll: depthN ? Math.round(depthSum / depthN) : null,
+      /** Eventos de scroll (peso da média ao somar dias, ver daily.ts). */
+      scrolls: depthN,
     }))
     .sort((a, b) => b.pageviews - a.pageviews || b.clicks - a.clicks);
 }

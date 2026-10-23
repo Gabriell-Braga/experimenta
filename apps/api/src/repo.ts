@@ -31,6 +31,7 @@ import {
   accounts,
   activities,
   comments,
+  dailyStats,
   events,
   experiments,
   experimentVersions,
@@ -995,6 +996,51 @@ export function createRepo(db: Db) {
         .from(entities)
         .where(eq(entities.kind, kind));
       return rows.map((r) => r.a);
+    },
+
+    /** Todas as contas — manutenção do sistema (job dos agregados diários), sem rota exposta. */
+    async listAccountIds(): Promise<string[]> {
+      return (await db.select({ id: accounts.id }).from(accounts)).map((r) => r.id);
+    },
+
+    /** Agregados diários do painel de `from` a `to` (dias `AAAA-MM-DD`, inclusive). */
+    async listDailyStats<T = unknown>(accountId: string, from: string, to: string) {
+      const rows = await db
+        .select({ day: dailyStats.day, data: dailyStats.data })
+        .from(dailyStats)
+        .where(and(eq(dailyStats.accountId, accountId), gte(dailyStats.day, from), lte(dailyStats.day, to)));
+      return rows as { day: string; data: T }[];
+    },
+
+    async saveDailyStats(accountId: string, rows: { day: string; data: unknown }[]): Promise<void> {
+      if (!rows.length) return;
+      await db
+        .insert(dailyStats)
+        .values(rows.map((r) => ({ accountId, day: r.day, data: r.data })))
+        .onConflictDoUpdate({
+          target: [dailyStats.accountId, dailyStats.day],
+          set: { data: sql`excluded.data` },
+        });
+    },
+
+    /** Visitantes e sessões distintos no período (sem QA), contados no banco: o Worker não lê os payloads. */
+    async countDistinct(accountId: string, f: { from: Date; to: Date; types: string[] }) {
+      const [r] = await db
+        .select({
+          visitors: sql<number>`count(distinct ${events.visitorId})::int`,
+          sessions: sql<number>`count(distinct ${events.sessionId})::int`,
+        })
+        .from(events)
+        .where(
+          and(
+            eq(events.accountId, accountId),
+            inArray(events.type, f.types),
+            gte(events.ts, f.from),
+            lte(events.ts, f.to),
+            sql`${events.payload}->>'qa' is distinct from 'true'`,
+          ),
+        );
+      return { visitors: r?.visitors ?? 0, sessions: r?.sessions ?? 0 };
     },
 
     async listEntities<T = unknown>(accountId: string, kind: string): Promise<Entity<T>[]> {

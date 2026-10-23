@@ -147,6 +147,7 @@ test('frustração, scroll baixo, campo de formulário e passo de funil', () => 
   expect(kinds).toEqual(expect.arrayContaining(['frustration', 'low-scroll', 'form-field', 'funnel-step']));
   expect(r.find((x) => x.kind === 'form-field')!.title).toBe('Campo "cpf" faz desistir do formulário');
   expect(r.find((x) => x.kind === 'funnel-step')!.title).toBe('Compra: 80% param antes de "Checkout"');
+  expect(r.find((x) => x.kind === 'funnel-step')!.detail).toMatch(/A maioria sai do site\.$/);
   expect(r.at(-1)!.severity).toBe('info');
 });
 

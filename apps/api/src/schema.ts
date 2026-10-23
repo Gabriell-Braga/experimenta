@@ -248,6 +248,21 @@ export const events = pgTable(
   ],
 );
 
+/**
+ * Agregados diários do painel (tarefa 20.1, D-096): uma linha por conta e dia (UTC), com os totais somáveis do
+ * dia (`DayStats` em analytics/daily.ts). Escrita barata (1 linha/conta/dia) e sobrevive ao expurgo dos eventos.
+ */
+export const dailyStats = pgTable(
+  'daily_stats',
+  {
+    accountId: accountId(),
+    /** `2026-10-19` */
+    day: text('day').notNull(),
+    data: jsonb('data').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.day] })],
+);
+
 /** Gravação de sessão (tarefa 10.3): metadados por sessão; os eventos rrweb ficam em `recording_chunks`. */
 export const recordings = pgTable(
   'recordings',

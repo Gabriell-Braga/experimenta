@@ -801,6 +801,45 @@ export function createD1Repo(d1: D1Like): Repo {
       return rows.map((r) => r.account_id);
     },
 
+    async listAccountIds() {
+      return (await all<{ id: string }>('SELECT id FROM accounts')).map((r) => r.id);
+    },
+
+    async listDailyStats<T = unknown>(accountId: string, from: string, to: string) {
+      const rows = await all<{ day: string; data: string }>(
+        'SELECT day, data FROM daily_stats WHERE account_id = ? AND day >= ? AND day <= ?',
+        accountId,
+        from,
+        to,
+      );
+      return rows.map((r) => ({ day: r.day, data: json<T>(r.data) }));
+    },
+
+    async saveDailyStats(accountId, rows) {
+      if (!rows.length) return;
+      await d1.batch(
+        rows.map((r) =>
+          q(
+            'INSERT INTO daily_stats (account_id, day, data) VALUES (?, ?, ?) ON CONFLICT (account_id, day) DO UPDATE SET data = excluded.data',
+            accountId,
+            r.day,
+            JSON.stringify(r.data),
+          ),
+        ),
+      );
+    },
+
+    async countDistinct(accountId, f) {
+      const r = await first<{ visitors: number; sessions: number }>(
+        `SELECT COUNT(DISTINCT visitor_id) AS visitors, COUNT(DISTINCT session_id) AS sessions FROM events WHERE account_id = ? AND ts >= ? AND ts <= ? AND type IN (${f.types.map(() => '?').join(', ')}) AND json_extract(payload, '$.qa') IS NOT 1`,
+        accountId,
+        f.from.getTime(),
+        f.to.getTime(),
+        ...f.types,
+      );
+      return { visitors: r?.visitors ?? 0, sessions: r?.sessions ?? 0 };
+    },
+
     async listEntities<T = unknown>(accountId: string, kind: string) {
       const rows = await all(
         'SELECT * FROM entities WHERE account_id = ? AND kind = ? ORDER BY updated_at DESC',

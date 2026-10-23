@@ -125,6 +125,7 @@ test('páginas: vistas, visitantes, cliques, frustração e scroll médio, mais 
     rage: 1,
     dead: 2,
     avgScroll: 60,
+    scrolls: 2,
   });
   const mobile = await t.get<{ page: string; pageviews: number }[]>('/analytics/pages?device=mobile');
   expect(mobile.find((p) => p.page.endsWith('/loja'))!.pageviews).toBe(1);

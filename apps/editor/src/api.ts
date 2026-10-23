@@ -9,6 +9,7 @@ import {
   type Ice,
   type IdeaStage,
   type PageSummary,
+  type RemainingDuration,
 } from '@abtest/shared';
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
@@ -511,29 +512,39 @@ export interface Insight {
   detail: string;
   link: { view: string; params?: Record<string, string> };
 }
-export interface Dashboard {
-  insights: Insight[];
-  traffic: Overview['totals'] & {
-    deltas: Record<'visitors' | 'sessions' | 'pageviews' | 'conversions' | 'revenue', number | null>;
-    series: { day: string; visitors: number }[];
-    devices: Record<string, number>;
+/** Blocos do painel (GET /analytics/dashboard/{bloco}), carregados à parte: um que estoura não segura os outros. */
+export interface DashboardBlocks {
+  summary: {
+    /** Dias do período ainda sem agregado (contam zero até o job consolidar). */
+    pendingDays: number;
+    traffic: Overview['totals'] & {
+      deltas: Record<'visitors' | 'sessions' | 'pageviews' | 'conversions' | 'revenue', number | null>;
+      series: { day: string; visitors: number }[];
+      devices: Record<string, number>;
+    };
+    behavior: { rage: number; dead: number; avgScroll: number | null; worstPage: string | null };
+    forms: { landed: number; interacted: number; submitted: number; completion: number | null };
+    engage: { views: number; clicks: number; submits: number; surveyResponses: number };
   };
   experiments: {
-    id: string;
-    name: string;
-    type: string;
-    visitors: number;
-    goal: string | null;
-    leader: { name: string; lift: number | null; probBeatControl: number | null; verdict: Verdict } | null;
-    srm: boolean;
-    daysRemaining: number | null;
-  }[];
-  behavior: { rage: number; dead: number; avgScroll: number | null; worstPage: string | null };
-  forms: { landed: number; interacted: number; submitted: number; completion: number | null };
-  engage: { views: number; clicks: number; submits: number; surveyResponses: number };
-  profiles: { identified: number; multiDevice: number };
+    experiments: {
+      id: string;
+      name: string;
+      type: string;
+      visitors: number;
+      goal: string | null;
+      leader: { name: string; lift: number | null; probBeatControl: number | null; verdict: Verdict } | null;
+      srm: boolean;
+      daysRemaining: number | null;
+      duration: RemainingDuration;
+    }[];
+  };
+  /** Achados dos últimos 7 dias no máximo (`insightsFrom`). */
+  insights: { insights: Insight[]; insightsFrom: string };
+  profiles: { profiles: { identified: number; multiDevice: number } };
 }
-export const getDashboard = (days: number) => query<Dashboard>('/analytics/dashboard', { days });
+export const getDashboardBlock = <K extends keyof DashboardBlocks>(block: K, days: number) =>
+  query<DashboardBlocks[K]>(`/analytics/dashboard/${block}`, { days });
 /** Receita por canal (D-080): linhas por canal, origem e campanha; números por variação (uma fora de teste). */
 export type Channel = 'direct' | 'organic' | 'paid' | 'social' | 'email' | 'referral' | 'campaign';
 export interface AttributionRow {

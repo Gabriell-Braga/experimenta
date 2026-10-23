@@ -2,41 +2,126 @@ import { createRoute, z } from '@hono/zod-openapi';
 import type { Funnel, Survey } from '@abtest/shared';
 import { attribute, eventConversions, loadTouches } from '../analytics/attribution';
 import { cohortsReport } from '../analytics/cohorts';
-import { dashboard, DASHBOARD_TYPES } from '../analytics/dashboard';
+import { dayStart, ensureDays } from '../analytics/daily';
+import {
+  dashboardSummary,
+  DASHBOARD_TYPES,
+  experimentSummary,
+  profilesSummary,
+  type Dashboard,
+} from '../analytics/dashboard';
+import { findInsights } from '../analytics/insights';
 import { engageReport } from '../analytics/engage';
 import { surveyReport } from '../analytics/surveys';
 import { formsReport } from '../analytics/forms';
 import { funnelReport } from '../analytics/funnel';
 import { journeysReport } from '../analytics/journeys';
-import { deviceByVisitor } from '../analytics/report';
-import { overview } from '../analytics/overview';
+import { deviceByVisitor, experimentReport } from '../analytics/report';
+import { daysBetween, overview } from '../analytics/overview';
 import { pagesReport } from '../analytics/pages';
 import { errors, json, period, PeriodQuery, Report, security, type Api } from '../http';
 import type { Repo } from '../repo';
 
 export const DATA_PATHS = ['/analytics/*', '/events'];
 
-/** Painel do período (período anterior de mesma duração para as variações). Usado também pelas ideias de IA. */
-export async function loadDashboard(repo: Repo, accountId: string, range: { from: Date; to: Date }) {
-  const prevFrom = new Date(2 * range.from.getTime() - range.to.getTime());
-  const [all, list, funnels] = await Promise.all([
-    repo.listEvents(accountId, { from: prevFrom, to: range.to, types: [...DASHBOARD_TYPES] }),
-    repo.listExperiments(accountId),
-    repo.listEntities<Funnel>(accountId, 'funnel'),
-  ]);
-  const running = (
+const DAY = 86_400_000;
+/** Dias que o painel calcula do cru numa requisição (o de 7 dias inteiro: 8 + 8 do período anterior). */
+const LIVE_DAYS = 16;
+/** Achados: no máximo os últimos 7 dias de eventos crus (funis, formulários e relatório por dispositivo). */
+const INSIGHT_DAYS = 7;
+export const DASHBOARD_BLOCKS = ['summary', 'experiments', 'insights', 'profiles'] as const;
+type Range = { from: Date; to: Date };
+
+async function runningExperiments(repo: Repo, accountId: string) {
+  const list = await repo.listExperiments(accountId);
+  return (
     await Promise.all(
       list.filter((e) => e.status === 'running').map((e) => repo.getExperiment(accountId, e.id)),
     )
   ).flatMap((r) => (r ? [r.experiment] : []));
-  const from = range.from.getTime();
-  return dashboard(
-    all.filter((e) => e.ts >= from),
-    all.filter((e) => e.ts < from),
-    range,
-    running,
-    funnels,
-  );
+}
+
+/**
+ * Blocos do painel (20.1, D-096), cada um numa requisição (limite de CPU por requisição do Worker grátis):
+ * resumo pelos agregados diários, testes no ar pelos eventos de cada teste, achados pelos crus dos últimos
+ * 7 dias e perfis pelos `identify` do período.
+ */
+const blocks = {
+  async summary(repo: Repo, accountId: string, range: Range) {
+    const days = daysBetween(range.from, range.to);
+    const first = dayStart(days[0]!);
+    const prevDays = daysBetween(new Date(first - days.length * DAY), new Date(first - 1));
+    const types = [...DASHBOARD_TYPES];
+    const [{ stats }, cur, prev] = await Promise.all([
+      ensureDays(repo, accountId, [...prevDays, ...days], LIVE_DAYS),
+      repo.countDistinct(accountId, { from: new Date(first), to: range.to, types }),
+      repo.countDistinct(accountId, {
+        from: new Date(first - days.length * DAY),
+        to: new Date(first - 1),
+        types,
+      }),
+    ]);
+    return dashboardSummary({ days, prevDays, stats, unique: { cur, prev }, to: range.to });
+  },
+  async experiments(repo: Repo, accountId: string, range: Range) {
+    // ponytail: lê exposições e conversões do teste no período (o mesmo que o relatório); teste com tráfego
+    // enorme em 90 dias ainda pode passar da CPU. Agregado por teste/variação/dia se for comum.
+    const running = await runningExperiments(repo, accountId);
+    const lists = await Promise.all(
+      running.map((exp) =>
+        repo.listEvents(accountId, { experimentId: exp.id, types: ['exposure', 'conversion'], ...range }),
+      ),
+    );
+    return {
+      experiments: running.map((exp, i) => experimentSummary(exp, experimentReport(exp, lists[i]!, range))),
+    };
+  },
+  async insights(repo: Repo, accountId: string, range: Range) {
+    // ponytail: achados só dos últimos 7 dias (precisam de eventos crus: funis, campos de formulário, por
+    // dispositivo). Período maior = agregar por página/campo/passo no daily_stats.
+    const r = {
+      from: new Date(Math.max(range.from.getTime(), range.to.getTime() - INSIGHT_DAYS * DAY)),
+      to: range.to,
+    };
+    const [cur, running, funnels] = await Promise.all([
+      repo.listEvents(accountId, { ...r, types: [...DASHBOARD_TYPES] }),
+      runningExperiments(repo, accountId),
+      repo.listEntities<Funnel>(accountId, 'funnel'),
+    ]);
+    return {
+      insightsFrom: r.from.toISOString(),
+      insights: findInsights({
+        cur,
+        range: r,
+        running,
+        funnels,
+        pages: pagesReport(cur),
+        forms: formsReport(cur),
+      }),
+    };
+  },
+  async profiles(repo: Repo, accountId: string, range: Range) {
+    // ponytail: páginas vistas só dos visitantes identificados (no D1, lotes de 80 ids por consulta).
+    const identify = await repo.listEvents(accountId, { ...range, types: ['identify'] });
+    const ids = [
+      ...new Set(identify.filter((e) => e.type === 'identify' && e.userId).map((e) => e.visitorId)),
+    ];
+    const views = ids.length
+      ? await repo.listEvents(accountId, { ...range, types: ['pageview'], visitorIds: ids })
+      : [];
+    return { profiles: profilesSummary([...identify, ...views]) };
+  },
+};
+
+/** Painel inteiro de uma vez (usado pelas ideias de IA). */
+export async function loadDashboard(repo: Repo, accountId: string, range: Range): Promise<Dashboard> {
+  const [summary, experiments, insights, profiles] = await Promise.all([
+    blocks.summary(repo, accountId, range),
+    blocks.experiments(repo, accountId, range),
+    blocks.insights(repo, accountId, range),
+    blocks.profiles(repo, accountId, range),
+  ]);
+  return { ...summary, ...experiments, ...insights, ...profiles };
 }
 
 /** Coleta de dados (tarefa 9.2): visão geral do período e fluxo de eventos recentes. */
@@ -48,12 +133,35 @@ export function dataRoutes(app: Api, repo: Repo) {
       tags: ['relatórios'],
       security,
       summary:
-        'Painel geral: insights automáticos, tráfego (com variação vs período anterior), experimentos em execução, comportamento, formulários, engajamento e perfis',
+        'Painel geral inteiro: insights automáticos, tráfego (com variação vs período anterior), experimentos em execução, comportamento, formulários, engajamento e perfis',
       request: { query: PeriodQuery },
       responses: { 200: json(Report, 'painel'), ...errors },
     }),
     async (c) =>
       c.json(await loadDashboard(repo, c.get('user').accountId, period(c.req.valid('query'))), 200),
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: '/analytics/dashboard/{block}',
+      tags: ['relatórios'],
+      security,
+      summary:
+        'Um bloco do painel (a tela carrega cada um à parte): summary (agregados diários), experiments, insights (últimos 7 dias) ou profiles',
+      request: {
+        query: PeriodQuery,
+        params: z.object({
+          block: z.enum(DASHBOARD_BLOCKS).openapi({ param: { name: 'block', in: 'path' } }),
+        }),
+      },
+      responses: { 200: json(Report, 'bloco do painel'), ...errors },
+    }),
+    async (c) =>
+      c.json(
+        await blocks[c.req.valid('param').block](repo, c.get('user').accountId, period(c.req.valid('query'))),
+        200,
+      ),
   );
 
   app.openapi(

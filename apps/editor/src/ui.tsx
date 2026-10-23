@@ -259,7 +259,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = ++seq.current;
       // Limite do servidor grátis chega como erro comum das telas; mostra diferente (não é erro do app).
       if (kind === 'error' && isLimitMessage(text)) kind = 'limit';
-      setToasts((t) => [...t.slice(-3), { id, kind, text, action }]);
+      // Mesmo aviso já na tela (ex.: vários blocos do painel no limite): um só, e "Tentar de novo" refaz todos.
+      setToasts((t) => {
+        const same = t.find((x) => x.kind === kind && x.text === text);
+        if (!same) return [...t.slice(-3), { id, kind, text, action }];
+        const a = same.action?.onClick;
+        const b = action?.onClick;
+        const merged = a && b ? { ...same.action!, onClick: () => (a(), b()) } : (same.action ?? action);
+        return t.map((x) => (x === same ? { ...x, action: merged } : x));
+      });
       setTimeout(() => close(id), kind === 'limit' ? 15000 : kind === 'error' ? 8000 : 4500);
     },
     [close],

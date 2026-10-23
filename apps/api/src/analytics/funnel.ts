@@ -2,6 +2,9 @@ import type { Funnel, FunnelStep, TrackingEvent } from '@abtest/shared';
 import { matchUrl } from '@abtest/snippet/segment';
 import { pagePath } from '../repo';
 
+/** Destino de quem não viu outra página depois do passo. */
+export const LEFT_SITE = '(saiu do site)';
+
 const DAY = 86_400_000;
 
 export const stepMatches = (s: FunnelStep, e: TrackingEvent) =>
@@ -62,7 +65,7 @@ export function funnelReport(
     if (step > 0 && step < n) {
       const after = list.slice(lastIdx + 1).find((e) => e.type === 'pageview');
       // Só o caminho: a mesma rota em outro domínio (ou com .html) é o mesmo destino.
-      const where = after ? pagePath(after.url) : '(saiu do site)';
+      const where = after ? pagePath(after.url) : LEFT_SITE;
       const m = next[step - 1]!;
       m.set(where, (m.get(where) ?? 0) + 1);
     }

@@ -1,4 +1,5 @@
 import { banditWeights } from '@abtest/shared';
+import { dailyStatsJob } from './analytics/daily';
 import { retrainPropensity } from './predict';
 import { experimentReport } from './analytics/report';
 import type { AppDeps } from './app';
@@ -110,4 +111,6 @@ export async function hourlyJobs(repo: Repo, cdn: CdnStore, publish: AppDeps['pu
   // Fila de reenvio dos webhooks e exportação agendada (19.4). Cada um isolado: erro num não para o outro.
   await webhookJobs(repo).catch((e) => console.error('[webhooks]', e));
   await exportAll(repo).catch((e) => console.error('[exports]', e));
+  // Agregados diários do painel (20.1): dias fechados que faltam, poucos por conta a cada hora.
+  await dailyStatsJob(repo).catch((e) => console.error('[daily-stats]', e));
 }

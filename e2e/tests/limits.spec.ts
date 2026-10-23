@@ -9,10 +9,12 @@ test('requisição derrubada com a API no ar mostra "limite da versão de testes
   await login(page);
   await expect(page.getByTestId('user-menu')).toBeVisible();
 
-  await page.route('**/analytics/dashboard*', (r) => r.abort('failed'));
+  // Os 4 blocos do painel caem juntos: um aviso só (antes saíam repetidos, um por requisição).
+  await page.route('**/analytics/dashboard/**', (r) => r.abort('failed'));
   await nav(page, 'home');
   const limit = page.getByTestId('notice').filter({ hasText: 'Limite da versão de testes' });
-  await expect(limit).toBeVisible();
+  await expect(limit).toHaveCount(1);
+  await expect(page.getByTestId('block-failed').first()).toBeVisible();
   await expect(page.getByTestId('toast-error')).toHaveCount(0);
 
   await page.route('**/health', (r) => r.abort('failed'));

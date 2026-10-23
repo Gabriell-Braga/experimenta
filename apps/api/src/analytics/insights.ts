@@ -1,6 +1,6 @@
 import type { Experiment, Funnel, TrackingEvent } from '@abtest/shared';
 import type { formsReport } from './forms';
-import { funnelReport } from './funnel';
+import { funnelReport, LEFT_SITE } from './funnel';
 import type { pagesReport } from './pages';
 import { deviceByVisitor, experimentReport, MIN_VISITORS } from './report';
 
@@ -194,6 +194,12 @@ export function findInsights(input: {
       null,
     );
     const i = worst ? r.steps.indexOf(worst) : -1;
+    const next = r.steps[i - 1]?.dropoffNext[0]?.page;
+    const where = !next
+      ? ''
+      : next === LEFT_SITE
+        ? 'A maioria sai do site.'
+        : `A maioria vai para ${path(next)}.`;
     if (worst && 1 - worst.fromPrevious >= LIMITS.funnelLoss)
       out.push({
         id: `funnel:${fu.id}:${i}`,
@@ -201,7 +207,7 @@ export function findInsights(input: {
         severity: 'warning',
         title: `${fu.name}: ${pct(1 - worst.fromPrevious)} param antes de "${worst.name}"`,
         detail:
-          `De ${r.steps[i - 1]!.visitors} visitantes em "${r.steps[i - 1]!.name}", só ${worst.visitors} chegam a "${worst.name}". ${r.steps[i - 1]!.dropoffNext[0] ? `A maioria vai para ${path(r.steps[i - 1]!.dropoffNext[0]!.page)}.` : ''}`.trim(),
+          `De ${r.steps[i - 1]!.visitors} visitantes em "${r.steps[i - 1]!.name}", só ${worst.visitors} chegam a "${worst.name}". ${where}`.trim(),
         link: { view: 'funnels', params: { id: fu.id } },
       });
   }
