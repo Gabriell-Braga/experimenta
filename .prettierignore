@@ -12,3 +12,4 @@ test-results
 apps/api/drizzle
 apps/*/wrangler.jsonc
 sdks
+.claude

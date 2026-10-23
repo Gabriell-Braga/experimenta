@@ -10,7 +10,7 @@ Versão 0.1 — 2026-10-23. LGPD art. 37; GDPR art. 30; ISO 27701: 7.2.8, 8.2.
 | # | Atividade | Titulares | Dados | Base legal | Retenção | Papel |
 |---|---|---|---|---|---|---|
 | 1 | Conta e login no editor | Usuários dos clientes | Nome, e-mail, hash de senha, segredo TOTP, IP e user-agent das sessões | Execução de contrato (LGPD art. 7º V) | Enquanto a conta existir; sessões 12 h | Controlador |
-| 2 | Histórico de atividades (auditoria) | Usuários dos clientes | Quem fez o quê e quando | Legítimo interesse / obrigação de segurança | 2 anos | Controlador |
+| 2 | Histórico de atividades (auditoria) | Usuários dos clientes | Quem fez o quê e quando | Legítimo interesse / obrigação de segurança | Enquanto a conta existir (expurgo automático de 2 anos pendente) | Controlador |
 | 3 | Testes A/B e personalização | Visitantes | Id aleatório do visitante (cookie), variação, URL, dispositivo | Definida pelo cliente (normalmente consentimento) | 90 dias (eventos) | Operador |
 | 4 | Métricas e conversões | Visitantes | Eventos, metas, receita do pedido (valor, sem dados de pagamento) | Definida pelo cliente | 90 dias | Operador |
 | 5 | Mapas de calor e gravações de sessão | Visitantes | Cliques, rolagem, DOM com campos mascarados | Consentimento (recomendado) | 90 dias | Operador |

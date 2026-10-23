@@ -15,6 +15,7 @@ export default tseslint.config(
       '**/.cdn/**',
       '**/playwright-report/**',
       '**/test-results/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,
