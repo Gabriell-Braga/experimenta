@@ -3,7 +3,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import {
   ApiError,
   getExperiment,
-  getToken,
   me,
   takeSsoResult,
   TOTP_REQUIRED,
@@ -104,11 +103,11 @@ function FullPageSpinner({ label }: { label: string }) {
   );
 }
 
-/** Volta do SSO: lida uma vez, antes do primeiro render (o token entra no localStorage). */
+/** Volta do SSO: lida uma vez, antes do primeiro render (o token vira cookie httpOnly). */
 const ssoError = takeSsoResult();
 
 export function App() {
-  const [user, setUser] = useState<Me | null | undefined>(getToken() ? undefined : null);
+  const [user, setUser] = useState<Me | null | undefined>(undefined); // sessão no cookie: o /me diz se há
   const [exp, setExp] = useState(expParam);
   const [route, setRoute] = useState(currentRoute);
   const [record, setRecord] = useState<ExperimentRecord | null>(null);

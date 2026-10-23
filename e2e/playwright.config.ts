@@ -33,7 +33,13 @@ export default defineConfig({
       // Com o dev ligado na porta 4000 o E2E falha logo, em vez de sujar dados.
       reuseExistingServer: false,
       cwd: '..',
-      env: { PGLITE_DIR: 'memory://', CDN_DIR: 'e2e/.cdn', EDITOR_ORIGINS: 'http://localhost:5173' },
+      // DEMO_CONSENT=0: as páginas de teste do demo não têm banner de consentimento (D-099).
+      env: {
+        PGLITE_DIR: 'memory://',
+        CDN_DIR: 'e2e/.cdn',
+        EDITOR_ORIGINS: 'http://localhost:5173',
+        DEMO_CONSENT: '0',
+      },
     },
     {
       command: 'pnpm --filter @abtest/editor dev',

@@ -358,8 +358,11 @@ export const CONSENT_CMPS = ['onetrust', 'cookiebot', 'gcm'] as const;
 
 /** Consentimento LGPD/GDPR (publicado na config quando `required`). */
 export const ConsentSchema = z.object({
-  /** Esperar consentimento: nada de cookies, testes nem coleta até `abq.push(['consent', true])` ou o CMP. */
-  required: z.boolean().default(false),
+  /**
+   * Esperar consentimento: nada de cookies, testes nem coleta até `abq.push(['consent', true])` ou o CMP.
+   * Ligado por padrão (privacidade por padrão, D-099): conta sem a escolha salva publica esperando.
+   */
+  required: z.boolean().default(true),
   /** CMP lido automaticamente (`none` = o site chama `abq.push(['consent', …])`). */
   cmp: z.enum(['none', ...CONSENT_CMPS]).default('none'),
   /** Categoria do CMP (vazio = padrão: OneTrust `C0002`, Cookiebot `statistics`, Google `analytics_storage`). */

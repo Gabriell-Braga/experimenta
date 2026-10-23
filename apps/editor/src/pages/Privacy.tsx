@@ -30,9 +30,16 @@ const CMPS: Record<Consent['cmp'], { label: string; category: string; hint: stri
   },
 };
 
-const DEFAULT: Consent = { required: false, cmp: 'none', category: '' };
+/** Padrão do schema: esperar consentimento (privacidade por padrão, D-099). */
+const DEFAULT: Consent = ConsentSchema.parse({});
 
-function ConsentCard({ canEdit }: { canEdit: boolean }) {
+export function ConsentCard({
+  canEdit,
+  title = 'Consentimento (LGPD/GDPR)',
+}: {
+  canEdit: boolean;
+  title?: string;
+}) {
   const toast = useToast();
   const { data: list, setData } = useLoad(
     () => entities.list<Consent>('consent').catch((): Entity<Consent>[] => []),
@@ -62,7 +69,7 @@ function ConsentCard({ canEdit }: { canEdit: boolean }) {
 
   if (!list)
     return (
-      <Card title="Consentimento (LGPD/GDPR)">
+      <Card title={title}>
         <div className="space-y-3" aria-hidden="true">
           <Skeleton className="h-5 w-2/3" />
           <Skeleton className="h-8 w-full" />
@@ -71,7 +78,18 @@ function ConsentCard({ canEdit }: { canEdit: boolean }) {
       </Card>
     );
   return (
-    <Card title="Consentimento (LGPD/GDPR)">
+    <Card title={title}>
+      {!saved && (
+        <p
+          role="status"
+          className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          data-testid="consent-pending"
+        >
+          <b>Escolha pendente.</b> Até você salvar, o snippet espera o consentimento do visitante (padrão).
+          Confirme ou desligue se o site não precisa (ex.: só visitantes fora da LGPD/GDPR ou consentimento já
+          tratado de outra forma).
+        </p>
+      )}
       <div className="flex items-start gap-3">
         <Switch
           on={form.required}

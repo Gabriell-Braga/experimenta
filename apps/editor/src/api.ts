@@ -14,7 +14,15 @@ import {
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
-const TOKEN_KEY = 'abt-token';
+// Sessão em cookie httpOnly da API (D-099): o token nunca passa pelo JavaScript do editor.
+// Limpa o token que versões antigas guardavam no localStorage.
+try {
+  localStorage.removeItem('abt-token');
+} catch {
+  /* storage bloqueado */
+}
+/** Header que a API exige em escrita autenticada por cookie (proteção CSRF) e que pede o cookie no login. */
+const CSRF = { 'x-requested-with': 'abt-editor' };
 /** Última conta usada: o login volta para ela (multi-conta). */
 const ACCOUNT_KEY = 'abt-account';
 
@@ -91,23 +99,28 @@ async function noResponse(): Promise<never> {
   throw new ApiError(alive ? 503 : 0, alive ? LIMIT_CPU : OFFLINE);
 }
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const logout = () => localStorage.removeItem(TOKEN_KEY);
-/** Sair de verdade: encerra a sessão na API (o token para de valer) e limpa o local. */
+/** Sair: encerra a sessão na API (o token para de valer) e a API apaga o cookie. */
 export async function signOut() {
   await api('/sessions/current', { method: 'DELETE' }).catch(() => undefined);
-  logout();
 }
+export const logout = signOut;
 /** A conta passou a exigir duas etapas no meio do uso: o App recarrega o /me e mostra a configuração. */
 export const TOTP_REQUIRED = 'abt:totp-required';
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Troca do token do SSO pelo cookie em andamento (as requisições esperam por ela). */
+let ssoExchange: Promise<unknown> = Promise.resolve();
+
+/** fetch com o cookie da sessão e o header anti-CSRF. */
+const send = (path: string, init: RequestInit = {}) => {
   const headers = new Headers(init.headers);
-  const token = getToken();
-  if (token) headers.set('authorization', `Bearer ${token}`);
+  for (const [k, v] of Object.entries(CSRF)) headers.set(k, v);
   if (init.body) headers.set('content-type', 'application/json');
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers }).catch(noResponse);
-  if (res.status === 401 && !path.startsWith('/auth/')) logout();
+  return fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'include' }).catch(noResponse);
+};
+
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  await ssoExchange;
+  const res = await send(path, init);
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
     if (body.code === 'totp_required') dispatchEvent(new Event(TOTP_REQUIRED));
@@ -118,11 +131,9 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 interface Session {
-  token: string;
   user: Me;
 }
 function startSession(r: Session): Me {
-  localStorage.setItem(TOKEN_KEY, r.token);
   localStorage.setItem(ACCOUNT_KEY, r.user.accountId);
   return r.user;
 }
@@ -141,16 +152,35 @@ export const loginTotp = async (challenge: string, code: string) =>
   startSession(
     await api<Session>('/auth/login/totp', { method: 'POST', body: JSON.stringify({ challenge, code }) }),
   );
-/** Volta do SSO (`#sso=<token>` na URL): guarda o token e limpa a URL. Devolve o erro do IdP, se houver. */
+/** Volta do SSO (`#sso=<token>` na URL): troca o token pelo cookie e limpa a URL. Devolve o erro do IdP, se houver. */
 export function takeSsoResult(): string | null {
   const h = new URLSearchParams(location.hash.slice(1));
   const token = h.get('sso');
   const error = h.get('sso_error');
   if (!token && !error) return null;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
+  if (token)
+    ssoExchange = send('/auth/cookie', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+    }).catch(() => undefined);
   history.replaceState(null, '', location.pathname + location.search);
   return error;
 }
+
+/** Cadastro: cria o login e um workspace novo (owner) e já entra. */
+export const signup = async (body: {
+  name: string;
+  email: string;
+  password: string;
+  workspace: string;
+  siteUrl: string;
+}) => startSession(await api<Session>('/auth/signup', { method: 'POST', body: JSON.stringify(body) }));
+/** Pede o link de recuperação (a resposta é a mesma com ou sem login, para não revelar e-mails). */
+export const forgotPassword = (email: string) =>
+  api<{ message: string }>('/auth/password/forgot', { method: 'POST', body: JSON.stringify({ email }) });
+/** Senha nova com o token do link (`?reset=`). */
+export const resetPassword = (token: string, password: string) =>
+  api<{ ok: boolean }>('/auth/password/reset', { method: 'POST', body: JSON.stringify({ token, password }) });
 
 /** Troca de conta / conta nova: novo token; a página recarrega para nenhuma tela ficar com dado da conta anterior. */
 export const switchAccount = async (id: string) =>
@@ -712,9 +742,7 @@ export const rebuildRecos = () =>
 
 /** Baixa um arquivo autenticado (CSV de exportação). */
 export async function downloadFile(path: string, filename: string) {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { authorization: `Bearer ${getToken() ?? ''}` },
-  }).catch(noResponse);
+  const res = await send(path);
   if (!res.ok) throw new ApiError(res.status, `erro ${res.status}`);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(await res.blob());

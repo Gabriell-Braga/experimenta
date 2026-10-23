@@ -41,7 +41,8 @@ async function setup(request: APIRequestContext) {
 
 async function as(browser: Browser, token: string) {
   const ctx = await browser.newContext();
-  await ctx.addInitScript((t) => localStorage.setItem('abt-token', t), token);
+  // Sessão do editor em cookie httpOnly da API (D-099).
+  await ctx.addCookies([{ name: 'abt_session', value: token, url: 'http://localhost:4000', httpOnly: true }]);
   const page = await ctx.newPage();
   await page.goto(EDITOR);
   await expect(page.getByTestId('user-menu')).toBeVisible();

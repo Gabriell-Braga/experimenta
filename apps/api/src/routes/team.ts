@@ -9,6 +9,7 @@ import {
   issueToken,
   openSession,
   secondFactorError,
+  sessionBody,
   type AuthVars,
 } from '../auth';
 import { randomToken, sha256hex, verifyPassword } from '../crypto';
@@ -44,7 +45,14 @@ const MeOut = UserOut.extend({
   /** A conta ativa exige duas etapas e a pessoa ainda não ativou: só a tela de Segurança funciona. */
   totpRequired: z.boolean(),
 }).openapi('Me');
-export const Session = z.object({ token: z.string(), user: UserOut }).openapi('Session');
+export const Session = z
+  .object({
+    token: z.string().optional().openapi({
+      description: 'JWT para o Bearer; ausente quando o editor pede cookie (header X-Requested-With)',
+    }),
+    user: UserOut,
+  })
+  .openapi('Session');
 const MfaChallenge = z
   .object({
     mfa: z.literal('totp'),
@@ -109,15 +117,13 @@ const keepsAnOwner = async (repo: Repo, accountId: string, userId: string) =>
   (await repo.listMembers(accountId)).some((m) => m.role === 'owner' && m.id !== userId);
 
 export function teamRoutes(app: Api, repo: Repo, secret: string) {
-  const session = async (c: Context, u: User) => ({
-    token: await openSession(repo, secret, c, u),
-    user: publicUser(u),
-  });
+  const session = async (c: Context, u: User) =>
+    sessionBody(c, await openSession(repo, secret, c, u), publicUser(u));
   /** Troca de conta / conta nova: a mesma sessão passa para a outra conta (novo token, mesmo `sid`). */
   const moved = async (c: Context<{ Variables: AuthVars }>, u: User) => {
     const sid = c.get('sid');
     if (!sid || !(await repo.moveSession(u.id, sid, u.accountId))) return null;
-    return { token: await issueToken(u, sid, secret), user: publicUser(u) };
+    return sessionBody(c, await issueToken(u, sid, secret), publicUser(u));
   };
 
   app.openapi(

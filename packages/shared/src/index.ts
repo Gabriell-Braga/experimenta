@@ -17,3 +17,4 @@ export * from './ideas';
 export * from './ai-summary';
 export * from './crm';
 export * from './exports';
+export * from './target-url';

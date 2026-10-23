@@ -1,11 +1,13 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import {
   checkSecondFactor,
+  clearSessionCookie,
   forbid,
   hasRole,
   openSession,
   readMfaChallenge,
   secondFactorError,
+  sessionBody,
 } from '../auth';
 import { verifyPassword } from '../crypto';
 import { errors, ErrorSchema, json, security, type Api } from '../http';
@@ -68,7 +70,7 @@ export function securityRoutes(app: Api, repo: Repo, secret: string) {
       if (!user) return c.json({ error: 'O login expirou: entre de novo.' }, 401);
       const r = await checkSecondFactor(repo, user, code);
       if (r !== 'ok') return secondFactorError(c, r);
-      return c.json({ token: await openSession(repo, secret, c, user), user: publicUser(user) }, 200);
+      return c.json(sessionBody(c, await openSession(repo, secret, c, user), publicUser(user)), 200);
     },
   );
 
@@ -285,6 +287,7 @@ export function securityRoutes(app: Api, repo: Repo, secret: string) {
       if (!isPerson(me)) return forbid(c);
       const { id } = c.req.valid('param');
       const sid = id === 'current' ? c.get('sid') : id;
+      if (sid === c.get('sid')) clearSessionCookie(c);
       return sid && (await repo.deleteSession(me.id, sid))
         ? c.body(null, 204)
         : c.json({ error: 'sessão não encontrada' }, 404);
