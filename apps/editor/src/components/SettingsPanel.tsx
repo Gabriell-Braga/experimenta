@@ -569,7 +569,11 @@ export function SettingsPanel({
               className={input}
               data-testid="goal-name"
             />
-            <button className="self-start rounded bg-gray-100 px-2 py-1 text-xs" data-testid="goal-add">
+            <button
+              type="submit"
+              className="self-start rounded bg-gray-100 px-2 py-1 text-xs"
+              data-testid="goal-add"
+            >
               Adicionar meta
             </button>
           </form>

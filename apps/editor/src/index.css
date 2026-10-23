@@ -61,7 +61,7 @@ body {
 }
 /* Rótulos de seção: mono pequeno em caixa alta, como etiqueta de amostra. */
 .label-mono {
-  @apply font-mono text-[10.5px] font-medium tracking-[0.08em] text-gray-500 uppercase;
+  @apply font-mono text-[10.5px] font-medium tracking-[0.08em] text-gray-600 uppercase;
 }
 .tabular {
   font-variant-numeric: tabular-nums;

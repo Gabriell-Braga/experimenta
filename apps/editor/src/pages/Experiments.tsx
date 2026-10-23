@@ -140,6 +140,7 @@ function CreateModal({
                 role="radio"
                 aria-checked={type === t}
                 onClick={() => setType(t)}
+                aria-label={c.label}
                 data-testid={`type-${t}`}
                 className={`rounded-md border p-2.5 text-left ${type === t ? 'border-ink bg-lime-soft/60' : 'border-gray-900/10 hover:bg-gray-50'}`}
               >
@@ -500,7 +501,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
           <thead className="border-b border-gray-900/10 bg-gray-50">
             <tr className="label-mono">
               <th className="min-w-56 px-4 py-2.5 font-medium">Experimento</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
+              <th className="hidden px-4 py-2.5 font-medium sm:table-cell">Status</th>
               <th className="px-4 py-2.5 font-medium">Tipo</th>
               <th className="px-4 py-2.5 font-medium">Página</th>
               <th className="px-4 py-2.5 font-medium">Variações</th>
@@ -537,6 +538,9 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                   </button>
                   <div className="max-w-56 truncate font-mono text-[11px] text-gray-400" title={e.key}>
                     {e.key}
+                  </div>
+                  <div className="mt-1 sm:hidden">
+                    <StatusBadge status={e.status} />
                   </div>
                   {(groupOf.get(e.id) || scheduled.get(e.id)) && (
                     <div className="mt-1 flex gap-1 whitespace-nowrap">
@@ -579,7 +583,7 @@ export function ExperimentList({ user, type }: { user: Me; type?: CampaignType }
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="hidden px-4 py-3 sm:table-cell">
                   <StatusBadge status={e.status} />
                 </td>
                 <td className="px-4 py-3">

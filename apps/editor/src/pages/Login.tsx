@@ -63,9 +63,10 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
           <p className="font-mono text-[11px] tracking-[0.14em] text-lime uppercase">
             Plataforma de otimização de conversão
           </p>
-          <h2 className="mt-4 font-display text-[52px] leading-[1.02] font-light">
+          {/* Slogan, não título: o H1 da página é o do formulário (ordem de títulos). */}
+          <p className="mt-4 font-display text-[52px] leading-[1.02] font-light">
             Teste. Meça. <em className="text-lime not-italic">Decida.</em>
-          </h2>
+          </p>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/60">
             Experimentos A/B e multivariados, mapas de calor, gravações de sessão, funis, formulários,
             pesquisas e personalização, sobre o seu site real, sem mexer no código.
@@ -74,7 +75,7 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
             <SampleResult />
           </div>
         </div>
-        <p className="relative font-mono text-[11px] text-white/30">
+        <p className="relative font-mono text-[11px] text-white/55">
           editor visual · estatística bayesiana · dados first-party
         </p>
       </aside>
@@ -198,7 +199,9 @@ export function Login({ onLogin, initialError }: { onLogin(u: Me): void; initial
                   <button
                     type="button"
                     onClick={() => setShow(!show)}
-                    className="absolute inset-y-0 right-2 my-auto h-7 rounded px-2 font-mono text-[11px] text-gray-500 hover:bg-gray-100"
+                    aria-pressed={show}
+                    aria-label="Mostrar senha"
+                    className="absolute inset-y-0 right-2 my-auto h-7 rounded px-2 font-mono text-[11px] text-gray-600 hover:bg-gray-100"
                   >
                     {show ? 'ocultar' : 'mostrar'}
                   </button>

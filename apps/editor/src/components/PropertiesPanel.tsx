@@ -286,7 +286,9 @@ export function PropertiesPanel({ info, operations, onUpsert, onSelectSelector }
             onChange={(e) => setNewAttr({ ...newAttr, value: e.target.value })}
             className="min-w-0 flex-1 rounded border border-gray-300 px-1 text-xs"
           />
-          <button className="rounded bg-gray-100 px-2 text-xs">+</button>
+          <button type="submit" aria-label="Adicionar atributo" className="rounded bg-gray-100 px-2 text-xs">
+            +
+          </button>
         </form>
       </Section>
     </div>

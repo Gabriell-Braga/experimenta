@@ -276,9 +276,10 @@ export function TopBar(p: Props) {
           onClick={p.onPreviewLink}
           data-testid="open-preview-links"
           title="Link de pré-visualização: mostra o rascunho no site, sem publicar"
+          className="whitespace-nowrap"
         >
           <Link2 size={15} aria-hidden="true" />{' '}
-          <span className="hidden xl:inline">Link de pré-visualização</span>
+          <span className="sr-only 2xl:not-sr-only">Pré-visualizar</span>
         </Button>
         {p.schedule}
         <Button

@@ -79,10 +79,10 @@ export function HeatmapsPage() {
                       data-testid="page-row"
                     >
                       <td className="max-w-md px-4 py-3">
-                        <span className="block truncate font-medium text-ink group-hover:underline decoration-lime decoration-2 underline-offset-4">
+                        <span className="block max-w-40 truncate font-medium text-ink sm:max-w-md group-hover:underline decoration-lime decoration-2 underline-offset-4">
                           {r.title || r.page.replace(/^https?:\/\/[^/]+/, '') || '/'}
                         </span>
-                        <span className="block truncate font-mono text-[11px] text-gray-400">
+                        <span className="block max-w-40 truncate font-mono text-[11px] text-gray-400 sm:max-w-md">
                           {r.page.replace(/^https?:\/\//, '')}
                         </span>
                         <span className="mt-1.5 block h-1 rounded-full bg-gray-100">

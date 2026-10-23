@@ -38,6 +38,7 @@ export function Switch({
   const pending = usePending();
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={on}
       aria-label={label}
