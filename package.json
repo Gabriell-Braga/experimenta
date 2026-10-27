@@ -19,7 +19,7 @@
     "@types/node": "22",
     "eslint": "9",
     "fflate": "0.8",
-    "globals": "16",
+    "globals": "17",
     "prettier": "3",
     "tsx": "4",
     "turbo": "2",
