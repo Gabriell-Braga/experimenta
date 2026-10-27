@@ -39,17 +39,21 @@ Fonte da verdade do schema: `packages/shared/src/events.ts` (`TrackingEventSchem
 ### `pageview`
 Página vista: no carregamento e a cada rota de SPA. Enviado para **todos** os visitantes (não é amostrado) — base
 de funis, jornadas, coortes e perfis. Campos: `device`, `title?`, `referrer?` (na SPA, a página anterior), `vw`
-(largura da janela).
+(largura da janela). A API acrescenta `country` (ISO) e `region` do IP quando roda atrás do Cloudflare.
 
 ### `event`
 Evento customizado: `abq.push(['track', nome, valor?, props?])` ou `abq.push(['event', nome, props?])`
 (`props.value` numérico vira o valor). Campos: `name`, `value?` (receita), `props?` (escalares). Também dispara
 as metas do tipo "evento customizado" com o mesmo nome.
+Com "Eventos do GTM (dataLayer)" ligado em Integrações, cada `dataLayer.push({ event: 'nome', ... })` do site
+(menos `gtm.*` e os eventos que nós mesmos empurramos) vira este evento, com as propriedades escalares.
 
 ### `identify`
 `abq.push(['identify', userId, atributos?])` liga o visitante ao usuário do site; `abq.push(['set', atributos])`
 só grava atributos. Campos: `userId?`, `attrs?`. O snippet guarda um perfil local (`localStorage._abt_p`: páginas
 vistas, sessões, contagem de eventos, usuário e atributos) para a segmentação comportamental.
+Com "user_id do site como identificação" ligado, o `user_id` (ou `userId`) que o site já põe no dataLayer ou no
+`gtag('config' | 'set', …, { user_id })` vira identify automaticamente (uma vez por usuário novo).
 
 ### `exposure`
 O visitante viu a variação: emitido quando o experimento é **ativado** na página (primeira carga que casa com a

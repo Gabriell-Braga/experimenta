@@ -646,3 +646,10 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Item "Mover / redimensionar" no menu de contexto do agent abre janela no Shadow DOM (X, Y, largura, altura, trazer para frente, manter proporção, aviso de responsividade, Descartar/Concluir) e um quadro com 8 alças sobre o elemento; arrastar o quadro move.
 - X/Y são o deslocamento `left`/`top` a partir da posição atual (elemento estático vira `position: relative`), não coordenadas da página: assim o elemento continua no fluxo e o resultado não depende da largura da tela. Redimensionar grava `width`/`height` em `box-sizing: border-box` (o tamanho digitado é o tamanho visto). Trazer para frente = `z-index: 9999`.
 - Pré-visualização é estilo inline temporário; Concluir restaura o atributo `style` e emite um único `setStyle` (só as propriedades que mudaram). Nenhuma operação nova: runtime do snippet inalterado.
+
+## D-102 — Snippet em es2020 e leitura do dataLayer (fases 21.3/21.4)
+- Snippet (`abt.js`) passa a ser compilado para es2020 (`?.` e `??` nativos): 10.231 → 9.764 B gzip antes das novidades da fase 21. Perde Safari < 13.1 e Chrome < 80 (2020), irrelevantes em 2026. Resolve a pendência de bytes registrada em Bloqueios (D-069); preview.js continua em es2019.
+- Eventos do GTM: com `gtmEvents` na entidade `integrations`, a config publicada leva `dataLayer.events` e o snippet observa o `dataLayer` (itens já enfileirados e `push` futuros, embrulhando o `push` — funciona antes ou depois do gtm.js). `gtm.*` e os nomes que a integração GTM empurra (`abt_exposure`/`abt_conversion`) são ignorados para não criar laço. Viram `event` comum, então metas, funis, segmentos e filtros já os entendem.
+- user_id: com `gtmUserId`, `user_id`/`userId` de objeto do dataLayer ou do último argumento de `gtag(...)` vira identify, só quando difere do usuário já no perfil local (sem identify por página). Sem chamada extra do site.
+- Desligados por padrão: mudam os dados da conta; o dono liga em Configurar → Integrações.
+- Geo (21.2): país/estado vêm de `request.cf` no Worker (ou `cf-ipcountry`), carimbados no pageview pela API; o navegador não consegue forjar.

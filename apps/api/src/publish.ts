@@ -198,6 +198,9 @@ function publisher({ repo, cdn, publicUrl, heatmapSampleRate = 0 }: PublisherDep
       ...(predCfg[0]?.data.enabled && pred[0]
         ? { propensity: { goal: pred[0].data.goal, w: pred[0].data.w, b: pred[0].data.b } }
         : {}),
+      ...(integ[0]?.data.gtmEvents || integ[0]?.data.gtmUserId
+        ? { dataLayer: { events: !!integ[0].data.gtmEvents, userId: !!integ[0].data.gtmUserId } }
+        : {}),
       ...(sampleRate > 0 ? { heatmap: { sampleRate, recordings: true, forms: true } } : {}),
     });
     // SDK server-side: flags + campanhas server-side, num arquivo próprio (o site não precisa dele).

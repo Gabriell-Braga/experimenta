@@ -8,7 +8,8 @@ await build({
   bundle: true,
   minify: true,
   format: 'iife',
-  target: 'es2019',
+  // es2020 (D-102): ?. e ?? nativos; perde Safari < 13.1 e Chrome < 80.
+  target: 'es2020',
   outfile: 'dist/abt.js',
   legalComments: 'none',
 });

@@ -265,10 +265,13 @@ export function dataRoutes(app: Api, repo: Repo) {
       tags: ['insights'],
       security,
       summary:
-        'Relatório de um funil salvo: visitantes por passo, conversão, tempo entre passos e para onde vão os que desistem',
+        'Relatório de um funil salvo: visitantes por passo, conversão, tempo entre passos e para onde vão os que desistem; `event` filtra quem fez o evento no período e `eventNames` lista os eventos vistos',
       request: {
         params: z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) }),
-        query: PeriodQuery.extend({ device: z.enum(['desktop', 'tablet', 'mobile']).optional() }),
+        query: PeriodQuery.extend({
+          device: z.enum(['desktop', 'tablet', 'mobile']).optional(),
+          event: z.string().max(100).optional(),
+        }),
       },
       responses: { 200: json(Report, 'funil'), ...errors },
     }),
@@ -279,11 +282,23 @@ export function dataRoutes(app: Api, repo: Repo) {
       const q = c.req.valid('query');
       const list = await repo.listEvents(accountId, { ...period(q), types: ['pageview', 'event'] });
       const devices = q.device ? deviceByVisitor(list) : null;
+      const names = new Set<string>();
+      const did = new Set<string>();
+      for (const e of list)
+        if (e.type === 'event') {
+          names.add(e.name);
+          if (e.name === q.event) did.add(e.visitorId);
+        }
+      const keep =
+        devices || q.event
+          ? (v: string) => (!devices || devices.get(v) === q.device) && (!q.event || did.has(v))
+          : undefined;
       return c.json(
         {
           id: f.id,
           name: f.name,
-          ...funnelReport(f.data, list, devices ? (v) => devices.get(v) === q.device : undefined),
+          ...funnelReport(f.data, list, keep),
+          eventNames: [...names].sort(),
         },
         200,
       );

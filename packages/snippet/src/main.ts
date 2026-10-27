@@ -6,6 +6,7 @@ import { installData } from './data';
 import { bootEditor, editToken } from './editor';
 import { local } from './env';
 import { installGoals } from './goals';
+import { watchDataLayer } from './gtm';
 import { engageBoot, loadBundle } from './engage';
 import { insightsBoot, sampled } from './insights';
 import { integrationsAdapter } from './integrations';
@@ -79,6 +80,15 @@ function boot(config: PublishedConfig): App | undefined {
     goal(name, value);
     data.track(name, value, props);
   };
+  if (config.dataLayer)
+    watchDataLayer(
+      window,
+      config.dataLayer,
+      (config.integrations || []).flatMap((t) => (t[0] == 'dataLayer' ? [t[1], t[2]] : [])),
+      (name, props) => track(name, typeof props.value == 'number' ? props.value : undefined, props),
+      (id) => data.identify(id),
+      () => rt.profile.u,
+    );
   // Insights (mapa de calor, frustração, formulários, gravação): só amostrados e nunca em QA.
   const hm = config.heatmap;
   const insights = insightsBoot(window, rt, sink, config);

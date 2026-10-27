@@ -28,6 +28,8 @@ export const PublishedConfigSchema = z.object({
   recos: z.array(RecoWidgetSchema.extend({ id: z.string(), name: z.string() })).optional(),
   /** GA4, GTM, Segment, Mixpanel, Amplitude no navegador (`compileIntegrations`). */
   integrations: z.array(IntegrationTargetSchema).optional(),
+  /** Leitura do dataLayer do site: eventos do GTM e `user_id` como identify. */
+  dataLayer: z.object({ events: z.boolean().optional(), userId: z.boolean().optional() }).optional(),
   /**
    * Consentimento (LGPD/GDPR): presente = esperar `abq.push(['consent', true])` (ou o CMP) antes de gravar
    * cookies, aplicar testes e coletar dados. Ausente = roda direto (o visitante ainda pode recusar).

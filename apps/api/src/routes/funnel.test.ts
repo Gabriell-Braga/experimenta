@@ -80,6 +80,12 @@ test('funil em ordem, com janela; conversão, tempo e para onde vão os que desi
 
 test('filtro de dispositivo, CRUD e validação das entidades', async () => {
   expect((await t.get<Rep>(`/analytics/funnel/${funnelId}?device=mobile`)).visitors).toBe(1);
+  // Só quem fez o evento (ex.: evento do GTM) no período: a e e.
+  const byEvent = await t.get<Rep & { eventNames: string[] }>(
+    `/analytics/funnel/${funnelId}?days=7&event=compra`,
+  );
+  expect(byEvent.visitors).toBe(2);
+  expect(byEvent.eventNames).toEqual(['compra']);
   const list = await t.get<{ id: string; name: string }[]>('/entities/funnel');
   expect(list.map((f) => f.name)).toEqual(['Compra']);
   expect(await t.get('/entities/funnel', 'other')).toEqual([]);

@@ -50,7 +50,7 @@ export function watchCmp(win: Window, c: Consent, cb: (ok: boolean) => void): vo
     check();
     win.addEventListener('OneTrustGroupsUpdated', check);
   } else if (c.cmp === 'cookiebot') {
-    // Sem `?.`: o alvo es2019 transpila cada um em bytes a mais no snippet.
+    // Sem `?.`: menos bytes no snippet.
     const check = () => {
       const b = w.Cookiebot;
       if (b && b.hasResponse) cb(!!(b.consent || {})[cat || 'statistics']);

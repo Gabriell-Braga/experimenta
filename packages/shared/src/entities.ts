@@ -278,6 +278,10 @@ export const IntegrationsSchema = z.object({
   ga4: z.boolean().default(false),
   /** Empurra `abt_exposure` / `abt_conversion` no dataLayer do Google Tag Manager. */
   gtm: z.boolean().default(false),
+  /** Lê o dataLayer: cada `dataLayer.push({ event })` do site vira evento do Experimenta (metas, funis, filtros). */
+  gtmEvents: z.boolean().default(false),
+  /** `user_id` que o site já põe no dataLayer/gtag vira identify (perfis do CDP juntam dispositivos). */
+  gtmUserId: z.boolean().default(false),
   segment: TrackToolSchema.default({}),
   mixpanel: TrackToolSchema.default({}),
   amplitude: TrackToolSchema.default({}),

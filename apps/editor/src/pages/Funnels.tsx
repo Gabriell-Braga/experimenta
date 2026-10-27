@@ -36,6 +36,8 @@ interface FunnelReport {
   completed: number;
   conversion: number;
   steps: StepRow[];
+  /** Eventos vistos no período (custom e do GTM). */
+  eventNames?: string[];
 }
 
 const path = (u: string) => (u.startsWith('(') ? u : u.replace(/^https?:\/\/[^/]+/, '') || '/');
@@ -60,11 +62,14 @@ export function FunnelEditor({
   initial,
   onClose,
   onSaved,
+  eventNames = [],
 }: {
   open: boolean;
   initial: Entity<Funnel> | null;
   onClose(): void;
   onSaved(id: string): void;
+  /** Sugestões para passos de evento (inclui os eventos do GTM capturados do dataLayer). */
+  eventNames?: string[];
 }) {
   const toast = useToast();
   const [name, setName] = useState('');
@@ -171,7 +176,7 @@ export function FunnelEditor({
                   <option value="contains">URL contém</option>
                   <option value="exact">URL exata</option>
                   <option value="regex">URL (regex)</option>
-                  <option value="event">Evento</option>
+                  <option value="event">Evento (custom ou GTM)</option>
                 </select>
                 <input
                   value={s.type === 'url' ? s.url.value : s.event}
@@ -183,7 +188,8 @@ export function FunnelEditor({
                         : { ...s, event: e.target.value },
                     )
                   }
-                  placeholder={s.type === 'url' ? '/checkout' : 'nome do evento (abq track)'}
+                  placeholder={s.type === 'url' ? '/checkout' : 'nome do evento (abq track ou dataLayer)'}
+                  list={s.type === 'event' ? 'funnel-event-names' : undefined}
                   className={`${inputCls} py-1 font-mono text-xs`}
                   aria-label="Valor do passo"
                   data-testid="funnel-step-value"
@@ -192,6 +198,11 @@ export function FunnelEditor({
             </li>
           ))}
         </ol>
+        <datalist id="funnel-event-names">
+          {eventNames.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
         <div className="flex items-center justify-between">
           <Button
             size="sm"
@@ -224,6 +235,7 @@ export function FunnelsPage({ user }: { user: Me }) {
   const [sel, setSel] = useState<string | null>(null);
   const [days, setDays] = useState<Period>('30');
   const [device, setDevice] = useState('');
+  const [eventName, setEventName] = useState('');
   const [editing, setEditing] = useState<Entity<Funnel> | null | 'new'>(null);
   const { data: list, reload } = useLoad(() => entities.list<Funnel>('funnel'), []);
   useEffect(() => {
@@ -238,9 +250,10 @@ export function FunnelsPage({ user }: { user: Me }) {
         ? query<FunnelReport>(`/analytics/funnel/${encodeURIComponent(sel)}`, {
             days,
             device: device || undefined,
+            event: eventName || undefined,
           })
         : null,
-    [sel, days, device],
+    [sel, days, device, eventName],
   );
   const current = list?.find((f) => f.id === sel) ?? null;
   const max = Math.max(1, report?.steps[0]?.visitors ?? 1);
@@ -314,6 +327,20 @@ export function FunnelsPage({ user }: { user: Me }) {
                 <option value="desktop">Desktop</option>
                 <option value="tablet">Tablet</option>
                 <option value="mobile">Celular</option>
+              </select>
+              <select
+                value={eventName}
+                onChange={(e) => setEventName(e.target.value)}
+                className={selectCls}
+                aria-label="Fez o evento"
+                data-testid="funnel-event-filter"
+              >
+                <option value="">Qualquer evento</option>
+                {[...new Set([...(report?.eventNames ?? []), ...(eventName ? [eventName] : [])])].map((n) => (
+                  <option key={n} value={n}>
+                    Fez {n}
+                  </option>
+                ))}
               </select>
               <div className="flex-1" />
               {canEdit && current && (
@@ -414,6 +441,7 @@ export function FunnelsPage({ user }: { user: Me }) {
         open={editing !== null}
         initial={editing === 'new' ? null : editing}
         onClose={() => setEditing(null)}
+        eventNames={report?.eventNames}
         onSaved={(id) => {
           if (id === sel) reloadReport();
           setSel(id);

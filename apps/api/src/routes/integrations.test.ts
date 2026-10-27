@@ -171,6 +171,15 @@ test('Segment/Mixpanel/Amplitude ligados viram destinos; config antiga ({ ga4, g
     ['analytics', 'Viu', 'Experiment Converted', 'experiment_id', 'variation_id', 'goal'],
     ['mixpanel', '$experiment_started', '', 'Experiment name', 'Variant name', 'Goal'],
   ]);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).dataLayer).toBeUndefined();
+  // Leitura do dataLayer (21.3/21.4): eventos do GTM e user_id.
+  await t.req(`/entities/integrations/${e!.id}`, {
+    method: 'PUT',
+    as: 'editor',
+    body: JSON.stringify({ name: 'integrações', data: { gtmEvents: true, gtmUserId: true } }),
+  });
+  expect((await post('/publish', {})).status).toBe(200);
+  expect(JSON.parse(files.get(`${DEMO.accountId}.json`)!).dataLayer).toEqual({ events: true, userId: true });
   const legacy = { integrations: { ga4: false, gtm: true } } as unknown as PublishedConfig;
   expect(compileAccountScript(legacy, '')).toContain(
     '"integrations":[["dataLayer","abt_exposure","abt_conversion","abt_experiment","abt_variation","abt_goal"]]',

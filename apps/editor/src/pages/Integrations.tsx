@@ -222,6 +222,22 @@ function NativeIntegrations({ canEdit }: { canEdit: boolean }) {
           onToggle={(v) => set({ gtm: v })}
           how="dataLayer.push({ event: 'abt_exposure' | 'abt_conversion', abt_experiment, … })"
         />
+        <Row
+          id="gtm-events"
+          label="Eventos do GTM (dataLayer)"
+          on={data.gtmEvents}
+          loaded={!!list}
+          onToggle={(v) => set({ gtmEvents: v })}
+          how="dataLayer.push({ event: 'lead', … }) vira evento: metas, funis, segmentos e filtros"
+        />
+        <Row
+          id="gtm-user-id"
+          label="user_id do site como identificação"
+          on={data.gtmUserId}
+          loaded={!!list}
+          onToggle={(v) => set({ gtmUserId: v })}
+          how="dataLayer/gtag com user_id junta os dispositivos no mesmo perfil, sem abq.push(['identify'])"
+        />
         {(Object.keys(TRACK_TOOLS) as TrackToolName[]).map((k) => {
           const d = TRACK_TOOLS[k];
           const t = data[k];

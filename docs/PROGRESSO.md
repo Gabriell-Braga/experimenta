@@ -1,8 +1,8 @@
 # Progresso
 **Status:** Fase 21 em andamento
 **Fase atual:** 21
-**Tarefa atual:** 21.3 (em andamento desde 2026-10-27 17:46)
-**Última atualização:** 2026-10-27 17:46
+**Tarefa atual:** 21.5 (em andamento desde 2026-10-27 18:33)
+**Última atualização:** 2026-10-27 18:33
 **Próximo passo:** deploy da Fase 20 (migrações D1 0013 e 0014, republicar demo e fluxo) e os passos humanos de docs/CONFORMIDADE.md (Fases B e C).
 
 ## Bloqueios / perguntas para os humanos
@@ -754,3 +754,14 @@
 - Arquivos principais: packages/shared/src/events.ts, apps/api/src/{app.ts,routes/recordings.ts,routes/cdp.ts,analytics/profiles.ts}, apps/api/src/routes/recordings.test.ts, apps/editor/src/{api.ts,pages/Recordings.tsx}
 - Como testar manualmente: Insights â†’ GravaÃ§Ãµes; escolher UTM/evento/segmento. PaÃ­s/estado sÃ³ aparecem em produÃ§Ã£o (Worker) ou atrÃ¡s do Cloudflare.
 - ObservaÃ§Ãµes: UTM, geo, evento e comportamento filtram no navegador (opÃ§Ãµes vÃªm das sessÃµes do perÃ­odo); segmento filtra na API. Dados simulados (seed) nÃ£o tÃªm paÃ­s, porque vÃ£o pelo /collect sem cabeÃ§alho da borda.
+
+### 2026-10-27 18:33 â€” Tarefa 21.3 concluÃ­da (eventos do GTM)
+- O que foi feito: snippet lÃª o dataLayer (itens jÃ¡ enfileirados e novos `push`) e transforma `dataLayer.push({ event })` em evento do Experimenta (metas, funis, segmentos, filtros), ignorando `gtm.*` e o que a prÃ³pria integraÃ§Ã£o GTM empurra. Liga em Configurar â†’ IntegraÃ§Ãµes â†’ "Eventos do GTM (dataLayer)". Funil: passo "Evento (custom ou GTM)" com sugestÃµes dos eventos vistos e filtro "Fez o evento" no relatÃ³rio (`event` em `/analytics/funnel/:id`, que tambÃ©m devolve `eventNames`). Snippet compilado em es2020 (D-102): 10.071 B gzip com a novidade.
+- Arquivos principais: packages/snippet/src/{gtm,main}.ts, packages/snippet/src/gtm.test.ts, packages/snippet/build.mjs, packages/shared/src/{entities,config}.ts, apps/api/src/{publish.ts,routes/data.ts}, apps/api/src/routes/{funnel,integrations}.test.ts, apps/editor/src/pages/{Funnels,Integrations}.tsx, docs/EVENTOS.md
+- Como testar manualmente: ligar "Eventos do GTM", abrir a loja e rodar `dataLayer.push({event:'lead'})` no console; o evento aparece em Dados â†’ Eventos e no filtro do funil.
+- ObservaÃ§Ãµes: D-102.
+
+### 2026-10-27 18:33 â€” Tarefa 21.4 concluÃ­da (identify com o user_id do site)
+- O que foi feito: opÃ§Ã£o "user_id do site como identificaÃ§Ã£o" em IntegraÃ§Ãµes: o `user_id`/`userId` que o site jÃ¡ pÃµe no dataLayer ou no `gtag('config'|'set', â€¦, { user_id })` vira identify automÃ¡tico (sÃ³ quando muda), juntando dispositivos no mesmo perfil do CDP sem `abq.push(['identify'])`.
+- Arquivos principais: os mesmos da 21.3 (packages/snippet/src/gtm.ts, entidade `integrations.gtmUserId`, config `dataLayer.userId`).
+- Como testar manualmente: ligar a opÃ§Ã£o, rodar `dataLayer.push({user_id:'cliente-1'})` na loja e ver o perfil identificado em Dados â†’ Perfis.
