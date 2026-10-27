@@ -11,6 +11,11 @@ Tudo roda em Workers na conta Cloudflare do projeto, com domínio próprio (zona
 
 API e demo ficam em `experimenta-api` / `experimenta-demo` (irmãos, não `api.experimenta`): o certificado universal da Cloudflare só cobre um nível (`*.gabrielbraga.app`).
 
+## Deploy automático (D-105)
+Todo push na `main` (menos só docs/`.md`) roda `.github/workflows/deploy.yml`: lint, typecheck, `pnpm test` e E2E; passando, `pnpm deploy:cf` na Cloudflare (um deploy por vez, na ordem dos pushes). Também dá para disparar à mão em Actions → "Testes e deploy" → Run workflow.
+- Segredo necessário no GitHub (Settings → Secrets and variables → Actions, ou no environment `producao`): `CLOUDFLARE_API_TOKEN`, token criado em dash.cloudflare.com → My Profile → API Tokens com o modelo "Edit Cloudflare Workers" + permissões D1 Edit e Workers KV Storage Edit na conta, e Zone → Workers Routes Edit na zona `gabrielbraga.app` (domínios próprios). O account id fica no workflow (não é segredo).
+- Teste falhou: nada é publicado; os resultados do Playwright ficam no artefato `e2e-resultados`.
+
 ## Comandos
 - Deploy completo (bundles do snippet/agent na KV, recompila configs publicadas, migrações D1, API, editor com a extensão, demo): `pnpm deploy:cf` (precisa de `wrangler login`).
 - Dados de demonstração em produção (fases 1–19, idempotente): `API_URL=https://experimenta-api.gabrielbraga.app SITE_URL=https://experimenta-demo.gabrielbraga.app EDITOR_ORIGIN=https://experimenta.gabrielbraga.app SEED_PASSWORD=<senha> VISITORS=1500 pnpm seed:data`.

@@ -1,0 +1,62 @@
+# Deploy automático (D-105): todo push na main roda lint, typecheck, testes e E2E; passando, publica na Cloudflare
+# com o mesmo script do deploy manual (`pnpm deploy:cf`). Um deploy por vez, na ordem dos pushes.
+name: Testes e deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-producao
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Lint, typecheck, testes e E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @abtest/e2e exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-resultados
+          path: e2e/test-results
+          retention-days: 7
+
+  deploy:
+    name: Deploy na Cloudflare
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: producao
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 1078752fdb2ad1e73785039e4c3c958e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm deploy:cf

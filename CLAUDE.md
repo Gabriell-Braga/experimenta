@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **REGRA: Ao iniciar qualquer sessão, leia docs/PROGRESSO.md e docs/PLANO.md e continue da próxima tarefa não concluída.**
 >
-> Ciclo por tarefa: marcar "em andamento" em PROGRESSO.md (hora real via `date "+%Y-%m-%d %H:%M"`) → implementar + testes → `pnpm test` e `pnpm lint` passando → marcar `- [x]` em PLANO.md, histórico em PROGRESSO.md, decisões em docs/DECISOES.md → commit `fase N: descrição`. Seguir sem pedir aprovação.
+> Ciclo por tarefa: marcar "em andamento" em PROGRESSO.md (hora real via `date "+%Y-%m-%d %H:%M"`) → implementar + testes → `pnpm test` e `pnpm lint` passando → marcar `- [x]` em PLANO.md, histórico em PROGRESSO.md, decisões em docs/DECISOES.md → commit `fase N: descrição` → `git push` (o CI roda os testes e faz o deploy sozinho, `.github/workflows/deploy.yml`; não rodar `pnpm deploy:cf` à mão). Seguir sem pedir aprovação.
 
 ## O que é
 Editor visual de testes A/B (substituto do VWO), futuro SaaS multi-tenant. O site do cliente roda num iframe dentro do app do editor; nosso snippet no site detecta o modo edição e carrega o editor agent, que conversa com o app via RPC tipado sobre postMessage. Alterações são salvas como lista de operações (nunca HTML); publicar compila um JSON por conta servido por CDN.

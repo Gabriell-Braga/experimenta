@@ -3,7 +3,7 @@
 **Fase atual:** 21
 **Tarefa atual:** —
 **Última atualização:** 2026-10-27 18:48
-**Próximo passo:** deploy das Fases 20 e 21 (`pnpm deploy:cf`; migrações D1 0013 e 0014 da Fase 20; ligar "Eventos do GTM" e "user_id" nas integrações do demo se quiser vê-los) e os passos humanos de docs/CONFORMIDADE.md.
+**Próximo passo:** gravar `CLOUDFLARE_API_TOKEN` no GitHub (deploy automático); ligar "Eventos do GTM" e "user_id" nas integrações do demo se quiser vê-los) e os passos humanos de docs/CONFORMIDADE.md.
 
 ## Bloqueios / perguntas para os humanos
 - Certificações (ISO 27001/27701/27017/27018, SOC 2 Tipo II, PCI DSS) exigem auditor externo, período de operação com evidências e orçamento: ver docs/CONFORMIDADE.md, seções 3 e 4. Decisões humanas: contratar certificadora/auditor e teste de invasão, nomear encarregado (DPO), confirmar o e-mail de segurança (provisório `security@gabrielbraga.app` em SECURITY.md, security.txt e /seguranca), assinar as políticas de docs/seguranca e revisar o DPA com jurídico, ligar proteção de branch + 2FA no GitHub/Cloudflare.
@@ -788,3 +788,9 @@
 ### Resumo da Fase 21 (feedback "Conversion Rate Optimization (1).pdf")
 - Entregue: mover/redimensionar livre (21.1), filtros das gravaÃ§Ãµes por UTM, paÃ­s/estado, comportamento, evento e segmento (21.2), eventos do GTM (21.3), user_id do site como identify (21.4), configuraÃ§Ã£o em passos (21.5), novas regras de audiÃªncia (21.6), painel de Preview e QA (21.7). DecisÃµes D-101 a D-104.
 - Sem migraÃ§Ã£o de banco nesta fase. Deploy: `pnpm deploy:cf` (sobe abt.js, qa.js, edit.js, agent.js e recompila as configs). A Fase 20 ainda nÃ£o tinha sido publicada: este deploy leva junto as migraÃ§Ãµes D1 0013 e 0014 dela.
+
+- Deploy das Fases 20 e 21 (2026-10-27): `pnpm deploy:cf` manual concluído (bundles com qa.js/edit.js na KV, configs demo/fluxo recompiladas, migrações D1, API, editor e demo).
+
+### 2026-10-27 — Deploy automático pós-push
+- O que foi feito: `.github/workflows/deploy.yml` — push na main roda lint, typecheck, testes e E2E e, passando, `pnpm deploy:cf`. E2E com 1 nova tentativa no CI. CLAUDE.md: ciclo da tarefa termina em `git push`. D-105, docs/DEPLOY.md.
+- Pendência humana: criar o token da Cloudflare e gravar o segredo `CLOUDFLARE_API_TOKEN` no GitHub (instruções em docs/DEPLOY.md). Até lá o job de deploy falha (os testes rodam).

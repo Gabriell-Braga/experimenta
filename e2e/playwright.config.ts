@@ -4,6 +4,8 @@ export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
   fullyParallel: true,
+  // No CI (deploy automático) uma nova tentativa evita que um teste instável segure o deploy.
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   use: {
     ...devices['Desktop Chrome'],
