@@ -17,7 +17,7 @@
     "@electric-sql/pglite": "0.3",
     "@hono/node-server": "1",
     "@hono/swagger-ui": "0.5",
-    "@hono/zod-openapi": "0.19",
+    "@hono/zod-openapi": "1.6",
     "drizzle-orm": "0.45",
     "hono": "4",
     "postgres": "3",
