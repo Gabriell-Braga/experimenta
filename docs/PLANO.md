@@ -209,6 +209,15 @@ Pedido de 2026-10-23: corrigir o relatório "QA do Experimenta" (23 itens: 4 alt
 - [x] 20.6 Controles técnicos de conformidade: cabeçalhos de segurança, varredura de dependências/segredos/código no CI, SECURITY.md e security.txt, política de senha e bloqueio de tentativas, direitos do titular (exportar/apagar dados de um visitante), página pública de segurança
 - [x] 20.7 SGSI documental: políticas ISO 27001/27701, registro de tratamento (ROPA), DPA e lista de suboperadores, plano de resposta a incidentes, continuidade e backup, gestão de riscos e mapeamento de controles (Anexo A e SOC 2)
 
+### Fase 21 — Feedback de CRO 2 (pedido: "Conversion Rate Optimization (1).pdf", 2026-10-27)
+- [x] 21.1 Mover/redimensionar no editor: janela com X, Y, largura e altura editáveis, trazer para frente, manter proporção, aviso de responsividade, Descartar/Concluir
+- [ ] 21.2 Filtros das gravações: UTM, duração, país/estado, comportamento (frustração, cliques), eventos e segmentos criados
+- [ ] 21.3 Eventos do GTM: snippet lê os eventos do dataLayer; passo de funil e filtros por evento
+- [ ] 21.4 Identify com o mesmo user_id que o site já usa (dataLayer/GA4), sem chamada extra
+- [ ] 21.5 Configuração do experimento em passos: Hipótese (URL) → Variação → Objetivos → Preview e QA, cada passo exige o anterior
+- [ ] 21.6 Segmentos de audiência: dispositivo, novo/retorno, sistema operacional, origem do tráfego (direto, referral, social, CRM), landing page, parâmetro de URL, evento GTM, localização, páginas vistas, clicou em elemento
+- [ ] 21.7 Preview e QA: log por URL (regra de página bateu ou não, variação aplicada, metas disparadas) para validar os objetivos
+
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.
 - Se encontrar um caminho tecnicamente melhor que o descrito, registre a justificativa em docs/DECISOES.md e siga com ele. Se mudar a arquitetura de forma significativa, registre também em "Bloqueios / perguntas" para os humanos revisarem depois.

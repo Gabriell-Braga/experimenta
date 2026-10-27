@@ -1,8 +1,8 @@
 # Progresso
-**Status:** Fase 20 concluída (QA externo e conformidade)
-**Fase atual:** 20
-**Tarefa atual:** —
-**Última atualização:** 2026-10-23 04:01
+**Status:** Fase 21 em andamento
+**Fase atual:** 21
+**Tarefa atual:** 21.2 (em andamento desde 2026-10-27 17:39)
+**Última atualização:** 2026-10-27 17:39
 **Próximo passo:** deploy da Fase 20 (migrações D1 0013 e 0014, republicar demo e fluxo) e os passos humanos de docs/CONFORMIDADE.md (Fases B e C).
 
 ## Bloqueios / perguntas para os humanos
@@ -742,3 +742,9 @@
 - Como testar manualmente: Painel em 7/30/90 dias; relatório de teste com pouca amostra ("ainda coletando"); Mapas de calor > /loja > Celular; Configurar > Instalação (consentimento e modo assíncrono); login com "Esqueci minha senha"/"Criar conta"; /seguranca sem login; Configurar > Privacidade > dados de um visitante.
 - Testes: `pnpm typecheck`, `pnpm lint`, `pnpm test` (API 87+ arquivos nos dois bancos) e `pnpm e2e` (120 passaram). E2E ajustados: rótulo exato da senha (o botão "Mostrar senha" também casava), teste de agenda criado como rascunho (teste pausado agora abre o relatório) e assistente com dados maduros (D-097).
 - Observações: drizzle-orm subiu para 0.45 (alerta alto do pnpm audit). Snippet inalterado (10.231 B gzip). Nada publicado: deploy precisa das migrações D1 0013 (regrava `page` dos eventos antigos, consome cota) e 0014, republicar `demo` e `fluxo`, e avisar que contas sem escolha passam a esperar consentimento; usuários logados entram de novo uma vez. Documento do QA com status por item entregue fora do repositório ("QA do Experimenta - status.docx"). Certificados dependem de auditoria externa (Bloqueios).
+
+### 2026-10-27 17:39 â€” Tarefa 21.1 concluÃ­da (mover/redimensionar no editor)
+- O que foi feito: item "Mover / redimensionar" no menu de contexto do agent abre janela no estilo da VWO (X, Y, largura, altura, trazer para frente, manter proporÃ§Ã£o, aviso de responsividade, Descartar/Concluir) e um quadro com 8 alÃ§as sobre o elemento; arrastar o quadro move, alÃ§as redimensionam (proporÃ§Ã£o opcional), Escape descarta. Concluir emite um Ãºnico `setStyle` com o que mudou.
+- Arquivos principais: packages/agent/src/{resize,editing}.ts, packages/agent/src/agent.test.ts
+- Como testar manualmente: editor â†’ clique direito num elemento â†’ Mover / redimensionar; arrastar, puxar alÃ§as, digitar valores, Concluir e conferir a alteraÃ§Ã£o na lista.
+- ObservaÃ§Ãµes: D-101. Snippet inalterado.

@@ -188,6 +188,7 @@ describe('agent: edição inline e menu de contexto', () => {
       'edit-html',
       'hide',
       'remove',
+      'resize',
       'insert-before',
       'insert-after',
       'copy',
@@ -383,5 +384,66 @@ describe('agent: resumo da página para a IA', () => {
     expect(r.result.ignored).toEqual(expect.arrayContaining(['Ir', 'Ajuda']));
     expect(r.result.ignored).not.toContain('Oculto');
     expect(r.result.ignored).not.toContain('Assinar');
+  });
+});
+
+describe('agent: mover / redimensionar', () => {
+  const drafts = () =>
+    events('operation').map((p) => (p as { draft: { type: string; value?: unknown } }).draft);
+  const openResize = (el: Element) => {
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    (shadow().querySelector('[data-action="resize"]') as HTMLButtonElement).click();
+  };
+  const field = (k: string) => shadow().querySelector(`[data-k="${k}"]`) as HTMLInputElement;
+  const type = (k: string, v: number) => {
+    field(k).value = String(v);
+    field(k).dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  const btn = (a: string) => shadow().querySelector(`[data-mr="${a}"]`) as HTMLInputElement;
+
+  test('X/Y e trazer para frente pré-visualizam e Concluir emite um setStyle e restaura o elemento', () => {
+    const h1 = document.querySelector('h1')!;
+    h1.setAttribute('style', 'color: red;');
+    openResize(h1);
+    expect((shadow().querySelector('.mr') as HTMLElement).style.display).toBe('block');
+    type('x', 30);
+    type('y', -10);
+    expect(h1.style.getPropertyValue('left')).toBe('30px');
+    expect(h1.style.getPropertyValue('position')).toBe('relative');
+    btn('front').click();
+    btn('done').click();
+    expect(h1.getAttribute('style')).toBe('color: red;');
+    expect(drafts()).toEqual([
+      expect.objectContaining({
+        type: 'setStyle',
+        value: { position: 'relative', left: '30px', top: '-10px', 'z-index': '9999' },
+      }),
+    ]);
+  });
+
+  test('arrastar a alça redimensiona mantendo a proporção; Descartar não emite nada', () => {
+    const h1 = document.querySelector('h1')!;
+    h1.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100 }) as DOMRect;
+    openResize(h1);
+    btn('ratio').click();
+    const se = shadow().querySelector('[data-d="se"]')!;
+    se.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 200, clientY: 100 }));
+    se.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 300, clientY: 100 }));
+    se.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    expect(field('w').value).toBe('300');
+    expect(field('h').value).toBe('150');
+    btn('discard').click();
+    expect(h1.hasAttribute('style')).toBe(false);
+    expect(drafts()).toEqual([]);
+
+    openResize(h1);
+    type('w', 100);
+    btn('done').click();
+    expect(drafts()).toEqual([
+      expect.objectContaining({
+        type: 'setStyle',
+        value: { 'box-sizing': 'border-box', width: '100px', height: '100px' },
+      }),
+    ]);
   });
 });

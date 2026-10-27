@@ -2,6 +2,7 @@ import type { OperationDraft, Target } from '@abtest/shared';
 import { INSERTED_ATTR } from '@abtest/snippet/engine';
 import { elementInfo } from './inspect';
 import type { MenuItem, Overlay } from './overlay';
+import { createResize } from './resize';
 
 export interface EditContext {
   win: Window;
@@ -35,6 +36,7 @@ export function createEditing(ctx: EditContext) {
     null;
   let drag: { el: Element; anchor?: Element; position?: 'before' | 'after' | 'append' } | null = null;
   let swallowClick = false;
+  const resize = createResize(win, overlay.root, ctx.emit, targetOf);
 
   // ---------- Edição de texto inline ----------
   const finishEdit = (commit: boolean) => {
@@ -74,6 +76,7 @@ export function createEditing(ctx: EditContext) {
       e.preventDefault();
       finishEdit(true);
     } else if (drag && e.key === 'Escape') endDrag(false);
+    else if (e.key === 'Escape' && resize.cancel()) return;
     else if (e.key === 'Escape') overlay.hideMenu();
   };
   const onFocusOut = (e: FocusEvent) => {
@@ -178,6 +181,7 @@ export function createEditing(ctx: EditContext) {
     items.push(
       { id: 'hide', label: 'Esconder', run: () => ctx.emit({ type: 'hide', target: targetOf(el) }) },
       { id: 'remove', label: 'Remover', run: () => ctx.emit({ type: 'remove', target: targetOf(el) }) },
+      { id: 'resize', label: 'Mover / redimensionar', run: () => resize.open(el) },
       { id: 'insert-before', label: 'Inserir HTML antes', run: () => insert(el, 'before') },
       { id: 'insert-after', label: 'Inserir HTML depois', run: () => insert(el, 'after') },
       { id: 'copy', label: 'Copiar seletor', run: () => copy(targetOf(el).selector) },
@@ -208,6 +212,7 @@ export function createEditing(ctx: EditContext) {
     finishEdit,
     destroy() {
       finishEdit(false);
+      resize.destroy();
       win.removeEventListener('keydown', onKey, true);
       win.removeEventListener('focusout', onFocusOut, true);
       win.removeEventListener('pointermove', onDragMove, true);
