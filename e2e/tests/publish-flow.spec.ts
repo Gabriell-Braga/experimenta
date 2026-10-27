@@ -26,12 +26,14 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   // Configurar: em execução, 100% do tráfego, tudo na variação, meta de clique no CTA.
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('running');
+  await page.getByTestId('settings-step-variation').click();
   await page.getByTestId('traffic').fill('100');
   await page.getByTestId('traffic').blur();
   await page.getByTestId('weight-controle').fill('0');
   await page.getByTestId('weight-controle').blur();
   await page.getByTestId('weight-variacao-1').fill('100');
   await page.getByTestId('weight-variacao-1').blur();
+  await page.getByTestId('settings-step-goals').click();
   await page.getByTestId('goal-type').selectOption('click');
   // Sem seletor: aviso visível em vez de não fazer nada.
   await page.getByTestId('goal-add').click();
@@ -45,10 +47,12 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   await page.getByTestId('goal-add').click();
   await expect(page.getByTestId('goal')).toContainText('clique-em-comprar');
   // Regra de URL nova aparece vazia e com foco.
+  await page.getByTestId('settings-step-hypothesis').click();
   await page.getByTestId('add-url-rule').click();
   await expect(page.getByPlaceholder('parte da URL, ex.: /produto/').last()).toBeFocused();
   await page.getByRole('button', { name: 'Remover regra' }).last().click();
   // Estatística do relatório (17.5): fica salva no teste, mas não vai para o site.
+  await page.getByTestId('settings-step-goals').click();
   await page.getByTestId('stats-sequential').check();
   await page.getByTestId('settings-done').click();
 

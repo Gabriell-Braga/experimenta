@@ -59,6 +59,7 @@ test('loja completa: editar conteúdo dinâmico, sobreviver a re-render e public
   // Publicar 100% na variação.
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('running');
+  await page.getByTestId('settings-step-variation').click();
   await page.getByTestId('weight-controle').fill('0');
   await page.getByTestId('weight-controle').blur();
   await page.getByTestId('settings-done').click();

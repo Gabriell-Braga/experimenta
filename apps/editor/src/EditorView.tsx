@@ -37,7 +37,15 @@ import { HealthPanel } from './components/HealthPanel';
 import { HeatmapPanel, type HeatmapResult } from './components/HeatmapPanel';
 import { PromptDialog, type PromptRequest } from './components/PromptDialog';
 import { PropertiesPanel } from './components/PropertiesPanel';
-import { EMPTY_GOAL, SettingsPanel, type GoalDraft } from './components/SettingsPanel';
+import {
+  EMPTY_GOAL,
+  SETTINGS_STEPS,
+  SettingsPanel,
+  StatusSelect,
+  stepMissing,
+  type GoalDraft,
+  type SettingsStep,
+} from './components/SettingsPanel';
 import { VersionsPanel } from './components/VersionsPanel';
 import { DEVICE_WIDTH, TopBar, type Device, type Mode } from './components/TopBar';
 import { PreviewLinks } from './components/PreviewLinks';
@@ -83,6 +91,7 @@ export function EditorView({ record, user }: Props) {
   const [prompt, setPrompt] = useState<PromptRequest | null>(null);
   /** Configurações (status, tráfego, páginas, metas) ficam numa janela própria, fora da edição. */
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [step, setStep] = useState<SettingsStep>('hypothesis');
   const [goal, setGoal] = useState<GoalDraft>(EMPTY_GOAL);
   /** "Escolher no site": o próximo elemento selecionado vira o seletor da meta. */
   const picking = useRef(false);
@@ -133,6 +142,7 @@ export function EditorView({ record, user }: Props) {
           picking.current = false;
           setPickingGoal(false);
           setGoal((g) => ({ ...g, value: info.target.selector }));
+          setStep('goals');
           setSettingsOpen(true);
           return;
         }
@@ -409,7 +419,10 @@ export function EditorView({ record, user }: Props) {
         onRedo={() => dispatch({ type: 'redo' })}
         onSave={() => void save()}
         onPublish={doPublish}
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={() => {
+          setStep('hypothesis');
+          setSettingsOpen(true);
+        }}
         onPreviewLink={() => setPreviewLinks(true)}
         schedule={
           <ScheduleButton
@@ -611,6 +624,7 @@ export function EditorView({ record, user }: Props) {
             onClick={() => {
               picking.current = false;
               setPickingGoal(false);
+              setStep('goals');
               setSettingsOpen(true);
             }}
           >
@@ -860,25 +874,50 @@ export function EditorView({ record, user }: Props) {
             data-testid="settings-modal"
             className="flex max-h-[90vh] w-[min(56rem,100%)] flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
           >
-            <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <div>
-                <h2 className="font-display text-lg">Configurações do experimento</h2>
-                <p className="text-xs text-gray-500">
-                  Quem entra, em quais páginas e o que conta como conversão. Salve para gravar.
-                </p>
+            <header className="border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-lg">Configurações do experimento</h2>
+                  <p className="text-xs text-gray-500">
+                    Passo a passo: hipótese, variação, objetivos e conferência. Salve para gravar.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSettingsOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Fechar"
+                  data-testid="settings-close"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                onClick={() => setSettingsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Fechar"
-                data-testid="settings-close"
-              >
-                <X size={16} />
-              </button>
+              <ol className="mt-3 flex flex-wrap gap-1.5" aria-label="Passos">
+                {SETTINGS_STEPS.map(([id, label], i) => {
+                  const done = !stepMissing(state.experiment, id);
+                  return (
+                    <li key={id}>
+                      <button
+                        onClick={() => setStep(id)}
+                        aria-current={step === id ? 'step' : undefined}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${step === id ? 'border-ink bg-ink text-white' : 'border-gray-900/10 text-gray-600 hover:bg-gray-50'}`}
+                        data-testid={`settings-step-${id}`}
+                      >
+                        <span
+                          className={`grid h-4 w-4 place-items-center rounded-full font-mono text-[10px] ${done && id !== 'qa' ? 'bg-lime text-ink' : step === id ? 'bg-white/20' : 'bg-gray-100'}`}
+                        >
+                          {done && id !== 'qa' ? '✓' : i + 1}
+                        </span>
+                        {label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
             </header>
             <div className="overflow-y-auto px-5 py-4">
               <SettingsPanel
                 experiment={state.experiment}
+                step={step}
                 url={state.url}
                 dispatch={dispatch}
                 goal={goal}
@@ -889,9 +928,59 @@ export function EditorView({ record, user }: Props) {
                   setSettingsOpen(false);
                   setMode('edit');
                 }}
+                qa={
+                  <div className="flex flex-col gap-3 md:col-span-2" data-testid="qa-step">
+                    <p className="text-gray-600">
+                      Confira antes de publicar: veja a variação no site real e valide se as metas disparam.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setSettingsOpen(false);
+                          setPreviewLinks(true);
+                        }}
+                      >
+                        Link de pré-visualização
+                      </Button>
+                    </div>
+                  </div>
+                }
               />
             </div>
-            <footer className="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-3">
+            <footer className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3">
+              <StatusSelect
+                experiment={state.experiment}
+                onChange={(patch) => dispatch({ type: 'patchExperiment', patch })}
+              />
+              <span
+                className="flex-1 text-right text-xs text-signal"
+                role="status"
+                data-testid="step-missing"
+              >
+                {stepMissing(state.experiment, step)}
+              </span>
+              {step !== 'hypothesis' && (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    setStep(SETTINGS_STEPS[SETTINGS_STEPS.findIndex(([id]) => id === step) - 1]![0])
+                  }
+                >
+                  Voltar
+                </Button>
+              )}
+              {step !== 'qa' && (
+                <Button
+                  disabled={!!stepMissing(state.experiment, step)}
+                  onClick={() =>
+                    setStep(SETTINGS_STEPS[SETTINGS_STEPS.findIndex(([id]) => id === step) + 1]![0])
+                  }
+                  data-testid="settings-next"
+                >
+                  Próximo
+                </Button>
+              )}
               <Button variant="primary" onClick={() => setSettingsOpen(false)} data-testid="settings-done">
                 Concluir
               </Button>

@@ -155,6 +155,7 @@ test('ideia → teste em um clique: editor com nome, página, hipótese, meta e 
   await page.getByTestId('open-settings').click();
   await expect(page.getByTestId('settings').getByRole('textbox').first()).toHaveValue(cta.title);
   await expect(page.getByTestId('hypothesis')).toHaveValue(cta.hypothesis);
+  await page.getByTestId('settings-step-goals').click();
   await expect(page.getByTestId('goal')).toHaveCount(1);
   await page.getByTestId('settings-done').click();
 

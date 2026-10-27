@@ -214,7 +214,7 @@ Pedido de 2026-10-23: corrigir o relatório "QA do Experimenta" (23 itens: 4 alt
 - [x] 21.2 Filtros das gravações: UTM, duração, país/estado, comportamento (frustração, cliques), eventos e segmentos criados
 - [x] 21.3 Eventos do GTM: snippet lê os eventos do dataLayer; passo de funil e filtros por evento
 - [x] 21.4 Identify com o mesmo user_id que o site já usa (dataLayer/GA4), sem chamada extra
-- [ ] 21.5 Configuração do experimento em passos: Hipótese (URL) → Variação → Objetivos → Preview e QA, cada passo exige o anterior
+- [x] 21.5 Configuração do experimento em passos: Hipótese (URL) → Variação → Objetivos → Preview e QA, cada passo exige o anterior
 - [ ] 21.6 Segmentos de audiência: dispositivo, novo/retorno, sistema operacional, origem do tráfego (direto, referral, social, CRM), landing page, parâmetro de URL, evento GTM, localização, páginas vistas, clicou em elemento
 - [ ] 21.7 Preview e QA: log por URL (regra de página bateu ou não, variação aplicada, metas disparadas) para validar os objetivos
 

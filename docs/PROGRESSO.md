@@ -1,8 +1,8 @@
 # Progresso
 **Status:** Fase 21 em andamento
 **Fase atual:** 21
-**Tarefa atual:** 21.5 (em andamento desde 2026-10-27 18:33)
-**Última atualização:** 2026-10-27 18:33
+**Tarefa atual:** 21.6 (em andamento desde 2026-10-27 18:37)
+**Última atualização:** 2026-10-27 18:37
 **Próximo passo:** deploy da Fase 20 (migrações D1 0013 e 0014, republicar demo e fluxo) e os passos humanos de docs/CONFORMIDADE.md (Fases B e C).
 
 ## Bloqueios / perguntas para os humanos
@@ -765,3 +765,9 @@
 - O que foi feito: opÃ§Ã£o "user_id do site como identificaÃ§Ã£o" em IntegraÃ§Ãµes: o `user_id`/`userId` que o site jÃ¡ pÃµe no dataLayer ou no `gtag('config'|'set', â€¦, { user_id })` vira identify automÃ¡tico (sÃ³ quando muda), juntando dispositivos no mesmo perfil do CDP sem `abq.push(['identify'])`.
 - Arquivos principais: os mesmos da 21.3 (packages/snippet/src/gtm.ts, entidade `integrations.gtmUserId`, config `dataLayer.userId`).
 - Como testar manualmente: ligar a opÃ§Ã£o, rodar `dataLayer.push({user_id:'cliente-1'})` na loja e ver o perfil identificado em Dados â†’ Perfis.
+
+### 2026-10-27 18:37 â€” Tarefa 21.5 concluÃ­da (configuraÃ§Ã£o em passos)
+- O que foi feito: janela de configuraÃ§Ãµes do experimento virou assistente com 4 passos: HipÃ³tese (URL) â†’ VariaÃ§Ã£o â†’ Objetivos â†’ Preview e QA. Chips mostram âœ“ quando o passo estÃ¡ completo; "PrÃ³ximo" sÃ³ avanÃ§a com o passo completo e o rodapÃ© diz o que falta; Voltar/Concluir; status no rodapÃ©. Passo VariaÃ§Ã£o mostra as alteraÃ§Ãµes por variaÃ§Ã£o; passo Preview e QA abre o link de prÃ©-visualizaÃ§Ã£o (log de QA vem na 21.7).
+- Arquivos principais: apps/editor/src/components/SettingsPanel.tsx (+ SettingsPanel.test.ts), apps/editor/src/EditorView.tsx, E2E ajustados (publish-flow, audiences, loja, mvt, idea-to-test, prod/smoke) para clicar no passo antes dos campos.
+- Como testar manualmente: abrir um teste no editor â†’ ConfiguraÃ§Ãµes; tentar "PrÃ³ximo" sem hipÃ³tese; preencher e seguir atÃ© Preview e QA.
+- ObservaÃ§Ãµes: D-103.

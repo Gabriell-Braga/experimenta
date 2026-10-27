@@ -653,3 +653,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - user_id: com `gtmUserId`, `user_id`/`userId` de objeto do dataLayer ou do último argumento de `gtag(...)` vira identify, só quando difere do usuário já no perfil local (sem identify por página). Sem chamada extra do site.
 - Desligados por padrão: mudam os dados da conta; o dono liga em Configurar → Integrações.
 - Geo (21.2): país/estado vêm de `request.cf` no Worker (ou `cf-ipcountry`), carimbados no pageview pela API; o navegador não consegue forjar.
+
+## D-103 — Configuração do experimento em passos (fase 21.5)
+- A janela de configurações vira um assistente: Hipótese (URL) → Variação → Objetivos → Preview e QA. Hipótese = nome, hipótese, audiências, multipágina e regras de URL; Variação = tráfego, alocação, pesos/redirecionamento e resumo das alterações por variação; Objetivos = metas e estatística; Preview e QA = link de pré-visualização e log de QA (21.7).
+- "Próximo" só avança com o passo completo (hipótese escrita; uma variação com alteração, CSS/JS ou redirecionamento; ao menos uma meta) e o rodapé diz o que falta. Os chips dos passos continuam clicáveis: quem já sabe o que quer (ou volta para ajustar o status de um teste antigo) não fica preso — o PDF deixou "exigir ou não" em aberto, e travar de vez quebraria testes já publicados sem hipótese.
+- Status sai do passo e fica no rodapé (vale para todos). Abrir pela barra começa no passo 1; voltar de "escolher meta no site" cai em Objetivos.
