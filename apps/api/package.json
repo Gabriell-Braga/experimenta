@@ -15,7 +15,7 @@
     "@abtest/snippet": "workspace:^",
     "@anthropic-ai/sdk": "^0.135.0",
     "@electric-sql/pglite": "0.3",
-    "@hono/node-server": "1",
+    "@hono/node-server": "2",
     "@hono/swagger-ui": "0.5",
     "@hono/zod-openapi": "^1.6.3",
     "drizzle-orm": "0.45",
