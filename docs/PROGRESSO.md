@@ -1,14 +1,14 @@
 # Progresso
-**Status:** Fase 21 em andamento
+**Status:** Fase 21 concluída (feedback de CRO 2)
 **Fase atual:** 21
-**Tarefa atual:** 21.6 (em andamento desde 2026-10-27 18:37)
-**Última atualização:** 2026-10-27 18:37
-**Próximo passo:** deploy da Fase 20 (migrações D1 0013 e 0014, republicar demo e fluxo) e os passos humanos de docs/CONFORMIDADE.md (Fases B e C).
+**Tarefa atual:** —
+**Última atualização:** 2026-10-27 18:48
+**Próximo passo:** deploy das Fases 20 e 21 (`pnpm deploy:cf`; migrações D1 0013 e 0014 da Fase 20; ligar "Eventos do GTM" e "user_id" nas integrações do demo se quiser vê-los) e os passos humanos de docs/CONFORMIDADE.md.
 
 ## Bloqueios / perguntas para os humanos
 - Certificações (ISO 27001/27701/27017/27018, SOC 2 Tipo II, PCI DSS) exigem auditor externo, período de operação com evidências e orçamento: ver docs/CONFORMIDADE.md, seções 3 e 4. Decisões humanas: contratar certificadora/auditor e teste de invasão, nomear encarregado (DPO), confirmar o e-mail de segurança (provisório `security@gabrielbraga.app` em SECURITY.md, security.txt e /seguranca), assinar as políticas de docs/seguranca e revisar o DPA com jurídico, ligar proteção de branch + 2FA no GitHub/Cloudflare.
 - CPU do Worker grátis (10 ms) não basta para o Painel em produção ("Failed to fetch", ver 2026-10-20 02:53). Escolher: Workers Paid (US$ 5/mês) ou agregados diários no D1.
-- Snippet a 9 B do limite de 10 KB gzip (10.231 B depois da 19.1; a lógica do link de pré-visualização ficou no preview.js sob demanda e o snippet só detecta o parâmetro): a próxima mudança relevante no runtime vai precisar do alvo es2020 (libera ~440 B; perde Safari < 13.1 e Chrome < 80, D-069) ou de enxugar mais. Decidir.
+- Snippet: adotado o alvo es2020 na fase 21 (D-102) e o modo edição/QA foram para bundles sob demanda (D-104); runtime em 9.914 B gzip. Revisar se perder Safari < 13.1/Chrome < 80 for problema para algum cliente.
 - Integrações da 19.1 (HubSpot, Salesforce, Shopify, WordPress) não foram validadas com contas reais (o plugin do WordPress passou no `php -l` do PHP 8.3 em 2026-10-20 13:42): testar numa conta de cada antes de anunciar.
 - SDKs de PHP, Go e Java (19.2) rodam no CI (.github/workflows/sdks.yml) e não na máquina de desenvolvimento (só Python 3.11 instalado). Na entrega foram validados uma vez com PHP 8.3, Go 1.22 e JDK 11 + Maven portáteis baixados num diretório temporário; o primeiro push confirma o workflow (matrizes PHP 8.1/8.4, Go 1.21/1.24, Java 11/21, Python 3.10/3.13). Os SDKs não estão publicados em PyPI/Packagist/Maven Central: instalação pelo repositório (decidir se e onde publicar).
 - SDK React Native (19.3) testado só no Node (Vitest com stub do react-native), não num app RN real (iOS/Android); o ajuste do SDK Java para Android (HttpURLConnection) não foi rodado num Android real. Validar num app de exemplo antes de anunciar. Pacote não publicado no npm.
@@ -771,3 +771,20 @@
 - Arquivos principais: apps/editor/src/components/SettingsPanel.tsx (+ SettingsPanel.test.ts), apps/editor/src/EditorView.tsx, E2E ajustados (publish-flow, audiences, loja, mvt, idea-to-test, prod/smoke) para clicar no passo antes dos campos.
 - Como testar manualmente: abrir um teste no editor â†’ ConfiguraÃ§Ãµes; tentar "PrÃ³ximo" sem hipÃ³tese; preencher e seguir atÃ© Preview e QA.
 - ObservaÃ§Ãµes: D-103.
+
+### 2026-10-27 18:48 â€” Tarefa 21.6 concluÃ­da (segmentos de audiÃªncia)
+- O que foi feito: regras novas de audiÃªncia â€” sistema operacional, origem do trÃ¡fego (direto, referral, social, busca, mÃ­dia paga, CRM/e-mail), pÃ¡gina de entrada, parÃ¢metro de URL, localizaÃ§Ã£o (paÃ­s/estado via `GET /geo`, 1Ã—/sessÃ£o) e "clicou em elemento". Dispositivo, novo/retorno, pÃ¡ginas vistas, UTM e eventos (inclusive GTM) jÃ¡ existiam. Tela de AudiÃªncias com campos e resumo de cada uma.
+- Arquivos principais: packages/shared/src/entities.ts, packages/snippet/src/{audience,data,runtime}.ts, apps/api/src/app.ts (`/geo`), apps/editor/src/pages/Audiences.tsx, packages/snippet/src/audience.test.ts
+- Como testar manualmente: Dados â†’ AudiÃªncias â†’ nova regra "Origem do trÃ¡fego: CRM / e-mail"; abrir a loja com `?utm_medium=email` numa aba anÃ´nima.
+- ObservaÃ§Ãµes: D-104. Geo sÃ³ funciona atrÃ¡s do Cloudflare (produÃ§Ã£o).
+
+### 2026-10-27 18:48 â€” Tarefa 21.7 concluÃ­da (Preview e QA)
+- O que foi feito: painel de QA no site (Shadow DOM) com log por pÃ¡gina da sessÃ£o: variaÃ§Ã£o aplicada, regra de URL que nÃ£o bateu, fora da audiÃªncia/trÃ¡fego, alteraÃ§Ã£o que nÃ£o achou o elemento e metas que dispararam. Aparece no modo QA (`?ab_force`) e no link de prÃ©-visualizaÃ§Ã£o (que agora registra as metas sÃ³ localmente). Passo "Preview e QA" da configuraÃ§Ã£o leva ao link de prÃ©-visualizaÃ§Ã£o e aos links de modo QA por variaÃ§Ã£o. Para caber no limite, o handshake do modo ediÃ§Ã£o e o painel saÃ­ram do runtime para `edit.js` e `qa.js` (sob demanda): runtime 9.914 B gzip.
+- Arquivos principais: packages/snippet/src/{qapanel,qa-entry,edit-entry,main,preview,qa,engage}.ts, packages/snippet/build.mjs, apps/api/src/cdn-fs.ts, scripts/deploy-cloudflare.ts, apps/editor/src/EditorView.tsx, packages/snippet/src/{qapanel,tracking}.test.ts, docs/EVENTOS.md
+- Como testar manualmente: ConfiguraÃ§Ãµes â†’ Preview e QA â†’ link de uma variaÃ§Ã£o (teste publicado e em execuÃ§Ã£o) ou "Criar link de prÃ©-visualizaÃ§Ã£o"; navegar e clicar na meta para ver o log.
+- Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (120 passaram).
+- ObservaÃ§Ãµes: D-104. Deploy precisa subir `qa.js` e `edit.js` na KV (jÃ¡ no script); sem eles o modo ediÃ§Ã£o nÃ£o abre.
+
+### Resumo da Fase 21 (feedback "Conversion Rate Optimization (1).pdf")
+- Entregue: mover/redimensionar livre (21.1), filtros das gravaÃ§Ãµes por UTM, paÃ­s/estado, comportamento, evento e segmento (21.2), eventos do GTM (21.3), user_id do site como identify (21.4), configuraÃ§Ã£o em passos (21.5), novas regras de audiÃªncia (21.6), painel de Preview e QA (21.7). DecisÃµes D-101 a D-104.
+- Sem migraÃ§Ã£o de banco nesta fase. Deploy: `pnpm deploy:cf` (sobe abt.js, qa.js, edit.js, agent.js e recompila as configs). A Fase 20 ainda nÃ£o tinha sido publicada: este deploy leva junto as migraÃ§Ãµes D1 0013 e 0014 dela.

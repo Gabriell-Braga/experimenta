@@ -104,7 +104,53 @@ export const RULES: { type: RuleType; label: string; group: string; make(): Audi
     group: 'Contexto',
     make: () => ({ type: 'time', from: 8, to: 18, days: [1, 2, 3, 4, 5] }),
   },
+  {
+    type: 'os',
+    label: 'Sistema operacional',
+    group: 'Contexto',
+    make: () => ({ type: 'os', value: 'windows' }),
+  },
+  {
+    type: 'geo',
+    label: 'Localização (país/estado)',
+    group: 'Contexto',
+    make: () => ({ type: 'geo', country: 'BR', region: '' }),
+  },
+  {
+    type: 'source',
+    label: 'Origem do tráfego',
+    group: 'Origem',
+    make: () => ({ type: 'source', value: 'direct' }),
+  },
+  {
+    type: 'landing',
+    label: 'Página de entrada (landing page)',
+    group: 'Origem',
+    make: () => ({ type: 'landing', op: 'contains', value: '' }),
+  },
+  {
+    type: 'query',
+    label: 'Parâmetro de URL',
+    group: 'Origem',
+    make: () => ({ type: 'query', name: '', op: 'eq', value: '' }),
+  },
+  {
+    type: 'clicked',
+    label: 'Clicou em elemento',
+    group: 'Comportamento',
+    make: () => ({ type: 'clicked', selector: '' }),
+  },
 ];
+
+export const OS_LABEL = { windows: 'Windows', mac: 'macOS', ios: 'iOS', android: 'Android', linux: 'Linux' };
+export const SOURCE_LABEL = {
+  direct: 'Direto',
+  referral: 'Referral (outro site)',
+  social: 'Redes sociais',
+  search: 'Busca orgânica',
+  paid: 'Mídia paga (cpc)',
+  crm: 'CRM / e-mail',
+};
 
 const TEXT_OPS = [
   ['eq', 'é igual a'],
@@ -288,6 +334,67 @@ function RuleFields({ r, onChange }: { r: AudienceRule; onChange(r: AudienceRule
           <Ops value={r.op} ops={TEXT_OPS} onChange={(op) => set({ op })} />
           {r.op !== 'exists' && textInput(r.value)}
         </>
+      );
+    case 'os':
+    case 'source':
+      return (
+        <select value={r.value} onChange={(e) => set({ value: e.target.value })} className={sel}>
+          {Object.entries(r.type === 'os' ? OS_LABEL : SOURCE_LABEL).map(([k, l]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </select>
+      );
+    case 'landing':
+      return (
+        <>
+          <Ops value={r.op} ops={TEXT_OPS} onChange={(op) => set({ op })} />
+          {r.op !== 'exists' && textInput(r.value, '/promo')}
+        </>
+      );
+    case 'query':
+      return (
+        <>
+          <input
+            value={r.name}
+            onChange={(e) => set({ name: e.target.value })}
+            placeholder="parâmetro (ex.: plano)"
+            className={`${cls} font-mono`}
+            aria-label="Parâmetro"
+          />
+          <Ops value={r.op} ops={TEXT_OPS} onChange={(op) => set({ op })} />
+          {r.op !== 'exists' && textInput(r.value)}
+        </>
+      );
+    case 'geo':
+      return (
+        <>
+          <input
+            value={r.country}
+            onChange={(e) => set({ country: e.target.value.toUpperCase().slice(0, 2) })}
+            placeholder="BR"
+            className={`${cls} w-16 font-mono`}
+            aria-label="País (ISO)"
+          />
+          <input
+            value={r.region}
+            onChange={(e) => set({ region: e.target.value.toUpperCase() })}
+            placeholder="estado (opcional, ex.: SP)"
+            className={`${cls} font-mono`}
+            aria-label="Estado"
+          />
+        </>
+      );
+    case 'clicked':
+      return (
+        <input
+          value={r.selector}
+          onChange={(e) => set({ selector: e.target.value })}
+          placeholder="#comprar, .cta-principal"
+          className={`${cls} font-mono`}
+          aria-label="Seletor do elemento"
+        />
       );
     case 'time':
       return (
@@ -500,6 +607,18 @@ export function describeRule(r: AudienceRule): string {
       return `das ${r.from}h às ${r.to}h${r.days.length ? ` (${r.days.map((d) => DAYS[d]).join('')})` : ''}`;
     case 'score':
       return `propensão ${op(r.op)} ${r.value}`;
+    case 'os':
+      return `sistema ${OS_LABEL[r.value]}`;
+    case 'source':
+      return `origem: ${SOURCE_LABEL[r.value]}`;
+    case 'landing':
+      return `entrada ${op(r.op)} ${r.value}`;
+    case 'query':
+      return `?${r.name} ${op(r.op)} ${r.value}`;
+    case 'geo':
+      return `local ${r.country}${r.region ? `-${r.region}` : ''}`;
+    case 'clicked':
+      return `clicou em ${r.selector}`;
   }
 }
 

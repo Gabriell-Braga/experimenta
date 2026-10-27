@@ -41,6 +41,20 @@ function path(win: Window, p: string): string | undefined {
   return cur === undefined || cur === null ? undefined : String(cur);
 }
 
+/** iPad no iPadOS 13+ se apresenta como Mac: decide pelo toque. */
+export const osOf = (ua: string) =>
+  /iphone|ipad|ipod/i.test(ua)
+    ? 'ios'
+    : /android/i.test(ua)
+      ? 'android'
+      : /windows/i.test(ua)
+        ? 'windows'
+        : /mac/i.test(ua)
+          ? 'mac'
+          : /linux|cros/i.test(ua)
+            ? 'linux'
+            : '';
+
 export function matchRule(r: AudienceRule, c: AudienceContext): boolean {
   const p = c.profile;
   switch (r.type) {
@@ -86,6 +100,25 @@ export function matchRule(r: AudienceRule, c: AudienceContext): boolean {
       return (r.value === 'new') === c.isNew;
     case 'score':
       return c.score !== undefined && num(r, c.score);
+    case 'os':
+      return osOf(c.win.navigator.userAgent) == r.value;
+    case 'source':
+      return p.o == r.value;
+    case 'landing':
+      return text(r, p.lp);
+    case 'query': {
+      let v: string | null = null;
+      try {
+        v = new URL(c.url).searchParams.get(r.name);
+      } catch {
+        /* URL inválida */
+      }
+      return text(r, v ?? undefined);
+    }
+    case 'geo':
+      return !!p.g && (p.g + '-').startsWith(r.country + '-' + (r.region ? r.region + '-' : ''));
+    case 'clicked':
+      return !!p.k?.includes(r.selector);
   }
 }
 

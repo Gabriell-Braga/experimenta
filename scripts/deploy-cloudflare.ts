@@ -31,6 +31,8 @@ run('pnpm --filter @abtest/insights build');
 run('pnpm --filter @abtest/engage build');
 wrangler('kv key put abt.js --binding CDN --remote --path ../../packages/snippet/dist/abt.js');
 wrangler('kv key put preview.js --binding CDN --remote --path ../../packages/snippet/dist/preview.js');
+wrangler('kv key put qa.js --binding CDN --remote --path ../../packages/snippet/dist/qa.js');
+wrangler('kv key put edit.js --binding CDN --remote --path ../../packages/snippet/dist/edit.js');
 wrangler('kv key put agent.js --binding CDN --remote --path ../../packages/agent/dist/agent.js');
 wrangler('kv key put insights.js --binding CDN --remote --path ../../packages/insights/dist/insights.js');
 wrangler('kv key put engage.js --binding CDN --remote --path ../../packages/engage/dist/engage.js');

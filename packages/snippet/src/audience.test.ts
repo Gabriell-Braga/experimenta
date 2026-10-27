@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { AudienceSchema, ExperimentSchema, type AudienceRule, type PublishedConfig } from '@abtest/shared';
 import { beforeEach, expect, test } from 'vitest';
-import { matchAudience, matchRule, type AudienceContext } from './audience';
-import { loadProfile, notePage, PROFILE_KEY } from './data';
+import { matchAudience, matchRule, osOf, type AudienceContext } from './audience';
+import { loadProfile, notePage, PROFILE_KEY, trafficSource } from './data';
 import { SID_KEY } from './env';
 import { start } from './runtime';
 
@@ -107,4 +107,74 @@ test('experimento com audiência só ativa quem bate; audiência ausente na conf
   expect([...rt.active.keys()].sort()).toEqual(['fieis', 'livre']);
   rt.stop();
   expect(JSON.parse(localStorage.getItem(PROFILE_KEY)!).pv).toBe(3);
+});
+
+test('fase 21.6: sistema operacional, origem do tráfego, landing page, parâmetro de URL, geo e clicou em', () => {
+  expect(osOf('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)')).toBe('ios');
+  expect(osOf('Mozilla/5.0 (Linux; Android 14; Pixel 8)')).toBe('android');
+  expect(osOf('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')).toBe('windows');
+  expect(osOf('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)')).toBe('mac');
+
+  const src = (url: string, ref = '') => trafficSource(new URL(url), ref);
+  expect(src('https://loja.com/')).toBe('direct');
+  expect(src('https://loja.com/', 'https://loja.com/a')).toBe('direct');
+  expect(src('https://loja.com/', 'https://www.google.com/')).toBe('search');
+  expect(src('https://loja.com/', 'https://l.instagram.com/')).toBe('social');
+  expect(src('https://loja.com/', 'https://blog.parceiro.com/')).toBe('referral');
+  expect(src('https://loja.com/?utm_medium=email&utm_source=rd')).toBe('crm');
+  expect(src('https://loja.com/?utm_medium=cpc&utm_source=google')).toBe('paid');
+
+  // Origem e landing são da sessão: gravadas só na 1ª página dela.
+  const p = loadProfile(undefined);
+  notePage(p, 'https://loja.com/promo?utm_medium=newsletter', '', true);
+  notePage(p, 'https://loja.com/produto?plano=pro', 'https://loja.com/promo');
+  p.g = 'BR-SP';
+  p.k = ['#comprar'];
+  const c = ctx({ profile: p, url: 'https://loja.com/produto?plano=pro' });
+  expect(matchRule(rule({ type: 'source', value: 'crm' }), c)).toBe(true);
+  expect(matchRule(rule({ type: 'landing', op: 'contains', value: '/promo' }), c)).toBe(true);
+  expect(matchRule(rule({ type: 'query', name: 'plano', op: 'eq', value: 'pro' }), c)).toBe(true);
+  expect(matchRule(rule({ type: 'query', name: 'x', op: 'exists', value: '' }), c)).toBe(false);
+  expect(matchRule(rule({ type: 'geo', country: 'BR', region: '' }), c)).toBe(true);
+  expect(matchRule(rule({ type: 'geo', country: 'BR', region: 'SP' }), c)).toBe(true);
+  expect(matchRule(rule({ type: 'geo', country: 'BR', region: 'RJ' }), c)).toBe(false);
+  expect(matchRule(rule({ type: 'geo', country: 'B', region: '' }), c)).toBe(false);
+  expect(matchRule(rule({ type: 'clicked', selector: '#comprar' }), c)).toBe(true);
+  expect(matchRule(rule({ type: 'geo', country: 'BR', region: '' }), ctx())).toBe(false); // geo ainda não chegou
+});
+
+test('runtime: clicar no elemento da regra "clicou em" coloca o visitante na audiência; geo vem da API', async () => {
+  document.body.innerHTML = '<button id="comprar"><span>Comprar</span></button>';
+  const fetchMock = async () => Response.json({ country: 'BR', region: 'SP' });
+  const orig = window.fetch;
+  window.fetch = fetchMock as typeof window.fetch;
+  const exp = ExperimentSchema.parse({
+    id: 'e1',
+    key: 'e1',
+    name: 'E1',
+    status: 'running',
+    audiences: ['a1', 'a2'],
+    variations: [{ id: 'v1', key: 'v1', name: 'V1', weight: 1 }],
+  });
+  const config = {
+    accountId: 'acc',
+    version: 1,
+    publishedAt: '',
+    apiUrl: 'http://api.test',
+    experiments: [exp],
+    audiences: [
+      { id: 'a1', ...AudienceSchema.parse({ rules: [{ type: 'clicked', selector: '#comprar' }] }) },
+      { id: 'a2', ...AudienceSchema.parse({ rules: [{ type: 'geo', country: 'BR', region: 'SP' }] }) },
+    ],
+  } as PublishedConfig;
+  const rt = start(window, config)!;
+  expect(rt.active.size).toBe(0);
+  document.querySelector('span')!.click();
+  expect(rt.profile.k).toEqual(['#comprar']);
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+  expect(rt.profile.g).toBe('BR-SP');
+  expect(rt.active.has('e1')).toBe(true);
+  rt.stop();
+  window.fetch = orig;
 });

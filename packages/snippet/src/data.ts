@@ -26,6 +26,13 @@ export interface Profile {
   t?: Record<string, string>;
   /** Produtos vistos (últimos 20 ids, o mais recente no fim) — recomendações. */
   r?: string[];
+  /** Sessão atual: origem do tráfego e página de entrada. */
+  o?: string;
+  lp?: string;
+  /** País-estado do IP (`BR-SP`), buscado uma vez por sessão quando alguma audiência usa localização. */
+  g?: string;
+  /** Seletores das regras "clicou em" que o visitante já clicou. */
+  k?: string[];
 }
 
 export function loadProfile(storage: Storage | undefined): Profile {
@@ -51,9 +58,13 @@ export function saveProfile(storage: Storage | undefined, p: Profile): void {
 /** Página vista: atualiza contagens, caminhos e a origem da 1ª visita (antes de avaliar as audiências). */
 export function notePage(p: Profile, url: string, referrer = '', newSession = false): void {
   p.pv++;
-  if (newSession) p.s++;
   try {
     const u = new URL(url);
+    if (newSession) {
+      p.s++;
+      p.o = trafficSource(u, referrer);
+      p.lp = url.slice(0, 500);
+    }
     p.p = [...(p.p ?? []).filter((x) => x !== u.pathname), u.pathname].slice(-30);
     if (!p.t) {
       const t: Record<string, string> = {};
@@ -67,6 +78,31 @@ export function notePage(p: Profile, url: string, referrer = '', newSession = fa
   } catch {
     /* URL inválida: só as contagens */
   }
+}
+
+/** Origem do tráfego (regra de audiência `source`): UTMs primeiro, depois o referrer. */
+export function trafficSource(u: URL, referrer: string): string {
+  const m = (u.searchParams.get('utm_medium') || '') + ' ' + (u.searchParams.get('utm_source') || '');
+  let host = '';
+  try {
+    host = new URL(referrer).host;
+  } catch {
+    /* sem referrer */
+  }
+  const social = /facebook|instagram|twitter|t\.co|x\.com|linkedin|tiktok|youtube|pinterest|whatsapp|social/;
+  return /mail|crm|newsletter/.test(m)
+    ? 'crm'
+    : /cpc|ppc|paid|ads/.test(m)
+      ? 'paid'
+      : social.test(m + host)
+        ? 'social'
+        : /google|bing|yahoo|duckduckgo|yandex|baidu|ecosia/.test(host)
+          ? 'search'
+          : host && host != u.host
+            ? 'referral'
+            : m.trim()
+              ? 'referral'
+              : 'direct';
 }
 
 export interface DataApi {

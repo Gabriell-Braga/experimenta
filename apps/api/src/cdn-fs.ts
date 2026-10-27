@@ -28,6 +28,8 @@ export function syncBundles(cdnDir: string, repoRoot: string): void {
   for (const [src, dest] of [
     ['packages/snippet/dist/abt.js', 'abt.js'],
     ['packages/snippet/dist/preview.js', 'preview.js'],
+    ['packages/snippet/dist/qa.js', 'qa.js'],
+    ['packages/snippet/dist/edit.js', 'edit.js'],
     ['packages/agent/dist/agent.js', 'agent.js'],
     ['packages/insights/dist/insights.js', 'insights.js'],
     ['packages/engage/dist/engage.js', 'engage.js'],

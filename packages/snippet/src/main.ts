@@ -3,14 +3,14 @@ import type { Props, PublishedConfig, TrackingEvent } from '@abtest/shared';
 import { readConfig } from './config';
 import { consentGate, type App } from './consent';
 import { installData } from './data';
-import { bootEditor, editToken } from './editor';
+import { editToken } from './editor';
 import { local } from './env';
 import { installGoals } from './goals';
 import { watchDataLayer } from './gtm';
 import { engageBoot, loadBundle } from './engage';
 import { insightsBoot, sampled } from './insights';
 import { integrationsAdapter } from './integrations';
-import { readForce, sessionParam, showBadge } from './qa';
+import { readForce, sessionParam } from './qa';
 import { start } from './runtime';
 import { createTracker, type Adapter } from './tracker';
 
@@ -49,7 +49,7 @@ if (config && token) {
   // Modo edição: a página fica original (sem experimentos); o agent aplica a variação em edição.
   // A marca avisa a extensão (fallback) de que o site já tem o snippet.
   document.documentElement.dataset.abtEditor = 'snippet';
-  bootEditor(window, config, token, new URL('agent.js', script?.src || location.href).href);
+  loadBundle(window, sibling('edit.js'), '__ABT_EDIT__', { config, token, agent: sibling('agent.js') });
 } else if (config) {
   const pending = Array.isArray(window.abq) ? window.abq : [];
   const run = consentGate(window, config.consent, () => boot(config));
@@ -103,11 +103,8 @@ function boot(config: PublishedConfig): App | undefined {
     assignments: () => Object.fromEntries(rt.assigned().map((a) => [a.experiment.key, a.variation.key])),
     flush: tracker.flush,
   };
-  if (forced)
-    showBadge(
-      document,
-      [...rt.active.values()].map((a) => ({ experiment: a.experiment.name, variation: a.variation.name })),
-    );
+  // Modo QA: painel com o log por página (regra de URL, variação, metas) no qa.js.
+  if (forced) loadBundle(window, sibling('qa.js'), '__ABT_QA__', rt);
   return {
     run(c) {
       const k = c as Command;

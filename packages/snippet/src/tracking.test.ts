@@ -3,7 +3,8 @@ import { ExperimentSchema, type PublishedConfig, type TrackingEvent } from '@abt
 import { beforeEach, expect, test, vi } from 'vitest';
 import { resetProcessed } from './engine/apply';
 import { installGoals } from './goals';
-import { readForce, showBadge } from './qa';
+import { readForce } from './qa';
+import { qaPanel } from './qapanel';
 import { start } from './runtime';
 import { createTracker } from './tracker';
 
@@ -116,10 +117,10 @@ test('modo QA: ab_force força variação, marca eventos como qa e persiste na s
   rt.stop();
 });
 
-test('selo do modo QA em Shadow DOM', () => {
-  const host = showBadge(document, [{ experiment: 'Hero <x>', variation: 'B' }]);
+test('painel de QA em Shadow DOM: sem runtime avisa; fechar remove', () => {
+  const { host } = qaPanel(window, null, 'Modo QA <x>');
   expect(host.isConnected).toBe(true);
-  expect(host.shadowRoot!.textContent).toContain('Hero <x> → B');
-  host.shadowRoot!.querySelector('button')!.click();
+  expect(host.shadowRoot!.textContent).toContain('Modo QA <x>');
+  (host.shadowRoot!.querySelector('[data-a="close"]') as HTMLElement).click();
   expect(host.isConnected).toBe(false);
 });

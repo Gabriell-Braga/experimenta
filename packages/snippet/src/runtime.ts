@@ -229,6 +229,37 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
   };
 
   evaluate();
+  // Regras que dependem de algo fora da página: localização (API, 1×/sessão) e "clicou em" (escuta cliques).
+  const rules = (config.audiences ?? []).flatMap((a) => a.rules);
+  const refresh = () => {
+    saveProfile(storage, profile);
+    evaluate();
+  };
+  if (config.apiUrl && rules.some((r) => r.type == 'geo') && (!profile.g || visitor.newSession))
+    // ponytail: 1ª página da sessão só entra no teste por localização depois da resposta (pode piscar).
+    fetch(config.apiUrl + '/geo')
+      .then((r) => r.json())
+      .then((g: { country?: string; region?: string }) => {
+        profile.g = [g.country, g.region].filter(Boolean).join('-');
+        refresh();
+      })
+      .catch(() => 0);
+  const clicks = rules.flatMap((r) => (r.type == 'clicked' ? [r.selector] : []));
+  const onClick = (e: Event) => {
+    const t = e.target as Element;
+    const hit = clicks.filter((s) => {
+      try {
+        return !profile.k?.includes(s) && t.closest?.(s);
+      } catch {
+        return false; // seletor inválido
+      }
+    });
+    if (hit.length) {
+      profile.k = [...(profile.k ?? []), ...hit].slice(-50);
+      refresh();
+    }
+  };
+  if (clicks.length) doc.addEventListener('click', onClick, true);
   const onNavigate: Runtime['onNavigate'] = [];
   const unwatch = watchLocation(win, (url) => {
     notePage(profile, url);
@@ -258,6 +289,7 @@ export function start(win: Window, config: PublishedConfig, opts: RuntimeOptions
       }),
     stop: () => {
       unwatch();
+      doc.removeEventListener('click', onClick, true);
       [...active.keys()].forEach(deactivate);
     },
   };

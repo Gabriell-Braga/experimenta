@@ -931,18 +931,50 @@ export function EditorView({ record, user }: Props) {
                 qa={
                   <div className="flex flex-col gap-3 md:col-span-2" data-testid="qa-step">
                     <p className="text-gray-600">
-                      Confira antes de publicar: veja a variação no site real e valide se as metas disparam.
+                      Confira antes de publicar. No site abre um painel de QA com o log de cada página: se a
+                      regra de URL bateu, qual variação foi aplicada, alteração que não achou o elemento e as
+                      metas que dispararam (eventos de QA não entram nos relatórios).
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="rounded-md border border-gray-900/10 p-3">
+                      <p className="font-medium text-ink">Rascunho (antes de publicar)</p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Link de pré-visualização: mostra a variação salva e o painel de QA, sem publicar.
+                      </p>
                       <Button
                         size="sm"
+                        className="mt-2"
                         onClick={() => {
                           setSettingsOpen(false);
                           setPreviewLinks(true);
                         }}
                       >
-                        Link de pré-visualização
+                        Criar link de pré-visualização
                       </Button>
+                    </div>
+                    <div className="rounded-md border border-gray-900/10 p-3">
+                      <p className="font-medium text-ink">Publicado e em execução</p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        Modo QA: força a variação (ignora audiência e tráfego) e mostra o mesmo painel.
+                        Precisa estar publicado com status "Em execução".
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {state.experiment.variations.map((v) => {
+                          const u = new URL(state.url);
+                          u.searchParams.set('ab_force', `${state.experiment.key}:${v.key}`);
+                          return (
+                            <a
+                              key={v.id}
+                              href={u.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-md border border-gray-900/15 px-2.5 py-1 text-xs hover:bg-gray-50"
+                              data-testid={`qa-link-${v.key}`}
+                            >
+                              {v.name} ↗
+                            </a>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 }

@@ -13,16 +13,22 @@ await build({
   outfile: 'dist/abt.js',
   legalComments: 'none',
 });
-// preview.js: link de pré-visualização (17.3), carregado sob demanda pelo snippet; fora do limite abaixo.
-await build({
-  entryPoints: ['src/preview.ts'],
-  bundle: true,
-  minify: true,
-  format: 'iife',
-  target: 'es2019',
-  outfile: 'dist/preview.js',
-  legalComments: 'none',
-});
+// Bundles sob demanda (fora do limite abaixo): preview.js (link de pré-visualização, 17.3), qa.js (painel do
+// modo QA, 21.7) e edit.js (handshake do modo edição).
+for (const [entry, out] of [
+  ['src/preview.ts', 'dist/preview.js'],
+  ['src/qa-entry.ts', 'dist/qa.js'],
+  ['src/edit-entry.ts', 'dist/edit.js'],
+])
+  await build({
+    entryPoints: [entry],
+    bundle: true,
+    minify: true,
+    format: 'iife',
+    target: 'es2020',
+    outfile: out,
+    legalComments: 'none',
+  });
 const code = readFileSync('dist/abt.js');
 const gz = gzipSync(code, { level: 9 }).length;
 console.log(`[snippet] dist/abt.js ${code.length} B, gzip ${gz} B`);

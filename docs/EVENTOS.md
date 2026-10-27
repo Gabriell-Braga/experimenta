@@ -130,6 +130,12 @@ diária, páginas e eventos mais frequentes, dispositivos e origens externas. `G
 
 `GET /heatmap?url=<página>&experimentId=&variationId=&device=` (autenticado) agrupa por página (origin + caminho, sem query/hash/barra final): cliques por seletor (contagem + até 200 pontos `[rx, ry]` mais recentes) e alcance de scroll (`reached`: % das páginas vistas que chegaram a 10, 20, … 100%). É o que o overlay do editor desenha; o analytics pode consumir os eventos crus.
 
+## Painel de QA
+Com `?ab_force=experimento:variacao` (publicado) ou um link de pré-visualização (rascunho), o snippet carrega
+`qa.js`/`preview.js` e mostra um painel com o log de cada página da sessão: variação aplicada, regra de URL que
+não bateu, alteração que não achou o elemento e metas que dispararam. Eventos de QA têm `qa: true` e não entram
+nos relatórios; os da pré-visualização nem saem do navegador.
+
 ## Integrações no navegador
 
 - `window.addEventListener('abt:event', e => e.detail)` — todo evento, um a um.

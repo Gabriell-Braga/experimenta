@@ -68,6 +68,29 @@ export const AudienceRuleSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('visitor'), value: z.enum(['new', 'returning']) }),
   /** Score preditivo de propensão a converter (0..1, fase 15.3). */
   z.object({ type: z.literal('score'), ...Num.shape }),
+  /** Sistema operacional (pelo user agent). */
+  z.object({ type: z.literal('os'), value: z.enum(['windows', 'mac', 'ios', 'android', 'linux']) }),
+  /**
+   * Origem do tráfego da sessão atual (UTMs e referrer da página de entrada): `crm` = e-mail/CRM/newsletter
+   * (utm_medium), `paid` = mídia paga (cpc/ppc/paid), `social`, `search` (buscador orgânico), `referral` (outro
+   * site), `direct` (sem origem).
+   */
+  z.object({
+    type: z.literal('source'),
+    value: z.enum(['direct', 'referral', 'social', 'search', 'paid', 'crm']),
+  }),
+  /** Página de entrada da sessão (URL completa). */
+  z.object({ type: z.literal('landing'), ...Text.shape }),
+  /** Parâmetro da URL atual (ex.: `plano`, `gclid`). */
+  z.object({ type: z.literal('query'), name: z.string().min(1).max(100), ...Text.shape }),
+  /** Localização pelo IP: país ISO (`BR`) e, opcional, estado/região (`SP`). */
+  z.object({
+    type: z.literal('geo'),
+    country: z.string().length(2),
+    region: z.string().max(80).default(''),
+  }),
+  /** Já clicou num elemento (seletor CSS), em qualquer página e visita. */
+  z.object({ type: z.literal('clicked'), selector: z.string().min(1).max(300) }),
 ]);
 export type AudienceRule = z.infer<typeof AudienceRuleSchema>;
 

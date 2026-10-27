@@ -4,7 +4,8 @@
 import type { Experiment } from '@abtest/shared';
 import { hide } from './antiflicker';
 import { readConfig } from './config';
-import { showBadge } from './qa';
+import { installGoals } from './goals';
+import { qaPanel } from './qapanel';
 import { start, type Runtime } from './runtime';
 
 declare global {
@@ -55,29 +56,22 @@ export async function runPreview(win: Window, token: string): Promise<Runtime | 
     } catch {
       /* sem sessionStorage */
     }
-    badge(doc, [], 'Link de pré-visualização expirado ou revogado');
+    qaPanel(win, null, 'Link de pré-visualização expirado ou revogado');
     return null;
   }
-  // Sem sink: nada de exposição nem conversão desta visita entra nos relatórios.
-  const rt = start(win, { ...config, experiments: [data.experiment], audiences: [] });
-  af.release();
-  const label = new Date(data.expiresAt).toLocaleString();
-  badge(
-    doc,
-    [...(rt?.active.values() ?? [])].map((a) => ({
-      experiment: a.experiment.name,
-      variation: a.variation.name,
-    })),
-    `Pré-visualização (rascunho) · até ${label}`,
+  // Eventos só para o painel de QA (metas que dispararam): nada vai para a API nem entra nos relatórios.
+  const rt = start(
+    win,
+    { ...config, experiments: [data.experiment], audiences: [] },
+    {
+      sink: (e) => win.dispatchEvent(new CustomEvent('abt:event', { detail: e })),
+    },
   );
+  af.release();
+  if (rt) installGoals(win, rt);
+  const label = new Date(data.expiresAt).toLocaleString();
+  qaPanel(win, rt, `Pré-visualização (rascunho) · até ${label}`);
   return rt;
-}
-
-/** Selo do modo QA com outro título (o título do selo fica fixo no snippet para não gastar bytes lá). */
-function badge(doc: Document, active: Parameters<typeof showBadge>[1], title: string) {
-  const host = showBadge(doc, active);
-  host.shadowRoot!.querySelector('.b > div')!.textContent = title;
-  return host;
 }
 
 const root = document.documentElement;

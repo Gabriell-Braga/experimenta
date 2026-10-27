@@ -43,7 +43,7 @@ export function engageBoot(
 export function loadBundle(
   win: Window,
   src: string,
-  key: '__ABT_ENGAGE__' | '__ABT_INSIGHTS__' | '__ABT_PREVIEW__',
+  key: '__ABT_ENGAGE__' | '__ABT_INSIGHTS__' | '__ABT_PREVIEW__' | '__ABT_QA__' | '__ABT_EDIT__',
   boot: unknown,
 ): void {
   (win as unknown as Record<string, unknown>)[key] = boot;

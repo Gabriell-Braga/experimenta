@@ -94,6 +94,15 @@ const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'pa
 // Mensagens de cota do D1/KV quando o plano grátis estoura (ex.: "Exceeded maximum daily rows written", "KV put() limit exceeded for the day").
 const PLAN_LIMIT = /exceeded|limit .*for the day|daily limit|quota/i;
 
+/** País e estado/região do IP, só da borda (Cloudflare `request.cf`, ou cabeçalho `cf-ipcountry` atrás do proxy). */
+function geoOf(c: { req: { raw: Request; header(n: string): string | undefined } }) {
+  const cf = (c.req.raw as { cf?: { country?: string; regionCode?: string; region?: string } }).cf;
+  return {
+    country: cf?.country ?? c.req.header('cf-ipcountry'),
+    region: (cf?.regionCode ?? cf?.region)?.slice(0, 80),
+  };
+}
+
 export function createApp(deps: AppDeps) {
   const repo = deps.repo;
   const sessions = deps.sessions ?? createSessionStore();
@@ -161,6 +170,14 @@ export function createApp(deps: AppDeps) {
     return c.json({ accountId: s.accountId, appOrigin: s.appOrigin, expiresAt: s.expiresAt });
   });
 
+  // Localização do visitante para as audiências por geo (21.6): o snippet pergunta 1×/sessão.
+  app.use('/geo', cors({ origin: '*', allowMethods: ['GET'] }));
+  app.get('/geo', (c) => {
+    c.header('cache-control', 'private, no-store');
+    const { country, region } = geoOf(c);
+    return c.json({ country: country && /^[A-Z]{2}$/.test(country) ? country : undefined, region });
+  });
+
   // Coleta de eventos do snippet: sendBeacon com text/plain (sem preflight). Ver docs/EVENTOS.md.
   // ponytail: sem rate limit nem fila; colocar atrás de fila/limite quando houver tráfego real.
   app.use('/collect', cors({ origin: '*', allowMethods: ['POST'] }));
@@ -177,9 +194,7 @@ export function createApp(deps: AppDeps) {
       .map((e) => TrackingEventSchema.safeParse(e))
       .flatMap((r) => (r.success ? [r.data] : []));
     // Geo do IP só pela borda (Cloudflare); valor vindo do navegador é descartado.
-    const cf = (c.req.raw as { cf?: { country?: string; regionCode?: string; region?: string } }).cf;
-    const country = cf?.country ?? c.req.header('cf-ipcountry');
-    const region = cf?.regionCode ?? cf?.region;
+    const { country, region } = geoOf(c);
     for (const e of valid)
       if (e.type === 'pageview') {
         delete e.country;
