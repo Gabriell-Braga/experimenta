@@ -176,6 +176,17 @@ export function createApp(deps: AppDeps) {
     const valid = (Array.isArray(body?.events) ? body.events.slice(0, 200) : [])
       .map((e) => TrackingEventSchema.safeParse(e))
       .flatMap((r) => (r.success ? [r.data] : []));
+    // Geo do IP só pela borda (Cloudflare); valor vindo do navegador é descartado.
+    const cf = (c.req.raw as { cf?: { country?: string; regionCode?: string; region?: string } }).cf;
+    const country = cf?.country ?? c.req.header('cf-ipcountry');
+    const region = cf?.regionCode ?? cf?.region;
+    for (const e of valid)
+      if (e.type === 'pageview') {
+        delete e.country;
+        delete e.region;
+        if (country && /^[A-Z]{2}$/.test(country)) e.country = country;
+        if (region) e.region = region.slice(0, 80);
+      }
     const byAccount = new Map<string, TrackingEvent[]>();
     for (const e of valid) byAccount.set(e.accountId, [...(byAccount.get(e.accountId) ?? []), e]);
     for (const [acc, list] of byAccount)

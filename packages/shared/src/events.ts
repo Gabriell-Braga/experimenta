@@ -42,6 +42,9 @@ export const TrackingEventSchema = z.discriminatedUnion('type', [
     title: z.string().max(300).optional(),
     referrer: z.string().max(1000).optional(),
     vw: z.number().optional(),
+    /** País (ISO 3166-1) e estado/região do IP, carimbados pela API no /collect (o snippet não envia). */
+    country: z.string().max(2).optional(),
+    region: z.string().max(80).optional(),
   }),
   /** Evento customizado: `abq.push(['track', nome, valor?, props?])` ou `['event', nome, props?]`. */
   z.object({

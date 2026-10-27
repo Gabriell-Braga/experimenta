@@ -700,6 +700,11 @@ export interface RecordingRow {
   dead: number;
   conversions: number;
   customEvents: number;
+  /** UTMs da página de entrada. */
+  utm: { source?: string; medium?: string; campaign?: string };
+  country?: string;
+  region?: string;
+  eventNames: string[];
 }
 export const listRecordings = (p: Record<string, string | number | undefined>) =>
   query<RecordingRow[]>('/recordings', p);

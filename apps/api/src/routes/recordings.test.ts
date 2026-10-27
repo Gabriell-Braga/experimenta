@@ -120,6 +120,51 @@ test('reprodução: eventos rrweb ordenados + linha do tempo; isolamento e valid
   expect(await t.repo.getRecordingEvents('nao-existe', 'x')).toBeNull();
 });
 
+test('origem da sessão (UTMs da 1ª página), país/estado da borda, eventos e filtro por segmento do CDP', async () => {
+  const pv = (url: string, ts: number) =>
+    ev({
+      type: 'pageview',
+      sessionId: 'sB',
+      visitorId: 'v-sB',
+      device: 'mobile',
+      url,
+      ts,
+      country: 'XX',
+    } as never);
+  // País do IP vem do cabeçalho da borda; o valor enviado pelo navegador é descartado.
+  const r = await t.app.request('/collect', {
+    method: 'POST',
+    body: JSON.stringify({
+      events: [
+        pv('http://localhost:5180/loja/?utm_source=google&utm_medium=cpc&utm_campaign=tenis', T0 + 2000),
+        pv('http://localhost:5180/loja/produto', T0 + 3000),
+        ev({ type: 'event', sessionId: 'sB', visitorId: 'v-sB', name: 'add_to_cart', props: {} } as never),
+      ],
+    }),
+    headers: { 'cf-ipcountry': 'BR' },
+  });
+  expect(r.status).toBe(204);
+  type Row = Rec & { utm: object; country?: string; eventNames: string[] };
+  const b = (await t.get<Row[]>('/recordings?days=1')).find((x) => x.sessionId === 'sB')!;
+  expect(b).toMatchObject({
+    utm: { source: 'google', medium: 'cpc', campaign: 'tenis' },
+    country: 'BR',
+    eventNames: ['add_to_cart'],
+  });
+
+  const seg = await t.req('/entities/segment', {
+    as: 'editor',
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Carrinho',
+      data: { rules: [{ field: 'event', name: 'add_to_cart', op: 'gte', value: 1 }] },
+    }),
+  });
+  const { id } = (await seg.json()) as { id: string };
+  expect((await t.get<Row[]>(`/recordings?days=1&segment=${id}`)).map((x) => x.sessionId)).toEqual(['sB']);
+  expect((await t.req('/recordings?segment=nao-existe', { as: 'viewer' })).status).toBe(404);
+});
+
 test('retenção apaga gravações antigas', async () => {
   await t.repo.purgeEventsBefore(new Date(Date.now() + 1000));
   expect(await t.get<Rec[]>('/recordings')).toEqual([]);

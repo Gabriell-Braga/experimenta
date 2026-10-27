@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getAccountSettings, getRecording, listRecordings } from '../api';
+import { entities, getAccountSettings, getRecording, listRecordings, type RecordingRow } from '../api';
 import { domainOf, domainsOf, SHORT_RECORDING_SECONDS, withoutDomains } from '../domains';
 import { AiSummaryCard } from '../components/AiSummary';
 import { navigate } from '../nav';
@@ -42,6 +42,42 @@ export const DEVICE_ICON: Record<string, LucideIcon> = {
 };
 const path = (url: string) => url.replace(/^https?:\/\/[^/]+/, '') || '/';
 
+/** Comportamento na sessão (filtro "Comportamento"). */
+const BEHAVIOR = {
+  '': { label: '', test: () => true },
+  frustrated: { label: 'Com frustração', test: (r: RecordingRow) => r.rage + r.dead > 0 },
+  rage: { label: 'Com rage click', test: (r: RecordingRow) => r.rage > 0 },
+  dead: { label: 'Com dead click', test: (r: RecordingRow) => r.dead > 0 },
+  converted: { label: 'Converteu', test: (r: RecordingRow) => r.conversions > 0 },
+  engaged: { label: '5 cliques ou mais', test: (r: RecordingRow) => r.clicks >= 5 },
+  noClicks: { label: 'Sem cliques', test: (r: RecordingRow) => r.clicks === 0 },
+};
+type Behavior = keyof typeof BEHAVIOR;
+
+/** "google / cpc / tenis-corrida" — vazio sem UTM. */
+const utmLabel = (r: RecordingRow) =>
+  [r.utm?.source, r.utm?.medium, r.utm?.campaign].filter(Boolean).join(' / ');
+
+const regionNames = (() => {
+  try {
+    return new Intl.DisplayNames(['pt-BR'], { type: 'region' });
+  } catch {
+    return null;
+  }
+})();
+const countryName = (code: string) => regionNames?.of(code) ?? code;
+
+const uniq = (xs: (string | undefined)[]) =>
+  [...new Set(xs.filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b));
+function recordingFacets(rows: RecordingRow[]) {
+  return {
+    utms: uniq(rows.map(utmLabel)),
+    countries: uniq(rows.map((r) => r.country)),
+    regions: uniq(rows.map((r) => r.region)),
+    events: uniq(rows.flatMap((r) => r.eventNames ?? [])),
+  };
+}
+
 export function RecordingsPage({ params }: { params: URLSearchParams }) {
   const [days, setDays] = useState<Period>('30');
   const [device, setDevice] = useState('');
@@ -51,7 +87,13 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
   const [minSeconds, setMinSeconds] = useState(String(SHORT_RECORDING_SECONDS));
   const [hidden, setHidden] = useHiddenDomains();
   const { data: settings } = useLoad(getAccountSettings, []);
-  const [frustrated, setFrustrated] = useState(false);
+  const [behavior, setBehavior] = useState<Behavior>('');
+  const [utm, setUtm] = useState('');
+  const [country, setCountry] = useState('');
+  const [region, setRegion] = useState('');
+  const [eventName, setEventName] = useState('');
+  const [segment, setSegment] = useState('');
+  const { data: segments } = useLoad(() => entities.list<unknown>('segment'), []);
   const visitorId = params.get('visitor') ?? undefined;
   useEffect(() => {
     document.title = 'Gravações · Experimenta';
@@ -67,13 +109,40 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
         device: device || undefined,
         page: dPage || undefined,
         minSeconds: minSeconds || undefined,
-        frustrated: frustrated ? '1' : undefined,
+        segment: segment || undefined,
         visitorId,
       }),
-    [days, device, dPage, minSeconds, frustrated, visitorId],
+    [days, device, dPage, minSeconds, segment, visitorId],
   );
   const firstPage = (r: { pages: string[] }) => r.pages[0] ?? '';
-  const rows = all && withoutDomains(all, firstPage, hidden);
+  // UTM, geo, evento e comportamento filtram no navegador: as opções saem das próprias sessões do período.
+  const facets = useMemo(() => recordingFacets(all ?? []), [all]);
+  const rows =
+    all &&
+    withoutDomains(all, firstPage, hidden).filter(
+      (r) =>
+        (!utm || utmLabel(r) === utm) &&
+        (!country || r.country === country) &&
+        (!region || r.region === region) &&
+        (!eventName || r.eventNames.includes(eventName)) &&
+        BEHAVIOR[behavior].test(r),
+    );
+  const filterSelect = (
+    label: string,
+    value: string,
+    set: (v: string) => void,
+    all: string,
+    options: [string, string][],
+  ) => (
+    <select value={value} onChange={(e) => set(e.target.value)} className={selectCls} aria-label={label}>
+      <option value="">{all}</option>
+      {options.map(([v, l]) => (
+        <option key={v} value={v}>
+          {l}
+        </option>
+      ))}
+    </select>
+  );
   const rate = settings?.heatmapSampleRate;
 
   return (
@@ -115,15 +184,49 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
           <option value="60">1 min ou mais</option>
           <option value="300">5 min ou mais</option>
         </select>
-        <label className="flex items-center gap-2 rounded-md border border-gray-900/10 bg-white px-2.5 py-1.5 text-sm">
-          <input
-            type="checkbox"
-            checked={frustrated}
-            onChange={(e) => setFrustrated(e.target.checked)}
-            data-testid="only-frustrated"
-          />
-          Só com frustração
-        </label>
+        {filterSelect(
+          'Comportamento',
+          behavior,
+          (v) => setBehavior(v as Behavior),
+          'Qualquer comportamento',
+          (Object.keys(BEHAVIOR) as Behavior[]).filter((k) => k).map((k) => [k, BEHAVIOR[k].label]),
+        )}
+        {filterSelect(
+          'UTM',
+          utm,
+          setUtm,
+          'Qualquer origem (UTM)',
+          facets.utms.map((u) => [u, u]),
+        )}
+        {filterSelect(
+          'País',
+          country,
+          setCountry,
+          'Todos os países',
+          facets.countries.map((c) => [c, countryName(c)]),
+        )}
+        {facets.regions.length > 0 &&
+          filterSelect(
+            'Estado',
+            region,
+            setRegion,
+            'Todos os estados',
+            facets.regions.map((r) => [r, r]),
+          )}
+        {filterSelect(
+          'Evento',
+          eventName,
+          setEventName,
+          'Qualquer evento',
+          facets.events.map((e) => [e, e]),
+        )}
+        {filterSelect(
+          'Segmento',
+          segment,
+          setSegment,
+          'Todos os segmentos',
+          (segments ?? []).map((s) => [s.id, s.name]),
+        )}
         {visitorId && (
           <Button size="sm" variant="ghost" onClick={() => navigate('recordings')}>
             Visitante {visitorId.slice(0, 8)} ×
@@ -182,6 +285,12 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
                             <Icon size={12} aria-hidden="true" /> {r.vw}×{r.vh}
                           </span>
                           <span data-testid="recording-domain">{domainOf(r.pages[0] ?? '') || 'n/d'}</span>
+                          {r.country && (
+                            <span title={countryName(r.country)}>
+                              {[r.country, r.region].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
+                          {utmLabel(r) && <span className="hidden truncate md:inline">{utmLabel(r)}</span>}
                           <span>visitante {r.visitorId.slice(0, 8)}</span>
                         </span>
                       </span>

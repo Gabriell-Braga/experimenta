@@ -1,8 +1,8 @@
 # Progresso
 **Status:** Fase 21 em andamento
 **Fase atual:** 21
-**Tarefa atual:** 21.2 (em andamento desde 2026-10-27 17:39)
-**Última atualização:** 2026-10-27 17:39
+**Tarefa atual:** 21.3 (em andamento desde 2026-10-27 17:46)
+**Última atualização:** 2026-10-27 17:46
 **Próximo passo:** deploy da Fase 20 (migrações D1 0013 e 0014, republicar demo e fluxo) e os passos humanos de docs/CONFORMIDADE.md (Fases B e C).
 
 ## Bloqueios / perguntas para os humanos
@@ -748,3 +748,9 @@
 - Arquivos principais: packages/agent/src/{resize,editing}.ts, packages/agent/src/agent.test.ts
 - Como testar manualmente: editor â†’ clique direito num elemento â†’ Mover / redimensionar; arrastar, puxar alÃ§as, digitar valores, Concluir e conferir a alteraÃ§Ã£o na lista.
 - ObservaÃ§Ãµes: D-101. Snippet inalterado.
+
+### 2026-10-27 17:46 â€” Tarefa 21.2 concluÃ­da (filtros das gravaÃ§Ãµes)
+- O que foi feito: `/collect` carimba paÃ­s e estado do IP nos pageviews (Cloudflare `request.cf`, ou cabeÃ§alho `cf-ipcountry`; valor vindo do navegador Ã© descartado). `GET /recordings` devolve por sessÃ£o as UTMs da pÃ¡gina de entrada, paÃ­s/estado e os nomes dos eventos, e aceita `segment=<id>` (segmento do CDP). Tela de gravaÃ§Ãµes ganhou filtros de comportamento (frustraÃ§Ã£o, rage, dead, converteu, 5+ cliques, sem cliques; substitui "SÃ³ com frustraÃ§Ã£o"), UTM, paÃ­s, estado, evento e segmento; paÃ­s/estado e UTM aparecem na linha.
+- Arquivos principais: packages/shared/src/events.ts, apps/api/src/{app.ts,routes/recordings.ts,routes/cdp.ts,analytics/profiles.ts}, apps/api/src/routes/recordings.test.ts, apps/editor/src/{api.ts,pages/Recordings.tsx}
+- Como testar manualmente: Insights â†’ GravaÃ§Ãµes; escolher UTM/evento/segmento. PaÃ­s/estado sÃ³ aparecem em produÃ§Ã£o (Worker) ou atrÃ¡s do Cloudflare.
+- ObservaÃ§Ãµes: UTM, geo, evento e comportamento filtram no navegador (opÃ§Ãµes vÃªm das sessÃµes do perÃ­odo); segmento filtra na API. Dados simulados (seed) nÃ£o tÃªm paÃ­s, porque vÃ£o pelo /collect sem cabeÃ§alho da borda.

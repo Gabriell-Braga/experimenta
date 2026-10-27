@@ -211,7 +211,7 @@ Pedido de 2026-10-23: corrigir o relatório "QA do Experimenta" (23 itens: 4 alt
 
 ### Fase 21 — Feedback de CRO 2 (pedido: "Conversion Rate Optimization (1).pdf", 2026-10-27)
 - [x] 21.1 Mover/redimensionar no editor: janela com X, Y, largura e altura editáveis, trazer para frente, manter proporção, aviso de responsividade, Descartar/Concluir
-- [ ] 21.2 Filtros das gravações: UTM, duração, país/estado, comportamento (frustração, cliques), eventos e segmentos criados
+- [x] 21.2 Filtros das gravações: UTM, duração, país/estado, comportamento (frustração, cliques), eventos e segmentos criados
 - [ ] 21.3 Eventos do GTM: snippet lê os eventos do dataLayer; passo de funil e filtros por evento
 - [ ] 21.4 Identify com o mesmo user_id que o site já usa (dataLayer/GA4), sem chamada extra
 - [ ] 21.5 Configuração do experimento em passos: Hipótese (URL) → Variação → Objetivos → Preview e QA, cada passo exige o anterior

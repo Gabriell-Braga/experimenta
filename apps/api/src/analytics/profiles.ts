@@ -33,6 +33,9 @@ export interface ProfileSummary {
   eventCounts: Record<string, number>;
 }
 
+/** Tipos de evento que montam um perfil (leia só estes antes de `buildProfiles`). */
+export const PROFILE_EVENT_TYPES = ['pageview', 'event', 'identify', 'conversion', 'exposure'];
+
 export function buildProfiles(events: TrackingEvent[]): Map<string, ProfileSummary> {
   const graph = identityGraph(events);
   const profiles = new Map<string, ProfileSummary & { _s: Set<string>; _d: Set<string>; _v: Set<string> }>();

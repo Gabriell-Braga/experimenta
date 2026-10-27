@@ -3,6 +3,7 @@ import type { RecoModel, Segment } from '@abtest/shared';
 import { recommend } from '@abtest/shared';
 import { chooseVariation } from '@abtest/snippet/bucket';
 import {
+  PROFILE_EVENT_TYPES,
   buildProfiles,
   crossDevice,
   matchSegment,
@@ -15,7 +16,7 @@ import { errors, json, period, PeriodQuery, Report, security, type Api } from '.
 import type { Repo } from '../repo';
 
 export const CDP_PATHS = ['/profiles', '/profiles/*', '/decide'];
-const TYPES = ['pageview', 'event', 'identify', 'conversion', 'exposure'];
+const TYPES = PROFILE_EVENT_TYPES;
 
 /** CDP: perfis unificados por identidade (fase 14.1). */
 export function cdpRoutes(app: Api, repo: Repo, cdn: CdnStore) {
