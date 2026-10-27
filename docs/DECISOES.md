@@ -669,3 +669,6 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Pedido de 2026-10-27: deploy automático depois de commit, push e testes. GitHub Actions `deploy.yml` na `main`: job de testes (lint, typecheck, Vitest, E2E com Chromium, 1 nova tentativa no CI) e, só se passar, job de deploy que roda o mesmo `pnpm deploy:cf` do deploy manual (bundles na KV, configs recompiladas, migrações D1, API, editor com a extensão, demo). `concurrency` sem cancelar: deploys em fila, nunca dois ao mesmo tempo nem um cortado no meio de migração.
 - Push só de docs/`.md` não dispara. O ciclo por tarefa do CLAUDE.md passa a terminar em `git push`.
 - Depende do segredo `CLOUDFLARE_API_TOKEN` no repositório (docs/DEPLOY.md). Ainda sem smoke de produção pós-deploy (precisa da senha dos usuários de produção como segredo; `e2e/prod`).
+
+## D-106 — Exceção temporária do audit para o zod 3 (GHSA-mrhx-c7xc-m3w5)
+- `pnpm audit` acusa alta no zod < 4.6.6 (memória ao validar coleções enormes com limite). Exposição: corpos públicos (`/collect` até 64 KB e 200 eventos, `/rec` até 1 MB) já têm teto de tamanho antes do parse, o que limita o ataque. Exceção em `package.json` (`pnpm.auditConfig.ignoreGhsas`) só enquanto a migração para zod 4 não entra; remover junto com ela.
