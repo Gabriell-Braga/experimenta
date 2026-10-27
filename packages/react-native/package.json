@@ -31,6 +31,6 @@
     "esbuild": "0.25",
     "jsdom": "26",
     "react": "18",
-    "react-dom": "18"
+    "react-dom": "19"
   }
 }
