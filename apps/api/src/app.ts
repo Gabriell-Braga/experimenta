@@ -560,7 +560,7 @@ export function createApp(deps: AppDeps) {
         200: json(
           z
             .object({
-              exposures: z.record(z.number()),
+              exposures: z.record(z.string(), z.number()),
               operations: z.array(
                 z.object({
                   operationId: z.string(),
@@ -695,7 +695,7 @@ export function createApp(deps: AppDeps) {
       summary: 'Muda só o status (ação rápida da lista); gera nova versão',
       request: {
         params: IdParam,
-        body: json(z.object({ status: ExperimentSchema.innerType().shape.status }), 'novo status'),
+        body: json(z.object({ status: ExperimentSchema.shape.status }), 'novo status'),
       },
       responses: { 200: json(z.object({ version: z.number() }), 'salvo'), ...errors },
     }),

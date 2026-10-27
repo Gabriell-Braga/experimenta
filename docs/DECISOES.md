@@ -672,3 +672,8 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 
 ## D-106 — Exceção temporária do audit para o zod 3 (GHSA-mrhx-c7xc-m3w5)
 - `pnpm audit` acusa alta no zod < 4.6.6 (memória ao validar coleções enormes com limite). Exposição: corpos públicos (`/collect` até 64 KB e 200 eventos, `/rec` até 1 MB) já têm teto de tamanho antes do parse, o que limita o ataque. Exceção em `package.json` (`pnpm.auditConfig.ignoreGhsas`) só enquanto a migração para zod 4 não entra; remover junto com ela.
+
+## D-107 — Migração para zod 4 (encerra a exceção do D-106)
+- zod 3.24 → 4.6.7 (`packages/shared`, `apps/api`) e `@hono/zod-openapi` 0.19 → 1.6 (exige zod 4). `pnpm audit --prod --audit-level=high` volta a passar sem exceção; `ignoreGhsas` removido do package.json.
+- Mudanças: `z.record(valor)` virou `z.record(z.string(), valor)` (o zod 4 exige a chave); `.default({})` em objeto virou `.prefault({})` (no zod 4 o `default` não passa pelo schema e perderia os padrões internos, ex.: `IntegrationsSchema.segment`); `ExperimentSchema.innerType()` some (o `superRefine` não embrulha mais o objeto); o cast do `OperationDraftSchema` usa `z.ZodObject`. Colunas `jsonb(...).default({})` do Drizzle não mudam.
+- Validado: typecheck, lint, `pnpm test` (API nos dois bancos), E2E 120/120, Worker 473 KiB gzip. Snippet não usa zod (inalterado).

@@ -43,13 +43,13 @@ export const PageSummarySchema = z.object({
 export type PageSummary = z.infer<typeof PageSummarySchema>;
 
 /** Resumo como o agent devolve: mais o alvo (seletor, alternativos, impressão digital) de cada `ref`. */
-export const PageSnapshotSchema = PageSummarySchema.extend({ targets: z.record(TargetSchema) });
+export const PageSnapshotSchema = PageSummarySchema.extend({ targets: z.record(z.string(), TargetSchema) });
 export type PageSnapshot = z.infer<typeof PageSnapshotSchema>;
 
 /** Alterações que a IA pode propor (sem setHTML/insertHTML/classes/remove e nunca customJS). */
 export const AiChangeSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setText'), ref: Ref, value: z.string() }),
-  z.object({ type: z.literal('setStyle'), ref: Ref, value: z.record(z.string()) }),
+  z.object({ type: z.literal('setStyle'), ref: Ref, value: z.record(z.string(), z.string()) }),
   z.object({
     type: z.literal('setAttribute'),
     ref: Ref,

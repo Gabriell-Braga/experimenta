@@ -51,9 +51,9 @@ export const VariationSchema = z.object({
   /** Teste de URL dividida: redireciona o visitante desta variação. */
   redirect: z.object({ url: z.string().url(), preserveQuery: z.boolean().default(true) }).optional(),
   /** Server-side / feature flag: valores entregues pelo SDK para esta variação. */
-  variables: z.record(z.unknown()).optional(),
+  variables: z.record(z.string(), z.unknown()).optional(),
   /** MVT: opção escolhida em cada seção (sectionId → optionId) que gerou esta combinação. */
-  combination: z.record(z.string()).optional(),
+  combination: z.record(z.string(), z.string()).optional(),
 });
 
 /** MVT: seção da página com opções alternativas; a opção 0 é o original (sem alterações). */
@@ -112,11 +112,11 @@ export const ExperimentSchema = z
     status: ExperimentStatusSchema.default('draft'),
     /** Percentual (0–100) de visitantes elegíveis que entram no experimento. */
     traffic: z.number().min(0).max(100).default(100),
-    segmentation: SegmentationSchema.default({}),
+    segmentation: SegmentationSchema.prefault({}),
     /** A primeira variação é o controle. */
     variations: z.array(VariationSchema).min(1),
     goals: z.array(GoalSchema).default([]),
-    antiFlicker: AntiFlickerSchema.default({}),
+    antiFlicker: AntiFlickerSchema.prefault({}),
     type: CampaignTypeSchema.default('ab'),
     /** MVT: seções e opções; as variações são as combinações (ver `mvtVariations`). */
     sections: z.array(MvtSectionSchema).optional(),

@@ -15,7 +15,7 @@ const base = {
 };
 
 /** Propriedades livres de eventos e atributos de visitante (valores escalares). */
-export const PropsSchema = z.record(z.union([z.string().max(500), z.number(), z.boolean()]));
+export const PropsSchema = z.record(z.string(), z.union([z.string().max(500), z.number(), z.boolean()]));
 export type Props = z.infer<typeof PropsSchema>;
 
 const inExperiment = {
@@ -30,7 +30,7 @@ const inExperiment = {
 const heatmapBase = {
   ...base,
   device: z.enum(['desktop', 'tablet', 'mobile']),
-  variations: z.record(z.string()),
+  variations: z.record(z.string(), z.string()),
 };
 
 export const TrackingEventSchema = z.discriminatedUnion('type', [

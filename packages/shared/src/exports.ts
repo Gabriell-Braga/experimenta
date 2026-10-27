@@ -81,8 +81,8 @@ export const ExportConfigSchema = z.object({
   /** Dia da semana (0 = domingo), só na semanal. */
   weekday: z.number().int().min(0).max(6).default(1),
   destination: z.enum(EXPORT_DESTINATIONS).default('csv'),
-  s3: S3ExportSchema.default({}),
-  bigquery: BigQueryExportSchema.default({}),
+  s3: S3ExportSchema.prefault({}),
+  bigquery: BigQueryExportSchema.prefault({}),
 });
 export type ExportConfig = z.infer<typeof ExportConfigSchema>;
 

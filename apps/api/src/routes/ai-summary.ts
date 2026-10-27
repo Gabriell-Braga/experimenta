@@ -86,7 +86,7 @@ const Body = z.discriminatedUnion('kind', [
 const Out = z
   .object({
     kind: z.enum(AI_SUMMARY_KINDS),
-    summary: z.record(z.unknown()),
+    summary: z.record(z.string(), z.unknown()),
     source: z.enum(['claude', 'modelo', 'regras']),
     model: z.string().optional(),
     createdAt: z.string(),

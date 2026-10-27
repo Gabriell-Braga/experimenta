@@ -122,7 +122,7 @@ export const EngageTargetingSchema = z.object({
 const engageBase = {
   status: z.enum(['draft', 'running', 'paused']).default('draft'),
   trigger: TriggerSchema.default({ type: 'delay', seconds: 5 }),
-  targeting: EngageTargetingSchema.default({}),
+  targeting: EngageTargetingSchema.prefault({}),
   /** Quantas vezes mostrar ao mesmo visitante. */
   frequency: z.enum(['once', 'session', 'always']).default('once'),
 };
@@ -188,7 +188,7 @@ export const RecoWidgetSchema = z.object({
   selector: z.string().min(1),
   position: z.enum(['before', 'after', 'prepend', 'append']).default('after'),
   limit: z.number().int().min(1).max(12).default(4),
-  targeting: EngageTargetingSchema.default({}),
+  targeting: EngageTargetingSchema.prefault({}),
   accent: z
     .string()
     .regex(/^#[0-9a-f]{6}$/i)
@@ -257,7 +257,7 @@ export const FlagSchema = z.object({
       }),
     )
     .default([]),
-  variables: z.record(z.unknown()).default({}),
+  variables: z.record(z.string(), z.unknown()).prefault({}),
 });
 export type Flag = z.infer<typeof FlagSchema>;
 
@@ -305,9 +305,9 @@ export const IntegrationsSchema = z.object({
   gtmEvents: z.boolean().default(false),
   /** `user_id` que o site já põe no dataLayer/gtag vira identify (perfis do CDP juntam dispositivos). */
   gtmUserId: z.boolean().default(false),
-  segment: TrackToolSchema.default({}),
-  mixpanel: TrackToolSchema.default({}),
-  amplitude: TrackToolSchema.default({}),
+  segment: TrackToolSchema.prefault({}),
+  mixpanel: TrackToolSchema.prefault({}),
+  amplitude: TrackToolSchema.prefault({}),
 });
 export type Integrations = z.infer<typeof IntegrationsSchema>;
 

@@ -61,8 +61,8 @@ export const SalesforceConfigSchema = z.object({
   fields: Fields.default([]),
 });
 export const CrmConfigSchema = z.object({
-  hubspot: HubspotConfigSchema.default({}),
-  salesforce: SalesforceConfigSchema.default({}),
+  hubspot: HubspotConfigSchema.prefault({}),
+  salesforce: SalesforceConfigSchema.prefault({}),
 });
 export type CrmConfig = z.infer<typeof CrmConfigSchema>;
 export type CrmProvider = keyof CrmConfig;

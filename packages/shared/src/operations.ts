@@ -6,7 +6,7 @@ export const FingerprintSchema = z.object({
   /** Texto visível resumido (normalizado, até 80 caracteres). */
   text: z.string().max(80),
   /** Atributos-chave (id, name, href, src, alt, role, type, data-*, aria-label...). */
-  attrs: z.record(z.string()),
+  attrs: z.record(z.string(), z.string()),
   /** Posição aproximada relativa ao documento, em px. */
   pos: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }),
 });
@@ -34,7 +34,7 @@ export const OperationSchema = z.discriminatedUnion('type', [
   z.object({ ...base, type: z.literal('setText'), value: z.string() }),
   z.object({ ...base, type: z.literal('setHTML'), value: z.string() }),
   /** Propriedades CSS em kebab-case → valor ("" remove a propriedade). */
-  z.object({ ...base, type: z.literal('setStyle'), value: z.record(z.string()) }),
+  z.object({ ...base, type: z.literal('setStyle'), value: z.record(z.string(), z.string()) }),
   /** value null remove o atributo. */
   z.object({
     ...base,

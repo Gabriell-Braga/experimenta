@@ -17,9 +17,9 @@ export const ElementInfoSchema = z.object({
   text: z.string(),
   /** Só texto (sem filhos elemento): permite editar texto direto no painel. */
   textOnly: z.boolean(),
-  attributes: z.record(z.string()),
+  attributes: z.record(z.string(), z.string()),
   /** Estilos computados relevantes para o painel de propriedades (kebab-case). */
-  styles: z.record(z.string()),
+  styles: z.record(z.string(), z.string()),
   isImage: z.boolean(),
   /** Ancestrais do mais próximo ao mais distante (para o breadcrumb). */
   breadcrumb: z.array(z.object({ label: z.string(), selector: z.string() })),
@@ -46,10 +46,10 @@ export type OperationDraft = DistributiveOmit<z.infer<typeof OperationSchema>, '
 // zod não deriva o tipo do omit sobre a união; o cast preserva a validação e dá o tipo certo.
 export const OperationDraftSchema = z.discriminatedUnion(
   'type',
-  (OperationSchema.options as readonly z.AnyZodObject[]).map((o) =>
-    o.omit({ id: true, order: true }),
-  ) as unknown as [z.AnyZodObject, z.AnyZodObject, ...z.AnyZodObject[]],
-) as unknown as z.ZodType<OperationDraft, z.ZodTypeDef, unknown>;
+  (OperationSchema.options as unknown as z.ZodObject[]).map((o) =>
+    o.omit({ id: true, order: true } as never),
+  ) as unknown as [z.ZodObject, z.ZodObject, ...z.ZodObject[]],
+) as unknown as z.ZodType<OperationDraft, unknown>;
 
 /** Agregado do mapa de calor (mesmo formato de GET /heatmap). */
 export const HeatmapDataSchema = z.object({

@@ -794,3 +794,7 @@
 ### 2026-10-27 — Deploy automático pós-push
 - O que foi feito: `.github/workflows/deploy.yml` — push na main roda lint, typecheck, testes e E2E e, passando, `pnpm deploy:cf`. E2E com 1 nova tentativa no CI. CLAUDE.md: ciclo da tarefa termina em `git push`. D-105, docs/DEPLOY.md.
 - Pendência humana: criar o token da Cloudflare e gravar o segredo `CLOUDFLARE_API_TOKEN` no GitHub (instruções em docs/DEPLOY.md). Até lá o job de deploy falha (os testes rodam).
+
+### 2026-10-27 — Segurança: zod 4
+- `pnpm audit` acusava alta no zod 3 (GHSA-mrhx-c7xc-m3w5) e deixava o workflow "Segurança" vermelho. Exceção temporária (D-106) e, em seguida, migração para zod 4.6.7 + @hono/zod-openapi 1.6 (D-107); exceção removida.
+- Testes: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm e2e` (120 passaram; idea-to-test falhou uma vez sob carga e passou isolado e na rodada seguinte).
