@@ -14,10 +14,10 @@
     "@abtest/selector": "workspace:*",
     "@abtest/shared": "workspace:*",
     "@abtest/snippet": "workspace:*",
-    "@rrweb/record": "2.1.7"
+    "@rrweb/record": "2.2.0"
   },
   "devDependencies": {
-    "esbuild": "0.25",
+    "esbuild": "0.28",
     "jsdom": "26"
   }
 }

@@ -15,7 +15,7 @@
     "@abtest/snippet": "workspace:*"
   },
   "devDependencies": {
-    "esbuild": "0.25",
+    "esbuild": "0.28",
     "jsdom": "26"
   }
 }

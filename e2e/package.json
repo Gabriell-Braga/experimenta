@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@abtest/shared": "workspace:^",
-    "@playwright/test": "1.56",
+    "@playwright/test": "1.64",
     "@types/pngjs": "6",
     "pngjs": "7"
   }
