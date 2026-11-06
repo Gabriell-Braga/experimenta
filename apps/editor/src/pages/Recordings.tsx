@@ -361,6 +361,7 @@ export function RecordingPlayer({ id }: { id: string }) {
   const [speed, setSpeed] = useState(1);
   const [skip, setSkip] = useState(true);
   const gaps = useRef<[number, number][]>([]);
+  const [idle, setIdle] = useState<[number, number][]>([]);
   const [size, setSize] = useState({ w: 1280, h: 720 });
   const [box, setBox] = useState({ w: 800, h: 500 });
 
@@ -388,6 +389,7 @@ export function RecordingPlayer({ id }: { id: string }) {
         const m = r.getMetaData();
         setMeta({ start: m.startTime, total: m.totalTime });
         gaps.current = inactiveGaps(rec.events as never, m.startTime, m.totalTime);
+        setIdle(gaps.current);
         setTimeline(rec.timeline);
         r.play(0);
         setPlaying(true);
@@ -500,6 +502,21 @@ export function RecordingPlayer({ id }: { id: string }) {
               data-testid="timeline"
             >
               <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-gray-100" />
+              {/* Trechos sem interação (pulados com "Pular inatividade"). */}
+              {meta?.total
+                ? idle.map(([a, b]) => (
+                    <span
+                      key={a}
+                      title={`Inativo ${fmt.dur(b - a)}`}
+                      data-testid="idle"
+                      className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-sm bg-[repeating-linear-gradient(135deg,rgb(22_24_29/0.18)_0_3px,transparent_3px_6px)]"
+                      style={{
+                        left: `${(a / meta.total) * 100}%`,
+                        width: `${((b - a) / meta.total) * 100}%`,
+                      }}
+                    />
+                  ))
+                : null}
               <div
                 className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-ink"
                 style={{ width: `${meta?.total ? (t / meta.total) * 100 : 0}%` }}
