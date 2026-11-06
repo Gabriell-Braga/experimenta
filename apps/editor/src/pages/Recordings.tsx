@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { entities, getAccountSettings, getRecording, listRecordings, type RecordingRow } from '../api';
 import { domainOf, domainsOf, SHORT_RECORDING_SECONDS, withoutDomains } from '../domains';
 import { AiSummaryCard } from '../components/AiSummary';
+import { inactiveGaps, skipTarget } from '../inactivity';
 import { navigate } from '../nav';
 import {
   Button,
@@ -359,6 +360,7 @@ export function RecordingPlayer({ id }: { id: string }) {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [skip, setSkip] = useState(true);
+  const gaps = useRef<[number, number][]>([]);
   const [size, setSize] = useState({ w: 1280, h: 720 });
   const [box, setBox] = useState({ w: 800, h: 500 });
 
@@ -371,7 +373,8 @@ export function RecordingPlayer({ id }: { id: string }) {
         if (!alive || !host.current) return;
         r = new Replayer(rec.events as never, {
           root: host.current,
-          skipInactive: true,
+          // Pular inatividade é nosso (`inactiveGaps`): o do rrweb quase nunca dispara.
+          skipInactive: false,
           showWarning: false,
           mouseTail: { strokeStyle: '#d4f15b', lineWidth: 3 },
           triggerFocus: false,
@@ -384,6 +387,7 @@ export function RecordingPlayer({ id }: { id: string }) {
         player.current = r;
         const m = r.getMetaData();
         setMeta({ start: m.startTime, total: m.totalTime });
+        gaps.current = inactiveGaps(rec.events as never, m.startTime, m.totalTime);
         setTimeline(rec.timeline);
         r.play(0);
         setPlaying(true);
@@ -399,9 +403,20 @@ export function RecordingPlayer({ id }: { id: string }) {
   // Relógio da UI.
   useEffect(() => {
     if (!playing) return;
-    const i = setInterval(() => setT(player.current?.getCurrentTime() ?? 0), 200);
+    const i = setInterval(() => {
+      const p = player.current;
+      if (!p) return;
+      const now = p.getCurrentTime();
+      const to = skip ? skipTarget(gaps.current, now) : null;
+      // Parado até o fim: encerra em vez de tocar o vazio.
+      if (to !== null && to >= p.getMetaData().totalTime) {
+        p.pause(to);
+        setPlaying(false);
+      } else if (to !== null) p.play(to);
+      setT(to ?? now);
+    }, 200);
     return () => clearInterval(i);
-  }, [playing]);
+  }, [playing, skip]);
   // Encaixa o viewport gravado no palco (escala proporcional).
   useEffect(() => {
     const el = stage.current;
@@ -521,7 +536,6 @@ export function RecordingPlayer({ id }: { id: string }) {
                   checked={skip}
                   onChange={(e) => {
                     setSkip(e.target.checked);
-                    player.current?.setConfig({ skipInactive: e.target.checked });
                   }}
                 />
                 <FastForward size={13} aria-hidden="true" /> Pular inatividade

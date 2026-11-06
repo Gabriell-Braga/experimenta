@@ -236,11 +236,23 @@ function RowActions({
   onSchedule(): void;
 }) {
   const toast = useToast();
-  const [open, setOpen] = useState(false);
+  // Menu em `fixed` (coordenadas do botão): dentro do contêiner `overflow-x-auto` da tabela ele seria cortado e
+  // criaria rolagem. Fecha ao rolar/redimensionar para não ficar solto da linha.
+  const [open, setOpen] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
   const act = async (label: string, fn: () => Promise<unknown>) => {
-    setOpen(false);
+    setOpen(null);
     setBusy(true);
     try {
       await fn();
@@ -258,7 +270,17 @@ function RowActions({
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setOpen(!open)}
+        onClick={(ev) => {
+          if (open) return setOpen(null);
+          const r = ev.currentTarget.getBoundingClientRect();
+          const right = window.innerWidth - r.right;
+          // Perto do fim da tela abre para cima.
+          setOpen(
+            r.bottom + 260 > window.innerHeight
+              ? { bottom: window.innerHeight - r.top + 4, right }
+              : { top: r.bottom + 4, right },
+          );
+        }}
         aria-label="Ações"
         loading={busy}
         data-testid="row-actions"
@@ -268,7 +290,8 @@ function RowActions({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-10 mt-1 w-44 rounded-md border border-gray-900/10 bg-white p-1 text-left text-sm shadow-lg"
+          style={open}
+          className="fixed z-30 w-44 rounded-md border border-gray-900/10 bg-white p-1 text-left text-sm shadow-lg"
         >
           {e.status !== 'running' && e.status !== 'archived' && (
             <MenuItem
@@ -291,7 +314,7 @@ function RowActions({
           {e.status !== 'archived' && (
             <MenuItem
               onClick={() => {
-                setOpen(false);
+                setOpen(null);
                 onSchedule();
               }}
             >
@@ -315,7 +338,7 @@ function RowActions({
           <MenuItem
             danger
             onClick={() => {
-              setOpen(false);
+              setOpen(null);
               setConfirmDelete(true);
             }}
           >
