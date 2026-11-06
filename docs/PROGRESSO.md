@@ -798,3 +798,9 @@
 ### 2026-10-27 — Segurança: zod 4
 - `pnpm audit` acusava alta no zod 3 (GHSA-mrhx-c7xc-m3w5) e deixava o workflow "Segurança" vermelho. Exceção temporária (D-106) e, em seguida, migração para zod 4.6.7 + @hono/zod-openapi 1.6 (D-107); exceção removida.
 - Testes: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm e2e` (120 passaram; idea-to-test falhou uma vez sob carga e passou isolado e na rodada seguinte).
+
+### 2026-11-06 — Correções: menu da lista de experimentos e player de gravações (D-108)
+- Lista de experimentos: menu "…" em `position: fixed` (antes cortado pelo `overflow-x-auto` da tabela e gerando rolagem), abre para cima perto do fim da tela, acompanha a rolagem, fecha com clique fora e Esc; itens empilhados.
+- Player de gravações: "Pular inatividade" próprio (`apps/editor/src/inactivity.ts`, teste em `inactivity.test.ts`), trechos > 3 s sem interação pulados e hachurados na linha do tempo; `skipInactive` do rrweb desligado.
+- Nota: a lista "Linha do tempo" da gravação mostra só eventos rastreados (páginas, cliques, conversões); movimento e rolagem ficam só na gravação. Sessão longa com poucos eventos = visitante parado.
+- Testes: `pnpm lint`, `pnpm test`, `pnpm e2e` (120 passaram; E2E do agendamento cobre o clique fora). CI e deploy automático concluídos (commits 25e4035 a a358598).
