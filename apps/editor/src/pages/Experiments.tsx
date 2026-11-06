@@ -1,5 +1,5 @@
 import { BarChart3, CalendarClock, Ellipsis, FlaskConical, Layers, Plus } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deleteExperiment,
   duplicateExperiment,
@@ -237,20 +237,32 @@ function RowActions({
 }) {
   const toast = useToast();
   // Menu em `fixed` (coordenadas do botão): dentro do contêiner `overflow-x-auto` da tabela ele seria cortado e
-  // criaria rolagem. Fecha ao rolar/redimensionar para não ficar solto da linha.
+  // criaria rolagem. Reposiciona ao rolar/redimensionar para acompanhar a linha.
   const [open, setOpen] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const btn = useRef<HTMLDivElement>(null);
+  const place = () => {
+    const r = btn.current?.getBoundingClientRect();
+    if (!r) return;
+    const right = window.innerWidth - r.right;
+    // Perto do fim da tela abre para cima.
+    setOpen(
+      r.bottom + 260 > window.innerHeight
+        ? { bottom: window.innerHeight - r.top + 4, right }
+        : { top: r.bottom + 4, right },
+    );
+  };
+  const isOpen = open !== null;
   useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(null);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
+    if (!isOpen) return;
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
     return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
     };
-  }, [open]);
+  }, [isOpen]);
   const act = async (label: string, fn: () => Promise<unknown>) => {
     setOpen(null);
     setBusy(true);
@@ -266,21 +278,11 @@ function RowActions({
   };
   if (!canEdit) return null;
   return (
-    <div className="relative inline-block" onClick={(ev) => ev.stopPropagation()}>
+    <div ref={btn} className="relative inline-block" onClick={(ev) => ev.stopPropagation()}>
       <Button
         variant="ghost"
         size="sm"
-        onClick={(ev) => {
-          if (open) return setOpen(null);
-          const r = ev.currentTarget.getBoundingClientRect();
-          const right = window.innerWidth - r.right;
-          // Perto do fim da tela abre para cima.
-          setOpen(
-            r.bottom + 260 > window.innerHeight
-              ? { bottom: window.innerHeight - r.top + 4, right }
-              : { top: r.bottom + 4, right },
-          );
-        }}
+        onClick={() => (open ? setOpen(null) : place())}
         aria-label="Ações"
         loading={busy}
         data-testid="row-actions"
