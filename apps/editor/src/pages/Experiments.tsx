@@ -293,7 +293,7 @@ function RowActions({
         <div
           role="menu"
           style={open}
-          className="fixed z-30 w-44 rounded-md border border-gray-900/10 bg-white p-1 text-left text-sm shadow-lg"
+          className="fixed z-30 w-44 rounded-md whitespace-normal border border-gray-900/10 bg-white p-1 text-left text-sm shadow-lg"
         >
           {e.status !== 'running' && e.status !== 'archived' && (
             <MenuItem
@@ -392,7 +392,7 @@ function MenuItem({
     <button
       role="menuitem"
       onClick={onClick}
-      className={`w-full rounded px-3 py-2 text-left hover:bg-gray-100 ${danger ? 'text-signal' : ''}`}
+      className={`block w-full rounded px-3 py-2 text-left hover:bg-gray-100 ${danger ? 'text-signal' : ''}`}
     >
       {children}
     </button>
