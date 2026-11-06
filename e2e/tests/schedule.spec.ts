@@ -37,6 +37,11 @@ test('agenda pela lista, mostra na lista e no editor, guarda em UTC e cancela', 
   await login(page);
   await nav(page, 'tests');
   const row = page.getByTestId('experiment-row').filter({ hasText: `Agendado ${tag}` });
+  // Clique fora fecha o menu.
+  await row.getByTestId('row-actions').click();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await page.mouse.click(5, 5);
+  await expect(page.getByRole('menu')).toHaveCount(0);
   await row.getByTestId('row-actions').click();
   await page.getByRole('menuitem', { name: 'Agendar…' }).click();
   const modal = page.getByTestId('schedule-modal');

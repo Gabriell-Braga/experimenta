@@ -258,9 +258,16 @@ function RowActions({
     if (!isOpen) return;
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);
+    // Clique fora (o menu é filho de `btn`) ou Esc fecha.
+    const outside = (ev: PointerEvent) => !btn.current?.contains(ev.target as Node) && setOpen(null);
+    const esc = (ev: KeyboardEvent) => ev.key === 'Escape' && setOpen(null);
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', esc);
     return () => {
       window.removeEventListener('scroll', place, true);
       window.removeEventListener('resize', place);
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', esc);
     };
   }, [isOpen]);
   const act = async (label: string, fn: () => Promise<unknown>) => {
