@@ -205,12 +205,13 @@ test('dois passos ao mesmo tempo chamam o modelo uma vez só; geração parada e
   const t = await setupApp({ ai: { beta: { messages: { parse } } } as unknown as Anthropic });
   await t.req('/ai/ideas', { method: 'POST', as: 'editor' });
   await step(t);
-  const a = step(t);
-  const b = step(t, 'viewer');
-  // A perdedora volta na hora com o passo atual; a outra espera o modelo.
-  expect(await b).toMatchObject({ status: 'running', step: 'model' });
+  // Qualquer uma pode ganhar a vez (no CI a ordem varia): a perdedora volta na hora, a outra espera o modelo.
+  const both = [step(t), step(t, 'viewer')];
+  const first = await Promise.race(both);
+  expect(first).toMatchObject({ status: 'running', step: 'model' });
   answer({ stop_reason: 'end_turn', parsed_output: { ideas: [idea] } });
-  expect(await a).toMatchObject({ status: 'done', source: 'claude' });
+  const [a, b] = await Promise.all(both);
+  expect([a, b]).toContainEqual(expect.objectContaining({ status: 'done', source: 'claude' }));
   expect(parse).toHaveBeenCalledTimes(1);
   // Dois "Gerar" seguidos: uma geração só.
   await t.req('/ai/ideas', { method: 'POST', as: 'editor' });

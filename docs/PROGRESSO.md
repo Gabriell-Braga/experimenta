@@ -826,3 +826,6 @@
 - Verificados: tabelas no celular (E2E em 390 px sem rolagem lateral) e "(saiu do site)" nos insights vira "A maioria sai do site." (teste já existente).
 - Migrações: Postgres `drizzle/0014_low_komodo.sql`, D1 `migrations-d1/0015_project_locale.sql` (o deploy aplica).
 - Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (123 passaram). D-110.
+
+### 2026-11-11 19:27 — CI: teste instável de `ai.test.ts` bloqueava o deploy
+- Os dois últimos "Testes e deploy" (e6087a1, 8b63f91) falharam em `pnpm test`: "dois passos ao mesmo tempo…" estourava 30 s. O teste supunha que o primeiro pedido sempre ganha a vez do modelo; sob carga no CI o segundo ganhava e o `await` esperava um modelo que só respondia depois. Agora aceita qualquer ordem (`Promise.race`). Deploy da Fase 22 ainda não tinha saído.
