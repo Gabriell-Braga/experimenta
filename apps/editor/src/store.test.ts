@@ -1,6 +1,7 @@
 import type { OperationDraft } from '@abtest/shared';
 import { describe, expect, test } from 'vitest';
 import {
+  rebalance,
   activeVariation,
   currentPage,
   pageOperations,
@@ -161,8 +162,20 @@ test('configurações: status, tráfego, metas e pesos entram no histórico', ()
   );
   s = reducer(s, { type: 'setWeight', id: s.experiment.variations[0]!.id, weight: -5 });
   expect(s.experiment).toMatchObject({ status: 'running', traffic: 30, goals: [{ key: 'compra' }] });
-  expect(s.experiment.variations[0]!.weight).toBe(0);
+  expect(s.experiment.variations.map((v) => v.weight)).toEqual([0, 100]);
   expect(reducer(s, { type: 'undo' }).experiment.variations[0]!.weight).toBe(50);
+  // Feedback: 50 → 30 numa delas mostrava 63%/38%; agora a outra completa 100.
+  s = reducer(s, { type: 'setWeight', id: s.experiment.variations[1]!.id, weight: 30 });
+  expect(s.experiment.variations.map((v) => v.weight)).toEqual([70, 30]);
+  s = reducer(s, { type: 'addVariation' });
+  expect(s.experiment.variations.map((v) => v.weight)).toEqual([34, 33, 33]);
+});
+
+test('rebalance: os outros dividem o resto na proporção e a soma fica 100', () => {
+  expect(rebalance([50, 25, 25], 0, 20)).toEqual([20, 40, 40]);
+  expect(rebalance([100, 0, 0], 0, 40)).toEqual([40, 30, 30]);
+  expect(rebalance([1, 1, 1, 1, 1, 1], 2, 50)).toEqual([10, 10, 50, 10, 10, 10]);
+  expect(rebalance([50, 50], 1, 150)).toEqual([0, 100]);
 });
 
 test('MVT: edição vai para a opção ativa e as combinações são regeneradas', () => {

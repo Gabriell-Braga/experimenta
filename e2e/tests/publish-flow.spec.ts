@@ -54,11 +54,11 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   // Estatística do relatório (17.5): fica salva no teste, mas não vai para o site.
   await page.getByTestId('settings-step-goals').click();
   await page.getByTestId('stats-sequential').check();
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
 
   // Publicar.
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice').last()).toContainText('Publicado (versão');
+  await expect(page.getByTestId('notice').last()).toContainText('Publicado (publicação');
   const expId = new URL(page.url()).searchParams.get('exp')!;
   const token = await apiToken(request);
   const saved = await (
@@ -104,9 +104,9 @@ test('criar → editar → tráfego e meta → publicar → visitante cai na var
   // Controle intacto para quem não está no experimento: pausar, republicar e conferir com visitante novo.
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('paused');
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação');
+  await expect(page.getByTestId('notice').last()).toContainText('Teste pausado: saiu do site');
   const v2 = await browser.newContext();
   const p2 = await v2.newPage();
   await p2.goto(SITE);

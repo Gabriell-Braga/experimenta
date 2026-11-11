@@ -73,7 +73,7 @@ test('editor: transforma em multipágina, navega entre as páginas e edita cada 
   await page.getByTestId('open-settings').click();
   await page.getByTestId('make-funnel').click();
   await expect(page.getByTestId('funnel-page-settings')).toHaveCount(1);
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   const pages = page.getByTestId('funnel-page');
   await expect(pages).toHaveText(['1. Página 1(1)']);
 

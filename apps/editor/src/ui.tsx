@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -272,11 +273,30 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     },
     [close],
   );
+  // Avisos na camada do topo (popover), reaberta a cada aviso: ficam acima de um <dialog> modal aberto
+  // em vez de escurecidos pelo fundo dele.
+  const host = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = host.current;
+    if (!el?.showPopover) return;
+    if (el.matches(':popover-open')) el.hidePopover();
+    if (toasts.length) el.showPopover();
+  }, [toasts]);
   return (
     <ToastCtx.Provider value={push}>
       {children}
       <div
-        className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-2"
+        ref={host}
+        {...{ popover: 'manual' }}
+        style={{
+          inset: 'auto 1rem 1rem auto',
+          margin: 0,
+          padding: 0,
+          border: 0,
+          background: 'none',
+          overflow: 'visible',
+        }}
+        className="pointer-events-none fixed z-50 flex w-96 max-w-[calc(100vw-2rem)] flex-col gap-2"
         aria-live="polite"
       >
         {toasts.map((t) => (
@@ -345,6 +365,7 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -355,6 +376,7 @@ export function Modal({
     <dialog
       ref={ref}
       data-testid={testId}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -364,7 +386,9 @@ export function Modal({
       {open && (
         <div className="flex flex-col">
           <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="font-display text-lg font-medium">{title}</h2>
+            <h2 id={titleId} className="font-display text-lg font-medium">
+              {title}
+            </h2>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Fechar">
               <X size={16} />
             </button>

@@ -173,6 +173,22 @@ export function initialState(experiment: Experiment, url: string): EditorState {
   };
 }
 
+/**
+ * Pesos como porcentagens que somam 100: a variação `i` passa a `value` (0–100) e as outras dividem o
+ * resto na proporção que tinham (em partes iguais se estavam todas em 0). Com duas, a outra vira 100 − value.
+ */
+export function rebalance(weights: number[], i: number, value: number): number[] {
+  const x = Math.min(100, Math.max(0, Math.round(value)));
+  if (weights.length < 2 || i < 0) return weights.map((w, j) => (j === i ? x : w));
+  const rest = 100 - x;
+  const sum = weights.reduce((t, w, j) => (j === i ? t : t + w), 0);
+  const out = weights.map((w, j) =>
+    j === i ? x : Math.floor(sum ? (rest * w) / sum : rest / (weights.length - 1)),
+  );
+  out[i === 0 ? 1 : 0]! += 100 - out.reduce((t, w) => t + w, 0);
+  return out;
+}
+
 type MvtOption = MvtSection['options'][number];
 /** No MVT o editor trabalha numa OPÇÃO de seção; ela aparece como "variação" (mesmo objeto enquanto não muda). */
 const optionViews = new WeakMap<MvtOption, Variation>();
@@ -297,7 +313,13 @@ export function reducer(s: EditorState, a: Action): EditorState {
         customCSS: '',
         customJS: '',
       };
-      const next = commit(s, { ...s.experiment, variations: [...s.experiment.variations, v] });
+      const all = [...s.experiment.variations, v];
+      const w = rebalance(
+        all.map(() => 1),
+        0,
+        Math.ceil(100 / all.length),
+      );
+      const next = commit(s, { ...s.experiment, variations: all.map((x, i) => ({ ...x, weight: w[i]! })) });
       return { ...next, activeVariationId: v.id };
     }
     case 'renameVariation':
@@ -393,13 +415,15 @@ export function reducer(s: EditorState, a: Action): EditorState {
       );
     case 'patchExperiment':
       return commit(s, { ...s.experiment, ...a.patch });
-    case 'setWeight':
-      return commit(s, {
-        ...s.experiment,
-        variations: s.experiment.variations.map((v) =>
-          v.id === a.id ? { ...v, weight: Math.max(0, Math.round(a.weight)) } : v,
-        ),
-      });
+    case 'setWeight': {
+      const vs = s.experiment.variations;
+      const w = rebalance(
+        vs.map((v) => v.weight),
+        vs.findIndex((v) => v.id === a.id),
+        a.weight,
+      );
+      return commit(s, { ...s.experiment, variations: vs.map((v, i) => ({ ...v, weight: w[i]! })) });
+    }
     case 'addSection': {
       const secs = s.experiment.sections ?? [];
       const opt = { id: uid('opt'), name: 'Opção 1', operations: [], customCSS: '' };

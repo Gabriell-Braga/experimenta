@@ -31,7 +31,7 @@ test('multivariado: opções por seção viram combinações; edição vai para 
   await page.getByTestId('open-settings').click();
   await page.getByTestId('settings-step-variation').click();
   await expect(page.getByTestId('settings-modal').locator('[data-testid^=weight-]')).toHaveCount(6);
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
 
   // Recarregar mantém seções, opções e a mudança.
   await page.reload();

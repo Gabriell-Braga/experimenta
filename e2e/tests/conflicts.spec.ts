@@ -10,7 +10,7 @@ async function editTitleAndName(page: Page, site: FrameLocator, name: string) {
   const field = page.getByTestId('settings').getByRole('textbox').first();
   await field.fill(name);
   await field.blur();
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('save').click();
   await expect(page.getByTestId('save')).toHaveText('Salvo');
 }

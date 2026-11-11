@@ -52,7 +52,10 @@ if (config && token) {
   loadBundle(window, sibling('edit.js'), '__ABT_EDIT__', { config, token, agent: sibling('agent.js') });
 } else if (config) {
   const pending = Array.isArray(window.abq) ? window.abq : [];
-  const run = consentGate(window, config.consent, () => boot(config));
+  // Link de pré-visualização ou modo QA aberto pelo testador vale como consentimento dele (sem isso os dois
+  // abriam o site original, sem painel, até aceitar o banner).
+  const tester = sessionParam(window, 'abt_preview') || readForce(window);
+  const run = consentGate(window, tester ? undefined : config.consent, () => boot(config));
   // Processa o que o site enfileirou antes do snippet e troca a fila por um executor imediato.
   window.abq = { push: run as (c: Command) => void };
   pending.forEach(run);

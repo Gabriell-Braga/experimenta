@@ -62,9 +62,9 @@ test('loja completa: editar conteúdo dinâmico, sobreviver a re-render e public
   await page.getByTestId('settings-step-variation').click();
   await page.getByTestId('weight-controle').fill('0');
   await page.getByTestId('weight-controle').blur();
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice').last()).toContainText('Publicado (versão');
+  await expect(page.getByTestId('notice').last()).toContainText('Publicado (publicação');
 
   const visitor = await browser.newContext();
   const vp = await visitor.newPage();
@@ -82,7 +82,7 @@ test('loja completa: editar conteúdo dinâmico, sobreviver a re-render e public
   // Não deixa o experimento valendo para os outros testes.
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('archived');
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação');
+  await expect(page.getByTestId('notice').last()).toContainText('não vai ao site');
 });

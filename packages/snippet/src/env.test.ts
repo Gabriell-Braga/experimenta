@@ -80,6 +80,14 @@ describe('segmentação', () => {
     expect(
       matchUrl({ match: 'exact', value: 'https://loja.com/a', exclude: false }, 'https://loja.com/ab'),
     ).toBe(false);
+    // Rodada 2: "é" ignora parâmetros (UTM, gclid, ?ab_force), a menos que a regra tenha `?`.
+    const loja = { match: 'exact', value: 'https://loja.com/loja/', exclude: false } as const;
+    expect(matchUrl(loja, 'https://loja.com/loja/?utm_source=x&gclid=1')).toBe(true);
+    expect(matchUrl(loja, 'https://loja.com/loja?ab_force=a:b#y')).toBe(true);
+    expect(matchUrl(loja, 'https://loja.com/loja/outra?x=1')).toBe(false);
+    const comQuery = { ...loja, value: 'https://loja.com/loja/?p=2' };
+    expect(matchUrl(comQuery, 'https://loja.com/loja/?p=2')).toBe(true);
+    expect(matchUrl(comQuery, 'https://loja.com/loja/?p=3')).toBe(false);
     expect(matchUrl({ match: 'contains', value: '/produto/', exclude: false }, ctx.url)).toBe(true);
     expect(matchUrl({ match: 'regex', value: '/produto/\\d+', exclude: false }, ctx.url)).toBe(true);
     expect(matchUrl({ match: 'regex', value: '([', exclude: false }, ctx.url)).toBe(false);

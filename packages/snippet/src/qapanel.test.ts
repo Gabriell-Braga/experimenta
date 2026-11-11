@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ExperimentSchema, type PublishedConfig } from '@abtest/shared';
 import { beforeEach, expect, test } from 'vitest';
-import { qaPanel } from './qapanel';
+import { pageItems, qaPanel } from './qapanel';
 import { start } from './runtime';
 
 const exp = (id: string, url: string) =>
@@ -42,5 +42,19 @@ test('log por página: variação aplicada, regra de URL que não bateu e metas 
   );
   expect(rows()).toContain('goal ◎Meta "compra" disparou em Teste a');
   expect(JSON.parse(sessionStorage.getItem('_abt_qa_log')!)[0].items).toHaveLength(3);
+  rt.stop();
+});
+
+test('experimento forçado fora da configuração carregada vira aviso com a publicação', () => {
+  const config = {
+    accountId: 'acc',
+    version: 54,
+    publishedAt: '2026-11-07T12:00:00.000Z',
+    experiments: [exp('a', '/loja')],
+  } as PublishedConfig;
+  const rt = start(window, config, { forced: { novo: 'b' } })!;
+  const items = pageItems(rt, { novo: 'b' });
+  expect(items[0]).toMatchObject({ k: 'warn' });
+  expect(items[0]!.t).toMatch(/"novo" \(forçado\) não está na configuração carregada: publicação 54/);
   rt.stop();
 });

@@ -31,7 +31,7 @@ test('produção: login → editar → configurar → publicar → visitante vê
   await page.getByTestId('weight-controle').blur();
   await page.getByTestId('weight-variacao-1').fill('100');
   await page.getByTestId('weight-variacao-1').blur();
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('Publicado', { timeout: 30_000 });
 
@@ -47,9 +47,9 @@ test('produção: login → editar → configurar → publicar → visitante vê
   // Arquiva para não deixar o demo público alterado.
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('archived');
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
-  await expect(page.getByTestId('notice').last()).toContainText('não entra na publicação', {
+  await expect(page.getByTestId('notice').last()).toContainText('não vai ao site', {
     timeout: 30_000,
   });
 });

@@ -804,3 +804,11 @@
 - Player de gravações: "Pular inatividade" próprio (`apps/editor/src/inactivity.ts`, teste em `inactivity.test.ts`), trechos > 3 s sem interação pulados e hachurados na linha do tempo; `skipInactive` do rrweb desligado.
 - Nota: a lista "Linha do tempo" da gravação mostra só eventos rastreados (páginas, cliques, conversões); movimento e rolagem ficam só na gravação. Sessão longa com poucos eventos = visitante parado.
 - Testes: `pnpm lint`, `pnpm test`, `pnpm e2e` (120 passaram; E2E do agendamento cobre o clique fora). CI e deploy automático concluídos (commits 25e4035 a a358598).
+
+### 2026-11-11 17:05 — Tarefas 22.1 a 22.3 concluídas (feedback CRO 3 e Rodada 2)
+- 22.1 Configuração: Concluir confere os 4 passos (abre o primeiro incompleto e lista o que falta; só avisos pedem 2º clique "Concluir mesmo assim"). Pesos viram % que somam 100: mudar uma variação ajusta as outras (`rebalance` em `store.ts`; 50→30 dava 63%/38%). Tráfego fora de 0–100 mostra erro no campo e segura Próximo/Concluir. Avisos (peso 0, variação sem alteração, tráfego 0) no Preview e QA. Status escolhido aparece como "vale ao publicar" e selo/aviso de teste no ar seguem o status publicado. Aviso de pausa em português, "publicação N" em vez de "versão N", tempo real de propagação (~6 min pelo cache do script).
+- 22.2 Erro da criação de experimento aparece embaixo da URL, dentro do modal; avisos (toasts) vão para a camada do topo (popover) e ficam acima de qualquer `<dialog>`; `Modal` com `aria-labelledby`.
+- 22.3 Snippet: regra "é" compara domínio e caminho (parâmetros só contam se a regra tiver `?`); `?abt_preview`/`?ab_force` valem como consentimento do testador; painel de QA avisa quando o experimento forçado não está na configuração carregada (com número e hora da publicação).
+- Arquivos: apps/editor/src/{store.ts,EditorView.tsx,ui.tsx,components/SettingsPanel.tsx,pages/Experiments.tsx}, packages/snippet/src/{segment,main,qapanel,qa-entry}.ts, E2E (fechar configurações pelo X; textos de publicação).
+- Testes: `pnpm test`, `pnpm lint`, E2E publish-flow/loja/extension. Runtime 9.944 B gzip.
+- Observações: D-109.

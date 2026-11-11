@@ -30,7 +30,7 @@ test('audiência: só quem atende às regras entra no experimento', async ({ pag
   await page.getByTestId('weight-controle').blur();
   await page.getByTestId('weight-variacao-1').fill('100');
   await page.getByTestId('weight-variacao-1').blur();
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
   await expect(page.getByTestId('notice').last()).toContainText('Publicado');
 
@@ -46,6 +46,6 @@ test('audiência: só quem atende às regras entra no experimento', async ({ pag
   // Não deixa experimento em execução para os outros testes.
   await page.getByTestId('open-settings').click();
   await page.getByTestId('status-select').selectOption('archived');
-  await page.getByTestId('settings-done').click();
+  await page.getByTestId('settings-close').click();
   await page.getByTestId('publish').click();
 });

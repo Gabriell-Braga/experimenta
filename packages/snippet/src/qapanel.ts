@@ -26,18 +26,30 @@ const COLOR: Record<QaItem['k'], string> = {
   goal: '#2563eb',
 };
 
-/** Estado de cada experimento na página atual, como o runtime decidiu. */
-export function pageItems(rt: Runtime): QaItem[] {
+/**
+ * Estado de cada experimento na página atual, como o runtime decidiu. `forced` (?ab_force) que não está na
+ * configuração carregada vira aviso: script em cache de antes da publicação, ou teste não publicado em execução.
+ */
+export function pageItems(rt: Runtime, forced: Record<string, string> = {}): QaItem[] {
   const ctx = rt.ctx();
-  return rt.config.experiments
-    .filter((e) => e.status === 'running' && e.type !== 'server')
-    .map((e): QaItem => {
-      const a = rt.active.get(e.id);
-      if (a) return { k: 'ok', t: `${e.name} → ${a.variation.name}` };
-      if (!matchSegmentation(e.segmentation, ctx))
-        return { k: 'page', t: `${e.name}: regra de página (URL) não bateu` };
-      return { k: 'out', t: `${e.name}: fora da audiência ou do tráfego` };
-    });
+  const { experiments, version, publishedAt } = rt.config;
+  const missing = Object.keys(forced)
+    .filter((key) => !experiments.some((e) => e.key === key && e.status === 'running'))
+    .map((key): QaItem => ({
+      k: 'warn',
+      t: `"${key}" (forçado) não está na configuração carregada: publicação ${version}, gerada às ${new Date(publishedAt).toLocaleTimeString()}. Publique-o com status "Em execução"; se acabou de publicar, o script em cache leva até ~6 min para atualizar.`,
+    }));
+  return missing.concat(
+    experiments
+      .filter((e) => e.status === 'running' && e.type !== 'server')
+      .map((e): QaItem => {
+        const a = rt.active.get(e.id);
+        if (a) return { k: 'ok', t: `${e.name} → ${a.variation.name}` };
+        if (!matchSegmentation(e.segmentation, ctx))
+          return { k: 'page', t: `${e.name}: regra de página (URL) não bateu` };
+        return { k: 'out', t: `${e.name}: fora da audiência ou do tráfego` };
+      }),
+  );
 }
 
 /** Evento do runtime → linha do log (só o que interessa ao QA). */
@@ -73,6 +85,7 @@ export function qaPanel(
   win: Window,
   rt: Runtime | null,
   title: string,
+  forced?: Record<string, string>,
 ): { host: HTMLElement; refresh(): void } {
   const doc = win.document;
   const log = load(win);
@@ -133,7 +146,7 @@ button{all:unset;cursor:pointer;opacity:.8;padding:0 4px}
   };
   const refresh = () => {
     const extra = cur.items.filter((i) => i.k === 'goal' || i.k === 'warn');
-    cur.items = [...(rt ? pageItems(rt) : []), ...extra];
+    cur.items = [...(rt ? pageItems(rt, forced) : []), ...extra];
     render();
   };
   win.addEventListener('abt:event', (ev) => {

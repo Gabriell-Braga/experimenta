@@ -41,7 +41,9 @@ import {
   EMPTY_GOAL,
   SETTINGS_STEPS,
   SettingsPanel,
+  STATUS_LABEL,
   StatusSelect,
+  configWarnings,
   stepMissing,
   type GoalDraft,
   type SettingsStep,
@@ -64,6 +66,8 @@ interface Props {
 
 /** Sem `hello` do snippet nesse tempo, o site provavelmente bloqueia iframe ou não tem o snippet. */
 const CONNECT_TIMEOUT_MS = 5000;
+/** Script da conta fica 5 min no cache do navegador (CDN_CACHE na API) e a revalidação vale na visita seguinte. */
+const SNIPPET_CACHE_MIN = 6;
 
 export function EditorView({ record, user }: Props) {
   const accountId = user.accountId;
@@ -92,6 +96,16 @@ export function EditorView({ record, user }: Props) {
   /** Configurações (status, tráfego, páginas, metas) ficam numa janela própria, fora da edição. */
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [step, setStep] = useState<SettingsStep>('hypothesis');
+  /** Campo inválido no passo aberto (ex.: tráfego 150%): segura Próximo e Concluir. */
+  const [fieldError, setFieldError] = useState('');
+  /** Pendências mostradas ao clicar em Concluir (null = ainda não conferiu). */
+  const [review, setReview] = useState<string[] | null>(null);
+  useEffect(() => {
+    setFieldError('');
+    setReview(null);
+  }, [step, settingsOpen]);
+  /** Status que vale no site (o da última publicação); o seletor só muda o rascunho até publicar. */
+  const [liveStatus, setLiveStatus] = useState(record.experiment.status);
   const [goal, setGoal] = useState<GoalDraft>(EMPTY_GOAL);
   /** "Escolher no site": o próximo elemento selecionado vira o seletor da meta. */
   const picking = useRef(false);
@@ -315,15 +329,21 @@ export function EditorView({ record, user }: Props) {
       const r = await publish();
       if ('pending' in r) return toast('info', PENDING_TEXT);
       const { version } = r;
-      const running = state.experiment.status === 'running';
+      const status = state.experiment.status;
+      const running = status === 'running';
+      setLiveStatus(status);
       toast(
         running ? 'success' : 'info',
         running
-          ? `Publicado (versão ${version}). Visitantes recebem o experimento em até 1 min.`
-          : `Publicado (versão ${version}), mas este experimento está "${state.experiment.status}" e não entra na publicação. Mude o status em Configurações.`,
+          ? `Publicado (publicação ${version}). Visitantes novos recebem na hora; quem já abriu o site, em até ${SNIPPET_CACHE_MIN} min (cache do script).`
+          : status === 'paused'
+            ? `Publicado (publicação ${version}). Teste pausado: saiu do site e os visitantes veem a página original.`
+            : `Publicado (publicação ${version}). Este teste está como "${STATUS_LABEL[status]}" e não vai ao site; para colocá-lo no ar, escolha "Em execução" em Configurações.`,
         running
           ? { label: 'Ver no site', href: state.url }
-          : { label: 'Abrir configurações', onClick: () => setSettingsOpen(true) },
+          : status === 'paused'
+            ? undefined
+            : { label: 'Abrir configurações', onClick: () => setSettingsOpen(true) },
       );
       // Aviso de conflito depois, sem atrasar a confirmação da publicação.
       getConflicts(record.experiment.id).then(
@@ -393,7 +413,7 @@ export function EditorView({ record, user }: Props) {
     <div className="flex h-screen flex-col bg-paper text-gray-900">
       <TopBar
         name={state.experiment.name}
-        status={state.experiment.status}
+        status={liveStatus}
         type={state.experiment.type}
         sections={state.experiment.type === 'mvt' ? state.experiment.sections : undefined}
         onMvt={dispatch}
@@ -478,7 +498,7 @@ export function EditorView({ record, user }: Props) {
           Editando via extensão (headers de bloqueio de iframe removidos só nesta aba).
         </div>
       )}
-      {liveWarning && state.experiment.status === 'running' && (
+      {liveWarning && liveStatus === 'running' && (
         <div
           role="alert"
           className="flex items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm text-amber-900"
@@ -922,6 +942,7 @@ export function EditorView({ record, user }: Props) {
                 dispatch={dispatch}
                 goal={goal}
                 onGoal={setGoal}
+                onFieldError={setFieldError}
                 onPick={() => {
                   picking.current = true;
                   setPickingGoal(true);
@@ -930,6 +951,20 @@ export function EditorView({ record, user }: Props) {
                 }}
                 qa={
                   <div className="flex flex-col gap-3 md:col-span-2" data-testid="qa-step">
+                    {configWarnings(state.experiment).length > 0 && (
+                      <div
+                        role="status"
+                        className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
+                        data-testid="qa-warnings"
+                      >
+                        <p className="font-medium">Precisa de atenção</p>
+                        <ul className="mt-1 list-disc pl-4">
+                          {configWarnings(state.experiment).map((w) => (
+                            <li key={w}>{w}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <p className="text-gray-600">
                       Confira antes de publicar. No site abre um painel de QA com o log de cada página: se a
                       regra de URL bateu, qual variação foi aplicada, alteração que não achou o elemento e as
@@ -983,6 +1018,7 @@ export function EditorView({ record, user }: Props) {
             <footer className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3">
               <StatusSelect
                 experiment={state.experiment}
+                pending={state.experiment.status !== liveStatus}
                 onChange={(patch) => dispatch({ type: 'patchExperiment', patch })}
               />
               <span
@@ -990,7 +1026,11 @@ export function EditorView({ record, user }: Props) {
                 role="status"
                 data-testid="step-missing"
               >
-                {stepMissing(state.experiment, step)}
+                {review ? (
+                  <span data-testid="settings-review">Antes de concluir: {review.join(' ')}</span>
+                ) : (
+                  fieldError || stepMissing(state.experiment, step)
+                )}
               </span>
               {step !== 'hypothesis' && (
                 <Button
@@ -1004,7 +1044,7 @@ export function EditorView({ record, user }: Props) {
               )}
               {step !== 'qa' && (
                 <Button
-                  disabled={!!stepMissing(state.experiment, step)}
+                  disabled={!!fieldError || !!stepMissing(state.experiment, step)}
                   onClick={() =>
                     setStep(SETTINGS_STEPS[SETTINGS_STEPS.findIndex(([id]) => id === step) + 1]![0])
                   }
@@ -1013,8 +1053,28 @@ export function EditorView({ record, user }: Props) {
                   Próximo
                 </Button>
               )}
-              <Button variant="primary" onClick={() => setSettingsOpen(false)} data-testid="settings-done">
-                Concluir
+              <Button
+                variant="primary"
+                disabled={!!fieldError}
+                onClick={() => {
+                  // Concluir confere todos os passos: o primeiro incompleto abre; só avisos pedem 2º clique.
+                  const missing = SETTINGS_STEPS.filter(([id]) => stepMissing(state.experiment, id));
+                  if (missing.length) {
+                    const list = missing.map(
+                      ([id, label]) => `${label}: ${stepMissing(state.experiment, id)}`,
+                    );
+                    setStep(missing[0]![0]);
+                    return setTimeout(() => setReview(list));
+                  }
+                  const warnings = configWarnings(state.experiment);
+                  if (warnings.length && !review) return setReview(warnings);
+                  setSettingsOpen(false);
+                }}
+                data-testid="settings-done"
+              >
+                {review && !SETTINGS_STEPS.some(([id]) => stepMissing(state.experiment, id))
+                  ? 'Concluir mesmo assim'
+                  : 'Concluir'}
               </Button>
             </footer>
           </div>

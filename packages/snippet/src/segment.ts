@@ -9,8 +9,16 @@ export interface SegmentContext {
 /** Compara sem barra final para "exata" não depender de /pagina vs /pagina/. */
 const trimSlash = (u: string) => u.replace(/\/(?=$|[?#])/, '');
 
+/**
+ * "é" compara domínio e caminho: parâmetros (UTM, gclid, ?ab_force) e # não tiram o visitante do teste. Se a
+ * própria regra tiver `?`, os parâmetros também precisam ser iguais.
+ */
 export function matchUrl(rule: UrlRule, url: string): boolean {
-  if (rule.match === 'exact') return trimSlash(url.split('#')[0]!) === trimSlash(rule.value.split('#')[0]!);
+  if (rule.match === 'exact') {
+    const want = trimSlash(rule.value.split('#')[0]!);
+    const got = trimSlash(url.split('#')[0]!);
+    return want === (want.includes('?') ? got : got.split('?')[0]);
+  }
   if (rule.match === 'contains') return url.includes(rule.value);
   try {
     return new RegExp(rule.value).test(url);

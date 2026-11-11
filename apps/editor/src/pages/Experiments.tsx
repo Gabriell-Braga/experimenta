@@ -52,14 +52,16 @@ function CreateModal({
   /** Mesmo nome do botão que abre a janela. */
   title: string;
 }) {
-  const toast = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Erro da criação mostrado dentro da janela, embaixo da URL (o aviso no canto ficava atrás do fundo). */
+  const [formError, setFormError] = useState('');
   const [url, setUrl] = useState('');
   const [splitUrl, setSplitUrl] = useState('');
   const [type, setType] = useState<CampaignType>(initialType);
   useEffect(() => {
     if (!open) return;
+    setFormError('');
     setType(initialType);
     listProjects().then(
       (p) => {
@@ -108,7 +110,8 @@ function CreateModal({
           e.preventDefault();
           const f = new FormData(e.currentTarget);
           const project = projects[0];
-          if (!project) return toast('error', 'Nenhum projeto encontrado nesta conta.');
+          if (!project) return setFormError('Nenhum projeto encontrado nesta conta.');
+          setFormError('');
           setBusy(true);
           try {
             const pageUrl = new URL(visual ? String(f.get('url')) : project.siteUrl).href;
@@ -119,8 +122,7 @@ function CreateModal({
             if (visual) go(experiment.id);
             else navigate('server', { id: experiment.id });
           } catch (err) {
-            toast(
-              'error',
+            setFormError(
               err instanceof TypeError
                 ? 'URL inválida.'
                 : `Não foi possível criar: ${(err as Error).message}`,
@@ -176,11 +178,21 @@ function CreateModal({
               type="url"
               required
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setFormError('');
+              }}
+              aria-invalid={!!formError}
+              aria-describedby={formError ? 'create-error' : undefined}
               className={inputCls}
               data-testid="create-url"
             />
           </label>
+        )}
+        {formError && (
+          <p id="create-error" role="alert" className="text-sm text-red-600" data-testid="create-error">
+            {formError}
+          </p>
         )}
         {visual && suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2 text-xs">

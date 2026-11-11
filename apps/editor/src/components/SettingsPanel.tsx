@@ -61,7 +61,7 @@ export interface GoalDraft {
 export const EMPTY_GOAL: GoalDraft = { type: 'click', value: '', name: '' };
 
 const input = 'rounded border border-gray-300 px-2 py-1 text-sm';
-const STATUS = {
+export const STATUS_LABEL = {
   draft: 'Rascunho',
   running: 'Em execução',
   paused: 'Pausado',
@@ -127,6 +127,22 @@ export function stepMissing(e: Experiment, step: SettingsStep): string {
   return '';
 }
 
+/**
+ * Pontos de atenção que não impedem salvar (o teste pode ser de propósito assim), listados no passo
+ * "Preview e QA" e ao concluir.
+ */
+export function configWarnings(e: Experiment): string[] {
+  const out: string[] = [];
+  if (e.traffic === 0) out.push('Tráfego em 0%: ninguém entra no teste.');
+  if (e.type === 'rollout' || e.type === 'mvt') return out;
+  e.variations.forEach((v, i) => {
+    if (i > 0 && !changed(v)) out.push(`"${v.name}" não tem alteração: é igual ao controle.`);
+    if (e.allocation === 'manual' && e.variations.length > 1 && v.weight === 0)
+      out.push(`"${v.name}" está com peso 0%: nenhum visitante a recebe.`);
+  });
+  return out;
+}
+
 /** Alterações por variação: o que o passo "Variação" confere antes de seguir. */
 function VariationSummary({ experiment }: { experiment: Experiment }) {
   return (
@@ -155,9 +171,12 @@ function VariationSummary({ experiment }: { experiment: Experiment }) {
 /** Status do experimento (fica no rodapé da janela: vale para todos os passos). */
 export function StatusSelect({
   experiment,
+  pending,
   onChange,
 }: {
   experiment: Experiment;
+  /** Diferente do que está no site: só vale depois de publicar. */
+  pending?: boolean;
   onChange(p: { status: Experiment['status'] }): void;
 }) {
   return (
@@ -169,12 +188,17 @@ export function StatusSelect({
         className={input}
         data-testid="status-select"
       >
-        {Object.entries(STATUS).map(([k, v]) => (
+        {Object.entries(STATUS_LABEL).map(([k, v]) => (
           <option key={k} value={k}>
             {v}
           </option>
         ))}
       </select>
+      {pending && (
+        <span className="text-xs text-gray-500" data-testid="status-pending">
+          vale ao publicar
+        </span>
+      )}
     </label>
   );
 }
@@ -278,7 +302,10 @@ export function SettingsPanel({
   onPick,
   step,
   qa,
+  onFieldError,
 }: {
+  /** Campo com valor inválido (bloqueia "Próximo" e "Concluir" no rodapé); '' = nenhum. */
+  onFieldError(msg: string): void;
   experiment: Experiment;
   /** Passo da configuração (21.5): cada um mostra só o seu bloco. */
   step: SettingsStep;
@@ -301,6 +328,7 @@ export function SettingsPanel({
   const setGoal = onGoal;
   const [goalError, setGoalError] = useState('');
   const [focusLast, setFocusLast] = useState(false);
+  const [trafficError, setTrafficError] = useState('');
   const urls = experiment.segmentation.urls;
   const setUrls = (next: UrlRule[]) => patch({ segmentation: { ...experiment.segmentation, urls: next } });
 
@@ -421,22 +449,42 @@ export function SettingsPanel({
       {step === 'variation' && (
         <>
           <div className="flex flex-col gap-4">
-            <label className="flex items-center justify-between gap-2">
-              <span className="text-gray-600">Tráfego no experimento (%)</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                key={experiment.traffic}
-                defaultValue={experiment.traffic}
-                className={`${input} w-20`}
-                data-testid="traffic"
-                onBlur={(e) => {
-                  const t = Math.min(100, Math.max(0, Number(e.target.value)));
-                  if (t !== experiment.traffic) patch({ traffic: t });
-                }}
-              />
-            </label>
+            <div>
+              <label className="flex items-center justify-between gap-2">
+                <span className="text-gray-600">Tráfego no experimento (%)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  key={experiment.traffic}
+                  defaultValue={experiment.traffic}
+                  aria-invalid={!!trafficError}
+                  aria-describedby={trafficError ? 'traffic-error' : undefined}
+                  className={`${input} w-20 ${trafficError ? 'border-red-500' : ''}`}
+                  data-testid="traffic"
+                  onBlur={(e) => {
+                    const t = Number(e.target.value);
+                    const msg =
+                      e.target.value.trim() === '' || !Number.isFinite(t) || t < 0 || t > 100
+                        ? 'O tráfego precisa ficar entre 0 e 100%.'
+                        : '';
+                    setTrafficError(msg);
+                    onFieldError(msg);
+                    if (!msg && t !== experiment.traffic) patch({ traffic: t });
+                  }}
+                />
+              </label>
+              {trafficError && (
+                <p
+                  id="traffic-error"
+                  role="alert"
+                  className="mt-1 text-xs text-red-600"
+                  data-testid="traffic-error"
+                >
+                  {trafficError}
+                </p>
+              )}
+            </div>
 
             {experiment.variations.length > 1 && experiment.type !== 'rollout' && (
               <fieldset className="flex flex-col gap-1.5 rounded-md border border-gray-900/10 p-2">
@@ -461,20 +509,27 @@ export function SettingsPanel({
             )}
             <fieldset className="flex flex-col gap-1" disabled={experiment.allocation !== 'manual'}>
               <legend className="mb-1 text-gray-600">
-                Divisão entre variações (pesos)
+                Divisão entre variações (%)
                 {experiment.allocation !== 'manual' && ' (controlada automaticamente)'}
               </legend>
+              {experiment.allocation === 'manual' && (
+                <p className="text-xs text-gray-500">Mude uma e as outras se ajustam para somar 100%.</p>
+              )}
               {experiment.variations.map((v, i) => (
                 <div key={v.id}>
                   <label className="flex items-center justify-between gap-2">
                     <span>{v.name}</span>
                     <span className="flex items-center gap-2">
-                      <span className="w-12 text-right text-xs text-gray-500">
-                        {Math.round((v.weight / totalWeight) * 100)}%
-                      </span>
+                      {totalWeight !== 100 && (
+                        <span className="w-12 text-right text-xs text-gray-500" title="Divisão real hoje">
+                          {Math.round((v.weight / totalWeight) * 100)}%
+                        </span>
+                      )}
                       <input
                         type="number"
                         min={0}
+                        max={100}
+                        aria-label={`${v.name} (%)`}
                         key={v.weight}
                         defaultValue={v.weight}
                         className={`${input} w-20`}
