@@ -24,10 +24,12 @@ export function pagesReport(events: TrackingEvent[], device?: string) {
   for (const e of events) {
     if (e.qa || ('device' in e && device && e.device !== device)) continue;
     const page = normalizePage(e.url);
-    let p = pages.get(page);
+    // http e https da mesma página numa linha só (a lista mostra sem o protocolo: pareciam duplicadas).
+    const key = page.replace(/^https?:/, '');
+    let p = pages.get(key);
     if (!p)
       pages.set(
-        page,
+        key,
         (p = {
           page,
           href: e.url.split(/[?#]/)[0]!,
@@ -45,7 +47,11 @@ export function pagesReport(events: TrackingEvent[], device?: string) {
       p.pageviews++;
       p.visitors.add(e.visitorId);
       if (e.title) p.title = e.title;
-      p.href = e.url.split(/[?#]/)[0]!; // URL real (com a barra final que o servidor espera)
+      // URL real (com a barra final que o servidor espera); https vence quando há as duas.
+      if (!p.href.startsWith('https:') || e.url.startsWith('https:')) {
+        p.href = e.url.split(/[?#]/)[0]!;
+        p.page = page;
+      }
     } else if (e.type === 'click') p.clicks++;
     else if (e.type === 'frustration') p[e.kind]++;
     else if (e.type === 'scroll') {

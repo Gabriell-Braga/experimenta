@@ -190,6 +190,7 @@ const VIEWS = [
   'audiences',
   'profiles',
   'segments',
+  'sites',
   'install',
   'integrations',
   'privacy',

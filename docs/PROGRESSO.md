@@ -818,3 +818,11 @@
 - 22.5 Telas: filtro de experimento do mapa só com os testes da página (com status e chave); chave editável enquanto rascunho; menu "Rollout" e aba "Pop-ups e barras"; relatório com "Coletando" na tabela e ícone de ampulheta antes da amostra; título dos insights explica os 7 dias fixos; domínios ocultos na URL (`?ocultos=`); gravações mostram a % amostrada (padrão do servidor vem em `GET /account/settings`); OneTrust/Cookiebot/GCM já preenchem a categoria padrão.
 - Não feito: /loja em duas linhas (o agrupamento por `normalizePage` já junta título e caminho; não reproduzi sem os dados de produção); snippet em CDN separada (infra, D-109); itens "não verificados" da rodada 1 seguem pendentes de teste no celular.
 - Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (120 passaram). Runtime 10.008 B gzip.
+
+### 2026-11-11 18:40 — Tarefa 22.6 concluída (pendências + Sites com localização)
+- Pedido do Rafa (WhatsApp, sem mais contexto): "Nome, domínio e site / Site tem que ter location / pt-br, en, es". Lido como cadastro de sites com localização. Não havia tela para cadastrar site (por isso o "assineumcarro.com.br não é um site deste workspace" do PDF). Nova tela Configurar → Sites: nome, domínio (sai da URL), site e localização pt-BR/en/es; `PUT /projects/{id}`, `locale` em `GET/POST /projects`. O erro da criação de experimento tem o botão "Cadastrar site".
+- /loja em duas linhas: a lista de páginas agrupa http e https (a tela mostra sem protocolo, por isso pareciam iguais); não deu para conferir nos dados de produção.
+- Snippet no domínio próprio `experimenta-cdn.gabrielbraga.app` (mesmo Worker; nesse host só `GET /cdn/*` responde). A tela Instalação passa a mostrar esse endereço; o antigo (`experimenta-api…/cdn/`) continua funcionando.
+- Verificados: tabelas no celular (E2E em 390 px sem rolagem lateral) e "(saiu do site)" nos insights vira "A maioria sai do site." (teste já existente).
+- Migrações: Postgres `drizzle/0014_low_komodo.sql`, D1 `migrations-d1/0015_project_locale.sql` (o deploy aplica).
+- Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (123 passaram). D-110.

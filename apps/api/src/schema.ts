@@ -113,6 +113,8 @@ export const projects = pgTable(
     accountId: accountId(),
     name: text('name').notNull(),
     siteUrl: text('site_url').notNull(),
+    /** Localização (idioma e região) do site: pt-BR, en ou es. */
+    locale: text('locale').notNull().default('pt-BR'),
     createdAt: createdAt(),
   },
   (t) => [index('projects_account_idx').on(t.accountId)],

@@ -225,6 +225,7 @@ PDF "Conversion Rate Optimization.pdf" (3 itens) e relatório "Rodada 2" (23 pro
 - [x] 22.3 Snippet: regra de URL "é" ignora parâmetros; preview e modo QA antes do consentimento; painel de QA avisa experimento forçado ausente
 - [x] 22.4 Editor visual: carrossel e animações pausados no modo Editar, banner de cookies ocultável no editor e no mapa, texto aplica enquanto digita, contador conta CSS/JS, nome não sobrescrito e aviso de alteração em outra sessão, Pré-visualizar sem quebra
 - [x] 22.5 Telas: filtro de experimento do mapa só da página, chave editável no rascunho, nomes consistentes (Rollouts, Pop-ups), status coerente no relatório, insights no período escolhido, filtro de domínio na URL, amostragem com número, categoria padrão do OneTrust, mapa no celular com carrossel, /loja numa linha só
+- [x] 22.6 Pendências da fase e pedido do Rafa ("Nome, domínio e site; site tem que ter location: pt-br, en, es"): tela Sites (nome, domínio, URL, localização pt-BR/en/es), erro de criação leva ao cadastro, /loja numa linha (http/https), snippet no domínio próprio da CDN, tabelas no celular e texto "(saiu do site)" verificados
 
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.

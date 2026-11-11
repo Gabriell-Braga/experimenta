@@ -625,12 +625,22 @@ export function createRepo(db: Db) {
       });
     },
 
-    async createProject(accountId: string, p: { name: string; siteUrl: string }) {
+    async createProject(accountId: string, p: { name: string; siteUrl: string; locale?: string }) {
       const [row] = await db
         .insert(projects)
         .values({ id: newId('prj'), accountId, ...p })
         .returning();
       return row!;
+    },
+
+    /** Altera nome, URL e localização; undefined se o site não é desta conta. */
+    async updateProject(accountId: string, id: string, p: { name: string; siteUrl: string; locale: string }) {
+      const [row] = await db
+        .update(projects)
+        .set(p)
+        .where(and(eq(projects.accountId, accountId), eq(projects.id, id)))
+        .returning();
+      return row;
     },
 
     async listProjects(accountId: string) {

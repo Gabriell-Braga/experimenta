@@ -38,6 +38,7 @@ import { RecordingPlayer, RecordingsPage } from './pages/Recordings';
 import { RecosPage } from './pages/Recos';
 import { SecurityPage, TotpGate } from './pages/Security';
 import { SegmentsPage } from './pages/Segments';
+import { SitesPage } from './pages/Sites';
 import { GroupsPage } from './pages/Groups';
 import { ReportPage } from './pages/Report';
 import { ServerExperimentPage } from './pages/ServerExperiment';
@@ -67,6 +68,7 @@ const PAGES: Record<string, (user: Me, route: Route) => ReactNode> = {
   events: () => <EventsPage />,
   flags: (user) => <FlagsPage user={user} />,
   groups: (user) => <GroupsPage user={user} />,
+  sites: (user) => <SitesPage user={user} />,
   optimize: (user) => <OptimizePage user={user} />,
   popups: (user) => <PopupsPage user={user} />,
   profiles: () => <ProfilesPage />,

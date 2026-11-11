@@ -235,7 +235,32 @@ describe('experimentos e permissões', () => {
       body: JSON.stringify({ name: 'p', siteUrl: 'https://p.com' }),
     });
     expect(p.status).toBe(201);
+    const created = (await p.json()) as { id: string };
+    expect(created).toMatchObject({ domain: 'p.com', locale: 'pt-BR' });
     expect(((await (await req('/projects', { as: 'other' })).json()) as unknown[]).length).toBe(0);
+    // Sites: nome, domínio (da URL) e localização pt-BR/en/es; outra conta não altera.
+    const body = JSON.stringify({ name: 'P US', siteUrl: 'https://us.p.com/', locale: 'en' });
+    const put = (as: 'editor' | 'viewer' | 'other', b = body) =>
+      req(`/projects/${created.id}`, { method: 'PUT', as, body: b });
+    expect((await put('viewer')).status).toBe(403);
+    expect((await put('other')).status).toBe(404);
+    expect(
+      (await put('editor', JSON.stringify({ name: 'x', siteUrl: 'https://p.com', locale: 'fr' }))).status,
+    ).toBe(400);
+    const upd = await put('editor');
+    expect(upd.status).toBe(200);
+    expect(await upd.json()).toEqual({
+      id: created.id,
+      name: 'P US',
+      domain: 'us.p.com',
+      siteUrl: 'https://us.p.com/',
+      locale: 'en',
+    });
+    const list = (await (await req('/projects', { as: 'viewer' })).json()) as {
+      id: string;
+      locale: string;
+    }[];
+    expect(list.find((x) => x.id === created.id)!.locale).toBe('en');
   });
 });
 

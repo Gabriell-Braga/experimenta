@@ -13,6 +13,8 @@ import {
 } from '@abtest/shared';
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+/** Onde o snippet é servido (domínio próprio em produção; no dev, a própria API). */
+export const CDN_URL: string = import.meta.env.VITE_CDN_URL ?? API_URL;
 
 // Sessão em cookie httpOnly da API (D-099): o token nunca passa pelo JavaScript do editor.
 // Limpa o token que versões antigas guardavam no localStorage.
@@ -47,11 +49,22 @@ export interface Me {
   /** A conta exige duas etapas e a pessoa ainda não ativou: só a tela de configuração funciona. */
   totpRequired?: boolean;
 }
+/** Localização (idioma e região) de um site. */
+export type Locale = 'pt-BR' | 'en' | 'es';
+export const LOCALES: [Locale, string][] = [
+  ['pt-BR', 'Português (Brasil)'],
+  ['en', 'Inglês'],
+  ['es', 'Espanhol'],
+];
 export interface Project {
   id: string;
   name: string;
+  /** Host da URL (calculado pela API). */
+  domain: string;
   siteUrl: string;
+  locale: Locale;
 }
+export type ProjectInput = Pick<Project, 'name' | 'siteUrl' | 'locale'>;
 export interface ExperimentSummary {
   id: string;
   key: string;
@@ -323,6 +336,10 @@ export const comments = {
 
 export const me = () => api<Me>('/me');
 export const listProjects = () => api<Project[]>('/projects');
+export const createProject = (p: ProjectInput) =>
+  api<Project>('/projects', { method: 'POST', body: JSON.stringify(p) });
+export const updateProject = (id: string, p: ProjectInput) =>
+  api<Project>(`/projects/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(p) });
 export const listExperiments = () => api<ExperimentSummary[]>('/experiments');
 
 export async function getExperiment(id: string): Promise<ExperimentRecord> {

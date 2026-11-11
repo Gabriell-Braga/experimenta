@@ -690,3 +690,7 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Publicação: o texto diz o tempo real (~6 min: `max-age=300` + revalidação na visita seguinte) em vez de baixar o cache e aumentar requisições ao Worker.
 - Modo Editar congela o site: o snippet embrulha `setInterval` no modo edição (ciclos pulados com `html[data-abt-freeze]`), o que para o autoplay de carrosséis criados pelos scripts do site; cadeias de `setTimeout` não são cobertas (limite conhecido). Sites abertos pela extensão (sem snippet) só têm o congelamento de CSS.
 - Concorrência no editor: trava otimista por `updatedAt` (`baseUpdatedAt` no PUT, 409 se mudou). Sem migração.
+
+## D-110 — Sites com localização e domínio próprio da CDN (fase 22.6)
+- "Location" do pedido virou `locale` do site (pt-BR, en, es), coluna em `projects` com padrão pt-BR. O domínio não é guardado à parte: sai da URL do site (evita os dois divergirem). Por enquanto a localização é cadastro: nada no snippet depende dela.
+- Snippet servido também em `experimenta-cdn.gabrielbraga.app` (rota `custom_domain` no mesmo Worker da API). Separar o Worker ou pôr cache de borda fica para quando o tráfego pedir; a KV já é lida da borda.

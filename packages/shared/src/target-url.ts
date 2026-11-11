@@ -64,7 +64,7 @@ export function targetUrlError(href: string, siteUrls: string[]): string | null 
   if (u.protocol !== 'http:' && u.protocol !== 'https:')
     return 'A URL precisa começar com http:// ou https://.';
   if (!inWorkspace(u, siteUrls))
-    return `${u.hostname} não é um site deste workspace. Use uma página de ${siteUrls.map((s) => s.replace(/^https?:\/\/|\/.*$/g, '')).join(', ') || '(cadastre o site do projeto)'}.`;
+    return `${u.hostname} não é um site deste workspace. Use uma página de ${siteUrls.map((s) => s.replace(/^https?:\/\/|\/.*$/g, '')).join(', ') || '(nenhum cadastrado)'} ou cadastre o site em Configurar → Sites.`;
   const pii = piiParams(u);
   if (pii.length)
     return `A URL tem dados pessoais nos parâmetros ${pii.join(', ')}: tire-os antes de salvar (eles ficariam gravados no teste).`;

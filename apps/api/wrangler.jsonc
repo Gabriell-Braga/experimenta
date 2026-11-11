@@ -6,7 +6,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   // Domínio próprio (zona gabrielbraga.app na mesma conta); o *.workers.dev continua respondendo.
-  "routes": [{ "pattern": "experimenta-api.gabrielbraga.app", "custom_domain": true }],
+  // experimenta-cdn: domínio só do snippet (/cdn/*), sem cookies da API e separável em cache/rota (D-110).
+  "routes": [
+    { "pattern": "experimenta-api.gabrielbraga.app", "custom_domain": true },
+    { "pattern": "experimenta-cdn.gabrielbraga.app", "custom_domain": true }
+  ],
   // Roda o Worker perto do D1 (cada consulta ao banco deixa de cruzar o continente).
   "placement": { "mode": "smart" },
   "d1_databases": [
@@ -20,6 +24,7 @@
   "kv_namespaces": [{ "binding": "CDN", "id": "c8a2bc427ff5448098a79ce2fb645e15" }],
   "vars": {
     "PUBLIC_URL": "https://experimenta-api.gabrielbraga.app",
+    "CDN_HOST": "experimenta-cdn.gabrielbraga.app",
     "EDITOR_ORIGINS": "https://experimenta.gabrielbraga.app,https://abtest-editor.hub-villa-deli.workers.dev,http://localhost:5173",
     "DEMO_SITE_URL": "https://experimenta-demo.gabrielbraga.app/",
     "HEATMAP_SAMPLE_RATE": "1",

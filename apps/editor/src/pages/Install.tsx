@@ -1,6 +1,6 @@
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { API_URL, type Me } from '../api';
+import { CDN_URL, type Me } from '../api';
 import { Button, Card, PageHeader, useCopy } from '../ui';
 import { ConsentCard } from './Privacy';
 
@@ -78,7 +78,7 @@ export function InstallPage({ user }: { user: Me }) {
     document.title = 'Instalação · Experimenta';
   }, []);
   const [mode, setMode] = useState<'sync' | 'async'>('sync');
-  const src = `${API_URL}/cdn/${user.accountId}.js`;
+  const src = `${CDN_URL}/cdn/${user.accountId}.js`;
   const tag = mode === 'sync' ? `<script src="${src}"></script>` : asyncTag(src);
   return (
     <>

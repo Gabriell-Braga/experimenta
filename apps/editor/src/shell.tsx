@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Code2,
+  Globe,
   Flame,
   Filter,
   Fingerprint,
@@ -119,6 +120,7 @@ export const NAV: NavGroup[] = [
   {
     label: 'Configurar',
     items: [
+      { view: 'sites', label: 'Sites', icon: Globe },
       { view: 'install', label: 'Instalação', icon: Code2 },
       { view: 'integrations', label: 'Integrações', icon: Plug },
       { view: 'privacy', label: 'Privacidade', icon: ShieldCheck },

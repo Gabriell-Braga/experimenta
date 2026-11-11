@@ -67,7 +67,10 @@ const walk = (dir: string) => {
 walk(extDir);
 
 // 4) Editor e demo apontando para a API publicada.
-run('pnpm --filter @abtest/editor build', root, { VITE_API_URL: API });
+run('pnpm --filter @abtest/editor build', root, {
+  VITE_API_URL: API,
+  VITE_CDN_URL: 'https://experimenta-cdn.gabrielbraga.app',
+});
 writeFileSync(join(root, 'apps/editor/dist/abtest-extension.zip'), zipSync(files));
 wrangler('deploy -c ../editor/wrangler.jsonc');
 run('pnpm --filter @abtest/demo build', root, { VITE_API_URL: API });

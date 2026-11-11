@@ -18,6 +18,8 @@ export interface Env {
   /** Senha dos usuários da conta demo criados no primeiro acesso. */
   SEED_PASSWORD: string;
   PUBLIC_URL: string;
+  /** Domínio só da CDN do snippet: nele só `/cdn/*` responde. */
+  CDN_HOST?: string;
   EDITOR_ORIGINS: string;
   DEMO_SITE_URL: string;
   HEATMAP_SAMPLE_RATE?: string;
@@ -43,6 +45,10 @@ function kvStore(kv: KVNamespace): CdnStore {
     put: (name, body) => kv.put(name, body),
   };
 }
+
+/** No domínio da CDN só arquivos publicados (GET/HEAD em /cdn/*): nada da API privada. */
+export const cdnOnly = (req: Request) =>
+  (req.method === 'GET' || req.method === 'HEAD') && new URL(req.url).pathname.startsWith('/cdn/');
 
 let app: ReturnType<typeof createApp> | undefined;
 let booting: Promise<ReturnType<typeof createApp>> | undefined;
@@ -91,6 +97,8 @@ async function build(env: Env) {
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext) {
+    if (env.CDN_HOST && new URL(req.url).host === env.CDN_HOST && !cdnOnly(req))
+      return new Response('não encontrado', { status: 404 });
     app ??= await (booting ??= build(env));
     return app.fetch(req, env, ctx);
   },

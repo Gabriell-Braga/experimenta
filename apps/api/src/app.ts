@@ -79,7 +79,28 @@ export interface AppDeps {
   sendMail?: SendMail;
 }
 
-const ProjectOut = z.object({ id: z.string(), name: z.string(), siteUrl: z.string() }).openapi('Project');
+/** Localização (idioma e região) de um site. */
+const LocaleSchema = z.enum(['pt-BR', 'en', 'es']);
+/** Site da conta: nome, URL (o domínio sai dela) e localização. */
+const ProjectOut = z
+  .object({ id: z.string(), name: z.string(), domain: z.string(), siteUrl: z.string(), locale: LocaleSchema })
+  .openapi('Project');
+const ProjectIn = z.object({
+  name: NameSchema,
+  siteUrl: z
+    .string()
+    .url()
+    .max(2000)
+    .refine((u) => /^https?:\/\//i.test(u), 'use http:// ou https://'),
+  locale: LocaleSchema.default('pt-BR'),
+});
+const projectOut = (p: { id: string; name: string; siteUrl: string; locale?: string }) => ({
+  id: p.id,
+  name: p.name,
+  domain: new URL(p.siteUrl).host,
+  siteUrl: p.siteUrl,
+  locale: LocaleSchema.catch('pt-BR').parse(p.locale),
+});
 const ExperimentRecordOut = z
   .object({
     experiment: ExperimentSchema,
@@ -289,10 +310,7 @@ export function createApp(deps: AppDeps) {
     }),
     async (c) => {
       const rows = await repo.listProjects(c.get('user').accountId);
-      return c.json(
-        rows.map(({ id, name, siteUrl }) => ({ id, name, siteUrl })),
-        200,
-      );
+      return c.json(rows.map(projectOut), 200);
     },
   );
 
@@ -302,16 +320,32 @@ export function createApp(deps: AppDeps) {
       path: '/projects',
       tags: ['projects'],
       security,
-      request: {
-        body: json(z.object({ name: NameSchema, siteUrl: z.string().url().max(2000) }), 'novo projeto'),
-      },
+      request: { body: json(ProjectIn, 'novo site') },
       responses: { 201: json(ProjectOut, 'criado'), 401: errors[401], 403: errors[403] },
     }),
     async (c) => {
       const user = c.get('user');
       if (!hasRole(user, 'editor')) return forbid(c);
       const p = await repo.createProject(user.accountId, c.req.valid('json'));
-      return c.json({ id: p.id, name: p.name, siteUrl: p.siteUrl }, 201);
+      return c.json(projectOut(p), 201);
+    },
+  );
+
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/projects/{id}',
+      tags: ['projects'],
+      security,
+      request: { params: IdParam, body: json(ProjectIn, 'site alterado') },
+      responses: { 200: json(ProjectOut, 'salvo'), 401: errors[401], 403: errors[403], 404: errors[404] },
+    }),
+    async (c) => {
+      const user = c.get('user');
+      if (!hasRole(user, 'editor')) return forbid(c);
+      const p = await repo.updateProject(user.accountId, c.req.valid('param').id, c.req.valid('json'));
+      if (!p) return c.json({ error: 'site não encontrado' }, 404);
+      return c.json(projectOut(p), 200);
     },
   );
 

@@ -192,6 +192,19 @@ function CreateModal({
         {formError && (
           <p id="create-error" role="alert" className="text-sm text-red-600" data-testid="create-error">
             {formError}
+            {/Configurar → Sites/.test(formError) && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="font-medium underline"
+                  onClick={() => navigate('sites')}
+                  data-testid="create-add-site"
+                >
+                  Cadastrar site
+                </button>
+              </>
+            )}
           </p>
         )}
         {visual && suggestions.length > 0 && (

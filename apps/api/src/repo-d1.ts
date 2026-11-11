@@ -85,6 +85,7 @@ const toProject = (r: Row) => ({
   accountId: r.account_id as string,
   name: r.name as string,
   siteUrl: r.site_url as string,
+  locale: (r.locale as string | null) ?? 'pt-BR',
   createdAt: date(r.created_at),
 });
 
@@ -405,16 +406,37 @@ export function createD1Repo(d1: D1Like): Repo {
     },
 
     async createProject(accountId, p) {
-      const row = { id: newId('prj'), accountId, name: p.name, siteUrl: p.siteUrl, createdAt: new Date() };
+      const row = {
+        id: newId('prj'),
+        accountId,
+        name: p.name,
+        siteUrl: p.siteUrl,
+        locale: p.locale ?? 'pt-BR',
+        createdAt: new Date(),
+      };
       await q(
-        'INSERT INTO projects (id, account_id, name, site_url, created_at) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO projects (id, account_id, name, site_url, locale, created_at) VALUES (?, ?, ?, ?, ?, ?)',
         row.id,
         accountId,
         row.name,
         row.siteUrl,
+        row.locale,
         row.createdAt.getTime(),
       ).run();
       return row;
+    },
+
+    async updateProject(accountId, id, p) {
+      await q(
+        'UPDATE projects SET name = ?, site_url = ?, locale = ? WHERE account_id = ? AND id = ?',
+        p.name,
+        p.siteUrl,
+        p.locale,
+        accountId,
+        id,
+      ).run();
+      const r = await first('SELECT * FROM projects WHERE account_id = ? AND id = ?', accountId, id);
+      return r ? toProject(r) : undefined;
     },
 
     async listProjects(accountId) {
