@@ -78,6 +78,7 @@ const server = serve(
       cdn,
       editorOrigins,
       jwtSecret,
+      defaultHeatmapSampleRate: Number(process.env.HEATMAP_SAMPLE_RATE ?? 1),
       publish,
       // Ideias de teste com Claude só quando há chave (sem ela, as regras dos insights).
       ai: process.env.ANTHROPIC_API_KEY ? new Anthropic() : undefined,

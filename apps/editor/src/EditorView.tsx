@@ -294,6 +294,8 @@ export function EditorView({ record, user }: Props) {
   const [leaving, setLeaving] = useState(false);
   const [previewLinks, setPreviewLinks] = useState(false);
 
+  /** Versão do registro aberta aqui: a API recusa salvar por cima de quem salvou depois (outra sessão). */
+  const baseUpdatedAt = useRef(record.updatedAt);
   /** Grava na API só se houver mudança. Conflitos são recarregados em segundo plano (não seguram o botão). */
   const persist = useCallback(async () => {
     if (!state.dirty) return null;
@@ -301,7 +303,9 @@ export function EditorView({ record, user }: Props) {
       experiment: state.experiment,
       projectId: record.projectId,
       editorUrl: state.url,
+      updatedAt: baseUpdatedAt.current,
     });
+    baseUpdatedAt.current = r.updatedAt ?? baseUpdatedAt.current;
     dispatch({ type: 'saved' });
     setSavedAt(new Date().toISOString());
     void loadConflicts();
@@ -315,7 +319,12 @@ export function EditorView({ record, user }: Props) {
       const v = await persist();
       toast('success', v ? `Salvo (versão ${v}).` : 'Nada para salvar.');
     } catch (e) {
-      toast('error', `Não foi possível salvar: ${(e as Error).message}`);
+      const stale = (e as { status?: number }).status === 409 && /outra sessão/.test((e as Error).message);
+      toast(
+        'error',
+        `Não foi possível salvar: ${(e as Error).message}`,
+        stale ? { label: 'Recarregar', onClick: () => location.reload() } : undefined,
+      );
     } finally {
       setSaving(false);
     }

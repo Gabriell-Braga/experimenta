@@ -4,7 +4,7 @@ import type { AgentBoot } from '@abtest/snippet/editor';
 import { applyOperations, resetProcessed, type ApplyHandle } from '@abtest/snippet/engine';
 import { watchLocation } from '@abtest/snippet/spa';
 import { createEditing } from './editing';
-import { createHeatmapLayer } from './heatmap';
+import { FREEZE, createHeatmapLayer } from './heatmap';
 import { elementInfo } from './inspect';
 import { createOverlay } from './overlay';
 import { heatmapContext, pageSnapshot } from './summary';
@@ -24,12 +24,37 @@ const BLOCKED = [
   'auxclick',
 ];
 
+/**
+ * Banners de consentimento (CMPs comuns e o do demo) escondidos no editor e no mapa de calor: cobriam o
+ * conteúdo e as manchas e não tinham como sair dali.
+ */
+export const HIDE_CMP =
+  '#onetrust-consent-sdk,#CybotCookiebotDialog,#usercentrics-root,#didomi-host,.cc-window,.cky-consent-container,#cookie-law-info-bar,#cmplz-cookiebanner-container,[role=dialog][aria-label=Cookies i],[id*=cookie-banner i],[class*=cookie-banner i]{display:none!important}';
+
 /** `parent`: janela do app (injetável nos testes). */
 export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.parent) {
   const doc = win.document;
   const overlay = createOverlay(doc);
   const heatmap = createHeatmapLayer(doc, overlay.root, (st) => peer.emit('heatmapStatus', st));
   let mode: 'edit' | 'browse' = 'edit';
+  const hideCmp = Object.assign(doc.createElement('style'), { textContent: HIDE_CMP });
+  hideCmp.setAttribute('data-abt-editor', '');
+  // Modo Editar: animações paradas e intervalos do site suspensos (snippet, `freezeTimers`) para um carrossel
+  // não trocar de slide entre o clique e a edição.
+  const freeze = Object.assign(doc.createElement('style'), { textContent: FREEZE });
+  freeze.setAttribute('data-abt-editor', '');
+  // Mapa de calor aberto também segura os intervalos (no celular o carrossel abria num slide sem cliques).
+  let heatOn = false;
+  const setFrozen = (on: boolean) => {
+    on = on || heatOn;
+    const html = doc.documentElement;
+    if (on) html.setAttribute('data-abt-freeze', '');
+    else html.removeAttribute('data-abt-freeze');
+    if (!hideCmp.isConnected) (doc.head ?? html).append(hideCmp);
+    if (on && !freeze.isConnected) (doc.head ?? html).append(freeze);
+    if (!on) freeze.remove();
+  };
+  setFrozen(true);
   let selected: Element | null = null;
   let variation: { handle?: ApplyHandle; style?: HTMLStyleElement; script?: HTMLScriptElement } = {};
 
@@ -135,6 +160,7 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
       ping: info,
       setMode: ({ mode: m }) => {
         mode = m;
+        setFrozen(m === 'edit');
         editing.finishEdit(true);
         overlay.hideMenu();
         overlay.setHover(null);
@@ -148,10 +174,16 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
         el?.scrollIntoView?.({ block: 'center' });
         return el ? elementInfo(el) : null;
       },
-      showHeatmap: (data) => heatmap.show(data),
+      showHeatmap: (data) => {
+        heatOn = true;
+        setFrozen(true);
+        return heatmap.show(data);
+      },
       pageSummary: () => pageSnapshot(doc),
       heatmapContext: ({ selectors }) => heatmapContext(doc, selectors),
       hideHeatmap: () => {
+        heatOn = false;
+        setFrozen(mode === 'edit');
         heatmap.hide();
         return {};
       },
@@ -171,6 +203,9 @@ export function startAgent(win: Window, boot: AgentBoot, parent: Window = win.pa
     editing,
     destroy() {
       heatmap.hide();
+      heatOn = false;
+      setFrozen(false);
+      hideCmp.remove();
       editing.destroy();
       peer.dispose();
       mo.disconnect();

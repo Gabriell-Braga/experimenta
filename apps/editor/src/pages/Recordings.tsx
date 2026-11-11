@@ -144,14 +144,14 @@ export function RecordingsPage({ params }: { params: URLSearchParams }) {
       ))}
     </select>
   );
-  const rate = settings?.heatmapSampleRate;
+  const rate = settings?.heatmapSampleRate ?? settings?.defaultHeatmapSampleRate;
 
   return (
     <>
       <PageHeader
         eyebrow="Insights"
         title="Gravações de sessão"
-        description={`Assista à visita como o visitante viu: cliques, scroll, navegação e frustração. Campos de formulário sempre mascarados. Amostragem: ${rate == null ? 'padrão do servidor' : `${Math.round(rate * 1000) / 10}% dos visitantes`}.`}
+        description={`Assista à visita como o visitante viu: cliques, scroll, navegação e frustração. Campos de formulário sempre mascarados. ${rate == null ? '' : ` Amostragem: ${Math.round(rate * 1000) / 10}% das sessões gravadas${settings?.heatmapSampleRate == null ? ' (padrão do servidor)' : ''}.`}`}
         actions={<Segmented label="Período" value={days} onChange={setDays} options={PERIODS} />}
       />
       <div className="mt-5 flex flex-wrap items-center gap-2.5">

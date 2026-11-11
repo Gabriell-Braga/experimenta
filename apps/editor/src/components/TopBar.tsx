@@ -20,6 +20,10 @@ import { CAMPAIGNS } from '../campaigns';
 import { useState, type ReactNode } from 'react';
 import { Button, Spinner, StatusBadge, timeAgo } from '../ui';
 
+/** Alterações da variação no contador da barra: as do site mais CSS e JS próprios (cada um conta 1). */
+const changeCount = (v: { operations: unknown[]; customCSS?: string; customJS?: string }) =>
+  v.operations.length + (v.customCSS?.trim() ? 1 : 0) + (v.customJS?.trim() ? 1 : 0);
+
 export type Mode = 'edit' | 'browse' | 'preview' | 'heatmap';
 export type Device = 'desktop' | 'tablet' | 'mobile';
 
@@ -135,8 +139,8 @@ function MvtTabs({
               className={`flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[13px] whitespace-nowrap ${o.id === activeId ? 'bg-lime-soft font-medium text-ink ring-1 ring-brand-200' : 'text-gray-600 hover:bg-gray-100'}`}
             >
               {name(o.id, o.name, '')}
-              {o.operations.length > 0 && (
-                <span className="tabular font-mono text-[11px] text-gray-500">({o.operations.length})</span>
+              {changeCount(o) > 0 && (
+                <span className="tabular font-mono text-[11px] text-gray-500">({changeCount(o)})</span>
               )}
               {i > 0 && sec.options.length > 2 && o.id === activeId && (
                 <span
@@ -276,7 +280,7 @@ export function TopBar(p: Props) {
           onClick={p.onPreviewLink}
           data-testid="open-preview-links"
           title="Link de pré-visualização: mostra o rascunho no site, sem publicar"
-          className="whitespace-nowrap"
+          className="shrink-0 whitespace-nowrap"
         >
           <Link2 size={15} aria-hidden="true" />{' '}
           <span className="sr-only 2xl:not-sr-only">Pré-visualizar</span>
@@ -341,8 +345,13 @@ export function TopBar(p: Props) {
                   {i === 0 ? 'C' : `V${i}`}
                 </span>
                 {v.name}
-                {v.operations.length > 0 && (
-                  <span className="tabular font-mono text-[11px] text-gray-500">({v.operations.length})</span>
+                {changeCount(v) > 0 && (
+                  <span
+                    className="tabular font-mono text-[11px] text-gray-500"
+                    title="Alterações no site + CSS e JS da variação"
+                  >
+                    ({changeCount(v)})
+                  </span>
                 )}
               </button>
             ))}

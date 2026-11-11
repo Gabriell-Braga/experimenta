@@ -60,7 +60,7 @@ test('aprovação desligada: editor publica direto; só owner liga; configuraç�
   expect((await approval(true)).status).toBe(200);
   // Cliente que não manda o campo (só a amostragem) não desliga a aprovação.
   expect((await send('PUT', '/account/settings', { heatmapSampleRate: 0.5 })).status).toBe(200);
-  expect(await t.get('/account/settings', 'viewer')).toEqual({
+  expect(await t.get('/account/settings', 'viewer')).toMatchObject({
     heatmapSampleRate: 0.5,
     requireApproval: true,
   });

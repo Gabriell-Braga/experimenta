@@ -1,5 +1,5 @@
 import { MousePointerClick, X } from 'lucide-react';
-import type { Audience, Experiment, Goal, UrlRule } from '@abtest/shared';
+import { KeySchema, type Audience, type Experiment, type Goal, type UrlRule } from '@abtest/shared';
 import { useState, type Dispatch, type ReactNode } from 'react';
 import { entities, type Entity } from '../api';
 import { describeRule } from '../pages/Audiences';
@@ -329,6 +329,7 @@ export function SettingsPanel({
   const [goalError, setGoalError] = useState('');
   const [focusLast, setFocusLast] = useState(false);
   const [trafficError, setTrafficError] = useState('');
+  const [keyError, setKeyError] = useState('');
   const urls = experiment.segmentation.urls;
   const setUrls = (next: UrlRule[]) => patch({ segmentation: { ...experiment.segmentation, urls: next } });
 
@@ -350,6 +351,37 @@ export function SettingsPanel({
                 }
               />
             </label>
+
+            {experiment.status === 'draft' && (
+              <label className="flex flex-col gap-1">
+                <span className="text-gray-600">Chave (modo QA, SDKs e eventos)</span>
+                <input
+                  key={experiment.key}
+                  defaultValue={experiment.key}
+                  aria-invalid={!!keyError}
+                  className={`${input} font-mono text-xs ${keyError ? 'border-red-500' : ''}`}
+                  data-testid="experiment-key"
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    const ok = KeySchema.safeParse(v).success;
+                    const msg = ok ? '' : 'Use minúsculas, números, - e _ (começando por letra ou número).';
+                    setKeyError(msg);
+                    onFieldError(msg);
+                    if (ok && v !== experiment.key) patch({ key: v });
+                  }}
+                />
+                {keyError ? (
+                  <span role="alert" className="text-xs text-red-600">
+                    {keyError}
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">
+                    Editável só no rascunho: depois de publicado, mudar a chave quebra links de QA e
+                    integrações.
+                  </span>
+                )}
+              </label>
+            )}
 
             <label className="flex flex-col gap-1">
               <span className="text-gray-600">Hipótese</span>

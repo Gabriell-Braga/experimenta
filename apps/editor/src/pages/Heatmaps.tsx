@@ -9,6 +9,7 @@ import {
   listExperiments,
   query,
   type ExperimentRecord,
+  type ExperimentSummary,
   type HeatmapFilters,
 } from '../api';
 import { AiSummaryCard } from '../components/AiSummary';
@@ -16,7 +17,7 @@ import { HeatmapPanel, type HeatmapResult } from '../components/HeatmapPanel';
 import { DEVICE_WIDTH, type Device } from '../components/TopBar';
 import { connectAgent, type AgentPeer } from '../connection';
 import { domainsOf, loadHiddenDomains, saveHiddenDomains, withoutDomains } from '../domains';
-import { navigate } from '../nav';
+import { navigate, setParams } from '../nav';
 import {
   Button,
   EmptyState,
@@ -139,9 +140,37 @@ export function HeatmapsPage() {
   );
 }
 
-/** Domínios escondidos nas listas de insights, lembrados neste navegador (localStorage). */
+const STATUS_SHORT: Record<string, string> = {
+  draft: 'rascunho',
+  running: 'no ar',
+  paused: 'pausado',
+  archived: 'arquivado',
+};
+/** Página sem parâmetros, # e barra final: a mesma rota com UTM conta como a mesma página. */
+const pageKey = (u: string) => {
+  try {
+    const x = new URL(u);
+    return x.host + x.pathname.replace(/\/$/, '');
+  } catch {
+    return u;
+  }
+};
+/** Filtro do mapa: só os experimentos desta página, com status e chave (havia vários "Smoke" iguais). */
+export const pageExperiments = (list: ExperimentSummary[], page: string) =>
+  list
+    .filter((e) => pageKey(e.editorUrl) === pageKey(page))
+    .map((e) => ({ id: e.id, name: `${e.name} · ${STATUS_SHORT[e.status] ?? e.status} · ${e.key}` }));
+
+/**
+ * Domínios escondidos nas listas de insights: vão na URL (`?ocultos=`, link compartilhado abre igual) e
+ * ficam lembrados neste navegador (localStorage) para quando a URL não traz nada.
+ */
 export function useHiddenDomains() {
-  const [hidden, set] = useState(loadHiddenDomains);
+  const [hidden, set] = useState(() => {
+    const q = new URLSearchParams(location.search).get('ocultos');
+    return q === null ? loadHiddenDomains() : q.split(',').filter(Boolean);
+  });
+  useEffect(() => setParams({ ocultos: hidden.join(',') || undefined }), [hidden]);
   const update = (h: string[]) => {
     set(h);
     saveHiddenDomains(h);
@@ -353,7 +382,7 @@ export function HeatmapViewer({ url, days }: { url: string; days?: string | null
         </main>
         <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-900/10 bg-white">
           <HeatmapPanel
-            experiments={experiments ?? []}
+            experiments={pageExperiments(experiments ?? [], current)}
             variations={record?.experiment.variations}
             mode={mode}
             onMode={setMode}

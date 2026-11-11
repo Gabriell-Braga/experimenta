@@ -81,6 +81,7 @@ async function build(env: Env) {
     cdn,
     editorOrigins: env.EDITOR_ORIGINS.split(','),
     jwtSecret: env.JWT_SECRET,
+    defaultHeatmapSampleRate: Number(env.HEATMAP_SAMPLE_RATE ?? 1),
     sessions: createD1SessionStore(d1),
     publish,
     ai: env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: env.ANTHROPIC_API_KEY }) : undefined,

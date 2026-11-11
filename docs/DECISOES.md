@@ -688,3 +688,5 @@ Fontes: help.vwo.com (artigos 360037883434, 360020440754, 900001789546), speedcu
 - Abrir link de pré-visualização ou `?ab_force` conta como consentimento do próprio testador (a intenção é explícita); a recusa posterior pelo banner continua desligando tudo.
 - Avisos (toasts) num popover reaberto a cada aviso: entram na camada do topo acima de `<dialog>` modal, sem mexer em cada janela.
 - Publicação: o texto diz o tempo real (~6 min: `max-age=300` + revalidação na visita seguinte) em vez de baixar o cache e aumentar requisições ao Worker.
+- Modo Editar congela o site: o snippet embrulha `setInterval` no modo edição (ciclos pulados com `html[data-abt-freeze]`), o que para o autoplay de carrosséis criados pelos scripts do site; cadeias de `setTimeout` não são cobertas (limite conhecido). Sites abertos pela extensão (sem snippet) só têm o congelamento de CSS.
+- Concorrência no editor: trava otimista por `updatedAt` (`baseUpdatedAt` no PUT, 409 se mudou). Sem migração.

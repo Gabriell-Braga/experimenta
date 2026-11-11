@@ -61,6 +61,8 @@ export interface AppDeps {
   editorOrigins: string[];
   jwtSecret: string;
   sessions?: SessionStore;
+  /** Amostragem padrão do servidor (HEATMAP_SAMPLE_RATE), mostrada nas telas quando a conta não define. */
+  defaultHeatmapSampleRate?: number;
   /** Publicação (tarefa 4.3); injetada para não acoplar a API ao disco nos testes. */
   publish?: (accountId: string, user: User) => Promise<PublishResult>;
   /** Cliente da API do Claude (só com ANTHROPIC_API_KEY); sem ele as ideias vêm das regras. */
@@ -87,7 +89,13 @@ const ExperimentRecordOut = z
   })
   .openapi('ExperimentRecord');
 const ExperimentInput = z
-  .object({ projectId: z.string(), editorUrl: z.string().url(), experiment: ExperimentSchema })
+  .object({
+    projectId: z.string(),
+    editorUrl: z.string().url(),
+    experiment: ExperimentSchema,
+    /** `updatedAt` do registro que o editor abriu: se mudou desde então, outra sessão salvou (409). */
+    baseUpdatedAt: z.string().optional(),
+  })
   .openapi('ExperimentInput');
 const IdParam = z.object({ id: z.string().openapi({ param: { name: 'id', in: 'path' } }) });
 
@@ -343,7 +351,7 @@ export function createApp(deps: AppDeps) {
     },
   );
 
-  const save = (user: User, body: z.infer<typeof ExperimentInput>) =>
+  const save = (user: User, { baseUpdatedAt: _, ...body }: z.infer<typeof ExperimentInput>) =>
     repo.saveExperiment(user.accountId, { ...body, userId: user.id });
   /** URLs do teste (página do editor, páginas do funil, redirecionamentos) só nos sites do workspace e sem dado pessoal. */
   const urlError = async (accountId: string, editorUrl: string, e: Experiment, projectId?: string) => {
@@ -416,10 +424,10 @@ export function createApp(deps: AppDeps) {
       security,
       request: { params: IdParam, body: json(ExperimentInput, 'experimento completo') },
       responses: {
-        200: json(z.object({ version: z.number() }), 'salvo (nova versão)'),
+        200: json(z.object({ version: z.number(), updatedAt: z.string() }), 'salvo (nova versão)'),
         ...errors,
         400: json(ErrorSchema, 'inválido'),
-        409: json(ErrorSchema, 'chave já usada'),
+        409: json(ErrorSchema, 'chave já usada ou alterado em outra sessão'),
       },
     }),
     async (c) => {
@@ -430,8 +438,22 @@ export function createApp(deps: AppDeps) {
         return c.json({ error: 'id do corpo difere da URL' }, 400);
       const bad = await urlError(user.accountId, body.editorUrl, body.experiment, body.projectId);
       if (bad) return c.json({ error: bad }, 400);
+      const id = body.experiment.id;
+      if (body.baseUpdatedAt) {
+        const cur = await repo.getExperiment(user.accountId, id);
+        if (cur && cur.updatedAt.toISOString() !== body.baseUpdatedAt)
+          return c.json(
+            {
+              error:
+                'Este experimento foi alterado em outra sessão depois que você o abriu. Recarregue para ver a versão atual (suas mudanças daqui não foram salvas).',
+            },
+            409,
+          );
+      }
       try {
-        return c.json({ version: await save(user, body) }, 200);
+        const version = await save(user, body);
+        const updatedAt = (await repo.getExperiment(user.accountId, id))!.updatedAt.toISOString();
+        return c.json({ version, updatedAt }, 200);
       } catch (e) {
         if (e instanceof NotFoundError) return c.json({ error: e.message }, 404);
         return c.json({ error: 'chave de experimento já usada nesta conta' }, 409);
@@ -831,6 +853,8 @@ export function createApp(deps: AppDeps) {
       heatmapSampleRate: z.number().min(0).max(1).nullable(),
       /** Publicação passa por aprovação (owner ou "publica JS"); ausente = mantém. */
       requireApproval: z.boolean().optional(),
+      /** Só leitura: padrão do servidor que vale quando `heatmapSampleRate` é null. */
+      defaultHeatmapSampleRate: z.number().optional(),
     })
     .openapi('AccountSettings');
 
@@ -843,7 +867,14 @@ export function createApp(deps: AppDeps) {
       summary: 'Configurações da conta (amostragem do mapa de calor)',
       responses: { 200: json(AccountSettingsSchema, 'configurações'), ...errors },
     }),
-    async (c) => c.json(await repo.getAccountSettings(c.get('user').accountId), 200),
+    async (c) =>
+      c.json(
+        {
+          ...(await repo.getAccountSettings(c.get('user').accountId)),
+          defaultHeatmapSampleRate: deps.defaultHeatmapSampleRate ?? 1,
+        },
+        200,
+      ),
   );
 
   app.openapi(

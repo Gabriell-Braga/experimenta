@@ -223,8 +223,8 @@ PDF "Conversion Rate Optimization.pdf" (3 itens) e relatório "Rodada 2" (23 pro
 - [x] 22.1 Configuração do experimento: Concluir confere os 4 passos, pesos em % que somam 100, tráfego fora de 0–100 bloqueia com erro no campo, avisos (peso 0, variação sem alteração, tráfego 0) no Preview e QA e ao concluir, status "vale ao publicar", aviso de pausa em português, "publicação N" e tempo real de propagação
 - [x] 22.2 Avisos e janelas: erro da criação dentro do modal, avisos acima de modais, modal com nome acessível
 - [x] 22.3 Snippet: regra de URL "é" ignora parâmetros; preview e modo QA antes do consentimento; painel de QA avisa experimento forçado ausente
-- [ ] 22.4 Editor visual: carrossel e animações pausados no modo Editar, banner de cookies ocultável no editor e no mapa, texto aplica enquanto digita, contador conta CSS/JS, nome não sobrescrito e aviso de alteração em outra sessão, Pré-visualizar sem quebra
-- [ ] 22.5 Telas: filtro de experimento do mapa só da página, chave editável no rascunho, nomes consistentes (Rollouts, Pop-ups), status coerente no relatório, insights no período escolhido, filtro de domínio na URL, amostragem com número, categoria padrão do OneTrust, mapa no celular com carrossel, /loja numa linha só
+- [x] 22.4 Editor visual: carrossel e animações pausados no modo Editar, banner de cookies ocultável no editor e no mapa, texto aplica enquanto digita, contador conta CSS/JS, nome não sobrescrito e aviso de alteração em outra sessão, Pré-visualizar sem quebra
+- [x] 22.5 Telas: filtro de experimento do mapa só da página, chave editável no rascunho, nomes consistentes (Rollouts, Pop-ups), status coerente no relatório, insights no período escolhido, filtro de domínio na URL, amostragem com número, categoria padrão do OneTrust, mapa no celular com carrossel, /loja numa linha só
 
 ## Regras gerais
 - Código limpo, modular e tipado. Nada de dependências pesadas no snippet.

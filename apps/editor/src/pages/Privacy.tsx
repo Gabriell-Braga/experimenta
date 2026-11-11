@@ -112,7 +112,11 @@ export function ConsentCard({
             <select
               value={form.cmp}
               disabled={!canEdit}
-              onChange={(e) => set({ cmp: e.target.value as Consent['cmp'], category: '' })}
+              onChange={(e) => {
+                // Já vem com a categoria padrão do CMP (antes ficava vazia, com o padrão só de exemplo).
+                const next = e.target.value as Consent['cmp'];
+                set({ cmp: next, category: CMPS[next].category });
+              }}
               className={`${selectCls} mt-1 w-full`}
               data-testid="consent-cmp"
             >
@@ -130,6 +134,7 @@ export function ConsentCard({
                 value={form.category}
                 disabled={!canEdit}
                 onChange={(e) => set({ category: e.target.value })}
+                onBlur={() => !form.category.trim() && set({ category: cmp.category })}
                 placeholder={cmp.category}
                 className={`${inputCls} mt-1 font-mono text-xs`}
                 data-testid="consent-category"

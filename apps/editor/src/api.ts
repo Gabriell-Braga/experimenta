@@ -67,6 +67,8 @@ export interface ExperimentRecord {
   experiment: Experiment;
   projectId: string;
   editorUrl: string;
+  /** Do GET; enviado de volta como `baseUpdatedAt` para a API recusar se outra sessão salvou antes. */
+  updatedAt?: string;
 }
 
 export class ApiError extends Error {
@@ -328,16 +330,21 @@ export async function getExperiment(id: string): Promise<ExperimentRecord> {
   return { ...r, experiment: ExperimentSchema.parse(r.experiment) };
 }
 
-export function saveExperiment(rec: ExperimentRecord, isNew = false): Promise<{ version: number }> {
+export function saveExperiment(
+  { updatedAt, ...rec }: ExperimentRecord,
+  isNew = false,
+): Promise<{ version: number; updatedAt?: string }> {
   return api(isNew ? '/experiments' : `/experiments/${encodeURIComponent(rec.experiment.id)}`, {
     method: isNew ? 'POST' : 'PUT',
-    body: JSON.stringify(rec),
+    body: JSON.stringify(isNew ? rec : { ...rec, baseUpdatedAt: updatedAt }),
   });
 }
 
 export interface AccountSettings {
   /** Fração 0..1; null = padrão do servidor. */
   heatmapSampleRate: number | null;
+  /** Só leitura: o que vale quando `heatmapSampleRate` é null. */
+  defaultHeatmapSampleRate?: number;
   /** Publicação passa por aprovação (owner ou "publica JS"). */
   requireApproval?: boolean;
 }

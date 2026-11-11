@@ -812,3 +812,9 @@
 - Arquivos: apps/editor/src/{store.ts,EditorView.tsx,ui.tsx,components/SettingsPanel.tsx,pages/Experiments.tsx}, packages/snippet/src/{segment,main,qapanel,qa-entry}.ts, E2E (fechar configurações pelo X; textos de publicação).
 - Testes: `pnpm test`, `pnpm lint`, E2E publish-flow/loja/extension. Runtime 9.944 B gzip.
 - Observações: D-109.
+
+### 2026-11-11 17:50 — Tarefas 22.4 e 22.5 concluídas (Fase 22 fechada)
+- 22.4 Editor visual: modo Editar e mapa de calor congelam o site — animações CSS no estado final e intervalos do site suspensos (`freezeTimers` no snippet, instalado antes dos scripts do site, ativo com `html[data-abt-freeze]` posto pelo agent). Banners de consentimento (OneTrust, Cookiebot, Usercentrics, Didomi, o do demo…) escondidos no editor e no mapa. Campo Texto aplica enquanto digita (uma entrada no histórico). Contador da variação soma CSS e JS. Pré-visualizar não encolhe. Salvar manda `baseUpdatedAt`: se outra sessão salvou antes, a API responde 409 e o editor oferece "Recarregar" em vez de sobrescrever (nome, alterações).
+- 22.5 Telas: filtro de experimento do mapa só com os testes da página (com status e chave); chave editável enquanto rascunho; menu "Rollout" e aba "Pop-ups e barras"; relatório com "Coletando" na tabela e ícone de ampulheta antes da amostra; título dos insights explica os 7 dias fixos; domínios ocultos na URL (`?ocultos=`); gravações mostram a % amostrada (padrão do servidor vem em `GET /account/settings`); OneTrust/Cookiebot/GCM já preenchem a categoria padrão.
+- Não feito: /loja em duas linhas (o agrupamento por `normalizePage` já junta título e caminho; não reproduzi sem os dados de produção); snippet em CDN separada (infra, D-109); itens "não verificados" da rodada 1 seguem pendentes de teste no celular.
+- Testes: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm e2e` (120 passaram). Runtime 10.008 B gzip.

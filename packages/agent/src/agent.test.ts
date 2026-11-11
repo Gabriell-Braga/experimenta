@@ -447,3 +447,15 @@ describe('agent: mover / redimensionar', () => {
     ]);
   });
 });
+
+test('modo Editar congela o site (carrossel parado) e esconde banner de cookies; Navegar solta', async () => {
+  const html = document.documentElement;
+  expect(html.hasAttribute('data-abt-freeze')).toBe(true);
+  expect([...document.querySelectorAll('style[data-abt-editor]')].map((s) => s.textContent).join()).toMatch(
+    /animation-duration:0s.*|CybotCookiebotDialog/,
+  );
+  await call('setMode', { mode: 'browse' });
+  expect(html.hasAttribute('data-abt-freeze')).toBe(false);
+  await call('setMode', { mode: 'edit' });
+  expect(html.hasAttribute('data-abt-freeze')).toBe(true);
+});

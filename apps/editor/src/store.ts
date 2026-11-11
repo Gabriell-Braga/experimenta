@@ -47,6 +47,7 @@ export type Action =
         Pick<
           Experiment,
           | 'name'
+          | 'key'
           | 'hypothesis'
           | 'status'
           | 'traffic'

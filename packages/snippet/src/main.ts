@@ -49,6 +49,7 @@ if (config && token) {
   // Modo edição: a página fica original (sem experimentos); o agent aplica a variação em edição.
   // A marca avisa a extensão (fallback) de que o site já tem o snippet.
   document.documentElement.dataset.abtEditor = 'snippet';
+  freezeTimers(window);
   loadBundle(window, sibling('edit.js'), '__ABT_EDIT__', { config, token, agent: sibling('agent.js') });
 } else if (config) {
   const pending = Array.isArray(window.abq) ? window.abq : [];
@@ -59,6 +60,19 @@ if (config && token) {
   // Processa o que o site enfileirou antes do snippet e troca a fila por um executor imediato.
   window.abq = { push: run as (c: Command) => void };
   pending.forEach(run);
+}
+
+/**
+ * Modo edição: intervalos do site (autoplay de carrossel) pulam os ciclos enquanto o agent marca
+ * `html[data-abt-freeze]`. Instalado antes dos scripts do site, então pega os intervalos criados por eles.
+ * ponytail: só setInterval; carrossel com cadeia de setTimeout continua girando (só o CSS fica parado).
+ */
+function freezeTimers(w: Window) {
+  const si = w.setInterval;
+  w.setInterval = ((cb: TimerHandler, ms?: number, ...a: unknown[]) =>
+    si(() => {
+      if (!w.document.documentElement.hasAttribute('data-abt-freeze') && typeof cb == 'function') cb(...a);
+    }, ms)) as typeof si;
 }
 
 /** Liga testes, coleta e bundles sob demanda. Só roda com consentimento (ou sem exigência na conta). */

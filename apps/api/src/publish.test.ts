@@ -167,14 +167,14 @@ describe('publicação', () => {
       call('/account/settings', as, { method: 'PUT', body: JSON.stringify(body) });
     const published = () =>
       PublishedConfigSchema.parse(JSON.parse(readFileSync(join(cdnDir, 'demo.json'), 'utf8')));
-    expect(await (await call('/account/settings', 'viewer')).json()).toEqual({
+    expect(await (await call('/account/settings', 'viewer')).json()).toMatchObject({
       heatmapSampleRate: null,
       requireApproval: false,
     });
     expect((await put('editor', { heatmapSampleRate: 0.5 })).status).toBe(403);
     expect((await put('owner', { heatmapSampleRate: 2 })).status).toBe(400);
     expect((await put('owner', { heatmapSampleRate: 0.25 })).status).toBe(200);
-    expect(await (await call('/account/settings', 'viewer')).json()).toEqual({
+    expect(await (await call('/account/settings', 'viewer')).json()).toMatchObject({
       heatmapSampleRate: 0.25,
       requireApproval: false,
     });

@@ -1,5 +1,14 @@
 import { remainingDuration, type ReportSummary } from '@abtest/shared';
-import { ArrowLeft, Download, Lightbulb, Pencil, Printer, TriangleAlert, Trophy } from 'lucide-react';
+import {
+  ArrowLeft,
+  Download,
+  Hourglass,
+  Lightbulb,
+  Pencil,
+  Printer,
+  TriangleAlert,
+  Trophy,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   getExperiment,
@@ -52,8 +61,10 @@ const VERDICT: Record<Verdict, [string, string]> = {
   baseline: ['Base', 'bg-gray-100 text-gray-500'],
 };
 
-export function VerdictTag({ v }: { v: Verdict }) {
-  const [label, cls] = VERDICT[v];
+/** `collecting`: antes da amostra planejada a manchete diz "ainda coletando"; a tabela diz o mesmo. */
+export function VerdictTag({ v, collecting }: { v: Verdict; collecting?: boolean }) {
+  const [label, cls] =
+    collecting && v !== 'baseline' ? ['Coletando', 'bg-gray-100 text-gray-600'] : VERDICT[v];
   return (
     <span
       className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wide uppercase ${cls}`}
@@ -126,7 +137,7 @@ function Probability({ p }: { p: number | null }) {
 const pFmt = (p: number | null) =>
   p === null ? 'n/d' : p < 0.001 ? '<0,001' : p.toFixed(3).replace('.', ',');
 
-function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
+function GoalTable({ goal, names, ready }: { goal: GoalReport; names: string[]; ready: boolean }) {
   // Teste sequencial ligado: p e intervalo da melhoria sempre válidos (pode olhar a qualquer momento).
   const seq = goal.arms.some((a) => a.sequential !== undefined);
   const lows = goal.arms.map((a) => a.rateLow);
@@ -170,7 +181,7 @@ function GoalTable({ goal, names }: { goal: GoalReport; names: string[] }) {
               <td className="py-2.5 pr-3">
                 <span className="flex items-center gap-2">
                   <VariationTag index={i} name={names[i] ?? a.variationId} />
-                  <VerdictTag v={a.verdict} />
+                  <VerdictTag v={a.verdict} collecting={!ready} />
                   {a.guardrailViolated && (
                     <span
                       className="flex items-center gap-1 font-mono text-[10px] text-signal uppercase"
@@ -670,7 +681,11 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
           <section className="rounded-lg border border-gray-900/10 bg-white p-5">
             <div className="flex flex-wrap items-start gap-5">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-ink text-lime">
-                <Trophy size={20} aria-hidden="true" />
+                {report.maturity.ready ? (
+                  <Trophy size={20} aria-hidden="true" />
+                ) : (
+                  <Hourglass size={20} aria-hidden="true" />
+                )}
               </div>
               <div className="min-w-0 flex-1 font-display text-[22px] leading-snug text-ink">
                 <Headline
@@ -885,7 +900,7 @@ export function ReportPage({ id, params, user }: { id: string; params: URLSearch
                             . Taxa exibida é a observada; intervalo, melhoria e chances vêm do ajuste.
                           </p>
                         )}
-                        <GoalTable goal={goal} names={names} />
+                        <GoalTable goal={goal} names={names} ready={report.maturity.ready} />
                       </Card>
                       {goal.sections && <SectionsCard goal={goal} />}
                       {goal.hasRevenue && (

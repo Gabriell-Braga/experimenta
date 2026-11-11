@@ -277,7 +277,7 @@ export function PopupsPage({ user }: { user: Me }) {
     reloadStats();
   };
   useEffect(() => {
-    document.title = 'Pop-ups · Experimenta';
+    document.title = 'Pop-ups e barras · Experimenta';
   }, []);
   const toggle = async (e: Entity<Popup>) => {
     try {

@@ -201,7 +201,7 @@ export function DashboardPage() {
       />
       <div className="mt-6 space-y-5" data-testid="dashboard">
         <Card
-          title={`Insights automáticos${insights?.length ? ` (${insights.length})` : ''}${n > 7 ? ' · últimos 7 dias' : ''}`}
+          title={`Insights automáticos${insights?.length ? ` (${insights.length})` : ''}${n > 7 ? ' · sempre os 7 dias mais recentes, para mostrar o que mudou agora' : ''}`}
         >
           {insights ? <Insights list={insights} /> : <Pending error={ins.error} retry={ins.reload} />}
         </Card>

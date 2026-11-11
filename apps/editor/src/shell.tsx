@@ -80,7 +80,7 @@ export const NAV: NavGroup[] = [
     items: [
       { view: 'tests', label: 'Experimentos', icon: FlaskConical },
       { view: 'tests:personalization', label: 'Personalização', icon: UserRoundCog },
-      { view: 'tests:rollout', label: 'Rollouts', icon: Rocket },
+      { view: 'tests:rollout', label: 'Rollout', icon: Rocket },
       { view: 'tests:server', label: 'Server-side', icon: Server },
       { view: 'flags', label: 'Feature flags', icon: ToggleRight },
       { view: 'groups', label: 'Grupos exclusivos', icon: Layers },

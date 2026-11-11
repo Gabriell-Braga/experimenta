@@ -26,7 +26,7 @@ export function heatColor(a: number): [number, number, number] {
  * (carrossel CSS parado, slide que entra com fade aparece já visível). `animation-play-state: paused` não
  * serve: congelaria o slide novo no primeiro quadro do fade (invisível).
  */
-const FREEZE =
+export const FREEZE =
   '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition:none!important;scroll-behavior:auto!important}';
 
 export interface HeatmapStatus {

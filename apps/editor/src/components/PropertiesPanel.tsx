@@ -136,16 +136,15 @@ export function PropertiesPanel({ info, operations, onUpsert, onSelectSelector }
 
       {info.textOnly && !info.isImage && (
         <Section title="Texto">
+          {/* Aplica no site enquanto digita; a digitação vira uma entrada só no histórico. */}
           <textarea
-            key={textOp?.type === 'setText' ? textOp.value : info.text}
-            defaultValue={textOp?.type === 'setText' ? textOp.value : info.text}
+            value={textOp?.type === 'setText' ? textOp.value : info.text}
             data-testid="prop-text"
             rows={3}
             className="rounded border border-gray-300 p-2 text-sm"
-            onBlur={(e) => {
-              const cur = textOp?.type === 'setText' ? textOp.value : info.text;
-              if (e.target.value !== cur) onUpsert({ type: 'setText', target, value: e.target.value });
-            }}
+            onChange={(e) =>
+              onUpsert({ type: 'setText', target, value: e.target.value }, `text:${target.selector}`)
+            }
           />
           <details className="text-xs text-gray-500">
             <summary className="cursor-pointer font-mono text-[11px]">conteúdo dinâmico</summary>

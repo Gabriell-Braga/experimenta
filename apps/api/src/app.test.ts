@@ -147,7 +147,7 @@ describe('experimentos e permissões', () => {
       as: 'editor',
       body: JSON.stringify({ ...body, experiment: { ...body.experiment, name: 'Hero 2' } }),
     });
-    expect(await upd.json()).toEqual({ version: 2 });
+    expect(await upd.json()).toMatchObject({ version: 2 });
     const got = (await (await req('/experiments/exp_1', { as: 'viewer' })).json()) as {
       experiment: { name: string };
     };
@@ -159,6 +159,33 @@ describe('experimentos e permissões', () => {
     }[];
     expect(versions.map((v) => v.version)).toEqual([2, 1]);
     expect((await req('/experiments/exp_1', { method: 'DELETE', as: 'viewer' })).status).toBe(403);
+  });
+
+  test('salvar por cima de outra sessão → 409 (baseUpdatedAt)', async () => {
+    const body = {
+      projectId,
+      editorUrl: 'http://localhost:5180/',
+      experiment: experiment('exp_lock', 'lock'),
+    };
+    await req('/experiments', { method: 'POST', as: 'editor', body: JSON.stringify(body) });
+    const { updatedAt } = (await (await req('/experiments/exp_lock', { as: 'editor' })).json()) as {
+      updatedAt: string;
+    };
+    await new Promise((r) => setTimeout(r, 5));
+    const put = (base: string) =>
+      req('/experiments/exp_lock', {
+        method: 'PUT',
+        as: 'editor',
+        body: JSON.stringify({ ...body, baseUpdatedAt: base }),
+      });
+    const first = await put(updatedAt);
+    expect(first.status).toBe(200);
+    const next = ((await first.json()) as { updatedAt: string }).updatedAt;
+    expect(next).not.toBe(updatedAt);
+    const stale = await put(updatedAt);
+    expect(stale.status).toBe(409);
+    expect(((await stale.json()) as { error: string }).error).toMatch(/outra sessão/);
+    expect((await put(next)).status).toBe(200);
   });
 
   test('validação: experimento inválido → 400; id diferente na URL → 400; chave repetida → 409', async () => {
